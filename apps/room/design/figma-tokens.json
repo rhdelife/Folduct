@@ -1,0 +1,667 @@
+{
+  "color": {
+    "neutral": {
+      "bg": {
+        "$type": "color",
+        "$value": "#f3efe6"
+      },
+      "page-glow": {
+        "$type": "color",
+        "$value": "#fffcf5"
+      },
+      "surface": {
+        "$type": "color",
+        "$value": "#ffffff"
+      },
+      "surface-sunken": {
+        "$type": "color",
+        "$value": "#f4f1ea"
+      },
+      "surface-hover": {
+        "$type": "color",
+        "$value": "#f2eee6"
+      },
+      "surface-selected": {
+        "$type": "color",
+        "$value": "#ebe6dc"
+      },
+      "ink": {
+        "$type": "color",
+        "$value": "#1b1a18"
+      },
+      "ink-hover": {
+        "$type": "color",
+        "$value": "#34312d"
+      },
+      "ink-pressed": {
+        "$type": "color",
+        "$value": "#0d0c0b"
+      },
+      "ink-soft": {
+        "$type": "color",
+        "$value": "#5a554f"
+      },
+      "ink-faint": {
+        "$type": "color",
+        "$value": "#a29d95"
+      },
+      "line": {
+        "$type": "color",
+        "$value": "#e6e2db"
+      },
+      "line-strong": {
+        "$type": "color",
+        "$value": "#d2ccc2"
+      },
+      "on-ink": {
+        "$type": "color",
+        "$value": "#ffffff"
+      },
+      "stitch": {
+        "$type": "color",
+        "$value": "#1b1a1838"
+      },
+      "halo": {
+        "$type": "color",
+        "$value": "{color.lightbox.2}"
+      },
+      "vignette": {
+        "$type": "color",
+        "$value": "#5c40241f"
+      },
+      "ink-wash": {
+        "$type": "color",
+        "$value": "#1b1a180f"
+      }
+    },
+    "lightbox": {
+      "1": {
+        "$type": "color",
+        "$value": "#fffcf6"
+      },
+      "2": {
+        "$type": "color",
+        "$value": "#f7f3ea"
+      },
+      "3": {
+        "$type": "color",
+        "$value": "#ede7db"
+      },
+      "gradient": {
+        "$type": "gradient",
+        "$value": "radial-gradient(ellipse at 50% 45%, #fffcf6 0%, #f7f3ea 66%, #ede7db 100%)",
+        "$description": "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요."
+      }
+    },
+    "status": {
+      "danger": {
+        "$type": "color",
+        "$value": "#b42318"
+      },
+      "danger-bg": {
+        "$type": "color",
+        "$value": "#fdeeec"
+      },
+      "caution": {
+        "$type": "color",
+        "$value": "#8f5600"
+      },
+      "caution-bg": {
+        "$type": "color",
+        "$value": "#fdf4ea"
+      },
+      "ok": {
+        "$type": "color",
+        "$value": "#276a56"
+      },
+      "ok-bg": {
+        "$type": "color",
+        "$value": "#f1f8f5"
+      }
+    },
+    "kind": {
+      "이미지": {
+        "fill": {
+          "$type": "color",
+          "$value": "#e3b015",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#9d7b16",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: image"
+      },
+      "글·코드": {
+        "fill": {
+          "$type": "color",
+          "$value": "#3f9f50",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#3b904a",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: text"
+      },
+      "영상": {
+        "fill": {
+          "$type": "color",
+          "$value": "#3d6fd3",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#3d6fd3",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: video"
+      },
+      "PDF·문서·발표": {
+        "fill": {
+          "$type": "color",
+          "$value": "#e04a3a",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#e04a3a",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: pdf, office"
+      },
+      "표": {
+        "fill": {
+          "$type": "color",
+          "$value": "#ec8a2e",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#b86e28",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: table"
+      },
+      "소리": {
+        "fill": {
+          "$type": "color",
+          "$value": "#8a5cd6",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#8a5cd6",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: audio"
+      },
+      "디자인": {
+        "fill": {
+          "$type": "color",
+          "$value": "#d4479b",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#d4479b",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: design"
+      },
+      "압축": {
+        "fill": {
+          "$type": "color",
+          "$value": "#8d6a45",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#8d6a45",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: archive"
+      },
+      "기타": {
+        "fill": {
+          "$type": "color",
+          "$value": "#8b9098",
+          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#7b7f86",
+          "$description": "테두리와 바느질 점선"
+        },
+        "$description": "파일 형식: unknown"
+      }
+    },
+    "box": {
+      "fill": {
+        "$type": "color",
+        "$value": "#5f6670",
+        "$description": "정리 상자"
+      }
+    }
+  },
+  "size": {
+    "text": {
+      "2xs": {
+        "$type": "dimension",
+        "$value": "11px"
+      },
+      "xs": {
+        "$type": "dimension",
+        "$value": "12px"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "13px"
+      },
+      "base": {
+        "$type": "dimension",
+        "$value": "14px"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "16px"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "18px"
+      },
+      "xl": {
+        "$type": "dimension",
+        "$value": "22px"
+      },
+      "2xl": {
+        "$type": "dimension",
+        "$value": "28px"
+      },
+      "display-min": {
+        "$type": "dimension",
+        "$value": "32px"
+      },
+      "display-max": {
+        "$type": "dimension",
+        "$value": "52px"
+      }
+    },
+    "lineHeight": {
+      "2xs": {
+        "$type": "number",
+        "$value": 1.35,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "xs": {
+        "$type": "number",
+        "$value": 1.4,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "sm": {
+        "$type": "number",
+        "$value": 1.45,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "base": {
+        "$type": "number",
+        "$value": 1.5,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "md": {
+        "$type": "number",
+        "$value": 1.5,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "lg": {
+        "$type": "number",
+        "$value": 1.35,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "xl": {
+        "$type": "number",
+        "$value": 1.25,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "2xl": {
+        "$type": "number",
+        "$value": 1.15,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "display": {
+        "$type": "number",
+        "$value": 1.05,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      }
+    },
+    "space": {
+      "1": {
+        "$type": "dimension",
+        "$value": "4px"
+      },
+      "2": {
+        "$type": "dimension",
+        "$value": "8px"
+      },
+      "3": {
+        "$type": "dimension",
+        "$value": "12px"
+      },
+      "4": {
+        "$type": "dimension",
+        "$value": "16px"
+      },
+      "5": {
+        "$type": "dimension",
+        "$value": "20px"
+      },
+      "6": {
+        "$type": "dimension",
+        "$value": "24px"
+      },
+      "8": {
+        "$type": "dimension",
+        "$value": "32px"
+      },
+      "10": {
+        "$type": "dimension",
+        "$value": "40px"
+      },
+      "12": {
+        "$type": "dimension",
+        "$value": "48px"
+      }
+    },
+    "radius": {
+      "xs": {
+        "$type": "dimension",
+        "$value": "4px"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "8px"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "12px"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "16px"
+      },
+      "xl": {
+        "$type": "dimension",
+        "$value": "24px"
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "999px"
+      }
+    },
+    "layout": {
+      "content-max": {
+        "$type": "dimension",
+        "$value": "1440px"
+      },
+      "rail-min": {
+        "$type": "dimension",
+        "$value": "280px"
+      },
+      "rail-max": {
+        "$type": "dimension",
+        "$value": "360px"
+      },
+      "gutter": {
+        "$type": "dimension",
+        "$value": "24px"
+      }
+    },
+    "control": {
+      "sm": {
+        "$type": "dimension",
+        "$value": "28px"
+      },
+      "md": {
+        "$type": "dimension",
+        "$value": "32px"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "44px"
+      }
+    }
+  },
+  "font": {
+    "sans": {
+      "$type": "fontFamily",
+      "$value": [
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Apple SD Gothic Neo",
+        "Malgun Gothic",
+        "Noto Sans KR",
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+    "mono": {
+      "$type": "fontFamily",
+      "$value": [
+        "ui-monospace",
+        "SF Mono",
+        "Menlo",
+        "monospace"
+      ]
+    }
+  },
+  "fontWeight": {
+    "regular": {
+      "$type": "fontWeight",
+      "$value": 400
+    },
+    "medium": {
+      "$type": "fontWeight",
+      "$value": 500
+    },
+    "semibold": {
+      "$type": "fontWeight",
+      "$value": 600
+    },
+    "bold": {
+      "$type": "fontWeight",
+      "$value": 700
+    },
+    "heavy": {
+      "$type": "fontWeight",
+      "$value": 800
+    }
+  },
+  "typography": {
+    "Display": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.display-max}",
+        "lineHeight": "{size.lineHeight.display}",
+        "fontWeight": "{fontWeight.heavy}"
+      },
+      "$description": "집 화면 큰 제목 (데스크톱 52px, 좁으면 32px까지)"
+    },
+    "Heading/2XL": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.2xl}",
+        "lineHeight": "{size.lineHeight.2xl}",
+        "fontWeight": "{fontWeight.bold}"
+      },
+      "$description": "방 이름, 페이지 제목"
+    },
+    "Heading/XL": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.xl}",
+        "lineHeight": "{size.lineHeight.xl}",
+        "fontWeight": "{fontWeight.bold}"
+      },
+      "$description": "패널 제목"
+    },
+    "Heading/LG": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.lg}",
+        "lineHeight": "{size.lineHeight.lg}",
+        "fontWeight": "{fontWeight.bold}"
+      },
+      "$description": "섹션 제목, 대화창 제목"
+    },
+    "Body/MD": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.md}",
+        "lineHeight": "{size.lineHeight.md}",
+        "fontWeight": "{fontWeight.regular}"
+      },
+      "$description": "큰 본문"
+    },
+    "Body/Base": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.base}",
+        "lineHeight": "{size.lineHeight.base}",
+        "fontWeight": "{fontWeight.regular}"
+      },
+      "$description": "기본 본문"
+    },
+    "Label/SM": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.sm}",
+        "lineHeight": "{size.lineHeight.sm}",
+        "fontWeight": "{fontWeight.semibold}"
+      },
+      "$description": "버튼, 탭, 목록 제목"
+    },
+    "Meta/XS": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.xs}",
+        "lineHeight": "{size.lineHeight.xs}",
+        "fontWeight": "{fontWeight.medium}"
+      },
+      "$description": "보조 정보, 경로, 날짜"
+    },
+    "Tag/2XS": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "{font.sans}",
+        "fontSize": "{size.text.2xs}",
+        "lineHeight": "{size.lineHeight.2xs}",
+        "fontWeight": "{fontWeight.bold}"
+      },
+      "$description": "방 안 물건 이름표"
+    }
+  },
+  "shadow": {
+    "1": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0",
+          "offsetY": "1px",
+          "blur": "2px",
+          "spread": "0",
+          "color": "#1b1a180f"
+        },
+        {
+          "offsetX": "0",
+          "offsetY": "0",
+          "blur": "0",
+          "spread": "1px",
+          "color": "#1b1a180f"
+        }
+      ],
+      "$description": "Figma에서는 Effect style(그림자 2겹)로 만드세요."
+    },
+    "2": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0",
+          "offsetY": "8px",
+          "blur": "24px",
+          "spread": "0",
+          "color": "#1b1a181a"
+        },
+        {
+          "offsetX": "0",
+          "offsetY": "0",
+          "blur": "0",
+          "spread": "1px",
+          "color": "#1b1a180f"
+        }
+      ],
+      "$description": "Figma에서는 Effect style(그림자 2겹)로 만드세요."
+    },
+    "3": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0",
+          "offsetY": "24px",
+          "blur": "64px",
+          "spread": "0",
+          "color": "#1b1a182e"
+        },
+        {
+          "offsetX": "0",
+          "offsetY": "0",
+          "blur": "0",
+          "spread": "1px",
+          "color": "#1b1a1814"
+        }
+      ],
+      "$description": "Figma에서는 Effect style(그림자 2겹)로 만드세요."
+    }
+  },
+  "motion": {
+    "dur-1": {
+      "$type": "duration",
+      "$value": "120ms"
+    },
+    "dur-2": {
+      "$type": "duration",
+      "$value": "200ms"
+    },
+    "dur-3": {
+      "$type": "duration",
+      "$value": "320ms"
+    },
+    "ease-standard": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0,
+        0,
+        1
+      ]
+    },
+    "ease-spring": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.3,
+        1.4,
+        0.5,
+        1
+      ]
+    }
+  }
+}
