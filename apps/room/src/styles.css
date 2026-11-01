@@ -21,9 +21,9 @@
   /* 브랜드(화병 로고) 전용. 글자·상태·파일 형식에는 쓰지 않습니다. */
   --brand: #630b01;
 
-  --lightbox-1: #fffcf6;
-  --lightbox-2: #f7f3ea;
-  --lightbox-3: #ede7db;
+  --lightbox-1: #ffffff;
+  --lightbox-2: #fdfdfc;
+  --lightbox-3: #f8f8f6;
   --lightbox: radial-gradient(ellipse at 50% 45%, var(--lightbox-1) 0%, var(--lightbox-2) 66%, var(--lightbox-3) 100%);
   --stitch: rgb(27 26 24 / 0.22);
   --halo: var(--lightbox-2);
@@ -286,6 +286,12 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .sky-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--space-3); text-align: center; padding: var(--space-4); }
 .sky-empty h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
 .sky-empty p { color: var(--ink-soft); max-width: 416px; }
+/* 넓을 때는 제목과 숫자를 한 줄에 둬서 지도가 첫 화면에 더 많이 보이게 합니다. */
+@container sky (min-width: 821px) {
+  .sky-summary { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-8); }
+  .sky-summary > :not(dl) { grid-column: 1; }
+  .sky-summary dl { grid-column: 2; grid-row: 1 / span 3; align-self: end; flex-wrap: nowrap; margin: 0; white-space: nowrap; }
+}
 @container sky (max-width: 820px) {
   .sky-summary { padding: var(--space-4) var(--space-5) var(--space-5); }
   .sky-empty { position: static; padding: var(--space-5); }
@@ -420,6 +426,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .thing .tag .icon { vertical-align: -2px; }
 /* 판 위의 상태 글자(기울어짐·쓰러짐·파일 없음)는 형식 색과 헷갈리지 않게 잉크와 굵기로만 씁니다. */
 .thing .tag em { font-style: normal; font-weight: 700; color: var(--ink); }
+/* 정리 상자는 판 맨 아래에 있어 이름을 위에 둡니다(아래에 두면 좁은 화면에서 잘려요). */
+.box-spot .tag { top: auto; bottom: calc(100% + 6px); }
 /* 벽 가까운 물건은 이름표를 안쪽으로 붙여 판 밖으로 잘리지 않게 합니다. */
 .thing[data-tag~="above"] .tag { top: auto; bottom: calc(100% + 6px); }
 .thing[data-tag~="start"] .tag { left: 0; transform: none; justify-items: start; text-align: left; }
@@ -504,6 +512,8 @@ dialog.sheet::backdrop { background: rgb(27 26 24 / 0.35); -webkit-backdrop-filt
 dialog.sheet.viewer { max-width: min(1100px, calc(100vw - 32px)); }
 dialog.sheet.viewer .sheet-body { display: flex; flex-direction: column; }
 dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); }
+/* 안내 문구만 있는 창은 넓게 비워 두지 않습니다. */
+dialog.sheet.viewer:not(:has(.viewer-stage)) { max-width: min(620px, calc(100vw - 32px)); }
 .viewer-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; }
 .viewer-head h2 { font-size: var(--text-lg); line-height: var(--lh-lg); overflow-wrap: anywhere; }
 .viewer-head .soft { overflow-wrap: anywhere; }
@@ -532,6 +542,11 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
   .sky-layout, .room-body { grid-template-columns: 1fr; }
   .sky-panel, .sky-stage, .side { position: static; max-height: none; }
   .drawer { max-height: none; }
+}
+/* 방 화면은 판이 0.55배 밑으로 줄기 전에 서랍을 판 아래로 내립니다(가로 스크롤 방지). */
+@media (max-width: 899.98px) {
+  .room-body { grid-template-columns: 1fr; }
+  .side { position: static; max-height: none; }
 }
 @media (forced-colors: active) {
   .object { forced-color-adjust: none; }

@@ -77,19 +77,19 @@
     "lightbox": {
       "1": {
         "$type": "color",
-        "$value": "#fffcf6"
+        "$value": "#ffffff"
       },
       "2": {
         "$type": "color",
-        "$value": "#f7f3ea"
+        "$value": "#fdfdfc"
       },
       "3": {
         "$type": "color",
-        "$value": "#ede7db"
+        "$value": "#f8f8f6"
       },
       "gradient": {
         "$type": "gradient",
-        "$value": "radial-gradient(ellipse at 50% 45%, #fffcf6 0%, #f7f3ea 66%, #ede7db 100%)",
+        "$value": "radial-gradient(ellipse at 50% 45%, #ffffff 0%, #fdfdfc 66%, #f8f8f6 100%)",
         "$description": "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요."
       }
     },

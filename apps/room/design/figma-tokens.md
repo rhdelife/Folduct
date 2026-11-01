@@ -48,10 +48,10 @@
 ## 색 · 라이트박스
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `color/lightbox/1` | `#fffcf6` |  |
-| `color/lightbox/2` | `#f7f3ea` |  |
-| `color/lightbox/3` | `#ede7db` |  |
-| `color/lightbox/gradient` | `radial-gradient(ellipse at 50% 45%, #fffcf6 0%, #f7f3ea 66%, #ede7db 100%)` | Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요. |
+| `color/lightbox/1` | `#ffffff` |  |
+| `color/lightbox/2` | `#fdfdfc` |  |
+| `color/lightbox/3` | `#f8f8f6` |  |
+| `color/lightbox/gradient` | `radial-gradient(ellipse at 50% 45%, #ffffff 0%, #fdfdfc 66%, #f8f8f6 100%)` | Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요. |
 
 ## 색 · 상태 (패널·배너·글자 전용)
 | 토큰 | 값 | 설명 |

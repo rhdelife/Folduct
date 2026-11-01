@@ -10,7 +10,8 @@
 ## 디자인 규칙
 - 색·글자 크기·간격·모서리·그림자는 styles.css :root 토큰만 쓴다. 헥스·px 직접 입력 금지.
 - 새 토큰이 필요하면 :root 에 추가하고 `node apps/room/scripts/export-figma-tokens.mjs` 로 apps/room/design/ 을 다시 만든다.
-- 색은 파일 형식에만 쓴다(apps/room/src/art/palette.ts). 상태는 잉크·굵은 글자·모양으로, 상태 색은 패널·배너에만.
+- 색은 파일 형식에만 쓴다(apps/room/src/art/palette.ts). 상태는 잉크·굵은 글자·모양으로, 상태 색은 패널·배너에만. 예외는 화병 로고 전용 --brand 하나.
+- 글꼴은 산세리프(Pretendard) 하나. 애플 사이트처럼 깔끔하게, 세리프를 다시 넣지 않는다. 로고는 화병 심볼만 쓰고 글자를 붙이지 않는다.
 - --ink-faint 는 선·눈금 전용. 글자 대비는 4.5:1 이상.
 - 화면 폭 375 / 720 / 1280 에서 깨지지 않아야 한다.
 - UI 문구는 한국어 해요체, 짧게.
