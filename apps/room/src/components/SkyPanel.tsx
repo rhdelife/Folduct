@@ -207,7 +207,7 @@ function ActivityChart({ title, bars, unit }: { title: string; bars: { day: stri
   return (
     <figure className="activity">
       <figcaption>{title}</figcaption>
-      <svg viewBox={`0 0 ${w} ${h + 18}`} role="img" aria-label={`${title}: 14일 중 ${active}일 손댐, 가장 많은 날 ${max}${unit}`}>
+      <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`${title}: 14일 중 ${active}일 손댐, 가장 많은 날 ${max}${unit}`}>
         <line x1="0" y1={h} x2={w} y2={h} stroke="currentColor" strokeOpacity="0.15" />
         {bars.map((bar, i) => {
           const height = bar.value === 0 ? 0 : Math.max(6, (bar.value / max) * (h - 10));
@@ -216,11 +216,14 @@ function ActivityChart({ title, bars, unit }: { title: string; bars: { day: stri
             <g key={bar.day}>
               {height > 0 && <rect x={x} y={h - height} width={step * 0.6} height={height} rx="4" fill="currentColor" fillOpacity={i === bars.length - 1 ? 1 : 0.22} />}
               {height === 0 && bar.worked && <circle cx={x + step * 0.3} cy={h - 4} r="3" fill="currentColor" fillOpacity={0.22} />}
-              {(i === 0 || i === 6 || i === bars.length - 1) && <text x={x + step * 0.3} y={h + 14} className="axis">{bar.day.slice(5).replace("-", "/")}</text>}
             </g>
           );
         })}
       </svg>
+      {/* 날짜는 SVG 밖 글자로 둡니다. SVG 안이면 패널이 좁을 때 함께 줄어 읽기 어려워져요. */}
+      <div className="activity-axis" aria-hidden="true">
+        {bars.map((bar, i) => (i === 0 || i === 6 || i === bars.length - 1) && <span key={bar.day} style={{ left: `${((i + 0.5) / bars.length) * 100}%` }}>{bar.day.slice(5).replace("-", "/")}</span>)}
+      </div>
     </figure>
   );
 }

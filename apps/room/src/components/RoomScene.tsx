@@ -36,7 +36,8 @@ export function RoomScene({
   onOpenBox: () => void;
   onOpenShelf: () => void;
 }) {
-  const [frame, scale] = useFitScale<HTMLDivElement>(plane.width, 1.3);
+  // 휴대폰 폭에서도 0.55배 밑으로는 줄이지 않습니다(물건 이름이 읽히는 한계). styles.css의 clamp(0.55, …)와 같은 값이에요.
+  const [frame, scale] = useFitScale<HTMLDivElement>(plane.width, 1.3, 0.55);
   const drag = useRef<{ id: string; x: number; y: number; start: Spot; moved: boolean } | null>(null);
   const justDragged = useRef(false);
   const usage = roomUsage(room);
@@ -62,7 +63,12 @@ export function RoomScene({
     <div className="room-frame" ref={frame} style={{ height: plane.height * scale }}>
       <div className="room-plane" style={{ width: plane.width, height: plane.height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
         {/* 방 용량만큼 판 아래쪽이 옅게 차오릅니다. 정확한 값은 위쪽 글자로 함께 보여줍니다. */}
-        {fill !== null && <div className={`plane-fill level-${level}`} style={{ height: `${fill * 100}%` }} aria-hidden="true" />}
+        {fill !== null && (
+          <div className={`plane-fill level-${level}`} style={{ height: `${fill * 100}%` }} aria-hidden="true">
+            {/* 점선이 무엇인지 판 위에서 바로 읽히게 합니다(한도를 넘으면 100%보다 큰 값). */}
+            <span className="plane-fill-label">용량 {Math.round((usage.totalBytes / (room.budgetBytes ?? 1)) * 100)}%</span>
+          </div>
+        )}
         <p id="plane-hint" className="sr-only">Enter로 고르고, 화살표로 옮겨요. 고른 물건에서 Enter를 한 번 더 누르면 파일을 열어요.</p>
         <button type="button" className="shelf-chip" onClick={onOpenShelf}>선반 · 놓지 않은 물건 {shelfCount}</button>
         {placed.length === 0 && (

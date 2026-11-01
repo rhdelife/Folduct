@@ -446,14 +446,6 @@
         "sans-serif"
       ]
     },
-    "display": {
-      "$type": "fontFamily",
-      "$value": [
-        "Noto Serif KR",
-        "AppleMyungjo",
-        "serif"
-      ]
-    },
     "mono": {
       "$type": "fontFamily",
       "$value": [

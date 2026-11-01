@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { BudgetBanner, BudgetPicker, CapacityBar } from "../components/Capacity";
 import { FileViewer, previewMode, type ViewerState } from "../components/FileViewer";
-import { Icon } from "../components/Icon";
+import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
@@ -380,7 +380,11 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   return (
     <main className="room-page">
       <header className="topnav">
-        <button type="button" className="quiet" onClick={() => { flush(); onBack(); }}>← 집</button>
+        <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
+          <span aria-hidden="true">←</span>
+          <BrandMark size={24} />
+          집
+        </button>
         <div className="topnav-title">
           <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>

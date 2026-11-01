@@ -188,7 +188,7 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
       <header className="topnav topnav-centered">
         <div className="topnav-brand">
           <BrandMark size={36} />
-          <h1>Folduct</h1>
+          <h1 className="sr-only">Folduct</h1>
         </div>
         <div className="row">
           <button type="button" className="quiet" onClick={() => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요."))}>
@@ -197,7 +197,7 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
           </button>
           {rooms && !isNative() && (
             <>
-              <button type="button" className="link" disabled={importing} onClick={() => importInput.current?.click()}>
+              <button type="button" className="quiet" disabled={importing} onClick={() => importInput.current?.click()}>
                 <Icon name="import" />
                 {importing ? "가져오는 중…" : "목록 파일 가져오기"}
               </button>
@@ -219,9 +219,9 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
             </>
           )}
           {hasSample ? (
-            <button type="button" className="link" onClick={() => void clearSamples().catch(fail("샘플 방을 치우지 못했어요. 잠시 뒤 다시 해 주세요."))}>샘플 방 치우기</button>
+            <button type="button" className="quiet" onClick={() => void clearSamples().catch(fail("샘플 방을 치우지 못했어요. 잠시 뒤 다시 해 주세요."))}>샘플 방 치우기</button>
           ) : rooms?.length ? (
-            <button type="button" className="link" onClick={() => void addSample().catch(fail(saveFailed))}>샘플 방 구경하기</button>
+            <button type="button" className="quiet" onClick={() => void addSample().catch(fail(saveFailed))}>샘플 방 구경하기</button>
           ) : null}
           <button type="button" className="primary" onClick={() => setCreating(true)}>+ 새 방 만들기</button>
         </div>

@@ -81,7 +81,6 @@
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
 | `font/sans` | `Pretendard, -apple-system, BlinkMacSystemFont, Apple SD Gothic Neo, Malgun Gothic, system-ui, sans-serif` |  |
-| `font/display` | `Noto Serif KR, AppleMyungjo, serif` |  |
 | `font/mono` | `ui-monospace, SF Mono, Menlo, monospace` |  |
 | `fontWeight/regular` | `400` |  |
 | `fontWeight/medium` | `500` |  |
