@@ -185,9 +185,9 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   const hasSample = rooms?.some((room) => room.source === "sample");
   return (
     <main className="home">
-      <header className="topnav">
+      <header className="topnav topnav-centered">
         <div className="topnav-brand">
-          <BrandMark size={28} />
+          <BrandMark size={36} />
           <h1>Folduct</h1>
         </div>
         <div className="row">

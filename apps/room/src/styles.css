@@ -1,20 +1,28 @@
+/* 글꼴은 Tauri 앱이 오프라인에서도 같게 보이도록 public/fonts에 파일로 둡니다(둘 다 OFL, 라이선스 파일 동봉). */
+@font-face { font-family: Pretendard; src: url("/fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: swap; }
+@font-face { font-family: "Noto Serif KR"; src: url("/fonts/NotoSerifKR-800-latin.woff2") format("woff2"); font-weight: 800; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Serif KR"; src: url("/fonts/NotoSerifKR-800-korean.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+
 :root {
   /* 라이트박스: 빛을 받는 하얀 판, 얇은 선, 굵은 검정 글자. 색은 파일 형식의 몫(palette.ts)이고, 상태는 잉크·모양·글자로 보여줍니다. */
-  --bg: #f3efe6;
-  --page-glow: #fffcf5;
+  --bg: #ffffff;
+  --page-glow: #ffffff;
   --surface: #ffffff;
   --surface-sunken: #f4f1ea;
   --surface-hover: #f2eee6;
   --surface-selected: #ebe6dc;
-  --ink: #1b1a18;
+  --ink: #111111;
   --ink-hover: #34312d;
   --ink-pressed: #0d0c0b;
-  --ink-soft: #5a554f;
+  --ink-soft: #66635d;
   /* 장식 전용(선·눈금). 글자에는 쓰지 않습니다. */
   --ink-faint: #a29d95;
   --line: #e6e2db;
   --line-strong: #d2ccc2;
   --on-ink: #ffffff;
+  /* 브랜드(화병 로고) 전용. 글자·상태·파일 형식에는 쓰지 않습니다. */
+  --brand: #630b01;
 
   --lightbox-1: #fffcf6;
   --lightbox-2: #f7f3ea;
@@ -22,7 +30,6 @@
   --lightbox: radial-gradient(ellipse at 50% 45%, var(--lightbox-1) 0%, var(--lightbox-2) 66%, var(--lightbox-3) 100%);
   --stitch: rgb(27 26 24 / 0.22);
   --halo: var(--lightbox-2);
-  --vignette: rgb(92 64 36 / 0.12);
   --ink-wash: rgb(27 26 24 / 0.06);
 
   /* 상태 글자색: 패널·배너·용량 막대·오류 글자에만 씁니다. 판과 지도 위에서는 잉크와 굵은 글자로만 상태를 알립니다. */
@@ -33,7 +40,9 @@
   --status-ok: #276a56;
   --status-ok-bg: #f1f8f5;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  /* 큰 제목 전용(전시 포스터 느낌). 본문·라벨에는 쓰지 않습니다. */
+  --font-display: "Noto Serif KR", "AppleMyungjo", serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --text-2xs: 11px;
   --text-xs: 12px;
@@ -64,12 +73,13 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-pill: 999px;
+  /* 전시장 방향: 판·카드·버튼은 각지게, 작은 칸만 2px로 살짝 다듬습니다. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-pill: 0;
 
   --content-max: 1440px;
   --rail-w: clamp(280px, 26vw, 360px);
@@ -78,8 +88,9 @@
   --control-md: 32px;
   --control-lg: 44px;
 
-  --shadow-1: 0 1px 2px rgb(27 26 24 / 0.06), 0 0 0 1px rgb(27 26 24 / 0.06);
-  --shadow-2: 0 8px 24px rgb(27 26 24 / 0.1), 0 0 0 1px rgb(27 26 24 / 0.06);
+  /* 떠 보이는 그림자는 창(--shadow-3)에만. 나머지는 선 한 줄입니다. */
+  --shadow-1: 0 0 0 1px var(--line-strong);
+  --shadow-2: 0 0 0 1px var(--line-strong);
   --shadow-3: 0 24px 64px rgb(27 26 24 / 0.18), 0 0 0 1px rgb(27 26 24 / 0.08);
 
   --dur-1: 120ms;
@@ -109,18 +120,18 @@ body { margin: 0; min-height: 100dvh; background: radial-gradient(ellipse at 50%
 html[data-shell="native"] { overscroll-behavior: none; }
 html:has(dialog:modal) { overflow: hidden; }
 
-/* 빈티지 느낌: 화면 전체에 옅은 필름 그레인과 가장자리의 따뜻한 비네팅을 얹습니다. 클릭은 그대로 통과합니다. */
-body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
-body::before { background: radial-gradient(ellipse at 50% 45%, transparent 55%, var(--vignette) 100%); }
+/* 빈티지 느낌: 화면 전체에 옅은 필름 그레인을 얹습니다. 클릭은 그대로 통과합니다. */
 body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.12 0 0 0 0 0.08 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
   opacity: 0.16;
   mix-blend-mode: multiply;
 }
 @media (prefers-contrast: more) {
-  body::before, body::after { display: none; }
+  body::after { display: none; }
 }
+
 h1, h2, h3, p { margin: 0; }
 h1, h2 { font-weight: 700; letter-spacing: -0.01em; }
 h3 { font-weight: 700; }
@@ -241,12 +252,20 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .topnav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); min-height: 56px; margin-bottom: var(--space-3); }
 .topnav > * { min-width: 0; }
 .topnav-brand { display: flex; align-items: center; gap: var(--space-2); margin-right: auto; }
-.topnav-brand h1 { font-size: var(--text-md); font-weight: 700; letter-spacing: 0; }
+.topnav-brand h1 { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 800; letter-spacing: 0; }
 .topnav-brand .mark { flex: none; }
 .topnav-title { flex: 1 1 240px; display: grid; }
 .topnav-title .eyebrow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topnav-title h1 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topnav > .row { margin-left: auto; }
+/* 집 화면: 로고는 가운데, 버튼은 오른쪽. 좁으면 로고 아래로 버튼이 내려옵니다. */
+.topnav-centered { display: grid; grid-template-columns: 1fr auto 1fr; }
+.topnav-centered .topnav-brand { grid-column: 2; margin: 0; }
+.topnav-centered > .row { grid-column: 3; justify-self: end; }
+@media (max-width: 719.98px) {
+  .topnav-centered { grid-template-columns: 1fr; justify-items: center; }
+  .topnav-centered .topnav-brand, .topnav-centered > .row { grid-column: 1; justify-self: center; margin: 0; }
+}
 .tagline { margin-bottom: var(--space-4); color: var(--ink-soft); font-size: var(--text-sm); }
 .home > .banner { margin-bottom: var(--space-4); }
 

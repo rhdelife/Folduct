@@ -24,7 +24,7 @@ const px = (value) => Number(value.replace("px", ""));
 
 // CSS 이름을 Figma 변수 이름(그룹/이름)으로 옮깁니다.
 function path(name) {
-  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|vignette)/.test(name)) return `color.neutral.${name}`;
+  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) return `color.neutral.${name}`;
   if (name.startsWith("lightbox")) return `color.lightbox.${name.replace("lightbox-", "") || "gradient"}`;
   if (name.startsWith("status-")) return `color.status.${name.replace("status-", "")}`;
   return name;
@@ -35,7 +35,7 @@ const notes = [];
 
 for (const [name, raw] of Object.entries(vars)) {
   const value = raw.trim();
-  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|vignette)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
+  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
   else if (name === "lightbox") tokens.color.lightbox.gradient = { $type: "gradient", $value: value.replace(/var\(--lightbox-(\d)\)/g, (_, n) => vars[`lightbox-${n}`]), $description: "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요." };
   else if (name.startsWith("lightbox-")) tokens.color.lightbox[name.replace("lightbox-", "")] = { $type: "color", $value: value };
   else if (name.startsWith("status-")) tokens.color.status[name.replace("status-", "")] = { $type: "color", $value: value };
@@ -63,7 +63,7 @@ for (const [name, raw] of Object.entries(vars)) {
       const parts = layer.trim().split(" ");
       const at = parts.findIndex((part) => part.startsWith("rgb") || part.startsWith("#"));
       const [x, y, blur = "0", spread = "0"] = parts.slice(0, at);
-      return { offsetX: x, offsetY: y, blur, spread, color: hex(parts.slice(at).join(" ")) };
+      return { offsetX: x, offsetY: y, blur, spread, color: alias(hex(parts.slice(at).join(" "))) };
     });
     tokens.shadow[name.replace("shadow-", "")] = { $type: "shadow", $value: layers, $description: "Figma에서는 Effect style(그림자 2겹)로 만드세요." };
   } else if (name.startsWith("dur-")) tokens.motion[name] = { $type: "duration", $value: value };
@@ -134,7 +134,7 @@ const md = `# Folduct 디자인 토큰 → Figma
 - 파일 오브제는 채움색 **불투명도 34% + Multiply**, 테두리와 점선은 edge 색이에요.
 - \`ink-faint\`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.
-- 그레인과 비네팅은 코드(SVG 노이즈 16% Multiply + 가장자리 갈색 12%)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
+- 그레인은 코드(SVG 노이즈 16% Multiply)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
 
 ## 색 · 중립
 | 토큰 | 값 | 설명 |

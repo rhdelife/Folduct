@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P1 방향 비교</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;800&display=swap">
+<style>
+  /* 시안 비교용 페이지. 앱 코드가 아니라서 토큰 규칙 밖에 있어요. */
+  body { margin: 0; padding: 24px 16px 48px; background: #e9e6df; font-family: Pretendard, -apple-system, sans-serif; color: #1b1a18; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lead { margin: 0 0 20px; color: #5a554f; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; max-width: 1280px; }
+  .label { font-size: 13px; font-weight: 700; margin: 0 0 8px; }
+  .label span { font-weight: 400; color: #5a554f; }
+  .mock { padding: var(--pad); background: var(--bg); color: var(--ink); border-radius: 6px; min-height: 520px; font-family: var(--font); }
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--gap); }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+  .btn { font: inherit; font-size: 12px; font-weight: 600; padding: 7px 12px; border: var(--btn-border); border-radius: var(--btn-radius); background: var(--btn-bg); color: var(--btn-ink); }
+  .eyebrow { font-size: 11px; letter-spacing: var(--eyebrow-track); text-transform: uppercase; color: var(--soft); margin: 0 0 6px; }
+  .title { font-family: var(--display); font-weight: var(--display-weight); font-size: 34px; line-height: 1.1; margin: 0 0 var(--gap); letter-spacing: var(--title-track); }
+  .stats { display: flex; gap: 20px; margin-bottom: var(--gap); }
+  .stats b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; font-family: var(--num); }
+  .stats small { font-size: 11px; color: var(--soft); }
+  .card { padding: 14px; background: var(--surface); border: var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow); backdrop-filter: var(--blur); }
+  .room { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .room strong { font-size: 15px; }
+  .room span { font-size: 12px; color: var(--soft); font-family: var(--num); }
+  .bar { height: 4px; background: var(--track); border-radius: var(--bar-radius); margin-bottom: 12px; }
+  .bar i { display: block; width: 82%; height: 100%; background: var(--ink); border-radius: inherit; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: var(--row-line); font-size: 13px; }
+  .obj { width: 26px; height: 20px; border-radius: var(--obj-radius); background: var(--c); opacity: .34; mix-blend-mode: multiply; outline: 1px dashed var(--c); outline-offset: -3px; flex: none; }
+  .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta { font-size: 11px; color: var(--soft); font-family: var(--num); text-align: right; }
+  .row .meta b { color: var(--ink); }
+  .notes { margin: 12px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #34312d; }
+
+  /* 지금 */
+  .now { --bg: #f3efe6; --surface: #fff; --ink: #1b1a18; --soft: #5a554f; --track: #e6e2db; --pad: 20px; --gap: 16px;
+    --font: -apple-system, "Apple SD Gothic Neo", sans-serif; --display: var(--font); --display-weight: 800; --num: var(--font);
+    --radius: 16px; --shadow: 0 8px 24px rgb(27 26 24 / .1), 0 0 0 1px rgb(27 26 24 / .06); --card-border: 0; --blur: none;
+    --btn-bg: #1b1a18; --btn-ink: #fff; --btn-border: 0; --btn-radius: 999px; --bar-radius: 999px; --row-line: 1px solid #e6e2db;
+    --obj-radius: 4px; --eyebrow-track: .06em; --title-track: 0; }
+  /* A 전시장 */
+  .a { --bg: #f6f5f1; --surface: transparent; --ink: #111; --soft: #6b6862; --track: #dcd9d2; --pad: 28px; --gap: 24px;
+    --font: Pretendard, sans-serif; --display: "Noto Serif KR", serif; --display-weight: 800; --num: Pretendard, sans-serif;
+    --radius: 0; --shadow: none; --card-border: 0; --blur: none; border-top: 0;
+    --btn-bg: transparent; --btn-ink: #111; --btn-border: 1px solid #111; --btn-radius: 0; --bar-radius: 0; --row-line: 1px solid #111;
+    --obj-radius: 2px; --eyebrow-track: .14em; --title-track: -.01em; }
+  .a .card { padding: 0; border-top: 2px solid #111; padding-top: 12px; }
+  /* B 반투명 천 */
+  .b { --bg: radial-gradient(ellipse at 40% 30%, #fffdf8, #efe9dd 75%); --surface: rgb(255 255 255 / .55); --ink: #1f1c18; --soft: #625b52; --track: rgb(31 28 24 / .1); --pad: 20px; --gap: 18px;
+    --font: Pretendard, sans-serif; --display: Pretendard, sans-serif; --display-weight: 700; --num: Pretendard, sans-serif;
+    --radius: 20px; --shadow: 0 12px 32px rgb(92 64 36 / .08); --card-border: 1.5px dashed rgb(31 28 24 / .22); --blur: blur(12px);
+    --btn-bg: rgb(31 28 24 / .88); --btn-ink: #fff; --btn-border: 0; --btn-radius: 14px; --bar-radius: 999px; --row-line: 1px dashed rgb(31 28 24 / .14);
+    --obj-radius: 10px; --eyebrow-track: .04em; --title-track: -.02em; }
+  /* C 아카이브 도구 */
+  .c { --bg: #f2f2f0; --surface: #fff; --ink: #0e0e0e; --soft: #5e5e5b; --track: #e2e2df; --pad: 16px; --gap: 12px;
+    --font: Pretendard, sans-serif; --display: Pretendard, sans-serif; --display-weight: 600; --num: ui-monospace, "SF Mono", Menlo, monospace;
+    --radius: 4px; --shadow: none; --card-border: 1px solid #d6d6d2; --blur: none;
+    --btn-bg: #0e0e0e; --btn-ink: #fff; --btn-border: 0; --btn-radius: 4px; --bar-radius: 0; --row-line: 1px solid #ececea;
+    --obj-radius: 1px; --eyebrow-track: .08em; --title-track: -.02em; }
+  .c .title { font-size: 26px; }
+</style>
+</head>
+<body>
+<h1>P1 · 레퍼런스 방향 비교</h1>
+<p class="lead">같은 내용(집 화면 상단 + 방 카드 + 파일 3개)을 방향별 토큰으로만 바꿔 그렸어요. 파일 형식 색과 반투명 오브제는 네 안 모두 같아요.</p>
+<div class="grid" id="grid"></div>
+
+<template id="mock">
+  <div class="mock">
+    <div class="top">
+      <div class="brand"><svg width="22" height="22" viewBox="0 0 48 48"><g fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="10" width="22" height="22" rx="3"/><rect x="16" y="4" width="22" height="22" rx="3"/><rect x="20" y="20" width="22" height="22" rx="3"/></g></svg>Folduct</div>
+      <button class="btn">+ 새 방 만들기</button>
+    </div>
+    <p class="eyebrow">Folduct</p>
+    <h2 class="title">내 방들</h2>
+    <div class="stats"><div><b>3</b><small>진행 중</small></div><div><b>10.5GB</b><small>전체 용량</small></div><div><b>13</b><small>쓰러진 파일</small></div></div>
+    <div class="card">
+      <div class="room"><strong>샘플 작업실</strong><span>4.1GB / 5GB</span></div>
+      <div class="bar"><i></i></div>
+      <div class="row"><span class="obj" style="--c:#3d6fd3"></span><span class="name">졸업전시_최종.mov</span><span class="meta">2.4GB<br>제자리</span></div>
+      <div class="row"><span class="obj" style="--c:#d4479b"></span><span class="name">레퍼런스_v2.psd</span><span class="meta">820MB<br><b>18일째 · 쓰러짐</b></span></div>
+      <div class="row"><span class="obj" style="--c:#e3b015"></span><span class="name">표지_시안3.png</span><span class="meta">12MB<br><b>17일째 · 쓰러짐</b></span></div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const variants = [
+    ["now", "지금", "따뜻한 종이 + 흰 카드 + 그림자", ["무난하지만 일반 대시보드처럼 보여요", "카드·그림자가 오브제보다 눈에 띄어요"]],
+    ["a", "A 전시장", "흰 벽, 굵은 선, 세리프 제목, 작품 캡션 같은 라벨", ["카드 대신 선과 여백으로 나눠요", "파일 = 전시 오브제, 이름·용량 = 캡션", "제목용 웹폰트 1개 필요"]],
+    ["b", "B 반투명 천", "패널도 반투명 천, 점선 솔기, 둥근 모서리", ["서도호 무드가 화면 전체로 번져요", "흐림 효과라 Tauri 성능 확인 필요", "자칫 흐릿하고 대비가 약해질 수 있어요"]],
+    ["c", "C 아카이브 도구", "회색 그리드, 1px 선, 고정폭 숫자, 정보 밀도 높음", ["파일이 많아도 잘 읽혀요", "가장 도구다운 느낌, 감성은 약해요", "숫자·날짜 정렬이 깔끔해요"]],
+  ];
+  const tpl = document.getElementById("mock");
+  for (const [cls, name, desc, notes] of variants) {
+    const col = document.createElement("section");
+    col.innerHTML = `<p class="label">${name} <span>· ${desc}</span></p>`;
+    const mock = tpl.content.cloneNode(true);
+    mock.querySelector(".mock").classList.add(cls);
+    col.append(mock);
+    col.insertAdjacentHTML("beforeend", `<ul class="notes">${notes.map((n) => `<li>${n}</li>`).join("")}</ul>`);
+    document.getElementById("grid").append(col);
+  }
+</script>
+</body>
+</html>

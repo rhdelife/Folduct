@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>워드마크 시안</title>
+<style>
+@font-face { font-family: Pretendard; src: url("/fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; }
+@font-face { font-family: "Noto Serif KR"; src: url("/fonts/NotoSerifKR-800-latin.woff2") format("woff2"); font-weight: 800; }
+body { margin: 0; padding: 24px 16px 48px; background: #f6f5f1; color: #1b1a18; font-family: Pretendard, -apple-system, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 4px; } .lead { margin: 0 0 20px; color: #5a554f; font-size: 14px; }
+article { padding: 16px 0 24px; border-top: 2px solid #1b1a18; max-width: 960px; }
+h2 { font-size: 15px; margin: 0 0 4px; } p { margin: 0 0 12px; font-size: 13px; color: #5a554f; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 16px; }
+.row.dark { background: #1b1a18; } .row.dark .mark { filter: invert(1); }
+.mark { display: inline-flex; } .mark svg { height: 100%; width: auto; display: block; }
+.h24 { height: 24px; } .h64 { height: 64px; } .h120 { height: 120px; }
+.header { display: flex; align-items: center; justify-content: space-between; width: min(100%, 640px); padding: 10px 16px; background: #fff; border-bottom: 1px solid #e6e2db; }
+.header button { font: inherit; font-size: 12px; font-weight: 600; padding: 7px 12px; border: 1px solid #1b1a18; background: none; }
+</style></head><body>
+<h1>9번 아코디언 · 워드마크 조합 3안</h1>
+<p class="lead">앱 헤더 크기(24px)와 큰 크기를 같이 봐요. 글자는 SVG 텍스트라, 확정하면 Figma에서 외곽선으로 바꿔요.</p>
+<main id="list"></main>
+<script>
+  const variants = [
+    ["wordmark-a.svg", "A · 가로형 산세리프", "Pretendard Bold. 지금 앱 글꼴과 같아서 헤더에 가장 자연스러워요.", "h64"],
+    ["wordmark-b.svg", "B · 가로형 세리프", "Noto Serif KR 800. 전시 포스터 느낌, 큰 제목과 짝을 이뤄요.", "h64"],
+    ["wordmark-c.svg", "C · 세로형 라벨", "기호 아래 넓은 자간의 대문자. 앱 아이콘·스플래시·소개 페이지용.", "h120"],
+  ];
+  const list = document.getElementById("list");
+  Promise.all(variants.map(([file]) => fetch(file).then((r) => r.text()))).then((svgs) => svgs.forEach((svg, i) => {
+    const [file, name, note, big] = variants[i];
+    {
+      const mark = (h) => `<span class="mark ${h}">${svg}</span>`;
+      const header = file === "wordmark-c.svg" ? "" : `<div class="row"><div class="header">${mark("h24")}<button>+ 새 방 만들기</button></div></div>`;
+      list.insertAdjacentHTML("beforeend", `<article><h2>${name}</h2><p>${note}</p>${header}<div class="row">${mark(big)}${mark("h24")}</div><div class="row dark">${mark(big)}${mark("h24")}</div></article>`);
+    }
+  }));
+</script>
+</body></html>

@@ -17,13 +17,11 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   );
 }
 
-// 먹색만 씁니다. 색은 파일 종류만 뜻하므로 브랜드에는 종류 색을 쓰지 않아요. 겹친 곳은 반투명이 쌓여 짙어집니다.
+// 화병 로고(design/logo/folduct-vase.svg). 색은 브랜드 전용 토큰 --brand 하나만 씁니다. size는 높이예요.
 export function BrandMark({ size }: { size: number }) {
   return (
-    <svg className="mark" viewBox="0 0 48 48" width={size} height={size} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeWidth={1.5} aria-hidden="true" focusable="false">
-      <rect x="4" y="10" width="22" height="22" rx="3" />
-      <rect x="16" y="4" width="22" height="22" rx="3" />
-      <rect x="20" y="20" width="22" height="22" rx="3" />
+    <svg className="mark" viewBox="28 28 504 912" width={Math.round((size * 504) / 912)} height={size} fill="var(--brand)" aria-hidden="true" focusable="false">
+      <path d="M113 43C113 34 447 34 447 43L447 540C447 565 449 580 458 593C494 603 520 615 523 636C530 665 509 689 475 702C454 712 451 731 447 756L440 887C439 919 411 934 280 934C149 934 121 919 120 887L113 756C109 731 106 712 85 702C51 689 30 665 37 636C40 615 66 603 102 593C111 580 113 565 113 540Z" />
     </svg>
   );
 }

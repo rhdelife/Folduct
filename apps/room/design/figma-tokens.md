@@ -21,28 +21,28 @@
 - 파일 오브제는 채움색 **불투명도 34% + Multiply**, 테두리와 점선은 edge 색이에요.
 - `ink-faint`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.
-- 그레인과 비네팅은 코드(SVG 노이즈 16% Multiply + 가장자리 갈색 12%)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
+- 그레인은 코드(SVG 노이즈 16% Multiply)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
 
 ## 색 · 중립
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `color/neutral/bg` | `#f3efe6` |  |
-| `color/neutral/page-glow` | `#fffcf5` |  |
+| `color/neutral/bg` | `#ffffff` |  |
+| `color/neutral/page-glow` | `#ffffff` |  |
 | `color/neutral/surface` | `#ffffff` |  |
 | `color/neutral/surface-sunken` | `#f4f1ea` |  |
 | `color/neutral/surface-hover` | `#f2eee6` |  |
 | `color/neutral/surface-selected` | `#ebe6dc` |  |
-| `color/neutral/ink` | `#1b1a18` |  |
+| `color/neutral/ink` | `#111111` |  |
 | `color/neutral/ink-hover` | `#34312d` |  |
 | `color/neutral/ink-pressed` | `#0d0c0b` |  |
-| `color/neutral/ink-soft` | `#5a554f` |  |
+| `color/neutral/ink-soft` | `#66635d` |  |
 | `color/neutral/ink-faint` | `#a29d95` |  |
 | `color/neutral/line` | `#e6e2db` |  |
 | `color/neutral/line-strong` | `#d2ccc2` |  |
 | `color/neutral/on-ink` | `#ffffff` |  |
+| `color/neutral/brand` | `#630b01` |  |
 | `color/neutral/stitch` | `#1b1a1838` |  |
 | `color/neutral/halo` | `{color.lightbox.2}` |  |
-| `color/neutral/vignette` | `#5c40241f` |  |
 | `color/neutral/ink-wash` | `#1b1a180f` |  |
 
 ## 색 · 라이트박스
@@ -80,7 +80,8 @@
 ## 글자
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `font/sans` | `-apple-system, BlinkMacSystemFont, Apple SD Gothic Neo, Malgun Gothic, Noto Sans KR, system-ui, sans-serif` |  |
+| `font/sans` | `Pretendard, -apple-system, BlinkMacSystemFont, Apple SD Gothic Neo, Malgun Gothic, system-ui, sans-serif` |  |
+| `font/display` | `Noto Serif KR, AppleMyungjo, serif` |  |
 | `font/mono` | `ui-monospace, SF Mono, Menlo, monospace` |  |
 | `fontWeight/regular` | `400` |  |
 | `fontWeight/medium` | `500` |  |
@@ -132,12 +133,12 @@
 | `size/space/8` | `32px` |  |
 | `size/space/10` | `40px` |  |
 | `size/space/12` | `48px` |  |
-| `size/radius/xs` | `4px` |  |
-| `size/radius/sm` | `8px` |  |
-| `size/radius/md` | `12px` |  |
-| `size/radius/lg` | `16px` |  |
-| `size/radius/xl` | `24px` |  |
-| `size/radius/pill` | `999px` |  |
+| `size/radius/xs` | `2px` |  |
+| `size/radius/sm` | `2px` |  |
+| `size/radius/md` | `2px` |  |
+| `size/radius/lg` | `0` |  |
+| `size/radius/xl` | `0` |  |
+| `size/radius/pill` | `0` |  |
 | `size/layout/content-max` | `1440px` |  |
 | `size/layout/rail-min` | `280px` |  |
 | `size/layout/rail-max` | `360px` |  |
@@ -149,8 +150,8 @@
 ## 그림자
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `shadow/1` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
-| `shadow/2` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
+| `shadow/1` | `[object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
+| `shadow/2` | `[object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
 | `shadow/3` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
 
 ## 움직임

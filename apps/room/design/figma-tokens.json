@@ -3,11 +3,11 @@
     "neutral": {
       "bg": {
         "$type": "color",
-        "$value": "#f3efe6"
+        "$value": "#ffffff"
       },
       "page-glow": {
         "$type": "color",
-        "$value": "#fffcf5"
+        "$value": "#ffffff"
       },
       "surface": {
         "$type": "color",
@@ -27,7 +27,7 @@
       },
       "ink": {
         "$type": "color",
-        "$value": "#1b1a18"
+        "$value": "#111111"
       },
       "ink-hover": {
         "$type": "color",
@@ -39,7 +39,7 @@
       },
       "ink-soft": {
         "$type": "color",
-        "$value": "#5a554f"
+        "$value": "#66635d"
       },
       "ink-faint": {
         "$type": "color",
@@ -57,6 +57,10 @@
         "$type": "color",
         "$value": "#ffffff"
       },
+      "brand": {
+        "$type": "color",
+        "$value": "#630b01"
+      },
       "stitch": {
         "$type": "color",
         "$value": "#1b1a1838"
@@ -64,10 +68,6 @@
       "halo": {
         "$type": "color",
         "$value": "{color.lightbox.2}"
-      },
-      "vignette": {
-        "$type": "color",
-        "$value": "#5c40241f"
       },
       "ink-wash": {
         "$type": "color",
@@ -377,27 +377,27 @@
     "radius": {
       "xs": {
         "$type": "dimension",
-        "$value": "4px"
+        "$value": "2px"
       },
       "sm": {
         "$type": "dimension",
-        "$value": "8px"
+        "$value": "2px"
       },
       "md": {
         "$type": "dimension",
-        "$value": "12px"
+        "$value": "2px"
       },
       "lg": {
         "$type": "dimension",
-        "$value": "16px"
+        "$value": "0"
       },
       "xl": {
         "$type": "dimension",
-        "$value": "24px"
+        "$value": "0"
       },
       "pill": {
         "$type": "dimension",
-        "$value": "999px"
+        "$value": "0"
       }
     },
     "layout": {
@@ -437,13 +437,21 @@
     "sans": {
       "$type": "fontFamily",
       "$value": [
+        "Pretendard",
         "-apple-system",
         "BlinkMacSystemFont",
         "Apple SD Gothic Neo",
         "Malgun Gothic",
-        "Noto Sans KR",
         "system-ui",
         "sans-serif"
+      ]
+    },
+    "display": {
+      "$type": "fontFamily",
+      "$value": [
+        "Noto Serif KR",
+        "AppleMyungjo",
+        "serif"
       ]
     },
     "mono": {
@@ -576,17 +584,10 @@
       "$value": [
         {
           "offsetX": "0",
-          "offsetY": "1px",
-          "blur": "2px",
-          "spread": "0",
-          "color": "#1b1a180f"
-        },
-        {
-          "offsetX": "0",
           "offsetY": "0",
           "blur": "0",
           "spread": "1px",
-          "color": "#1b1a180f"
+          "color": "{color.neutral.line-strong}"
         }
       ],
       "$description": "Figma에서는 Effect style(그림자 2겹)로 만드세요."
@@ -596,17 +597,10 @@
       "$value": [
         {
           "offsetX": "0",
-          "offsetY": "8px",
-          "blur": "24px",
-          "spread": "0",
-          "color": "#1b1a181a"
-        },
-        {
-          "offsetX": "0",
           "offsetY": "0",
           "blur": "0",
           "spread": "1px",
-          "color": "#1b1a180f"
+          "color": "{color.neutral.line-strong}"
         }
       ],
       "$description": "Figma에서는 Effect style(그림자 2겹)로 만드세요."
