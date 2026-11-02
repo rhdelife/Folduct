@@ -1,12 +1,21 @@
-import { defaultCare } from "../domain/care";
-import type { Room } from "../domain/model";
+import { normalizeCare } from "../domain/care";
+import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
+import { normalizeFace } from "../domain/face";
+import type { RoomMark } from "../domain/halftone";
+import { kindLabels, kindOf, type Room, type Thing } from "../domain/model";
 
 // 이 브라우저 안에만 저장합니다. 파일 내용은 저장하지 않고 이름·크기·자리·메모만 둡니다.
 const name = "folduct-room";
+// WebKit의 IndexedDB는 가끔 답 없이 멈춥니다. 빈 화면에 갇히지 않게 실패로 돌려 '다시 시도'를 보여 줘요.
+const openTimeoutMs = 10_000;
 let opening: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      opening = null;
+      reject(new Error("저장소가 응답하지 않아요."));
+    }, openTimeoutMs);
     const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -15,6 +24,7 @@ function open(): Promise<IDBDatabase> {
       db.createObjectStore("meta");
     };
     request.onsuccess = () => {
+      clearTimeout(timer);
       const db = request.result;
       // 다른 탭이 새 버전으로 열려 하면 비켜 주고, 다음 호출에서 다시 엽니다.
       db.onversionchange = () => {
@@ -30,6 +40,7 @@ function open(): Promise<IDBDatabase> {
       resolve(db);
     };
     request.onerror = () => {
+      clearTimeout(timer);
       // 실패를 붙잡아 두지 않아야 '다시 시도'가 새로 열 수 있습니다.
       opening = null;
       reject(request.error ?? new Error("저장소를 열지 못했어요."));
@@ -57,12 +68,13 @@ async function run<T>(store: string, mode: IDBTransactionMode, action: (store: I
 
 export async function listRooms(): Promise<Room[]> {
   const rooms = await run<unknown[]>("rooms", "readonly", (store) => store.getAll());
-  return rooms.map(normalizeRoom).sort((a, b) => a.createdAt - b.createdAt);
+  // 읽을 수 없는 기록 하나 때문에 다른 방까지 못 보게 하지 않습니다. 저장된 기록은 지우지 않고 건너뛰기만 해요.
+  return rooms.filter(isRoomRecord).map(normalizeRoom).sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function getRoom(id: string): Promise<Room | null> {
   const room = await run<unknown>("rooms", "readonly", (store) => store.get(id));
-  return room ? normalizeRoom(room) : null;
+  return isRoomRecord(room) ? normalizeRoom(room) : null;
 }
 
 // shortcut: 탭 하나를 가정하고 방 전체를 한 번에 덮어씁니다. 두 탭에서 같은 방을 고치면 나중 저장이 이깁니다.
@@ -78,7 +90,7 @@ export async function patchRoom(id: string, mutate: (room: Room) => Room): Promi
   let saved = null as Room | null;
   const request = store.get(id);
   request.onsuccess = () => {
-    if (!request.result) return;
+    if (!isRoomRecord(request.result)) return;
     saved = mutate(normalizeRoom(request.result));
     store.put(saved);
   };
@@ -91,6 +103,7 @@ export async function patchRoom(id: string, mutate: (room: Room) => Room): Promi
 export async function forgetRoom(id: string): Promise<void> {
   await run("rooms", "readwrite", (store) => store.delete(id));
   await run("handles", "readwrite", (store) => store.delete(id));
+  await deleteRoomMark(id);
 }
 
 export async function getHandle(id: string): Promise<FileSystemDirectoryHandle | null> {
@@ -109,7 +122,58 @@ export function setLastSweepAt(at: number): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(at, "lastSweepAt"));
 }
 
+// 끈 적이 없으면 켜져 있습니다.
+export async function getIntroOn(): Promise<boolean> {
+  return (await run<boolean | undefined>("meta", "readonly", (store) => store.get("introOn"))) !== false;
+}
+
+export function setIntroOn(on: boolean): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(on, "introOn"));
+}
+
+// 방 오브제 이미지. 방 기록을 자주 저장하니 무거운 그림은 따로 둡니다. 저장소를 새로 만들지 않고 meta에 방별 키로 넣어요.
+export async function getRoomMark(id: string): Promise<RoomMark | null> {
+  return (await run<RoomMark | undefined>("meta", "readonly", (store) => store.get(`mark:${id}`))) ?? null;
+}
+
+export function setRoomMark(id: string, mark: RoomMark): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(mark, `mark:${id}`));
+}
+
+export function deleteRoomMark(id: string): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.delete(`mark:${id}`));
+}
+
+export async function getDoorstep(): Promise<Doorstep> {
+  return normalizeDoorstep(await run<unknown>("meta", "readonly", (store) => store.get("doorstep")));
+}
+
+// patchRoom과 같은 이유로 읽기·고치기·쓰기를 한 트랜잭션에서 합니다. 폴더를 읽는 동안 사용자가 고친 값을 덮지 않아요.
+export async function patchDoorstep(mutate: (state: Doorstep) => Doorstep): Promise<Doorstep> {
+  const db = await open();
+  const tx = db.transaction("meta", "readwrite");
+  const store = tx.objectStore("meta");
+  let saved = emptyDoorstep;
+  const request = store.get("doorstep");
+  request.onsuccess = () => {
+    saved = mutate(normalizeDoorstep(request.result));
+    store.put(saved, "doorstep");
+  };
+  await settle(tx);
+  return saved;
+}
+
 const count = <T>(value: unknown, fallback: T): number | T => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback);
+
+export function isRoomRecord(value: unknown): boolean {
+  const room = value as Partial<Room> | null | undefined;
+  return typeof room === "object" && room !== null && typeof room.id === "string";
+}
+
+const isThingRecord = (value: unknown): boolean => {
+  const thing = value as Partial<Thing> | null | undefined;
+  return typeof thing?.id === "string" && typeof thing.path === "string" && typeof thing.name === "string";
+};
 
 // 예전 기록에 없는 칸은 기본값으로 채웁니다. scan은 네 칸만 다시 만들어, 예전에 같이 저장된 파일 목록 사본을 버립니다.
 export function normalizeRoom(value: unknown): Room {
@@ -117,11 +181,18 @@ export function normalizeRoom(value: unknown): Room {
   const scan: Partial<Room["scan"]> = room.scan ?? {};
   return {
     ...room,
-    things: Array.isArray(room.things) ? room.things.map((thing) => ({ ...thing, lastUsedAt: count(thing.lastUsedAt, null) })) : [],
-    workDays: Array.isArray(room.workDays) ? room.workDays : [],
-    care: { ...defaultCare, ...room.care },
+    name: typeof room.name === "string" && room.name ? room.name : typeof room.rootName === "string" && room.rootName ? room.rootName : "이름 없는 방",
+    createdAt: count(room.createdAt, 0),
+    // 그릴 수 없는 물건은 빼고, 종류·크기·시각이 망가진 물건은 고쳐서 살립니다.
+    things: Array.isArray(room.things)
+      ? room.things.filter(isThingRecord).map((thing) => ({ ...thing, kind: thing.kind in kindLabels ? thing.kind : kindOf(thing.name), size: count(thing.size, 0), lastModified: count(thing.lastModified, 0), lastUsedAt: count(thing.lastUsedAt, null) }))
+      : [],
+    workDays: Array.isArray(room.workDays) ? room.workDays.filter((day) => typeof day === "string") : [],
+    care: normalizeCare(room.care),
     scan: { complete: scan.complete === true, failed: count(scan.failed, 0), at: count(scan.at, room.createdAt), freedBytes: count(scan.freedBytes, 0) },
     budgetBytes: typeof room.budgetBytes === "number" && room.budgetBytes > 0 ? room.budgetBytes : null,
     budgetNoticeAt: typeof room.budgetNoticeAt === "number" ? room.budgetNoticeAt : null,
+    doneOfferAt: typeof room.doneOfferAt === "number" ? room.doneOfferAt : null,
+    face: normalizeFace(room.face, room.id),
   };
 }

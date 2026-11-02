@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { captionWords } from "../../domain/home";
 import type { Room } from "../../domain/model";
-import { BrandMark } from "../Icon";
+import { BrandMark, Icon } from "../Icon";
 import { clamp01, liveScene, range, reduced, scenes, sheetLift, stops, useEngine, useLiveScene, useScene } from "./engine";
 
 // 머리글. in은 앞으로 갈 때 나타나기 시작하는 자리, out은 다음 구간에서 위로 다 빠지는 자리,
@@ -9,7 +9,7 @@ import { clamp01, liveScene, range, reduced, scenes, sheetLift, stops, useEngine
 export type Caption = { stop: number; in: number; out: number | null; backIn: number | null; backOut: number | null };
 export const captions: (Caption & { title: string })[] = [
   { stop: stops[0], in: -1, out: 300, backIn: 300, backOut: null, title: "내 방" },
-  { stop: stops[1], in: 1300, out: 1950, backIn: 2350, backOut: 750, title: "손댈 것" },
+  { stop: stops[1], in: 1100, out: 1950, backIn: 2350, backOut: 750, title: "손댈 것" },
   { stop: stops[2], in: 2350, out: 3575, backIn: 3725, backOut: 2750, title: "방" },
   { stop: stops[3], in: 4300, out: 5110, backIn: 5250, backOut: 4660, title: "방 모음" },
   { stop: stops[4], in: 5250, out: null, backIn: null, backOut: 5390, title: "형식별" },
@@ -53,7 +53,7 @@ export function captionStepper(list: Caption[]) {
   };
 }
 
-export function HomeHeader({ rooms, now, ready, canTravel, overdue, onMenu, onNew }: { rooms: Room[]; now: number; ready: boolean; canTravel: boolean; overdue: boolean; onMenu: () => void; onNew: () => void }) {
+export function HomeHeader({ rooms, now, ready, canTravel, overdue, onMenu, onNew, onSettings }: { rooms: Room[]; now: number; ready: boolean; canTravel: boolean; overdue: boolean; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const engine = useEngine();
   const words = useMemo(() => captionWords(rooms, now), [rooms, now]);
   const [stepCaptions] = useState(() => captionStepper(captions));
@@ -103,6 +103,9 @@ export function HomeHeader({ rooms, now, ready, canTravel, overdue, onMenu, onNe
           메뉴{overdue && <b> 정리할 때예요</b>}
         </button>
         <button type="button" className="quiet" onClick={onNew}>+ 새 방</button>
+        <button type="button" className="quiet settings-button" aria-label="환경설정" title="환경설정" aria-haspopup="dialog" onClick={onSettings}>
+          <Icon name="settings" size={20} />
+        </button>
       </div>
       {/* 키보드와 화면 읽기 프로그램의 지름길. 포커스가 들어올 때만 보입니다. 잠긴 장면은 읽히지 않으니 여기서 옮겨 갑니다. */}
       {canTravel && (

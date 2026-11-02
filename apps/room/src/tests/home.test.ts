@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
 import type { Room, Thing } from "../domain/model";
-import { pickStarThings, roomMess, stepRoom } from "../domain/sky";
+import { pickStarThings, staleCount, stepRoom } from "../domain/sky";
 import { clampMenu, isMenuKey, menuStep, swallowNextClick } from "../components/ContextMenu";
 
 const start = new Date(2026, 9, 5, 12).getTime();
@@ -11,7 +11,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, ...patch };
+  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("지도 방 사이 이동", () => {
@@ -93,18 +93,18 @@ describe("지도에 띄울 파일", () => {
 });
 
 describe("방 정리 상태", () => {
-  it("바닥에 놓인, 상자 밖 물건만 기울어짐·쓰러짐으로 센다", () => {
+  it("바닥에 놓인, 상자 밖 물건만 오래됨으로 센다", () => {
     const workDays = [localDay(start + dayMs)];
-    const now = start + 8 * dayMs;
+    const now = start + 31 * dayMs;
     const r = room(
       [
-        thing("fallen"),
-        thing("tilted", { touchedAt: start + 4 * dayMs }),
+        thing("old"),
+        thing("recent", { touchedAt: start + 4 * dayMs }),
         thing("shelf", { spot: null }),
         thing("boxed", { box: { state: "virtual", fromPath: "a", boxPath: "b", at: start } }),
       ],
       { workDays: [...workDays, localDay(start + 5 * dayMs)] },
     );
-    expect(roomMess(r, now)).toEqual({ tilted: 1, fallen: 1 });
+    expect(staleCount(r, now)).toBe(1);
   });
 });

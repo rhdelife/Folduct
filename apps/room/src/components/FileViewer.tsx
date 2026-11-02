@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { formatBytes, kindLabels, type Thing } from "../domain/model";
+import { currentOs } from "../domain/platform";
 import { canPickFolder } from "../gateways/folder";
 import { isNative } from "../gateways/native";
 import { useModal } from "./useModal";
@@ -73,7 +74,8 @@ export function FileViewer({
   const native = isNative();
   const openApp = native ? onOpenApp : undefined;
   const canConnect = native || canPickFolder();
-  const mode = previewMode(thing);
+  // 리눅스 WebKitGTK에는 PDF 보기가 없어 빈 칸이 되므로, 기본 앱으로 여는 안내를 바로 보여 줍니다.
+  const mode = native && currentOs() === "linux" && previewMode(thing) === "pdf" ? "none" : previewMode(thing);
   const fallback = openApp ? "‘기본 앱으로 열기’로 열어 주세요." : "‘경로 복사’로 경로를 복사해 원래 앱에서 열어 주세요.";
   const tabBlob = !openApp && state.status === "ready" ? safeTabBlob(state.file, mode) : null;
   return (

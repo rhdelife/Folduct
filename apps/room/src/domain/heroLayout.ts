@@ -1,4 +1,4 @@
-import { lastActivity, sizeRatio, withinWeek, type Stage } from "./care";
+import { sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
 import { hash, labelHalf, labelHeight, labelsHideFrom, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
 
@@ -21,8 +21,6 @@ export type Card = Star & {
   kick: number;
   // 판에 늘 뜨는 장이 아니라 방을 골라야 나오는 장.
   extra: boolean;
-  // 공책의 어느 칸으로 날아가는지: 0 먼저, 1 참고, 2 나중에.
-  section: 0 | 1 | 2;
 };
 export type HeroNode = Placed & { r: number };
 export type HeroLayout = { nodes: HeroNode[]; cards: Card[] };
@@ -30,19 +28,9 @@ export type HeroLayout = { nodes: HeroNode[]; cards: Card[] };
 // 파일이 클수록 큰 종이. 로그 눈금이라 1KB 56, 1MB 76, 1GB 96(1280 기준)입니다. 가장 작아도 이름이 찍혀요(ObjectShape).
 export const paperWidth = (bytes: number, unit: number) => (56 + 40 * sizeRatio(bytes)) * unit;
 
-// 멀쩡한 파일은 살짝, 기운 파일은 더, 쓰러진 파일은 크게 기웁니다. 이름은 고개를 꺾지 않고 읽혀야 해서 눕히지는 않아요.
-export function restAngle(stage: Stage, id: string): number {
-  const side = hash(id, 21) < 0.5 ? -1 : 1;
-  const amount = hash(id, 22);
-  if (stage === "fallen") return side * (30 + 14 * amount);
-  if (stage === "tilted") return side * (13 + 11 * amount);
-  return side * 7 * amount;
-}
-
-function sectionOf(thing: Thing, stage: Stage, now: number): Card["section"] {
-  if (stage === "fallen") return 0;
-  if (stage === "tilted") return 1;
-  return withinWeek(lastActivity(thing), now) ? 1 : 2;
+// 파일마다 살짝 다르게 놓입니다. 상태와는 상관없어요.
+export function restAngle(id: string): number {
+  return (hash(id, 21) < 0.5 ? -1 : 1) * 7 * hash(id, 22);
 }
 
 // 돌아간 사각형을 감싸는 상자의 반쪽 크기.
@@ -110,7 +98,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     // 키가 큰 종이도 124 안에서 멈춥니다. 안 그러면 한 장이 판을 차지해요.
     const size = Math.round(Math.min(Math.max(natural * fit, Math.min(natural, floor)), (124 * paperUnit) / aspect(star.thing)));
     const height = size >= 40 ? size * aspect(star.thing) : size;
-    const rot = restAngle(star.stage, id);
+    const rot = restAngle(id);
     const { hw, hh } = reach(size, height, rot);
     const seed = toPx(star, view);
     // 판이 차면 몇 장은 밖으로 조금 걸칩니다. 몇 장 없는 방은 다 안에 들어와 이름이 잘리지 않아요.
@@ -123,7 +111,6 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
       rot,
       kick: (hash(id, 24) < 0.5 ? -1 : 1) * (6 + 8 * hash(id, 25)),
       extra,
-      section: sectionOf(star.thing, star.stage, now),
     };
     return { card, item: { x: seed.x, y: seed.y, hw, hh, minX: hw * edge, maxX: view.w - hw * edge, minY: hh * edge, maxY: view.h - hh * edge } };
   };
@@ -160,60 +147,32 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   return { nodes, cards };
 }
 
-// ── 첫 스크롤: 띠와 공책 더미 ──
+// ── 첫 스크롤: 거르기 ──
 
-export type Flight = { rest: Pt; belt: Pt & { rot: number; scale: number }; land: Pt & { rot: number; scale: number }; slot: number; section: Card["section"] };
 type Pt = { x: number; y: number };
+// 공책 줄 아이콘의 가운데와 폭. 공책 장면에서 잽니다(SkyMap).
+export type RowSpot = Pt & { size: number };
+// to.rot은 쉬는 기울기에 더하는 값이고, stagger는 같은 무리 안에서 출발하는 차례(0~1)입니다.
+export type Flight = { rest: Pt; to: Pt & { rot: number; scale: number }; toRow: boolean; stagger: number };
 
-// 띠의 지그재그 각도. 줄에 꿴 듯 보이는 값입니다.
-const beltTilt = [-6, 3, -8, 5, -2, 7, -4, 10, 4, -7, 9, -3, 6, -10, 2, -5, -9, 5, -3, 8, -6, 11];
+const homeScale = 0.3;
 
-// 공책의 자리. anchors는 칸 글자의 왼쪽 끝과 그 아래 내용이 시작하는 높이입니다. 공책 장면을 잴 수 있으면 잰 값을 씁니다(SkyMap).
-export type Anchor = { x: number; y: number };
-export type NotebookGuide = { anchors: Anchor[]; beltY: number; sheetW: number };
-
-// 공책을 아직 잴 수 없을 때의 기본값입니다. 칸 높이는 1280x840에서 잰 비율이에요.
-export function notebookGuide({ w, h }: View): NotebookGuide {
-  const [sheetW, ratio, padTop] = w > 1024 ? [w * 0.55, 780 / 800, h * 0.03] : w >= 600 ? [w * 0.82, 950 / 800, h * 0.09] : [Math.min(w * 0.92, h * 0.49), 1100 / 800, h * 0.12];
-  const beltRow = Math.min(90, Math.max(36, w * 0.07));
-  const top = padTop + beltRow + h * 0.02;
-  const left = (w - sheetW) / 2;
-  return { sheetW, beltY: padTop + beltRow / 2, anchors: [0.1368, 0.6056, 0.7377].map((at) => ({ x: left + sheetW * 0.08, y: top + sheetW * ratio * at })) };
-}
-
-// 쉬던 자리의 x 순서대로 띠에 앉히니 길이 서로 엇갈리지 않습니다. 공책으로 갈 때도 왼쪽부터 차례로 떨어져요.
-export function flightsFor(cards: Card[], view: View, { anchors, beltY, sheetW }: NotebookGuide = notebookGuide(view)): Map<string, Flight> {
-  const vw = view.w / 100;
-  // 띠에서는 폭을 4vw로 맞춥니다. 높이가 달라 줄에 꿴 종이처럼 보여요.
-  const beltW = 51.2 * stageUnit(view);
-  const k = sheetW / 704;
-  const order = cards.map((card) => ({ card, rest: toPx(card, view) })).sort((a, b) => a.rest.x - b.rest.x);
-  const count = order.length;
-  const step = count > 1 ? Math.min(3.3 * vw, (69.3 * vw) / (count - 1)) : 0;
-  const left = view.w / 2 - (step * (count - 1)) / 2;
-  const seen = [0, 0, 0];
-  const totals = [0, 1, 2].map((s) => order.filter(({ card }) => card.section === s).length);
+// 공책에 줄이 있는 파일은 그 줄의 아이콘이 되고, 나머지는 자기 방 화병 뒤로 돌아갑니다. 줄 차례대로 내려앉아요.
+export function flightsFor(cards: Card[], nodes: HeroNode[], view: View, rows: ReadonlyMap<string, RowSpot>): Map<string, Flight> {
+  const onMap = new Set(cards.map((card) => card.thing.id));
+  const kept = [...rows.keys()].filter((id) => onMap.has(id));
   const flights = new Map<string, Flight>();
-  order.forEach(({ card, rest }, slot) => {
-    const section = card.section;
-    const index = seen[section]++;
-    const span = 250 * k;
-    const gap = totals[section] > 1 ? Math.min(62.5 * k, span / (totals[section] - 1)) : 0;
-    const landW = beltW * 0.6;
-    flights.set(card.thing.id, {
-      rest,
-      slot,
-      section,
-      belt: { x: left + slot * step, y: beltY, rot: beltTilt[slot % beltTilt.length], scale: beltW / card.size },
-      land: {
-        x: anchors[section].x + landW / 2 + index * gap,
-        y: anchors[section].y + (18.5 + (hash(card.thing.id, 28) - 0.5) * 20) * k,
-        // 칸마다 달라 보이는 각도(참고 사이트에서 잰 수열 그대로).
-        rot: ((7.01 * slot) % 20) - 10,
-        scale: landW / card.size,
-      },
-    });
-  });
+  for (const card of cards) {
+    const id = card.thing.id;
+    const rest = toPx(card, view);
+    const spot = rows.get(id);
+    if (spot) {
+      const stagger = kept.length > 1 ? kept.indexOf(id) / (kept.length - 1) : 0;
+      flights.set(id, { rest, toRow: true, stagger, to: { x: spot.x, y: spot.y, rot: -card.rot, scale: spot.size / card.size } });
+    } else {
+      const home = toPx(nodes.find((node) => node.room.id === card.room.id)!.at, view);
+      flights.set(id, { rest, toRow: false, stagger: hash(id, 31), to: { ...home, rot: 2 * card.kick, scale: homeScale } });
+    }
+  }
   return flights;
 }
-

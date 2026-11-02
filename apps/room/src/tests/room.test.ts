@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { budgetLevel, budgetNoticeDue, dayMs, defaultCare, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, suggestBudget, sweepCandidates, thingStage } from "../domain/care";
+import { budgetLevel, budgetNoticeDue, dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, suggestBudget, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
 import { previewMode } from "../components/FileViewer";
-import { clusterSpread, hash, homeActivity, layoutRooms, progressText, roomActivity, roomMess, roomProgress, roomRadius, roomSpots, roomStars, sky, stateAfterDone, vaseHalf, vaseLift } from "../domain/sky";
+import { clusterSpread, hash, homeActivity, layoutRooms, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, sky, stateAfterDone, vaseHalf, vaseLift } from "../domain/sky";
 import { kindParts, vaseBands, vaseIndex, vasePaths } from "../art/vases";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
@@ -19,7 +19,7 @@ function thing(patch: Partial<Thing> = {}): Thing {
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, ...patch };
+  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("물건 크기", () => {
@@ -43,29 +43,38 @@ describe("물건 크기", () => {
 });
 
 describe("방치 판정", () => {
-  it("방을 쓴 날이 없으면 오래돼도 쓰러지지 않고, 있으면 3일에 기울고 7일에 쓰러진다", () => {
+  it("방을 쓴 날이 없으면 오래돼도 오래됨이 아니고, 있으면 30일부터 오래됨이다", () => {
     const item = thing();
-    expect(thingStage(item, defaultCare, [], start + 14 * dayMs).stage).toBe("normal");
+    expect(thingAge(item, defaultCare, [], start + 60 * dayMs).stale).toBe(false);
     const workDays = [localDay(start + dayMs)];
-    expect(thingStage(item, defaultCare, workDays, start + 2 * dayMs).stage).toBe("normal");
-    expect(thingStage(item, defaultCare, workDays, start + 3 * dayMs)).toEqual({ stage: "tilted", days: 3 });
-    expect(thingStage(item, defaultCare, workDays, start + 7 * dayMs)).toEqual({ stage: "fallen", days: 7 });
+    expect(thingAge(item, defaultCare, workDays, start + 29 * dayMs)).toEqual({ stale: false, days: 29 });
+    expect(thingAge(item, defaultCare, workDays, start + 30 * dayMs)).toEqual({ stale: true, days: 30 });
   });
 
-  it("고정·쉬는 중·누락·원본이 나중에 고쳐진 물건은 쓰러지지 않는다", () => {
+  it("방마다 정한 기준을 따른다", () => {
     const workDays = [localDay(start + dayMs)];
-    const later = start + 9 * dayMs;
-    expect(thingStage(thing({ pinned: true }), defaultCare, workDays, later).stage).toBe("normal");
-    expect(thingStage(thing(), { ...defaultCare, resting: true }, workDays, later).stage).toBe("normal");
-    expect(thingStage(thing({ missing: true }), defaultCare, workDays, later).stage).toBe("normal");
-    expect(thingStage(thing({ lastModified: start + 2 * dayMs }), defaultCare, workDays, later).stage).toBe("normal");
+    expect(thingAge(thing(), { ...defaultCare, staleAfterDays: 7 }, workDays, start + 7 * dayMs).stale).toBe(true);
   });
 
-  it("정리 후보는 바닥에 놓인 쓰러진 물건뿐이다", () => {
+  it("고정·쉬는 중·누락·원본이 나중에 고쳐진 물건은 오래됨이 아니다", () => {
+    const workDays = [localDay(start + dayMs)];
+    const later = start + 31 * dayMs;
+    expect(thingAge(thing({ pinned: true }), defaultCare, workDays, later).stale).toBe(false);
+    expect(thingAge(thing(), { ...defaultCare, resting: true }, workDays, later).stale).toBe(false);
+    expect(thingAge(thing({ missing: true }), defaultCare, workDays, later).stale).toBe(false);
+    expect(thingAge(thing({ lastModified: start + 2 * dayMs }), defaultCare, workDays, later).stale).toBe(false);
+  });
+
+  it("정리 후보는 바닥에 놓인 오래된 물건뿐이고, 큰 파일이 먼저다", () => {
+    const small = thing({ size: 10 });
+    const large = thing({ size: 1000 });
+    const middle = thing({ size: 100 });
+    const ordered = sweepCandidates(room([small, large, middle], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs);
+    expect(ordered.map((item) => item.id)).toEqual([large.id, middle.id, small.id]);
     const fallen = thing();
     const onShelf = thing({ spot: null });
     const boxed = thing({ box: { state: "virtual", fromPath: "참고/a.png", boxPath: "참고/a.png", at: start } });
-    const candidates = sweepCandidates(room([fallen, onShelf, boxed], { workDays: [localDay(start + dayMs)] }), start + 8 * dayMs);
+    const candidates = sweepCandidates(room([fallen, onShelf, boxed], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs);
     expect(candidates.map((item) => item.id)).toEqual([fallen.id]);
     expect(markWorkDay(["2026-10-01"], start)).toEqual(["2026-10-01", "2026-10-05"]);
   });
@@ -82,17 +91,16 @@ describe("방 밖 작업", () => {
     expect(lastActivity(thing({ touchedAt: 1, lastModified: 3, lastUsedAt: 5 }))).toBe(5);
   });
 
-  it("방 밖에서 쓰면 그때부터 다시 세고, 그 뒤로 방을 쓴 날이 있어야 기운다", () => {
+  it("방 밖에서 쓰면 그때부터 다시 세고, 그 뒤로 방을 쓴 날이 있어야 오래됨이다", () => {
     const item = thing({ lastUsedAt: day(5) });
     const workDays = [localDay(day(1)), localDay(day(6))];
-    expect(thingStage(item, defaultCare, workDays, day(7))).toEqual({ stage: "normal", days: 2 });
-    expect(thingStage(item, defaultCare, workDays, day(8))).toEqual({ stage: "tilted", days: 3 });
-    expect(thingStage(item, defaultCare, workDays, day(12))).toEqual({ stage: "fallen", days: 7 });
+    expect(thingAge(item, defaultCare, workDays, day(7))).toEqual({ stale: false, days: 2 });
+    expect(thingAge(item, defaultCare, workDays, day(35))).toEqual({ stale: true, days: 30 });
     // 마지막 활동 날이나 그 전에만 방을 썼으면 오래돼도 그대로입니다.
-    expect(thingStage(item, defaultCare, [localDay(day(1)), localDay(day(5))], day(30))).toEqual({ stage: "normal", days: 25 });
-    // 고친 날도 같은 기준이고, 고쳤다고 영원히 서 있지는 않습니다.
-    expect(thingStage(thing({ lastModified: day(2) }), defaultCare, [localDay(day(3))], day(9))).toEqual({ stage: "fallen", days: 7 });
-    expect(thingStage(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(30))).toEqual({ stage: "normal", days: 0 });
+    expect(thingAge(item, defaultCare, [localDay(day(1)), localDay(day(5))], day(60))).toEqual({ stale: false, days: 55 });
+    // 고친 날도 같은 기준입니다.
+    expect(thingAge(thing({ lastModified: day(2) }), defaultCare, [localDay(day(3))], day(32))).toEqual({ stale: true, days: 30 });
+    expect(thingAge(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(60))).toEqual({ stale: false, days: 0 });
   });
 
   it("다시 봐도 마지막 사용 시각은 뒤로 가거나 null로 돌아가지 않는다", () => {
@@ -125,26 +133,26 @@ describe("방 밖 작업", () => {
     expect(built.things[0].lastUsedAt).toBe(day(2));
   });
 
-  it("다른 파일을 밖에서 쓴 날이 있으면 그대로인 물건이 기운다", () => {
+  it("다른 파일을 밖에서 쓴 날이 있으면 그대로인 물건은 오래됨이 된다", () => {
     const still = thing({ path: "a" });
     const next = mergeScan(room([still]), [scanned("a", 0), scanned("b", day(4), day(5))], sure, day(8));
-    expect(thingStage(next.things[0], defaultCare, next.workDays, day(8)).stage).toBe("fallen");
+    expect(thingAge(next.things[0], defaultCare, next.workDays, day(40)).stale).toBe(true);
   });
 
-  it("아무도 쓰지 않은 방은 기울지 않는다: 활동이 없거나, 모든 파일의 마지막 활동이 같은 옛날 하루여도", () => {
+  it("아무도 쓰지 않은 방은 오래됨으로 세지 않는다: 활동이 없거나, 모든 파일의 마지막 활동이 같은 옛날 하루여도", () => {
     const untouched = mergeScan(room([thing({ path: "a" })]), [scanned("a", 0)], sure, day(30));
     expect(untouched.workDays).toEqual([]);
-    expect(roomMess(untouched, day(30))).toEqual({ tilted: 0, fallen: 0 });
+    expect(staleCount(untouched, day(30))).toBe(0);
 
     const old = room([thing({ path: "a", touchedAt: day(-10) }), thing({ path: "b", touchedAt: day(-10) })]);
     const scanOnly = mergeScan(old, [scanned("a", day(0), day(0) + 1000), scanned("b", day(-3), day(0))], sure, day(20));
     expect(scanOnly.workDays).toEqual([localDay(day(-3)), localDay(day(0))]);
-    expect(roomMess(scanOnly, day(20))).toEqual({ tilted: 0, fallen: 0 });
+    expect(staleCount(scanOnly, day(20))).toBe(0);
 
     const files = [scanned("a", day(0)), scanned("b", day(0), day(0))];
     const built = buildRoom({ name: "방", source: "input", rootName: "방", files, scan: sure, budgetBytes: null, done: false, workDays: [], now: day(20) });
     const again = mergeScan(built, files, sure, day(50));
-    expect(roomMess(again, day(50))).toEqual({ tilted: 0, fallen: 0 });
+    expect(staleCount(again, day(50))).toBe(0);
   });
 
   it("어제 연 폴더는 오래전에 고쳤어도 완료로 보지 않는다", () => {
@@ -435,20 +443,20 @@ describe("밤하늘 지도", () => {
     expect(Math.abs(hash("t1") - hash("t2"))).toBeGreaterThan(0.01);
   });
 
-  it("파일 별은 방 고리 밖에 뜨고, 쓰러진 파일일수록 멀리 있으며, 상자 속 파일은 뜨지 않는다", () => {
+  it("파일 별은 방 고리 밖에 뜨고, 오래된 파일은 더 멀리 있으며, 상자 속 파일은 뜨지 않는다", () => {
     const workDays = [localDay(start + dayMs)];
-    const fresh = thing({ touchedAt: start + 8 * dayMs });
+    const fresh = thing({ touchedAt: start + 40 * dayMs });
     const fallen = thing();
     const boxed = thing({ box: { state: "virtual", fromPath: "a", boxPath: "a", at: start } });
     const r = room([fresh, fallen, boxed], { workDays });
     const center = roomSpots(3)[1];
-    const stars = roomStars(r, center, clusterSpread(3), start + 8 * dayMs);
+    const stars = roomStars(r, center, clusterSpread(3), start + 40 * dayMs);
     expect(stars.map((star) => star.thing.id)).toEqual([fresh.id, fallen.id]);
     const distance = (id: string) => {
       const star = stars.find((item) => item.thing.id === id)!;
       return Math.hypot(star.x - center.x, (star.y - center.y) / 0.8);
     };
-    expect(stars.find((star) => star.thing.id === fallen.id)?.stage).toBe("fallen");
+    expect(stars.find((star) => star.thing.id === fallen.id)?.stale).toBe(true);
     expect(distance(fresh.id)).toBeGreaterThan(roomRadius(r) + 7);
     expect(distance(fallen.id)).toBeGreaterThan(distance(fresh.id));
   });
@@ -530,14 +538,70 @@ describe("한꺼번에 가져오기", () => {
   });
 });
 
+describe("오래 안 쓴 방 제안", () => {
+  const at = (days: number) => start + days * dayMs;
+
+  it("방 전체를 60일 넘게 안 쓰면 묻는다", () => {
+    expect(doneOfferDue(room([thing()]), at(60))).toBe(false);
+    expect(doneOfferDue(room([thing()]), at(61))).toBe(true);
+  });
+
+  it("한 파일이라도 최근에 썼으면 묻지 않는다", () => {
+    expect(doneOfferDue(room([thing(), thing({ lastUsedAt: at(50) })]), at(61))).toBe(false);
+  });
+
+  it("상자에 든 파일이나 없어진 파일은 활동으로 치지 않는다", () => {
+    const boxed = thing({ touchedAt: at(60), box: { state: "virtual", fromPath: "a", boxPath: "a", at: at(60) } });
+    const gone = thing({ touchedAt: at(60), missing: true });
+    expect(doneOfferDue(room([thing(), boxed, gone]), at(61))).toBe(true);
+  });
+
+  it("빈 방, 완료한 방, 쉬는 방, 정리 제안을 끈 방은 묻지 않는다", () => {
+    expect(doneOfferDue(room([]), at(90))).toBe(false);
+    expect(doneOfferDue(room([thing()], { care: { ...defaultCare, done: true } }), at(90))).toBe(false);
+    expect(doneOfferDue(room([thing()], { care: { ...defaultCare, resting: true } }), at(90))).toBe(false);
+    expect(doneOfferDue(room([thing()], { care: { ...defaultCare, enabled: false } }), at(90))).toBe(false);
+  });
+
+  it("답한 뒤에는 다시 묻지 않고, 방을 다시 쓴 뒤 또 60일이 지나면 묻는다", () => {
+    expect(doneOfferDue(room([thing()], { doneOfferAt: at(61) }), at(200))).toBe(false);
+    expect(doneOfferDue(room([thing({ touchedAt: at(100) })], { doneOfferAt: at(61) }), at(161))).toBe(true);
+  });
+});
+
+describe("예전 돌보기 설정 옮기기", () => {
+  it("저장한 적이 없으면 기본값이다", () => {
+    expect(normalizeCare(undefined)).toEqual(defaultCare);
+    expect(defaultCare.staleAfterDays).toBe(30);
+  });
+
+  it("예전 기본값 7일은 30일로 올리고, 옛 칸은 남기지 않는다", () => {
+    const old = { enabled: true, resting: false, done: false, tiltAfterDays: 3, fallAfterDays: 7 };
+    expect(normalizeCare(old)).toEqual({ enabled: true, resting: false, done: false, staleAfterDays: 30 });
+  });
+
+  it("직접 정한 쓰러짐 일수는 지키고, 다른 설정도 그대로다", () => {
+    expect(normalizeCare({ enabled: false, resting: true, done: true, fallAfterDays: 14 })).toEqual({ enabled: false, resting: true, done: true, staleAfterDays: 14 });
+  });
+
+  it("새 기준이 있으면 옛 값은 보지 않는다", () => {
+    expect(normalizeCare({ staleAfterDays: 45, fallAfterDays: 14 }).staleAfterDays).toBe(45);
+  });
+
+  it("망가진 옛 값은 기본값으로 둔다", () => {
+    expect(normalizeCare({ fallAfterDays: "어제" }).staleAfterDays).toBe(30);
+    expect(normalizeCare({ fallAfterDays: 0 }).staleAfterDays).toBe(30);
+  });
+});
+
 describe("완료한 프로젝트", () => {
-  it("기울지 않고, 주간 정리 후보도 없고, 용량 경고도 쉬지만 다시 진행 중으로 돌리면 돌아온다", () => {
+  it("오래됨으로 세지 않고, 주간 정리 후보도 없고, 용량 경고도 쉬지만 다시 진행 중으로 돌리면 돌아온다", () => {
     const done = { ...defaultCare, done: true };
     const workDays = [localDay(start + dayMs)];
-    expect(thingStage(thing(), done, workDays, start + 9 * dayMs).stage).toBe("normal");
-    expect(thingStage(thing(), defaultCare, workDays, start + 9 * dayMs).stage).toBe("fallen");
+    expect(thingAge(thing(), done, workDays, start + 31 * dayMs).stale).toBe(false);
+    expect(thingAge(thing(), defaultCare, workDays, start + 31 * dayMs).stale).toBe(true);
     const finished = room([thing({ size: 6 * GB })], { care: done, workDays, budgetBytes: 5 * GB });
-    expect(sweepCandidates(finished, start + 9 * dayMs)).toEqual([]);
+    expect(sweepCandidates(finished, start + 31 * dayMs)).toEqual([]);
     expect(budgetNoticeDue(finished, start)).toBe(false);
     expect(budgetNoticeDue({ ...finished, care: defaultCare }, start)).toBe(true);
   });

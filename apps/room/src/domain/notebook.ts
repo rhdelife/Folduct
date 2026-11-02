@@ -6,13 +6,13 @@ import type { Room } from "./model";
 export type TaskRow = { type: "room"; key: string; room: Room; over: number | null } | { type: "file"; key: string; file: FileRef };
 export type TaskRows = { rows: TaskRow[]; more: number; moreFiles: number };
 
-// 방마다 머리 한 줄과 그 방의 쓰러진 파일. 한도 넘은 방, 오래된 파일이 있는 방 순서이고, 칸이 모자라면 방마다 한 줄씩 돌아가며 채웁니다.
+// 방마다 머리 한 줄과 그 방의 오래된 파일. 한도 넘은 방, 오래된 파일이 있는 방 순서이고, 칸이 모자라면 방마다 한 줄씩 돌아가며 채웁니다.
 export function taskRows(first: NotebookSections["first"], max: number): TaskRows {
   const over = new Map(first.overBudget.map(({ room, usage, budgetBytes }) => [room.id, { room, over: usage.totalBytes - budgetBytes }]));
   const worst = (files: FileRef[]) => Math.max(0, ...files.map((file) => file.days ?? 0));
   const groups = [
-    ...first.fallen.map(({ room, files }) => ({ room, over: over.get(room.id)?.over ?? null, files })),
-    ...first.overBudget.filter(({ room }) => !first.fallen.some((item) => item.room.id === room.id)).map(({ room }) => ({ room, over: over.get(room.id)!.over, files: [] as FileRef[] })),
+    ...first.stale.map(({ room, files }) => ({ room, over: over.get(room.id)?.over ?? null, files })),
+    ...first.overBudget.filter(({ room }) => !first.stale.some((item) => item.room.id === room.id)).map(({ room }) => ({ room, over: over.get(room.id)!.over, files: [] as FileRef[] })),
   ].sort((a, b) => (b.over ?? -1) - (a.over ?? -1) || worst(b.files) - worst(a.files));
 
   let left = max;
@@ -50,18 +50,5 @@ export function rowWindow(index: number, count: number): { from: number; to: num
   return { from, to: from + Math.min(step * 2.57, 60) };
 }
 
-// 종이에 들어가는 만큼만 적습니다. 위 칸부터 지키도록, 넘치면 이 순서로 한 단씩 줄여요.
-export const fitLadder: { first: number; tilted: number }[] = [
-  { first: 10, tilted: 3 },
-  { first: 9, tilted: 3 },
-  { first: 8, tilted: 3 },
-  { first: 8, tilted: 2 },
-  { first: 8, tilted: 1 },
-  { first: 7, tilted: 1 },
-  { first: 6, tilted: 1 },
-  { first: 6, tilted: 0 },
-  { first: 5, tilted: 0 },
-  { first: 4, tilted: 0 },
-  { first: 3, tilted: 0 },
-  { first: 2, tilted: 0 },
-];
+// 종이에 들어가는 만큼만 적습니다. 넘치면 한 단씩 줄여요.
+export const fitLadder: number[] = [10, 9, 8, 7, 6, 5, 4, 3, 2];

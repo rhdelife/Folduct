@@ -5,9 +5,17 @@ import { newId } from "./model";
 export const boxFolderName = "_Folduct 정리상자";
 export const sweepIntervalDays = 7;
 export const dayMs = 24 * 60 * 60 * 1000;
-export const defaultCare: CareSettings = { enabled: true, resting: false, done: false, tiltAfterDays: 3, fallAfterDays: 7 };
+export const defaultCare: CareSettings = { enabled: true, resting: false, done: false, staleAfterDays: 30 };
+// 방 전체를 이만큼 안 쓰면 완료로 옮길지 묻습니다.
+export const doneAfterDays = 60;
 
-export type Stage = "normal" | "tilted" | "fallen";
+// 옛 기록은 기울어짐·쓰러짐 일수를 따로 가졌습니다. 예전 기본값 7일은 새 기본값으로 올리고, 직접 정한 쓰러짐 일수는 지킵니다.
+export function normalizeCare(care: Partial<CareSettings> & { fallAfterDays?: unknown } | undefined): CareSettings {
+  const { enabled, resting, done, staleAfterDays } = { ...defaultCare, ...care };
+  const old = care?.fallAfterDays;
+  const kept = care?.staleAfterDays === undefined && typeof old === "number" && old > 0 && old !== 7 ? old : staleAfterDays;
+  return { enabled, resting, done, staleAfterDays: kept };
+}
 
 export function localDay(timestamp: number): string {
   const date = new Date(timestamp);
@@ -45,23 +53,34 @@ export function relativeDay(at: number, now: number): string {
 }
 
 // shortcut: 기기 시계만 믿습니다. 시계가 뒤로 가면 판정이 늦어질 뿐이고, 옮기기 전에는 항상 사용자 확인을 거칩니다.
-export function thingStage(thing: Thing, care: CareSettings, workDays: string[], now: number): { stage: Stage; days: number } {
-  if (thing.touchedAt === null) return { stage: "normal", days: 0 };
+export function thingAge(thing: Thing, care: CareSettings, workDays: string[], now: number): { stale: boolean; days: number } {
+  if (thing.touchedAt === null) return { stale: false, days: 0 };
   const last = lastActivity(thing);
   const days = Math.max(0, Math.floor((now - last) / dayMs));
-  if (!care.enabled || care.resting || care.done || thing.pinned || thing.missing || thing.box) return { stage: "normal", days };
+  if (!care.enabled || care.resting || care.done || thing.pinned || thing.missing || thing.box) return { stale: false, days };
   // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
   const lastDay = localDay(last);
   const today = localDay(now);
-  if (!workDays.some((day) => day > lastDay && day <= today)) return { stage: "normal", days };
-  if (days >= care.fallAfterDays) return { stage: "fallen", days };
-  if (days >= care.tiltAfterDays) return { stage: "tilted", days };
-  return { stage: "normal", days };
+  if (!workDays.some((day) => day > lastDay && day <= today)) return { stale: false, days };
+  return { stale: days >= care.staleAfterDays, days };
 }
 
+// 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
 export function sweepCandidates(room: Room, now: number): Thing[] {
   if (!room.care.enabled || room.care.resting || room.care.done) return [];
-  return room.things.filter((thing) => thing.spot && thingStage(thing, room.care, room.workDays, now).stage === "fallen");
+  return room.things.filter((thing) => thing.spot && thingAge(thing, room.care, room.workDays, now).stale).sort((a, b) => b.size - a.size);
+}
+
+// 있는 파일 중 마지막 활동. 파일이 없거나 활동을 모르면 0입니다.
+export function roomLastActivity(room: Pick<Room, "things">): number {
+  return room.things.filter((thing) => !thing.missing && !thing.box).reduce((latest, thing) => Math.max(latest, lastActivity(thing)), 0);
+}
+
+// 방을 통째로 안 쓴 기간은 파일 판정에서 빠지니, 그런 방은 파일 대신 방 하나로 묻습니다. 답한 뒤로 다시 쓰기 전까지는 묻지 않아요.
+export function doneOfferDue(room: Room, now: number): boolean {
+  if (!room.care.enabled || room.care.resting || room.care.done) return false;
+  const last = roomLastActivity(room);
+  return last > 0 && now - last > doneAfterDays * dayMs && (room.doneOfferAt === null || last > room.doneOfferAt);
 }
 
 export function sweepDue(lastSweepAt: number | null, now: number): boolean {
@@ -80,10 +99,15 @@ export function isInBox(path: string): boolean {
 export function boxPathCandidate(fromPath: string, attempt: number): string {
   const parts = fromPath.split("/");
   const name = parts.pop() ?? fromPath;
+  return [boxFolderName, ...parts, numberedName(name, attempt)].join("/");
+}
+
+export function numberedName(name: string, attempt: number): string {
+  if (attempt <= 1) return name;
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
-  return [boxFolderName, ...parts, attempt <= 1 ? name : `${base} (${attempt})${ext}`].join("/");
+  return `${base} (${attempt})${ext}`;
 }
 
 // ── 물건 크기 (FR16): 파일이 클수록 아이콘이 커집니다. ──

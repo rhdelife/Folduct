@@ -1,7 +1,13 @@
-import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
+import { Intro } from "./components/Intro";
 import { isNative } from "./gateways/native";
 import { Home } from "./pages/Home";
-import { RoomPage } from "./pages/RoomPage";
+import { getIntroOn } from "./storage/db";
+
+// 방 화면은 첫 화면에 필요 없어서 따로 받습니다. 집이 그려진 뒤 쉴 때 미리 받아 두면 방을 열 때 비어 보이지 않아요.
+const loadRoomPage = () => import("./pages/RoomPage").then((m) => ({ default: m.RoomPage }));
+const RoomPage = lazy(loadRoomPage);
+window.setTimeout(() => void loadRoomPage(), 1500);
 
 // 데스크톱 창에서만 켜는 CSS(튕김 끄기 등)의 기준입니다.
 document.documentElement.dataset.shell = isNative() ? "native" : "web";
@@ -15,8 +21,17 @@ function readRoute(): string | null {
 
 export default function App() {
   const [roomId, setRoomId] = useState(readRoute);
-  // 집으로 돌아오면 방금 있던 방을 골라 둡니다.
+  // 집으로 돌아오면 방금 있던 방의 화병으로 포커스를 돌려줍니다.
   const [lastRoomId, setLastRoomId] = useState(roomId);
+  // 인트로는 집으로 켤 때만 나옵니다. 방 주소로 바로 열었거나 방에서 돌아올 때는 나오지 않아요.
+  const [intro, setIntro] = useState<"checking" | "playing" | "leaving" | "off">(roomId ? "off" : "checking");
+  const leaveIntro = useCallback(() => setIntro("leaving"), []);
+  const endIntro = useCallback(() => setIntro("off"), []);
+  useEffect(() => {
+    if (intro !== "checking") return;
+    // 설정을 못 읽으면 인트로 없이 집으로 갑니다. 저장소 오류는 집 화면이 알려요.
+    getIntroOn().then((on) => setIntro(on ? "playing" : "off"), () => setIntro("off"));
+  }, [intro]);
   useEffect(() => {
     const onHash = () => {
       const id = readRoute();
@@ -41,15 +56,28 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
+  // 주간 정리 창이 인트로 위에 뜨지 않게, 집은 인트로가 걷힐 때부터 그립니다.
+  const homeReady = intro === "leaving" || intro === "off";
   return (
-    <ErrorBoundary key={roomId ?? "home"}>
-      {roomId ? <RoomPage key={roomId} roomId={roomId} onBack={back} /> : <Home returnTo={lastRoomId} onOpen={open} />}
-    </ErrorBoundary>
+    <>
+      <ErrorBoundary key={roomId ?? "home"}>
+        {roomId ? (
+          <Suspense fallback={null}>
+            <RoomPage key={roomId} roomId={roomId} onBack={back} />
+          </Suspense>
+        ) : homeReady && <Home returnTo={lastRoomId} onOpen={open} />}
+      </ErrorBoundary>
+      {!roomId && (intro === "playing" || intro === "leaving") && (
+        <ErrorBoundary onFail={endIntro}>
+          <Intro leaving={intro === "leaving"} onLeave={leaveIntro} onDone={endIntro} />
+        </ErrorBoundary>
+      )}
+    </>
   );
 }
 
 // 그리다 실패해도 빈 화면 대신 돌아갈 길을 보여 줍니다. 저장된 기록은 건드리지 않습니다.
-class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class ErrorBoundary extends Component<{ children: ReactNode; onFail?: () => void }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -58,6 +86,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
     console.error(error, info.componentStack);
+    this.props.onFail?.();
   }
 
   render() {

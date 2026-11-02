@@ -182,6 +182,37 @@ mod tests {
     std::fs::remove_dir_all(&base).unwrap();
   }
 
+  // 현관: 고른 두 폴더 사이의 이름 바꾸기만 됩니다. 고르지 않은 곳으로는 옮길 수 없고, 쓰기·지우기 권한도 없어요.
+  #[test]
+  fn doorstep_moves_only_between_chosen_folders() {
+    let base = std::env::temp_dir().join(format!("folduct-door-{}", std::process::id()));
+    let (door, room, outside) = (base.join("다운로드"), base.join("room"), base.join("outside"));
+    for dir in [&door, &room, &outside] {
+      std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(door.join("보고서.pdf"), "원본").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    // 대화상자에서 recursive: true로 두 폴더를 고른 상태와 같습니다.
+    app.fs_scope().allow_directory(&door, true).unwrap();
+    app.fs_scope().allow_directory(&room, true).unwrap();
+    let (from, to) = (door.join("보고서.pdf"), room.join("보고서.pdf"));
+
+    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": outside.join("보고서.pdf") })).is_err());
+    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": to })).unwrap();
+    assert_eq!(std::fs::read_to_string(&to).unwrap(), "원본");
+    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": to, "newPath": from })).unwrap();
+    assert_eq!(std::fs::read_to_string(&from).unwrap(), "원본");
+    assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": from })).is_err());
+    assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": from })).is_err());
+    assert!(from.exists());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
   #[test]
   fn last_used_keeps_each_date_with_its_file() {
     let base = std::env::temp_dir().join(format!("folduct-used-{}", std::process::id()));
@@ -207,8 +238,12 @@ mod tests {
       (!chunk.iter().any(|path| path.as_path() == Path::new("2"))).then(|| chunk.iter().map(|path| Some(path.display().to_string())).collect())
     };
     assert_eq!(ask_in_halves(&refs, &fake), vec![Some("0".to_string()), Some("1".to_string()), None, Some("3".to_string()), Some("4".to_string())]);
+  }
 
-    // 진짜 mdls로: 읽기 권한 없는 파일이 끼어도 자리가 어긋나지 않습니다.
+  // 진짜 mdls로: 읽기 권한 없는 파일이 끼어도 자리가 어긋나지 않습니다. mdls가 없는 OS에서는 전부 None입니다.
+  #[cfg(unix)]
+  #[test]
+  fn unreadable_file_keeps_other_dates_in_place() {
     let base = std::env::temp_dir().join(format!("folduct-noperm-{}", std::process::id()));
     std::fs::create_dir_all(&base).unwrap();
     let (a, locked, b) = (base.join("a.txt"), base.join("locked.txt"), base.join("b.txt"));

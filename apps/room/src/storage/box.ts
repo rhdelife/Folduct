@@ -1,5 +1,6 @@
 import { boxPathCandidate, mergeScan, sweepCandidates } from "../domain/care";
 import { isSafeRelativePath, type BoxEntry, type Room, type Thing } from "../domain/model";
+import { fileManagerName } from "../domain/platform";
 import { fileExists, moveFile, type MoveDirectory } from "../gateways/mover";
 import { askFolder, canMoveIn, folderAccess, folderMover, folderSource, isNative, scanRoomFolder, type Folder } from "../gateways/native";
 import { getHandle, listRooms, patchRoom, setLastSweepAt } from "./db";
@@ -51,7 +52,7 @@ export async function planSweep(rooms?: Room[], now = Date.now()): Promise<Sweep
       let seen: Set<string> | null = null;
       if (handle && (await folderAccess(handle)) === "granted") {
         current = await reconcileBox(room, handle);
-        // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 쓰러져 보이지 않게 폴더를 먼저 다시 읽습니다.
+        // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 오래된 것으로 잡히지 않게 폴더를 먼저 다시 읽습니다.
         try {
           const scan = await scanRoomFolder(handle);
           current = await patchRoom(room.id, (latest) => mergeScan(latest, scan.files, scan, now));
@@ -105,6 +106,11 @@ export async function runSweep(plans: SweepPlan[], selected: Set<string>, now = 
 function count(outcome: SweepOutcome, thing: Thing) {
   outcome.moved += 1;
   outcome.movedBytes += thing.size;
+}
+
+// 오래 안 쓴 방 제안의 답. 표시만 바꾸고 폴더와 파일은 그대로예요.
+export function answerDoneOffer(roomId: string, done: boolean, now = Date.now()): Promise<Room> {
+  return patchRoom(roomId, (room) => ({ ...room, doneOfferAt: now, care: { ...room.care, done: room.care.done || done } }));
 }
 
 // 기록은 방마다 두 번만: 옮기기 전 moving-in 한 번, 끝난 뒤 결과 한 번. 중간에 꺼져도 moving-in을 보고 reconcileBox가 맞춥니다.
@@ -209,7 +215,7 @@ export async function restoreFromBox(room: Room, handle: Folder | null, thingId:
   if (!handle) return fail("폴더 접근이 있어야 파일을 제자리로 옮길 수 있어요.");
   if ((await folderAccess(handle, "readwrite")) !== "granted" && !(await askFolder(handle, "readwrite"))) return fail("폴더 수정 권한을 받지 못해 옮기지 않았어요.");
   const root = folderMover(handle);
-  if (await fileExists(root, entry.fromPath)) return fail("원래 자리에 같은 이름의 파일이 있어요. Finder에서 확인해 주세요.");
+  if (await fileExists(root, entry.fromPath)) return fail(`원래 자리에 같은 이름의 파일이 있어요. ${fileManagerName()}에서 확인해 주세요.`);
   await write({ box: { ...entry, state: "moving-out" } });
   const moved = await moveFile(root, entry.boxPath, entry.fromPath);
   if (!moved.ok) return fail(moved.message, await write({ box: { ...entry, state: "boxed" } }));

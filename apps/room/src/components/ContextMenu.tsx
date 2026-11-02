@@ -80,13 +80,16 @@ export function ContextMenu({ x, y, opener, label, items, onClose }: { x: number
       close();
     };
     window.addEventListener("pointerdown", outside, true);
-    // 안쪽 칸의 스크롤도 잡도록 capture로 듣습니다.
-    window.addEventListener("scroll", close, true);
+    // 안쪽 칸의 스크롤도 잡도록 capture로 듣습니다. 항목이 많아 메뉴 자체가 스크롤될 때는 닫지 않아요.
+    const scrolled = (event: Event) => {
+      if (!menu.current?.contains(event.target as Node)) close();
+    };
+    window.addEventListener("scroll", scrolled, true);
     window.addEventListener("resize", close);
     window.addEventListener("blur", close);
     return () => {
       window.removeEventListener("pointerdown", outside, true);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", scrolled, true);
       window.removeEventListener("resize", close);
       window.removeEventListener("blur", close);
     };
@@ -108,9 +111,9 @@ export function ContextMenu({ x, y, opener, label, items, onClose }: { x: number
 
   const body = (
     <div ref={menu} className="context-menu" role="menu" aria-label={label} style={at} onKeyDown={onKeyDown} onContextMenu={(event) => event.preventDefault()}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <button
-          key={item.label}
+          key={index}
           type="button"
           role="menuitem"
           onClick={() => {

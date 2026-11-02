@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultCare, localDay, dayMs } from "../domain/care";
+import { defaultCare, localDay, dayMs, sweepCandidates } from "../domain/care";
 import type { Room, ScannedFile, Thing } from "../domain/model";
 import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
-import { planSweep, reconcileBox, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
+import { answerDoneOffer, planSweep, reconcileBox, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
+import { sampleRooms } from "../storage/sample";
+import { vaseIndex } from "../art/vases";
 import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { put, seed, view, type MemoryDir } from "./fakeFolder";
 
@@ -43,7 +45,7 @@ vi.mock("../gateways/native", () => ({
 }));
 
 const start = new Date(2026, 9, 5, 12).getTime();
-const now = start + 9 * dayMs;
+const now = start + 31 * dayMs;
 const box = "_Folduct 정리상자";
 
 function thing(path: string, patch: Partial<Thing> = {}): Thing {
@@ -51,7 +53,7 @@ function thing(path: string, patch: Partial<Thing> = {}): Thing {
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [localDay(start + dayMs)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, ...patch };
+  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [localDay(start + dayMs)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 function store(...rooms: Room[]) {
@@ -83,6 +85,46 @@ describe("저장된 방 옮겨 오기", () => {
     const migrated = normalizeRoom({ ...room([]), things: [old, { ...old, id: "망가짐", lastUsedAt: "어제" }, { ...old, id: "음수", lastUsedAt: -1 }, { ...old, id: "그대로", lastUsedAt: start }] });
     expect(migrated.things[0]).toEqual({ ...old, lastUsedAt: null });
     expect(migrated.things.map((item) => item.lastUsedAt)).toEqual([null, null, null, start]);
+  });
+});
+
+describe("돌보기 설정 옮기기", () => {
+  it("저장된 옛 방을 읽으면 기준이 하나로 합쳐지고, 제안 기록은 비어 있다", async () => {
+    const { normalizeRoom } = await vi.importActual<typeof import("../storage/db")>("../storage/db");
+    const { doneOfferAt: _, face: __, ...saved } = room([]);
+    const old = { ...saved, care: { enabled: true, resting: false, done: false, tiltAfterDays: 3, fallAfterDays: 7 } };
+    expect(normalizeRoom(old)).toMatchObject({ doneOfferAt: null, care: { enabled: true, resting: false, done: false, staleAfterDays: 30 } });
+    expect(normalizeRoom(old).care).not.toHaveProperty("fallAfterDays");
+    expect(normalizeRoom({ ...old, care: { ...old.care, fallAfterDays: 14 } }).care.staleAfterDays).toBe(14);
+    expect(normalizeRoom({ ...old, doneOfferAt: 5 }).doneOfferAt).toBe(5);
+    // 얼굴이 없던 방은 예전과 같은 모양을 받고, 저장된 얼굴은 지킵니다.
+    expect(normalizeRoom(old).face.shape).toBe(vaseIndex(old.id));
+    expect(normalizeRoom({ ...old, face: { shape: 3, color: 5 } }).face).toEqual({ shape: 3, color: 5 });
+  });
+});
+
+describe("오래 안 쓴 방 제안 답하기", () => {
+  it("완료로 옮기면 표시만 바뀌고 물어본 시각이 남는다", async () => {
+    const item = room([thing("a.psd")]);
+    store(item);
+    await answerDoneOffer(item.id, true, now);
+    expect(stored().care.done).toBe(true);
+    expect(stored().doneOfferAt).toBe(now);
+    expect(stored().things).toEqual(item.things);
+  });
+
+  it("그대로 두면 물어본 시각만 남고 완료 상태는 그대로다", async () => {
+    store(room([thing("a.psd")]));
+    await answerDoneOffer("r", false, now);
+    expect(stored().care.done).toBe(false);
+    expect(stored().doneOfferAt).toBe(now);
+  });
+});
+
+describe("샘플 방", () => {
+  it("구경할 수 있게 방마다 오래된 파일이 있다", () => {
+    const at = Date.now();
+    for (const sample of sampleRooms(at)) expect(sweepCandidates(sample, at).length).toBeGreaterThan(0);
   });
 });
 

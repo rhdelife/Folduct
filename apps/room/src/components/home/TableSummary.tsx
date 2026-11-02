@@ -1,9 +1,9 @@
-import { useId } from "react";
 import { ObjectShape } from "../../art/ObjectShape";
-import { kindParts, kindSummary, vaseBands, vaseIndex, vasePaths } from "../../art/vases";
+import { kindParts, kindSummary, vaseBands } from "../../art/vases";
+import { RoomFaceArt } from "../RoomFace";
 import { budgetLevel, roomUsage } from "../../domain/care";
 import { formatBytes, type Room } from "../../domain/model";
-import { progressText, roomActivity, roomMess, roomProgress } from "../../domain/sky";
+import { progressText, roomActivity, staleCount, roomProgress } from "../../domain/sky";
 import { kindCounts } from "../../domain/table";
 
 // 목록의 다른 얼굴: 화병과 용량, 14일 활동, 형식별 수.
@@ -12,11 +12,9 @@ const dotRows = 4;
 const objectSize = 18;
 
 export function TableSummary({ room, now }: { room: Room; now: number }) {
-  const clip = useId();
   const usage = roomUsage(room);
   const level = budgetLevel(usage, room.budgetBytes);
   const parts = kindParts(room.things);
-  const vase = vaseIndex(room.id);
   // 지도의 화병은 한도 대비로 차지만, 여기서는 한도가 없는 방도 형식 비율을 보여 줍니다.
   const ratio = room.budgetBytes && level !== "partial" ? usage.totalBytes / room.budgetBytes : 1;
   // 부분 스캔의 합계는 최솟값이라, 한도에 닿았으면 넘은 게 확실합니다. 그래서 level이 아니라 합계로 봅니다.
@@ -30,7 +28,7 @@ export function TableSummary({ room, now }: { room: Room; now: number }) {
   const worked = days.filter((day) => day.value > 0).length;
 
   const counts = kindCounts(room);
-  const { fallen, tilted } = roomMess(room, now);
+  const stale = staleCount(room, now);
   const progress = progressText(roomProgress(room, now), now);
 
   return (
@@ -38,14 +36,7 @@ export function TableSummary({ room, now }: { room: Room; now: number }) {
       <section className="sum-col" aria-label="용량">
         <h3 className="sum-label">용량</h3>
         <div className="sum-size">
-          <svg className="sum-vase" viewBox="-90 -100 180 200" aria-hidden="true" focusable="false">
-            <clipPath id={clip}><path d={vasePaths[vase]} /></clipPath>
-            <path className="vase-body" d={vasePaths[vase]} />
-            <g clipPath={`url(#${clip})`}>
-              {vaseBands(parts, ratio).map((band) => <rect key={band.label} className="vase-band" x={-100} y={band.y} width={200} height={band.height} fill={band.color} />)}
-            </g>
-            <path className={`vase-line level-${level}`} d={vasePaths[vase]} />
-          </svg>
+          <RoomFaceArt face={room.face} roomId={room.id} bands={vaseBands(parts, ratio)} level={level} className="sum-vase" viewBox="-90 -100 180 200" />
           <p className="sum-stat">
             <strong>{formatBytes(usage.totalBytes)}</strong>
             {(room.budgetBytes || !usage.exact) && <small>{usage.exact ? `/ ${formatBytes(room.budgetBytes!)}` : "최소"}</small>}
@@ -88,7 +79,7 @@ export function TableSummary({ room, now }: { room: Room; now: number }) {
         <span>
           {/* 0바이트 파일만 있는 방은 비율을 못 내지만 빈 방은 아닙니다. 파일을 다 잃은 방도 '아직'이 아니고요. */}
           {parts.length > 0 ? `${kindSummary(parts)}. ` : counts.length > 0 ? "" : room.things.length > 0 ? "폴더에서 파일을 찾지 못했어요. " : "이 방에는 아직 파일이 없어요. "}
-          {fallen + tilted > 0 ? <strong>{[fallen && `쓰러진 파일 ${fallen}개`, tilted && `기울어진 파일 ${tilted}개`].filter(Boolean).join(", ")}. </strong> : counts.length > 0 ? "모두 제자리에 있어요. " : ""}
+          {stale > 0 ? <strong>오래된 파일 {stale}개. </strong> : counts.length > 0 ? "모두 제자리에 있어요. " : ""}
           {progress}
         </span>
       </p>

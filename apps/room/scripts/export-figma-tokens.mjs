@@ -24,7 +24,7 @@ const px = (value) => Number(value.replace("px", ""));
 
 // CSS 이름을 Figma 변수 이름(그룹/이름)으로 옮깁니다.
 function path(name) {
-  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) return `color.neutral.${name}`;
+  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand|face-)/.test(name)) return `color.neutral.${name}`;
   if (name.startsWith("lightbox")) return `color.lightbox.${name.replace("lightbox-", "") || "gradient"}`;
   if (name.startsWith("status-")) return `color.status.${name.replace("status-", "")}`;
   return name;
@@ -35,7 +35,7 @@ const notes = [];
 
 for (const [name, raw] of Object.entries(vars)) {
   const value = raw.trim();
-  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
+  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand|face-)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
   else if (name === "lightbox") tokens.color.lightbox.gradient = { $type: "gradient", $value: value.replace(/var\(--lightbox-(\d)\)/g, (_, n) => vars[`lightbox-${n}`]), $description: "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요." };
   else if (name.startsWith("lightbox-")) tokens.color.lightbox[name.replace("lightbox-", "")] = { $type: "color", $value: value };
   else if (name.startsWith("status-")) tokens.color.status[name.replace("status-", "")] = { $type: "color", $value: value };
@@ -122,7 +122,7 @@ const md = `# Folduct 디자인 토큰 → Figma
 | 움직임(시간·곡선) | 변수로 못 넣어요 | Prototype 설정에 참고 |
 
 ## 규칙 (디자인 시스템 요약)
-- 색은 **파일 형식**에만 써요. 상태(기울어짐·쓰러짐·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
+- 색은 **파일 형식**에만 써요. 상태(오래됨·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
 - 파일 오브제는 불투명한 종이예요. 비치거나 겹쳐 곱하지 않아요.
 - \`ink-faint\`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.

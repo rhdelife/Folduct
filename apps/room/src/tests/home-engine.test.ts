@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captionPose, captions, captionStepper } from "../components/home/HomeHeader";
-import { clampPos, createEngine, cubicOut, gateWheel, idleMs, legMs, liveScene, nearestStop, nextStop, range, sceneOpen, scenes, segmentMs, sheetLift, smooth, stops, tweenPos, tweenTarget, type WheelStream } from "../components/home/engine";
+import { armWheel, clampPos, createEngine, cubicOut, gateWheel, idleMs, legMs, liveScene, nearestStop, nextStop, range, sceneOpen, scenes, segmentMs, sheetLift, smooth, stops, tweenPos, tweenTarget, wheelSlopPx, type WheelStream } from "../components/home/engine";
 
 describe("집 화면 엔진: 계산", () => {
   it("다음 자리는 방향으로 pos를 넘어선 첫 자리예요", () => {
@@ -31,7 +31,7 @@ describe("집 화면 엔진: 계산", () => {
   it("시간은 거리가 아니라 구간이 정하고, 여러 구간을 건너뛰면 한 번에 가요", () => {
     expect(tweenTarget(3349, 1)!.ms).toBe(segmentMs[1]);
     expect(tweenTarget(1351, 1)!.ms).toBe(segmentMs[1]);
-    expect(segmentMs[0]).toBe(5000);
+    expect(segmentMs[0]).toBe(1400);
     expect(segmentMs[4]).toBe(1500);
     expect(legMs(6500, 0)).toBe(1800);
     expect(legMs(0, 6)).toBe(1800);
@@ -247,6 +247,16 @@ describe("휠 관문: 한 번 튕기면 한 장면", () => {
   });
 });
 
+describe("휠 문턱", () => {
+  it("한 방향으로 이어질 때만 모으고, 멈추거나 방향이 바뀌면 다시 셉니다", () => {
+    const first = armWheel(null, 20, 0);
+    expect(first.sum).toBe(20);
+    expect(armWheel(first, 30, 100).sum).toBe(50);
+    expect(armWheel(first, 30, 300).sum).toBe(30);
+    expect(armWheel(first, -30, 100).sum).toBe(30);
+  });
+});
+
 describe("집 화면 엔진: 움직임", () => {
   let reduce = false;
   beforeEach(() => {
@@ -392,58 +402,67 @@ describe("집 화면 엔진: 움직임", () => {
     expect(engine.target).toBe(0);
   });
 
+  it("살짝 건드린 휠은 첫 화면을 넘기지 않아요", () => {
+    const engine = createEngine();
+    engine.wheel(1, 0);
+    engine.wheel(5, 16);
+    engine.wheel(wheelSlopPx - 7, 32);
+    vi.advanceTimersByTime(idleMs + segmentMs[0] + 50);
+    expect(engine.pos).toBe(0);
+    expect(engine.moving).toBe(false);
+  });
+
+  it("살짝 건드린 휠은 다른 장면도 움직이거나 다음 자리로 흘려보내지 않아요", () => {
+    const engine = createEngine(2);
+    engine.wheel(10, 0);
+    vi.advanceTimersByTime(idleMs + segmentMs[2] + 50);
+    expect(engine.pos).toBe(stops[2]);
+    engine.wheel(-10, 5000);
+    vi.advanceTimersByTime(idleMs + segmentMs[1] + 50);
+    expect(engine.pos).toBe(stops[2]);
+  });
+
+  it("작은 값도 한 방향으로 모이면 넘어가고, 그다음 값은 흐름 그대로 받아요", () => {
+    const engine = createEngine(2);
+    for (let at = 0; at < 12 * 16; at += 16) engine.wheel(5, at);
+    expect(engine.pos).toBe(stops[2] + 5);
+    engine.wheel(1, 12 * 16);
+    expect(engine.pos).toBe(stops[2] + 6);
+    vi.advanceTimersByTime(idleMs + segmentMs[2] + 50);
+    expect(engine.pos).toBe(stops[3]);
+  });
+
+  it("가던 길에 반대로 살짝 건드려도 되돌아가지 않아요", () => {
+    const engine = createEngine();
+    engine.goTo(1);
+    vi.advanceTimersByTime(1000);
+    engine.wheel(-3, 1000);
+    expect(engine.target).toBe(stops[1]);
+    vi.advanceTimersByTime(segmentMs[0]);
+    expect(engine.pos).toBe(stops[1]);
+  });
+
   it("벽에 닿아 자리에 멈추면 다음 장면으로 넘어가지 않아요", () => {
     const engine = createEngine(2);
     engine.wheel(5000, 0);
     vi.advanceTimersByTime(idleMs + 4000);
     expect(engine.pos).toBe(4900);
-    engine.wheel(10, 5000);
+    engine.wheel(wheelSlopPx, 5000);
     vi.advanceTimersByTime(idleMs + 2000);
     expect(engine.pos).toBe(5600);
   });
 
-  it("공책으로 넘어가는 박자 중의 휠은 버리고, 세게 밀면 앞질러요", () => {
+  it("첫 화면을 떠나는 길도 휠을 그대로 따라가고, 공책에서 멈춰요", () => {
     const engine = createEngine();
     engine.wheel(100, 0);
-    vi.advanceTimersByTime(1000);
-    const going = engine.pos;
-    engine.wheel(100, 1000);
-    engine.wheel(100, 1400);
-    vi.advanceTimersByTime(40);
-    expect(engine.pos).toBeGreaterThan(going);
-    expect(engine.moving).toBe(true);
-    expect(engine.target).toBe(1350);
-    vi.advanceTimersByTime(segmentMs[0]);
+    expect(engine.pos).toBe(100);
+    engine.wheel(5000, 16);
     expect(engine.pos).toBe(1350);
-
-    const hurried = createEngine();
-    hurried.wheel(100, 0);
-    vi.advanceTimersByTime(500);
-    const before = hurried.pos;
-    for (let at = 500; at < 800; at += 16) hurried.wheel(100, at);
-    expect(hurried.pos).toBeGreaterThanOrEqual(before);
     vi.advanceTimersByTime(idleMs + segmentMs[0] + 50);
-    expect(hurried.pos).toBe(1350);
-    hurried.wheel(10, 9000);
+    expect(engine.pos).toBe(1350);
+    engine.wheel(wheelSlopPx, 9000);
     vi.advanceTimersByTime(idleMs + segmentMs[1] + 50);
-    expect(hurried.pos).toBe(3350);
-  });
-
-  it("첫 화면에서는 틱 하나든 줄어드는 휠 흐름이든 같은 박자로 가요", () => {
-    const trace = (feed: (engine: ReturnType<typeof createEngine>) => void) => {
-      const engine = createEngine();
-      feed(engine);
-      return [500, 500, 1000, 1000, 2000].map((ms) => {
-        vi.advanceTimersByTime(ms);
-        return Math.round(engine.pos);
-      });
-    };
-    const tick = trace((engine) => engine.wheel(100, performance.now()));
-    const stream = trace((engine) => {
-      for (let delta = 80, at = performance.now(); delta >= 1; delta *= 0.94, at += 16) engine.wheel(Math.round(delta), at);
-    });
-    expect(stream).toEqual(tick);
-    expect(tick[4]).toBe(1350);
+    expect(engine.pos).toBe(3350);
   });
 
   it("끝자락에서 새로 미는 휠은 기다리지 않고 다음 장면으로 가요", () => {
@@ -451,7 +470,7 @@ describe("집 화면 엔진: 움직임", () => {
     engine.goTo(1);
     vi.advanceTimersByTime(segmentMs[0] - 300);
     expect(engine.pos).toBeLessThan(1350);
-    engine.wheel(10, 100000);
+    engine.wheel(wheelSlopPx, 100000);
     vi.advanceTimersByTime(idleMs + segmentMs[1] + 50);
     expect(engine.pos).toBe(3350);
   });

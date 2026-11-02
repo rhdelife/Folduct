@@ -81,6 +81,38 @@
         "$type": "color",
         "$value": "#1b1a180f"
       },
+      "face-1": {
+        "$type": "color",
+        "$value": "#1d3557"
+      },
+      "face-2": {
+        "$type": "color",
+        "$value": "#2f5d50"
+      },
+      "face-3": {
+        "$type": "color",
+        "$value": "#7a2e3a"
+      },
+      "face-4": {
+        "$type": "color",
+        "$value": "#5b3a6e"
+      },
+      "face-5": {
+        "$type": "color",
+        "$value": "#7a5a1f"
+      },
+      "face-6": {
+        "$type": "color",
+        "$value": "#1f5f6b"
+      },
+      "face-7": {
+        "$type": "color",
+        "$value": "#8a4b2a"
+      },
+      "face-8": {
+        "$type": "color",
+        "$value": "#3f3f46"
+      },
       "ground-mark": {
         "$type": "color",
         "$value": "#e2e2da"
@@ -431,7 +463,7 @@
       },
       "chrome-reserve": {
         "$type": "dimension",
-        "$value": "260px"
+        "$value": "300px"
       },
       "gap-hair": {
         "$type": "dimension",
@@ -703,6 +735,46 @@
     }
   },
   "scene": {
+    "z-intro": {
+      "$type": "other",
+      "$value": "8000"
+    },
+    "intro-vase": {
+      "$type": "other",
+      "$value": "min(40dvh, 56vw)"
+    },
+    "intro-foot": {
+      "$type": "other",
+      "$value": "112px"
+    },
+    "intro-paper-scale": {
+      "$type": "other",
+      "$value": "1"
+    },
+    "intro-fly": {
+      "$type": "other",
+      "$value": "900ms"
+    },
+    "intro-stagger": {
+      "$type": "other",
+      "$value": "110ms"
+    },
+    "intro-band": {
+      "$type": "other",
+      "$value": "700ms"
+    },
+    "intro-fill": {
+      "$type": "other",
+      "$value": "1500ms"
+    },
+    "intro-rise": {
+      "$type": "other",
+      "$value": "1300ms"
+    },
+    "intro-leave": {
+      "$type": "other",
+      "$value": "600ms"
+    },
     "hero-type": {
       "$type": "other",
       "$value": "max(2.22vw, 3vh)"
@@ -795,33 +867,29 @@
       "$type": "other",
       "$value": "80px"
     },
-    "jar-h": {
+    "pile-h": {
       "$type": "other",
-      "$value": "min(62dvh, 560px)"
+      "$value": "min(76dvh, 620px)"
     },
-    "jar-box-h": {
+    "pile-w": {
       "$type": "other",
-      "$value": "44px"
+      "$value": "132px"
     },
-    "jar-labels": {
+    "pile-sheet": {
       "$type": "other",
-      "$value": "200px"
+      "$value": "72px"
     },
-    "jar-list": {
+    "pile-step": {
+      "$type": "other",
+      "$value": "10px"
+    },
+    "pile-list": {
       "$type": "other",
       "$value": "420px"
     },
-    "jar-gap": {
+    "pile-gap": {
       "$type": "other",
       "$value": "var(--space-6)"
-    },
-    "jar-box": {
-      "$type": "color",
-      "$value": "#eeece7"
-    },
-    "jar-box-hover": {
-      "$type": "color",
-      "$value": "#e3e0d9"
     },
     "footer-text": {
       "$type": "other",

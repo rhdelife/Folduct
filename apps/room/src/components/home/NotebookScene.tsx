@@ -1,31 +1,32 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { ObjectShape } from "../../art/ObjectShape";
-import { vaseIndex, vasePaths } from "../../art/vases";
+import { vasePaths } from "../../art/vases";
+import { RoomFaceArt } from "../RoomFace";
 import { notebookSections, recentFiles as listRecent, shelfFiles, type FileRef } from "../../domain/home";
 import { formatBytes } from "../../domain/model";
 import { fitLadder, rowWindow, taskRows, type TaskRow } from "../../domain/notebook";
-import { cubicOut, range, scenes, useSceneGate, useScene, type HomeActions, type SceneProps } from "./engine";
+import { cubicOut, range, smooth, useSceneGate, useScene, type HomeActions, type SceneProps } from "./engine";
 
 const rowIcon = 24;
 const bottomGap = 24;
 
-function FileLine({ file, state, actions }: { file: FileRef; state: string; actions: HomeActions }) {
+function FileLine({ file, actions }: { file: FileRef; actions: HomeActions }) {
   return (
-    <button type="button" className="nb-file" title={file.thing.path} onClick={() => actions.focusThing(file.room.id, file.thing.id)}>
+    <button type="button" className="nb-file" data-thing={file.thing.id} title={file.thing.path} onClick={() => actions.focusThing(file.room.id, file.thing.id)}>
       <ObjectShape kind={file.thing.kind} size={rowIcon} seed={file.thing.id} />
       <span className="nb-file-name">{file.thing.name}</span>
-      <span className="nb-file-state">{file.days ?? 0}일째 {state}</span>
+      <span className="nb-file-state">{file.days ?? 0}일째 그대로</span>
       <span className="nb-file-size">{formatBytes(file.thing.size)}</span>
     </button>
   );
 }
 
 function Task({ row, actions }: { row: TaskRow; actions: HomeActions }) {
-  if (row.type === "file") return <li className="nb-row" data-nb="row"><FileLine file={row.file} state="쓰러짐" actions={actions} /></li>;
+  if (row.type === "file") return <li className="nb-row" data-nb="row"><FileLine file={row.file} actions={actions} /></li>;
   return (
     <li className="nb-row nb-room" data-nb="row">
       <button type="button" className="nb-room-main" onClick={() => actions.selectRoom(row.room.id)}>
-        <svg className="nb-vase" viewBox="-100 -100 200 200" aria-hidden="true" focusable="false"><path d={vasePaths[vaseIndex(row.room.id)]} /></svg>
+        <RoomFaceArt face={row.room.face} roomId={row.room.id} compact className="nb-vase" />
         <span className="nb-room-name">{row.room.name}</span>
         {row.over !== null && <b className="nb-over">한도 {formatBytes(row.over)} 넘음</b>}
       </button>
@@ -51,20 +52,18 @@ const counterLimit = 4;
 export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) {
   const gate = useSceneGate(1);
   const stack = useRef<HTMLDivElement>(null);
-  const reveals = useRef<{ el: HTMLElement; type: string; from: number; to: number; p: number }[]>([]);
+  const reveals = useRef<{ el: HTMLElement; from: number; to: number; p: number }[]>([]);
 
   const entries = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState(0);
-  const limits = fitLadder[fit];
+  const limit = fitLadder[fit];
 
   const { first, info, later } = useMemo(() => notebookSections(rooms, now, lastSweepAt), [rooms, now, lastSweepAt]);
-  const { rows, more, moreFiles } = useMemo(() => taskRows(first, limits.first), [first, limits.first]);
-  const fallenCount = first.fallen.reduce((sum, item) => sum + item.files.length, 0);
+  const { rows, more, moreFiles } = useMemo(() => taskRows(first, limit), [first, limit]);
+  const staleCount = first.stale.reduce((sum, item) => sum + item.files.length, 0);
   const recentFiles = useMemo(() => listRecent(rooms, now).filter((file) => !file.room.care.done), [rooms, now]);
   const shelf = useMemo(() => shelfFiles(rooms, now).filter((file) => !file.room.care.done), [rooms, now]);
   const counters = [...info.recent].sort((a, b) => b.count - a.count);
-  const shownTilted = info.tilted.slice(0, limits.tilted);
-  const moreTilted = info.tilted.length - shownTilted.length;
   const shownCounters = counters.slice(0, counterLimit);
   const moreKinds = counters.length - shownCounters.length;
 
@@ -94,21 +93,21 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
   useLayoutEffect(() => {
     const root = stack.current!;
     const rowEls = [...root.querySelectorAll<HTMLElement>('[data-nb="row"]')];
-    const windows = rowEls.map((el, index) => ({ el, type: "row", p: -1, ...rowWindow(index, rowEls.length) }));
+    const windows = rowEls.map((el, index) => ({ el, p: -1, ...rowWindow(index, rowEls.length) }));
     reveals.current = [
-      ...[...root.querySelectorAll<HTMLElement>('[data-nb="label"]')].map((el) => ({ el, type: "label", from: 651, to: 676, p: -1 })),
+      ...[...root.querySelectorAll<HTMLElement>('[data-nb="label"]')].map((el) => ({ el, from: 880, to: 980, p: -1 })),
       ...windows,
-      ...[...root.querySelectorAll<HTMLElement>('[data-nb="info"]')].map((el) => ({ el, type: "info", from: 1200, to: 1262, p: -1 })),
-      ...[...root.querySelectorAll<HTMLElement>('[data-nb="later"]')].map((el) => ({ el, type: "later", from: 1299, to: 1332, p: -1 })),
+      ...[...root.querySelectorAll<HTMLElement>('[data-nb="info"]')].map((el) => ({ el, from: 1200, to: 1262, p: -1 })),
+      ...[...root.querySelectorAll<HTMLElement>('[data-nb="later"]')].map((el) => ({ el, from: 1299, to: 1332, p: -1 })),
     ];
   });
 
   useScene((pos) => {
-    // 띠가 다 모이기 전에 올라오기 시작해 띠 아래에 먼저 자리 잡고, 그다음 종이가 떨어집니다. 처음에 빠르고 끝에 느려요.
-    const rise = cubicOut(range(pos, scenes[1].show[0], 578));
+    // 남은 종이 밑으로 공책이 미끄러져 올라옵니다. 종이가 내려앉기 전에 대부분 자리를 잡아요.
+    const rise = smooth(range(pos, 420, 1060));
     const leave = cubicOut(range(pos, 1350, 1745));
     stack.current!.style.transform = `translate3d(0, ${100 * (1 - rise) - 110 * leave}dvh, 0)`;
-    stack.current!.style.opacity = String(rise * (1 - leave));
+    stack.current!.style.opacity = String(1 - leave);
     for (const item of reveals.current) {
       const p = range(pos, item.from, item.to);
       if (p === item.p) continue;
@@ -117,12 +116,8 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
       style.opacity = p === 1 ? "" : String(p);
       style.pointerEvents = p === 1 ? "" : "none";
       style.willChange = p > 0 && p < 1 ? "transform, opacity" : "";
-      const left = 1 - cubicOut(p);
-      if (p === 1) style.transform = "";
-      else if (item.type === "label") style.transform = `translate3d(${-30 * (1 - p)}px, 0, 0) scale(${1 - 0.1 * (1 - p)})`;
-      else if (item.type === "row") style.transform = `translate3d(${-40 * left}px, ${-4 * left}px, 0) rotate(${-1.5 * left}deg)`;
-      else if (item.type === "info") style.transform = `translate3d(${30 * left}px, 0, 0) scale(${1 - 0.15 * left})`;
-      else style.transform = `translate3d(0, ${20 * left}px, 0) scale(${1 - 0.08 * left})`;
+      // 글자는 제자리에서 번지듯 나타납니다. 옆으로 움직이면 내려앉는 종이와 줄이 어긋나요.
+      style.transform = p === 1 ? "" : `translate3d(0, ${6 * (1 - cubicOut(p))}px, 0)`;
     }
   });
 
@@ -131,10 +126,10 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
     <section className="scene scene-notebook" aria-label="손댈 것" {...gate}>
       <div className="nb-stack" ref={stack}>
         <div className="nb-entries" ref={entries}>
-          <section className="nb-section" aria-labelledby="nb-first" data-land="first">
+          <section className="nb-section" aria-labelledby="nb-first">
             <div className="nb-head" data-nb="label">
               <h2 className="nb-label" id="nb-first">먼저 볼 것</h2>
-              {fallenCount > 0 && <button type="button" className="primary nb-sweep" onClick={actions.openSweep}>쓰러진 파일 {fallenCount}개 상자로 옮기기</button>}
+              {staleCount > 0 && <button type="button" className="primary nb-sweep" onClick={actions.openSweep}>오래된 파일 {staleCount}개 정리하기</button>}
             </div>
             {quiet ? (
               <p className="nb-empty" data-nb="row">지금은 손댈 게 없어요. 모두 깔끔해요.</p>
@@ -149,14 +144,8 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
               </ul>
             )}
           </section>
-          <section className="nb-section" aria-labelledby="nb-info" data-land="info">
+          <section className="nb-section" aria-labelledby="nb-info">
             <div className="nb-head" data-nb="label"><h2 className="nb-label" id="nb-info">참고</h2></div>
-            {shownTilted.length > 0 && (
-              <ul className="nb-rows">
-                {shownTilted.map((file) => <li className="nb-row" data-nb="row" key={file.thing.id}><FileLine file={file} state="기울어짐" actions={actions} /></li>)}
-                {moreTilted > 0 && <li className="nb-row nb-note" data-nb="row">기울어진 파일 외 {moreTilted}개</li>}
-              </ul>
-            )}
             {shownCounters.length > 0 ? (
               <ul className="nb-counters" data-nb="info">
                 <li className="nb-note">이번 주 쓴 파일</li>
@@ -174,10 +163,10 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
                 {moreKinds > 0 && <li className="nb-note">외 {moreKinds}가지</li>}
               </ul>
             ) : (
-              shownTilted.length === 0 && <p className="nb-empty" data-nb="info">최근 7일에 쓴 파일이 없어요.</p>
+              <p className="nb-empty" data-nb="info">최근 7일에 쓴 파일이 없어요.</p>
             )}
           </section>
-          <section className="nb-section" aria-labelledby="nb-later" data-land="later">
+          <section className="nb-section" aria-labelledby="nb-later">
             <div className="nb-head" data-nb="label"><h2 className="nb-label" id="nb-later">나중에</h2></div>
             <ul className="nb-counters" data-nb="later">
               {shelf[0] && (

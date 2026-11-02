@@ -5,10 +5,10 @@ import type { RoomStat } from "../../domain/sky";
 import type { OpenRoomMenu } from "../ContextMenu";
 
 // 집 화면은 문서 스크롤이 없습니다. 숫자 하나(pos)가 모든 장면을 움직여요.
-// 휠과 손가락은 pos에 그대로 더하고, 입력이 140ms 멈추면 마지막 방향의 다음 자리까지 cubic-out으로 흘러갑니다.
+// 문턱을 넘은 휠과 손가락은 pos에 그대로 더하고, 입력이 140ms 멈추면 마지막 방향의 다음 자리까지 cubic-out으로 흘러갑니다.
 export const stops: readonly number[] = [0, 1350, 3350, 4900, 5600, 6500];
 // stops[i]에서 stops[i+1]까지의 시간(ms). 거리와 상관없이 구간마다 정해져 있습니다.
-export const segmentMs: readonly number[] = [5000, 2005, 2400, 1805, 1500];
+export const segmentMs: readonly number[] = [1400, 2005, 2400, 1805, 1500];
 export const idleMs = 140;
 // 메뉴나 Home/End처럼 여러 구간을 건너뛸 때의 시간.
 const jumpMs = 1800;
@@ -17,12 +17,12 @@ const touchSlop = 12;
 
 // 장면 표. show 밖에서는 숨기고(그리지 않음), live 안에서만 조작할 수 있습니다. live는 빈틈없이 이어져 늘 한 장면만 살아 있어요.
 export const scenes = [
-  { name: "hero", label: "첫 화면", show: [0, 430], live: [0, 390] },
-  { name: "notebook", label: "손댈 것", show: [288, 1800], live: [390, 1455] },
+  { name: "hero", label: "첫 화면", show: [0, 880], live: [0, 390] },
+  { name: "notebook", label: "손댈 것", show: [380, 1800], live: [390, 1455] },
   { name: "table", label: "방", show: [1450, 4130], live: [1455, 4130] },
   { name: "dial", label: "방 모음", show: [4130, 5430], live: [4130, 5425] },
   // 판이 가장 빠른 한가운데를 피해, 막 들릴 때 조작을 넘깁니다.
-  { name: "jar", label: "형식별", show: [5425, 6500], live: [5425, 5620] },
+  { name: "pile", label: "형식별", show: [5425, 6500], live: [5425, 5620] },
   { name: "footer", label: "맨 아래", show: [5600, 6500], live: [5620, 6500] },
 ] as const;
 
@@ -31,7 +31,6 @@ export const range = (pos: number, a: number, b: number) => clamp01((pos - a) / 
 export const lin = (u: number) => u;
 export const cubicOut = (u: number) => 1 - (1 - u) ** 3;
 export const smooth = (u: number) => u * u * (3 - 2 * u);
-export const sineOut = (u: number) => Math.sin((u * Math.PI) / 2);
 
 export const clampPos = (pos: number) => Math.min(stops[lastStop], Math.max(0, pos));
 
@@ -83,8 +82,6 @@ const peakMs = 2000; // 최고 속도를 잊는 시간
 const fadeRatio = 0.6; // 최고 속도의 이만큼 아래면 관성으로 봅니다.
 const sustainMs = 1000; // 줄지 않고 이만큼 이어지면 일부러 미는 입력입니다.
 const tailMs = 500; // 꼬리는 드문드문 와도 이 안이면 같은 흐름이에요.
-const burstMs = 300; // 세기를 재는 시간
-const burstPx = 1200; // 이 시간에 이만큼 밀면 긴 박자도 앞지릅니다.
 const arrivedPx = 60; // cubic-out의 끝자락은 이미 멈춘 것처럼 보입니다. 이 안에서 새로 밀면 그다음 자리로 갑니다.
 
 const wallFrom = (pos: number, dir: number) => {
@@ -114,6 +111,18 @@ export function gateWheel(prev: WheelStream | null, pos: number, delta: number, 
     else stream = { ...prev, at: now, rate, peak, low, wall: !faded && now - prev.start >= sustainMs ? wallFrom(pos, dir) : prev.wall };
   }
   return { stream, delta: Math.max(0, Math.min(size, (stream.wall - pos) * dir)) * dir };
+}
+
+// 마우스를 살짝 건드린 값까지 받으면 멈추면서 다음 자리로 흘러가 화면이 저절로 넘어갑니다. 한 방향으로 이만큼 모여야 미는 것으로 봅니다.
+// 한 번 넘으면 그 흐름이 이어지는 동안은 그대로 통과합니다. 잠깐 멈추거나 방향이 바뀌면 다시 모아요.
+export type WheelArm = { at: number; dir: number; sum: number };
+export const wheelSlopPx = 60;
+const armMs = 300;
+
+export function armWheel(prev: WheelArm | null, delta: number, now: number): WheelArm {
+  const dir = Math.sign(delta);
+  const going = prev !== null && prev.dir === dir && now - prev.at < armMs;
+  return { at: now, dir, sum: (going ? prev.sum : 0) + Math.abs(delta) };
 }
 
 export function liveScene(pos: number): number {
@@ -170,8 +179,7 @@ export function createEngine(startStop = 0): Engine {
   let held = false;
   let locked = false;
   let stream: WheelStream | null = null;
-  let burst = 0;
-  let burstAt = 0;
+  let arm: WheelArm | null = null;
   // 키로 떠난 길이면 도착했을 때 포커스 자리를 잡아 줍니다.
   let keyed = false;
   const listeners = new Set<() => void>();
@@ -245,12 +253,10 @@ export function createEngine(startStop = 0): Engine {
   function wheel(delta: number, at = performance.now()) {
     // 손을 뗀 소식을 못 받았어도(요소가 사라진 경우) 휠은 움직여야 합니다.
     held = false;
+    arm = armWheel(arm, delta, at);
+    if (arm.sum < wheelSlopPx) return;
     const gated = gateWheel(stream, pos, delta, at);
     stream = gated.stream;
-    burst = burst * Math.exp(-(at - burstAt) / burstMs) + Math.abs(delta);
-    burstAt = at;
-    // 첫 화면에서 공책으로 넘어가는 긴 박자는 어떤 휠이든 같은 빠르기로 끝까지 보여 줍니다. 세게 미는 손만 앞지를 수 있고, 끝자락은 이미 멈춘 것처럼 보이니 넘어가요.
-    if (delta > 0 && stops[1] - pos > arrivedPx && burst <= burstPx && !reduced()) return goTo(1);
     input(gated.delta);
   }
 

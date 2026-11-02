@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { objectScale, thingStage } from "../domain/care";
+import { objectScale } from "../domain/care";
 import type { Room } from "../domain/model";
 import { boxSpot, depth, plane, toScreen } from "../domain/plane";
 import { CardboardBox, GridPaper } from "./RoomScene";
@@ -21,7 +21,7 @@ export function MiniRoom({ room, now }: { room: Room; now: number }) {
           const at = toScreen(thing.spot!);
           const size = Math.round(60 * objectScale(thing.size));
           return (
-            <span key={thing.id} className={`thing stage-${thingStage(thing, room.care, room.workDays, now).stage}${thing.missing ? " missing" : ""}`} style={{ left: at.left, top: at.top, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, zIndex: depth(thing.spot!) }}>
+            <span key={thing.id} className={`thing${thing.missing ? " missing" : ""}`} style={{ left: at.left, top: at.top, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, zIndex: depth(thing.spot!) }}>
               <span className="body"><ObjectShape kind={thing.kind} size={size} seed={thing.id} /></span>
             </span>
           );

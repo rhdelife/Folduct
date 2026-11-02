@@ -1,11 +1,11 @@
-import { dayMs, lastActivity, localDay, relativeDay, roomUsage, sizeRatio, thingStage, withinWeek, type RoomUsage, type Stage } from "./care";
+import { dayMs, lastActivity, localDay, relativeDay, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
 import type { CareSettings, Room, Thing } from "./model";
 
 // 집 화면의 지도. 방은 떠 있는 화병, 파일은 크기만큼의 작은 별이고, 손대지 않은 파일은 방에서 멀어집니다.
 export const sky = { width: 1000, height: 680, centerX: 500, centerY: 340 } as const;
 
 export type Point = { x: number; y: number };
-export type Star = { thing: Thing; x: number; y: number; r: number; stage: Stage; days: number };
+export type Star = { thing: Thing; x: number; y: number; r: number; stale: boolean; days: number };
 
 // 같은 글자는 늘 같은 0~1 값을 돌려줍니다(FNV-1a). 새로고침해도 별자리가 그대로입니다.
 export function hash(text: string, salt = 0): number {
@@ -207,16 +207,16 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
   // 세로는 0.8배로 눌러 놓으니, 위아래로도 커진 화병에 닿지 않게 그만큼 더 띄웁니다.
   const inner = (half * vaseLift) / 0.8 + 8 * scale;
   return picked.map((thing) => {
-    const { stage, days } = thingStage(thing, room.care, room.workDays, now);
+    const { stale, days } = thingAge(thing, room.care, room.workDays, now);
     // 제자리 물건은 방 둘레 어디에나, 손대지 않은 물건은 하늘 바깥쪽으로 흘러가 다른 방과 섞이지 않습니다.
     const outward = Math.atan2(center.y - sky.centerY, center.x - sky.centerX);
     // 머리글 곁에 있는 방은 바깥쪽이 따로 없으니 둘레 어디로든 흘러갑니다.
     const lone = Math.abs(center.x - sky.centerX) < 230 && Math.abs(center.y - sky.centerY) < 100;
-    const angle = stage === "normal" || lone ? hash(thing.id) * Math.PI * 2 : outward + (hash(thing.id) - 0.5) * Math.PI * 0.9;
+    const angle = !stale || lone ? hash(thing.id) * Math.PI * 2 : outward + (hash(thing.id) - 0.5) * Math.PI * 0.9;
     const jitter = hash(thing.id, 7);
     const r = starRadius(thing.size, scale);
-    // 방 별의 고리 바깥부터 띄우고, 오래 손대지 않을수록 더 멀리 보냅니다.
-    const distance = inner + r + spread * (stage === "fallen" ? 1.0 + 0.25 * jitter : stage === "tilted" ? 0.65 + 0.2 * jitter : 0.5 * jitter);
+    // 방 별의 고리 바깥부터 띄우고, 오래된 파일은 더 멀리 보냅니다.
+    const distance = inner + r + spread * (stale ? 1.0 + 0.25 * jitter : 0.5 * jitter);
     const dx = Math.cos(angle) * distance;
     const dy = Math.sin(angle) * distance * 0.8;
     // 이름표 자리에 떨어진 파일은 좌우로 비켜 줍니다. 이름표는 화병이 커지면 함께 내려갑니다.
@@ -224,7 +224,7 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
     const side = (dx < 0 ? -1 : 1) * (labelHalfWidth + r + 4 + 30 * jitter);
     return {
       thing,
-      stage,
+      stale,
       days,
       r,
       x: clamp(center.x + (onLabel ? side : dx), 14, sky.width - 14),
@@ -233,17 +233,9 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
   });
 }
 
-// 바닥에 놓인(상자 밖) 물건 중 기울어진 것과 쓰러진 것의 수.
-export function roomMess(room: Room, now: number): { tilted: number; fallen: number } {
-  let tilted = 0;
-  let fallen = 0;
-  for (const thing of room.things) {
-    if (!thing.spot || thing.box) continue;
-    const stage = thingStage(thing, room.care, room.workDays, now).stage;
-    if (stage === "tilted") tilted += 1;
-    if (stage === "fallen") fallen += 1;
-  }
-  return { tilted, fallen };
+// 바닥에 놓인(상자 밖) 물건 중 오래된 것의 수.
+export function staleCount(room: Room, now: number): number {
+  return room.things.filter((thing) => thing.spot && !thing.box && thingAge(thing, room.care, room.workDays, now).stale).length;
 }
 
 export type RoomProgress = { lastActivityAt: number | null; recentCount: number };
@@ -268,11 +260,11 @@ export function progressText({ lastActivityAt, recentCount }: RoomProgress, now:
   return `마지막 작업 ${relativeDay(lastActivityAt, now)}${recentCount > 0 ? ` · 최근 7일에 ${recentCount}개 사용` : ""}`;
 }
 
-export type RoomStat = { usage: RoomUsage; mess: { tilted: number; fallen: number }; progress: RoomProgress };
+export type RoomStat = { usage: RoomUsage; stale: number; progress: RoomProgress };
 
 // 집 화면이 한 번만 계산해 지도·요약·목록에 나눠 줍니다.
 export function roomStats(rooms: Room[], now: number): Map<string, RoomStat> {
-  return new Map(rooms.map((room) => [room.id, { usage: roomUsage(room), mess: roomMess(room, now), progress: roomProgress(room, now) }]));
+  return new Map(rooms.map((room) => [room.id, { usage: roomUsage(room), stale: staleCount(room, now), progress: roomProgress(room, now) }]));
 }
 
 // 지도 방 사이를 화살표로 옮겨 다닙니다. 양 끝에서는 반대쪽으로 넘어가고, 모르는 방에서는 첫 방부터 시작합니다.

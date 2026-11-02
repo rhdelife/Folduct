@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { dayMs, firstLine, thingStage } from "../domain/care";
-import { formatBytes } from "../domain/model";
+import { dayMs, firstLine, roomLastActivity, thingAge } from "../domain/care";
+import { formatBytes, type Room } from "../domain/model";
 import { isNative } from "../gateways/native";
-import { runSweep, type SweepOutcome, type SweepPlan } from "../storage/box";
+import { answerDoneOffer, runSweep, type SweepOutcome, type SweepPlan } from "../storage/box";
 import { setLastSweepAt } from "../storage/db";
 import { useModal } from "./useModal";
 
-// 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다.
-export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: number; onDone: (changed: boolean) => void }) {
+// 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
+export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [selected, setSelected] = useState(() => new Set(plans.flatMap((plan) => plan.candidates.map((thing) => thing.id))));
@@ -17,6 +17,9 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
   const [outcomes, setOutcomes] = useState<SweepOutcome[] | null>(null);
   // 도중에 멈추면 같은 계획으로 다시 돌리지 않습니다. 닫고 집에서 새로 읽습니다.
   const [stopped, setStopped] = useState(false);
+  const [asking, setAsking] = useState(offers);
+  const [offerError, setOfferError] = useState(false);
+  const answered = useRef(false);
   useModal(dialog);
 
   // 결과로 바뀌거나 다시 시도가 끝나면, 누른 버튼이 사라지거나 잠겼으니 '닫기'로 포커스를 옮깁니다.
@@ -40,7 +43,25 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
   // '다음 주에': 이번 주는 묻지 않습니다. 저장에 실패해도 닫기는 막지 않습니다.
   async function later() {
     await setLastSweepAt(now).catch(() => undefined);
-    onDone(false);
+    onDone(answered.current);
+  }
+
+  // 표시만 바뀌고 폴더와 파일은 그대로예요. 물을 게 더 없으면 이번 주 정리도 끝난 것으로 칩니다.
+  async function answer(room: Room, done: boolean) {
+    setBusy(room.id);
+    setOfferError(false);
+    try {
+      await answerDoneOffer(room.id, done, now);
+      answered.current = true;
+      const left = asking.filter((item) => item.id !== room.id);
+      setAsking(left);
+      if (left.length === 0 && plans.length === 0) await later();
+      else requestAnimationFrame(() => dialog.current?.querySelector("button")?.focus());
+    } catch {
+      setOfferError(true);
+    } finally {
+      setBusy(null);
+    }
   }
 
   function toggle(ids: string[], on: boolean) {
@@ -54,7 +75,7 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
     });
   }
 
-  const asking = isNative() ? 0 : plans.filter((plan) => plan.mode === "real" && plan.candidates.some((thing) => selected.has(thing.id))).length;
+  const permits = isNative() ? 0 : plans.filter((plan) => plan.mode === "real" && plan.candidates.some((thing) => selected.has(thing.id))).length;
   const moved = outcomes?.reduce((sum, outcome) => sum + outcome.moved, 0) ?? 0;
   const movedBytes = outcomes?.reduce((sum, outcome) => sum + outcome.movedBytes, 0) ?? 0;
   const skipped = outcomes?.filter((outcome) => outcome.skipped).length ?? 0;
@@ -107,14 +128,33 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
           </>
         ) : (
           <>
-            <p>쓰러진 파일을 각 방 폴더 안 정리 상자(<span className="path">_Folduct 정리상자</span>)로 옮겨요. <strong>지우지 않아요.</strong> 메모와 원래 자리는 상자 안에서도 그대로예요.</p>
+            {plans.length > 0 && <p>오래 안 쓴 파일을 각 방 폴더 안 정리 상자(<span className="path">_Folduct 정리상자</span>)로 옮겨요. <strong>지우지 않아요.</strong> 메모와 원래 자리는 상자 안에서도 그대로예요.</p>}
+            {asking.length > 0 && (
+              <section className="sweep-room" aria-labelledby="sweep-offers">
+                <div className="row"><h3 id="sweep-offers">오래 안 쓴 방</h3></div>
+                <ul>
+                  {asking.map((room) => (
+                    <li key={room.id} className="sweep-offer">
+                      <span className="name">{room.name}</span>
+                      <span className="soft">{Math.floor((now - roomLastActivity(room)) / dayMs)}일째 안 썼어요</span>
+                      <span className="row">
+                        <button type="button" aria-label={`${room.name} 완료로 옮기기`} disabled={busy !== null} onClick={() => void answer(room, true)}>완료로 옮기기</button>
+                        <button type="button" className="quiet" aria-label={`${room.name} 그대로 두기`} disabled={busy !== null} onClick={() => void answer(room, false)}>그대로 두기</button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="soft">완료로 옮겨도 폴더와 파일은 그대로예요.</p>
+                {offerError && <p className="error" role="alert">저장하지 못했어요. 잠시 뒤 다시 해 주세요.</p>}
+              </section>
+            )}
             {plans.map((plan) => {
               const ids = plan.candidates.map((thing) => thing.id);
               const all = ids.every((id) => selected.has(id));
               return (
                 <section key={plan.room.id} className="sweep-room">
                   <div className="row">
-                    <h3 id={`sweep-room-${plan.room.id}`}>{plan.room.name} — 쓰러진 물건 {plan.candidates.length}개 ({formatBytes(plan.candidates.reduce((sum, thing) => sum + thing.size, 0))})</h3>
+                    <h3 id={`sweep-room-${plan.room.id}`}>{plan.room.name} — 오래된 물건 {plan.candidates.length}개 ({formatBytes(plan.candidates.reduce((sum, thing) => sum + thing.size, 0))})</h3>
                     <button type="button" className="quiet" aria-describedby={`sweep-room-${plan.room.id}`} onClick={() => toggle(ids, !all)} disabled={busy !== null}>{all ? "모두 해제" : "모두 선택"}</button>
                   </div>
                   {plan.mode === "virtual" && <p className="soft">{plan.room.source === "sample" ? "샘플 방이라" : "이 방은 파일을 직접 옮길 수 없어"} Folduct 안에서만 상자에 넣어요. 실제 파일은 그대로예요.</p>}
@@ -127,7 +167,7 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
                             <input type="checkbox" checked={selected.has(thing.id)} onChange={(event) => toggle([thing.id], event.target.checked)} />
                             <ObjectShape kind={thing.kind} size={24} seed={thing.id} />
                             <span className="name">{thing.name}</span>
-                            <span className="soft">{thingStage(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로 · {formatBytes(thing.size)}</span>
+                            <span className="soft">{thingAge(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로 · {formatBytes(thing.size)}</span>
                           </label>
                           {note && <p className="note-line">“{note}”</p>}
                         </li>
@@ -137,11 +177,11 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
                 </section>
               );
             })}
-            <p className="soft">다른 앱에서 쓰는 파일이면 체크를 빼 주세요.</p>
-            {asking > 0 && <p className="soft">정리하기를 누르면 브라우저가 폴더 {asking}개에 대해 ‘수정 허용’을 물어요.</p>}
+            {plans.length > 0 && <p className="soft">다른 앱에서 쓰는 파일이면 체크를 빼 주세요.</p>}
+            {permits > 0 && <p className="soft">정리하기를 누르면 브라우저가 폴더 {permits}개에 대해 ‘수정 허용’을 물어요.</p>}
             <div className="row end">
               <button type="button" onClick={() => void later()} disabled={busy !== null}>다음 주에</button>
-              <button type="button" className="primary" onClick={() => void sweep(plans, "all")} disabled={busy !== null || selected.size === 0}>{busy ? "옮기는 중…" : `${selected.size}개 정리하기`}</button>
+              {plans.length > 0 && <button type="button" className="primary" onClick={() => void sweep(plans, "all")} disabled={busy !== null || selected.size === 0}>{busy === "all" ? "옮기는 중…" : `${selected.size}개 정리하기`}</button>}
             </div>
           </>
         )}

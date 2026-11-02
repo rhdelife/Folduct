@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { budgetLevel, budgetPresets, GB, suggestBudget, type RoomUsage } from "../domain/care";
+import { budgetLevel, budgetPresets, GB, lastActivity, relativeDay, suggestBudget, type RoomUsage } from "../domain/care";
 import { formatBytes, type Thing } from "../domain/model";
+import { fileManagerName } from "../domain/platform";
 import { isNative } from "../gateways/native";
 
 // 용량 한도는 막대와 글자로 함께 보여주고, 경고는 작업을 막지 않습니다.
@@ -48,19 +49,19 @@ export function BudgetPicker({ totalBytes, value, onChange }: { totalBytes: numb
 }
 
 // 용량 한도를 넘었을 때 방을 열면 주 1회 보여줍니다.
-export function BudgetBanner({ things, totalBytes, onCopy, onGrow, onHide }: { things: Thing[]; totalBytes: number; onCopy: (path: string) => Promise<boolean>; onGrow: (budgetBytes: number) => void; onHide: () => void }) {
+export function BudgetBanner({ things, totalBytes, now, onCopy, onGrow, onHide }: { things: Thing[]; totalBytes: number; now: number; onCopy: (path: string) => Promise<boolean>; onGrow: (budgetBytes: number) => void; onHide: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
   const largest = things.filter((thing) => !thing.missing).sort((a, b) => b.size - a.size).slice(0, 5);
   const grown = suggestBudget(totalBytes);
   return (
     <section className="banner budget-banner" role="region" aria-labelledby="budget-banner-title">
       <p>
-        <strong id="budget-banner-title">용량 한도를 넘었어요.</strong> 가장 큰 파일 {largest.length}개예요. Folduct는 파일을 지우지 않으니, 필요하면 {isNative() ? "Finder" : "폴더"}에서 직접 정리해 주세요.
+        <strong id="budget-banner-title">용량 한도를 넘었어요.</strong> 가장 큰 파일 {largest.length}개예요. Folduct는 파일을 지우지 않으니, 필요하면 {isNative() ? fileManagerName() : "폴더"}에서 직접 정리해 주세요.
       </p>
       <ul>
         {largest.map((thing) => (
           <li key={thing.id}>
-            <span>{thing.name} · {formatBytes(thing.size)}</span>
+            <span>{thing.name} · {formatBytes(thing.size)}{lastActivity(thing) > 0 && ` · 마지막 작업 ${relativeDay(lastActivity(thing), now)}`}</span>
             {/* 실패는 페이지 알림이 경로와 함께 알려 주고, 여기서는 정말 복사됐을 때만 바꿉니다. */}
             <button type="button" onClick={() => void onCopy(thing.path).then((ok) => ok && setCopied(thing.path))}>{copied === thing.path ? "복사했어요" : "경로 복사"}</button>
           </li>

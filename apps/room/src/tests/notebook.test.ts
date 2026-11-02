@@ -4,11 +4,11 @@ import type { FileRef, NotebookSections } from "../domain/home";
 import type { Room, Thing } from "../domain/model";
 
 const room = (id: string) => ({ id, name: id }) as Room;
-const file = (owner: string, id: string, days: number): FileRef => ({ room: room(owner), thing: { id, name: id } as Thing, stage: "fallen", days }) as FileRef;
+const file = (owner: string, id: string, days: number): FileRef => ({ room: room(owner), thing: { id, name: id } as Thing, stale: true, days }) as FileRef;
 const over = (id: string, extra: number) => ({ room: room(id), usage: { totalBytes: 100 + extra, boxBytes: 0, exact: true }, budgetBytes: 100 });
 const first = (files: FileRef[], rooms: ReturnType<typeof over>[] = []): NotebookSections["first"] => {
   const owners = [...new Set(files.map((item) => item.room.id))];
-  return { fallen: owners.map((id) => ({ room: room(id), files: files.filter((item) => item.room.id === id) })), overBudget: rooms, sweepOverdue: false } as NotebookSections["first"];
+  return { stale: owners.map((id) => ({ room: room(id), files: files.filter((item) => item.room.id === id) })), overBudget: rooms, sweepOverdue: false } as NotebookSections["first"];
 };
 const keys = (input: NotebookSections["first"], max: number) => taskRows(input, max).rows.map((row) => row.key);
 
@@ -41,7 +41,7 @@ describe("먼저 볼 것 줄", () => {
   });
 
   it("맞추는 단은 위에서 아래로 줄기만 해요", () => {
-    fitLadder.slice(1).forEach((step, at) => expect(step.first + step.tilted).toBeLessThan(fitLadder[at].first + fitLadder[at].tilted));
+    fitLadder.slice(1).forEach((step, at) => expect(step).toBeLessThan(fitLadder[at]));
   });
 });
 

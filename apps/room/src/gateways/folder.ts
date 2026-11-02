@@ -1,4 +1,6 @@
+import { isNewName, isPartialFile, type DoorRead } from "../domain/doorstep";
 import { isSafeRelativePath, kindOf, type ScannedFile } from "../domain/model";
+import { osErrorKind } from "../domain/platform";
 
 declare global {
   interface FileSystemDirectoryHandle {
@@ -25,8 +27,11 @@ export type DirectorySource = {
   directory(name: string): Promise<DirectorySource>;
 };
 
+// Windows·리눅스가 드라이브와 폴더에 스스로 만드는 항목. 사용자 파일이 아니고, 일부는 읽을 수도 없어요.
+const osHousekeeping = new Set(["$recycle.bin", "system volume information", "thumbs.db", "desktop.ini", "lost+found"]);
+
 export function isExcludedName(name: string): boolean {
-  return name.startsWith(".") || name === "node_modules";
+  return name.startsWith(".") || name === "node_modules" || osHousekeeping.has(name.toLowerCase());
 }
 
 export function canPickFolder(): boolean {
@@ -62,12 +67,10 @@ export async function askAccess(handle: FileSystemDirectoryHandle, mode: AccessM
 }
 
 // 폴더를 못 읽은 이유. 브라우저는 DOMException, Tauri는 문자열로 거절합니다.
-// shortcut: 경로에 같은 말이 들어 있으면 이유를 잘못 볼 수 있어요. 문구만 달라지니, Tauri가 오류 코드를 주면 코드로 바꿉니다.
 export function folderProblem(error: unknown): "denied" | "gone" | "other" {
   if (error instanceof DOMException) return error.name === "NotAllowedError" || error.name === "SecurityError" ? "denied" : error.name === "NotFoundError" ? "gone" : "other";
-  const text = String(error);
-  if (/forbidden path|not allowed|operation not permitted|permission denied|os error 1\b|os error 13\b/i.test(text)) return "denied";
-  return /no such file|os error 2\b|not found/i.test(text) ? "gone" : "other";
+  const kind = osErrorKind(String(error));
+  return kind === "denied" || kind === "gone" ? kind : "other";
 }
 
 export function handleSource(handle: FileSystemDirectoryHandle): DirectorySource {
@@ -131,6 +134,29 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
     }
   }
   await walk(source, "", 0);
+  return result;
+}
+
+// 현관 폴더는 바로 아래 파일만 봅니다. 압축 푼 폴더가 줄을 덮지 않게요. 큰 다운로드 폴더도 부담이 없도록 크기와 날짜는 새 파일에만 묻습니다.
+// 크기를 못 읽은 파일은 present에서 빼서 다음에 새 파일로 다시 봅니다. 폴더 자체를 못 읽으면 예외가 그대로 나갑니다.
+export async function readDoorFolder(source: DirectorySource, seen: string[] | undefined): Promise<DoorRead> {
+  const result: DoorRead = { present: [], found: [] };
+  const known = seen && new Set(seen);
+  for await (const entry of source.list()) {
+    if (entry.kind !== "file" || isExcludedName(entry.name) || isPartialFile(entry.name)) continue;
+    if (!isNewName(entry.name, known)) {
+      result.present.push(entry.name);
+      continue;
+    }
+    try {
+      const info = await source.file(entry.name);
+      const name = entry.name.normalize("NFC");
+      result.present.push(entry.name);
+      result.found.push({ path: entry.name, name, kind: kindOf(name), size: info.size, lastModified: info.lastModified });
+    } catch {
+      // 다음에 다시 봅니다.
+    }
+  }
   return result;
 }
 

@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readDir, readFile, rename, stat } from "@tauri-apps/plugin-fs";
 import { isSafeRelativePath } from "../domain/model";
+import { baseName, childPath, joinPath, samePath } from "../domain/platform";
 import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, scanFolder, type Access, type AccessMode, type DirectorySource, type ScanResult } from "./folder";
 import { asMoveDirectory, canMoveFiles, type MoveDirectory } from "./mover";
 
@@ -15,7 +16,7 @@ const notFound = () => new DOMException("없음", "NotFoundError");
 
 function inside(root: string, path: string): string {
   if (!isSafeRelativePath(path)) throw new DOMException("안전하지 않은 경로", "NotAllowedError");
-  return `${root}/${path}`;
+  return path.split("/").reduce(childPath, root);
 }
 
 export function pathSource(dir: string): DirectorySource {
@@ -25,11 +26,11 @@ export function pathSource(dir: string): DirectorySource {
       for (const entry of await readDir(dir)) if (!entry.isSymlink) yield { name: entry.name, kind: entry.isDirectory ? "directory" : "file" };
     },
     async file(name) {
-      const info = await stat(`${dir}/${name}`);
+      const info = await stat(joinPath(dir, name));
       return { size: info.size, lastModified: info.mtime?.getTime() ?? 0 };
     },
     async directory(name) {
-      return pathSource(`${dir}/${name}`);
+      return pathSource(joinPath(dir, name));
     },
   };
 }
@@ -49,7 +50,7 @@ export function pathDirectory(dir: string): PathDirectory {
   return {
     path: dir,
     async getDirectoryHandle(name, options) {
-      const path = `${dir}/${name}`;
+      const path = childPath(dir, name);
       if (!(await exists(path))) {
         if (!options?.create) throw notFound();
         await mkdir(path);
@@ -57,11 +58,11 @@ export function pathDirectory(dir: string): PathDirectory {
       return pathDirectory(path);
     },
     async getFileHandle(name) {
-      const from = `${dir}/${name}`;
+      const from = childPath(dir, name);
       if (!(await exists(from)) || !(await stat(from)).isFile) throw notFound();
       return {
         async move(destination, newName) {
-          const to = `${(destination as PathDirectory).path}/${newName}`;
+          const to = childPath((destination as PathDirectory).path, newName);
           // shortcut: 확인과 이름 바꾸기 사이에 다른 앱이 같은 이름을 만들면 덮어쓸 수 있어요(브라우저 move()와 같은 한계). 문제가 되면 Rust에서 renamex_np(RENAME_EXCL)로 바꿉니다.
           if (await exists(to)) throw new DOMException("자리에 파일이 있어요", "InvalidModificationError");
           await rename(from, to);
@@ -98,7 +99,7 @@ export async function pickParent(): Promise<{ path: string; folders: ChildFolder
   const folders = (await readDir(path))
     .filter((entry) => entry.isDirectory && !isExcludedName(entry.name))
     // 경로는 디스크 이름 그대로 두고(스코프가 바이트로 비교), 보이는 이름만 NFC로 맞춥니다.
-    .map((entry) => ({ name: entry.name.normalize("NFC"), path: `${path.replace(/\/$/, "")}/${entry.name}` }))
+    .map((entry) => ({ name: entry.name.normalize("NFC"), path: joinPath(path, entry.name) }))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
   return { path, folders };
 }
@@ -111,13 +112,13 @@ export async function pickRoomFolder(defaultPath?: string): Promise<string | nul
   return typeof path === "string" ? path : null;
 }
 
-export const sameFolder = (a: string | undefined, b: string): boolean => a !== undefined && a.normalize("NFC") === b.normalize("NFC");
+export const sameFolder = (a: string | undefined, b: string): boolean => a !== undefined && samePath(a, b);
 
 // 핸들(브라우저)과 경로(데스크톱)를 같은 자리에서 다루기 위한 갈림길입니다. 경로는 고를 때 이미 권한을 받았습니다.
 export const folderAccess = (folder: Folder, mode?: AccessMode): Promise<Access> => (typeof folder === "string" ? Promise.resolve("granted") : readAccess(folder, mode));
 export const askFolder = (folder: Folder, mode?: AccessMode): Promise<boolean> => (typeof folder === "string" ? Promise.resolve(true) : askAccess(folder, mode));
 export const folderSource = (folder: Folder): DirectorySource => (typeof folder === "string" ? pathSource(folder) : handleSource(folder));
-// 스캔한 뒤 macOS에 마지막 사용 시각을 묻습니다. 브라우저 핸들은 플랫폼이 알려 주지 않아요. 시각을 못 읽어도 스캔은 그대로 씁니다.
+// 스캔한 뒤 macOS에 마지막 사용 시각을 묻습니다. 브라우저 핸들과 Windows·리눅스는 알 수 없어 null로 둬요. 시각을 못 읽어도 스캔은 그대로 씁니다.
 export async function scanRoomFolder(folder: Folder, onProgress?: (count: number) => void): Promise<ScanResult> {
   const scan = await scanFolder(folderSource(folder), onProgress);
   if (typeof folder !== "string") return scan;
@@ -135,4 +136,4 @@ export async function scanRoomFolder(folder: Folder, onProgress?: (count: number
 export const folderMover = (folder: Folder): MoveDirectory => (typeof folder === "string" ? pathDirectory(folder) : asMoveDirectory(folder));
 export const canMoveIn = (folder: Folder): boolean => typeof folder === "string" || canMoveFiles();
 export const readFolderFile = (folder: Folder, path: string): Promise<File> => (typeof folder === "string" ? readPathFile(folder, path) : readFileAt(folder, path));
-export const folderName = (folder: Folder): string => (typeof folder === "string" ? folder.slice(folder.lastIndexOf("/") + 1) : folder.name);
+export const folderName = (folder: Folder): string => (typeof folder === "string" ? baseName(folder) : folder.name);

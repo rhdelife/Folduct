@@ -97,6 +97,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       return;
     }
     const at = Date.now();
+    const taken = known.map((room) => room.face);
     let added = 0;
     let refreshed = 0;
     let done = 0;
@@ -114,7 +115,9 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
         }
         const finished = looksDone(scan.files, at);
         if (finished) done += 1;
-        await saveRoom(buildRoom({ name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, budgetBytes: null, done: finished, workDays: [], now: at }));
+        const built = buildRoom({ taken, name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, budgetBytes: null, done: finished, workDays: [], now: at });
+        taken.push(built.face);
+        await saveRoom(built);
         added += 1;
       } catch {
         failed += 1;
@@ -138,7 +141,10 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     if (!draft || !name.trim()) return;
     setSaving(true);
     const now = Date.now();
+    // 다른 방 얼굴을 못 읽어도 방은 만듭니다.
+    const taken = await listRooms().then((rooms) => rooms.map((room) => room.face), () => []);
     const room = buildRoom({
+      taken,
       name: name.trim().slice(0, 40),
       source: draft.source,
       rootName: draft.rootName,

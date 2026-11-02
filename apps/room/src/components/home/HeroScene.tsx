@@ -1,4 +1,7 @@
 import { useEffect, type RefObject } from "react";
+import type { DoorItem } from "../../domain/doorstep";
+import type { OpenRoomMenu } from "../ContextMenu";
+import { DoorstepRow } from "../Doorstep";
 import { BrandMark } from "../Icon";
 import { SkyMap } from "../SkyMap";
 import { SkyPanel } from "../SkyPanel";
@@ -9,10 +12,12 @@ type HeroProps = SceneProps & {
   panelId: string | null;
   focusId: string | null;
   panelRef: RefObject<HTMLElement | null>;
+  doorItems: DoorItem[];
+  onDoorMenu: OpenRoomMenu;
 };
 
 // 첫 화면: 방 지도와 고른 방 패널.
-export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef }: HeroProps) {
+export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef, doorItems, onDoorMenu }: HeroProps) {
   const gate = useSceneGate(0);
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
   const panelRoom = rooms.find((room) => room.id === panelId) ?? null;
@@ -41,7 +46,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
       ) : (
         <div className={`sky-layout${selected ? " has-panel" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} onSelectRoom={actions.selectRoom} onFocusThing={actions.focusThing} onRoomMenu={actions.roomMenu} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onRoomMenu={actions.roomMenu} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>진행 중인 방이 없어요.</p>
@@ -63,6 +68,8 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
               />
             )}
           </aside>
+          {/* 방을 고르면 패널과 겹치니 잠시 비켜 줍니다. */}
+          {!selected && <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />}
         </div>
       )}
     </section>

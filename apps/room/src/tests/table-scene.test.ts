@@ -12,7 +12,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
   return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: now - 30 * dayMs, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null, ...patch };
 }
 function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id, name: id, createdAt: now - 40 * dayMs, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, ...patch };
+  return { id, name: id, createdAt: now - 40 * dayMs, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("방 순서", () => {

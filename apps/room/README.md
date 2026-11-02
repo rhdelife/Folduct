@@ -8,7 +8,14 @@ npm install
 npm run dev      # http://localhost:5173
 npm test         # vitest
 npm run build
+npm run tauri dev    # 데스크톱 앱으로 띄우기
+npm run tauri build  # 배포용 빌드
 ```
+
+배포 절차와 확인 상태는 [docs/release-checklist.md](../../docs/release-checklist.md), 변경 기록은 [CHANGELOG.md](CHANGELOG.md)에 있어요. 의존성을 바꾸면 `node scripts/gen-licenses.mjs`로 라이선스 고지(`src-tauri/THIRD-PARTY-LICENSES.txt`)를 다시 만듭니다.
+
+- 데스크톱 앱은 인터넷에 접속하지 않습니다(CSP로 막아 둠). 기록은 앱의 WebView IndexedDB에 남습니다.
+- 운영체제마다 다른 경로·오류 번호·화면 말은 `src/domain/platform.ts` 한곳에 있습니다. 파일의 마지막 사용 시각은 macOS Spotlight에서만 읽고, 다른 OS에서는 ‘모름’으로 둡니다.
 
 - 저장: 이 브라우저의 IndexedDB(`folduct-room`)에만. 파일 내용은 저장하지 않습니다.
 - 여러 폴더를 한 번에: 아래 명령으로 목록 파일을 만든 뒤, 집 화면의 **📦 가져오기**로 고릅니다. 같은 폴더를 다시 가져오면 새 방 대신 그 방을 다시 봅니다(메모·자리 유지). 60일 넘게 고친 파일이 없는 폴더는 ‘완료된 프로젝트’로 들어옵니다.

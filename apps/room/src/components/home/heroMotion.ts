@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { hash, stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
-import { flightsFor, notebookGuide, type Card, type Flight, type HeroNode, type NotebookGuide } from "../../domain/heroLayout";
-import { cubicOut, range, useBetween, useEngine, useScene } from "./engine";
+import { flightsFor, type Card, type Flight, type HeroNode, type RowSpot } from "../../domain/heroLayout";
+import { range, useBetween, useEngine, useScene } from "./engine";
 
 // 첫 화면의 움직임. 처음 켤 때의 등장은 시계로, 첫 스크롤은 pos로 그립니다(되감아도 그대로 돌아와요).
 
@@ -9,35 +9,42 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// 첫 스크롤의 pos 구간. 띠가 모이는 동안 공책이 올라와 자리를 잡고, 잠깐 멈췄다가 왼쪽부터 차례로 공책에 떨어져 사라집니다.
-const beltFrom = 90;
-const beltSpan = 230;
-const dropFrom = 675;
-const dropSpread = 248;
-const dropSpan = 114;
-const vanishAt = [1063, 1074, 1087];
-const vanishSpan = 10;
-export const cardsGone = 1097;
-// 되감을 때 화병은 첫 화면이 가까워지면 돌아옵니다(되감기는 끝으로 갈수록 느려서 맨 위까지 기다리면 한참 늦어요).
-const vasesBackAt = 260;
+// 첫 스크롤의 pos 구간: 거르기. 등장의 거꾸로예요.
+// 지금 볼 게 아닌 종이는 자기 화병 뒤로 돌아가고, 남은 종이는 똑바로 서서 기다립니다. 화병이 가라앉는 사이 공책이 그 밑으로 올라오면, 남은 종이가 자기 줄의 아이콘이 됩니다.
+// 엔진의 cubic-out 때문에 pos 900이 약 430ms, 1200이 약 730ms예요.
+const homeFrom = 40;
+const homeSpread = 120;
+const homeSpan = 420;
+const standTo = 360;
+const landFrom = 620;
+const landSpread = 220;
+const landSpan = 300;
+const handoffFrom = 1170;
+export const cardsGone = 1210;
+// 종이가 다 들어간 뒤에 흐려집니다. 먼저 흐려지면 뒤로 들어가는 종이가 비쳐요.
+const vaseLeaveFrom = 560;
+const vaseSpread = 60;
+const vaseSpan = 240;
+const standScale = 1.08;
+// 되감을 때 화병이 다 돌아오는 자리입니다. 이름표도 이때 돌아와요.
+const vasesBackAt = vaseLeaveFrom;
 
 export type Pose = { x: number; y: number; rot: number; scale: number; opacity: number };
 
-// 쉬는 자리에서의 거리로 돌려줍니다. rot은 종이가 쉴 때의 기울기(rest)에 더하는 값이에요.
-export function cardPose(pos: number, flight: Flight, count: number, rest: number, id: string): Pose {
-  const toBelt = easeInOut(range(pos, beltFrom + hash(id, 31) * 60, beltFrom + hash(id, 31) * 60 + beltSpan));
-  const start = dropFrom + (count > 1 ? (flight.slot / (count - 1)) * dropSpread : 0);
-  const toLand = cubicOut(range(pos, start, start + dropSpan));
-  const { rest: from, belt, land } = flight;
-  const onBelt = { x: lerp(from.x, belt.x, toBelt), y: lerp(from.y, belt.y, toBelt), rot: lerp(rest, belt.rot, toBelt), scale: lerp(1, belt.scale, toBelt) };
-  return {
-    x: lerp(onBelt.x, land.x, toLand) - from.x,
-    y: lerp(onBelt.y, land.y, toLand) - from.y,
-    rot: lerp(onBelt.rot, land.rot, toLand) - rest,
-    scale: lerp(onBelt.scale, land.scale, toLand),
-    opacity: 1 - range(pos, vanishAt[flight.section], vanishAt[flight.section] + vanishSpan),
-  };
+// 쉬는 자리에서의 거리로 돌려줍니다. rot은 종이가 쉴 때의 기울기에 더하는 값이에요.
+export function cardPose(pos: number, { rest, to, toRow, stagger }: Flight): Pose {
+  if (!toRow) {
+    const u = easeInOut(range(pos, homeFrom + stagger * homeSpread, homeFrom + stagger * homeSpread + homeSpan));
+    return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u, rot: to.rot * u, scale: lerp(1, to.scale, u), opacity: 1 - range(u, 0.7, 1) };
+  }
+  const stand = easeInOut(range(pos, homeFrom, standTo));
+  const start = landFrom + stagger * landSpread;
+  const u = easeInOut(range(pos, start, start + landSpan));
+  return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u, rot: to.rot * stand, scale: lerp(lerp(1, standScale, stand), to.scale, u), opacity: 1 - range(pos, handoffFrom, cardsGone) };
 }
+
+// 화병이 가라앉아 사라지는 정도(0~1).
+export const vaseLeave = (pos: number, seed: number) => easeInOut(range(pos, vaseLeaveFrom + seed * vaseSpread, vaseLeaveFrom + seed * vaseSpread + vaseSpan));
 
 // 2차 베지어 위의 점들을 키프레임으로 씁니다. 합성 스레드에서 도니 비행 중에 JS가 돌지 않아요.
 type Pt = { x: number; y: number };
@@ -55,17 +62,6 @@ export function arrivalFrames(rest: Pt, half: number, view: View, ms: number): K
     const lean = 20 * (1 - flare) * (1 - flare) - 7 * Math.sin(Math.PI * flare);
     const sway = -3 * Math.cos((2 * Math.PI * (t + 14)) / 1400) * (1 - range(t, ms - 300, ms));
     return { translate: `${at.x - rest.x}px ${at.y - rest.y}px`, rotate: `${lean + sway}deg` };
-  });
-}
-
-// 오른쪽 위 화면 밖으로 날아갑니다.
-export function exitFrames(rest: Pt, half: number, view: View): Keyframe[] {
-  const to = { x: view.w + half * 2, y: -2.5 * half * 2 };
-  const via = { x: lerp(rest.x, to.x, 0.82), y: to.y - view.h * 0.06 };
-  return Array.from({ length: 17 }, (_, i) => {
-    const u = i / 16;
-    const at = bezier(rest, via, to, cubicOut(u));
-    return { translate: `${at.x - rest.x}px ${at.y - rest.y}px`, rotate: `${lerp(0, 24, Math.min(1, u * 3)) - 18 * u}deg` };
   });
 }
 
@@ -128,57 +124,57 @@ function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
 let entrancePlayed = false;
 
-export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null, measureNotebook: () => NotebookGuide | null) {
+export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null, measureRows: () => ReadonlyMap<string, RowSpot>) {
   const engine = useEngine();
   const atRest = useBetween(0, 5);
   const vasesHome = useSyncExternalStore(engine.subscribe, () => engine.pos <= (engine.dir < 0 ? vasesBackAt : 5));
   const shown = useMemo(() => cards.filter((card) => !card.extra), [cards]);
-  const guide = useRef<NotebookGuide | null>(null);
-  const flights = useMemo(() => flightsFor(shown, view, guide.current ?? notebookGuide(view)), [shown, view]);
-  const flown = useRef<Map<string, Flight>>(flights);
-  useLayoutEffect(() => {
-    flown.current = flights;
-  }, [flights]);
+  const flown = useRef<Map<string, Flight>>(new Map());
 
   const els = useRef<HTMLElement[]>([]);
+  const lifts = useRef<{ el: HTMLElement; seed: number }[]>([]);
   const papers = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     const root = canvas.current!;
     els.current = [...root.querySelectorAll<HTMLElement>(".paper")];
+    lifts.current = [...root.querySelectorAll<HTMLElement>(".room-node")].map((node) => ({ el: node.querySelector<HTMLElement>(".vase-lift")!, seed: hash(node.dataset.roomId!, 32) }));
     papers.current = root.querySelector(".papers");
   });
 
-  // 공책 장면이 실제 글자 자리를 알려 주면 그 자리로 내립니다. 공책이 올라오기 전, 스크롤이 시작될 때 한 번 재요.
-  useEffect(() => {
-    if (atRest) return;
-    const measured = measureNotebook();
-    if (!measured) return;
-    guide.current = measured;
-    flown.current = flightsFor(shown, view, measured);
-  }, [atRest, shown, view]);
-
   const last = useRef(-1);
-  useScene((pos) => {
+  const write = (pos: number) => {
     // 다 사라진 뒤로는 쓸 일이 없습니다.
     const done = pos >= cardsGone;
     if (papers.current) papers.current.dataset.gone = String(done);
     if (done && last.current >= cardsGone) return;
     last.current = pos;
-    const count = flown.current.size;
+    for (const { el, seed } of lifts.current) {
+      const leave = pos <= 0 ? 0 : vaseLeave(pos, seed);
+      el.style.translate = leave > 0 ? `0 ${3 * leave}dvh` : "";
+      el.style.scale = leave > 0 ? String(1 - 0.06 * leave) : "";
+      el.style.opacity = leave > 0 ? String(1 - leave) : "";
+    }
     for (const el of els.current) {
-      const id = el.dataset.card!;
-      const flight = flown.current.get(id);
+      const flight = flown.current.get(el.dataset.card!);
       if (!flight) continue;
       if (pos <= 0) {
         el.style.transform = "";
         el.style.opacity = "";
         continue;
       }
-      const pose = cardPose(pos, flight, count, Number(el.dataset.rot), id);
+      const pose = cardPose(pos, flight);
       el.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rot}deg) scale(${pose.scale})`;
       el.style.opacity = pose.opacity < 1 ? String(pose.opacity) : "";
     }
-  });
+  };
+  useScene(write);
+
+  // 스크롤이 시작될 때 공책 줄의 자리를 재고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
+  useEffect(() => {
+    if (atRest) return;
+    flown.current = flightsFor(shown, nodes, view, measureRows());
+    write(engine.pos);
+  }, [atRest, shown, nodes, view]);
 
   // 등장. 휠, 키, 누르기 중 무엇이든 들어오면 바로 끝난 모습으로 갑니다.
   const settle = useRef<(() => void) | null>(null);
@@ -211,36 +207,9 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     return stop;
   }, [hasScene]);
 
-  // 첫 입력에 화병이 오른쪽 위로 날아가고, 되감으면 같은 길로 돌아옵니다. 스크롤과 무관하게 시계로 돌아요.
-  const away = useRef(new Map<HTMLElement, Animation>());
-  const wasHome = useRef(vasesHome);
+  // 메뉴처럼 입력 없이 떠나도 등장을 끝냅니다.
   useEffect(() => {
-    if (wasHome.current === vasesHome) return;
-    wasHome.current = vasesHome;
-    settle.current?.();
-    if (reduced()) return;
-    const root = canvas.current!;
-    const unit = stageUnit(view) * vaseUnit;
-    for (const { room, at, r } of nodes) {
-      const lift = vaseOf(root, room.id)?.querySelector<HTMLElement>(".vase-lift");
-      if (!lift) continue;
-      const running = away.current.get(lift);
-      if (running) {
-        running.playbackRate = vasesHome ? -1 : 1;
-        running.play();
-      } else {
-        const anim = lift.animate(exitFrames(toPx(at, view), vaseHalf(r) * unit, view), { duration: 620, delay: hash(room.id, 32) * 90, fill: "both" });
-        anim.onfinish = () => {
-          if (anim.playbackRate < 0) {
-            anim.cancel();
-            away.current.delete(lift);
-          }
-        };
-        away.current.set(lift, anim);
-        // 방에서 돌아와 처음 되감을 때는 떠난 적이 없으니, 끝에서부터 틀어 같은 길로 옵니다.
-        if (vasesHome) anim.reverse();
-      }
-    }
+    if (!vasesHome) settle.current?.();
   }, [vasesHome]);
 
   return { atRest, vasesHome };

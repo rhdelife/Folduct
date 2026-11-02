@@ -12,12 +12,12 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
   return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: ago(30), lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: ago(0), pinned: false, box: null, ...patch };
 }
 function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id, name: id, createdAt: ago(40), source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, ...patch };
+  return { id, name: id, createdAt: ago(40), source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
-const fallen = thing("fallen", { touchedAt: ago(9), lastModified: ago(9) });
-const older = thing("older", { touchedAt: ago(20), lastModified: ago(20) });
-const tilted = thing("tilted", { touchedAt: ago(4), lastModified: ago(4), kind: "text" });
+const fallen = thing("stale", { touchedAt: ago(31), lastModified: ago(31) });
+const older = thing("older", { touchedAt: ago(45), lastModified: ago(45) });
+const tilted = thing("recent", { touchedAt: ago(4), lastModified: ago(4), kind: "text" });
 const fresh = thing("fresh", { kind: "video", size: 3 * GB });
 const shelf = thing("shelf", { spot: null, touchedAt: null, lastModified: ago(50), size: 2000 });
 const boxed = thing("boxed", { box, touchedAt: ago(9), lastModified: ago(9), kind: "pdf", size: 500 });
@@ -31,10 +31,10 @@ const rooms = [done, main, calm];
 describe("손댈 것", () => {
   const { first, info, later } = notebookSections(rooms, now, ago(8));
 
-  it("쓰러진 파일은 방별로, 오래된 것부터 보여요. 완료한 방은 빠져요", () => {
-    expect(first.fallen.map((item) => item.room.id)).toEqual(["main"]);
-    expect(first.fallen[0].files.map((file) => file.thing.id)).toEqual(["older", "fallen"]);
-    expect(first.fallen[0].files[0].days).toBe(20);
+  it("오래된 파일은 방별로, 오래된 것부터 보여요. 완료한 방은 빠져요", () => {
+    expect(first.stale.map((item) => item.room.id)).toEqual(["main"]);
+    expect(first.stale[0].files.map((file) => file.thing.id)).toEqual(["older", "stale"]);
+    expect(first.stale[0].files[0].days).toBe(45);
   });
 
   it("한도 넘은 방과 밀린 정리를 알려요", () => {
@@ -46,8 +46,7 @@ describe("손댈 것", () => {
     expect(notebookSections([calm], now, ago(8)).first.sweepOverdue).toBe(false);
   });
 
-  it("참고에는 기울어진 파일과 최근 7일에 쓴 파일이 형식별로 있어요", () => {
-    expect(info.tilted.map((file) => file.thing.id)).toEqual(["tilted"]);
+  it("참고에는 최근 7일에 쓴 파일이 형식별로 있어요", () => {
     const count = Object.fromEntries(info.recent.map((group) => [group.label, group.count]));
     expect(count).toEqual({ 이미지: 1, "글·코드": 1, 영상: 1 });
   });
@@ -57,7 +56,7 @@ describe("손댈 것", () => {
   });
 
   it("방이 없어도 빈 칸으로 돌려줘요", () => {
-    expect(notebookSections([], now)).toEqual({ first: { fallen: [], overBudget: [], sweepOverdue: false }, info: { tilted: [], recent: [] }, later: { doneRooms: 0, shelfFiles: 0 } });
+    expect(notebookSections([], now)).toEqual({ first: { stale: [], overBudget: [], sweepOverdue: false }, info: { recent: [] }, later: { doneRooms: 0, shelfFiles: 0 } });
   });
 });
 
@@ -67,8 +66,8 @@ describe("방 표", () => {
     expect(rows[0]).toMatchObject({ name: "fresh.png", path: "fresh.png", kind: "video", kindLabel: "영상", status: "제자리", tone: "ok" });
     expect(rows.find((row) => row.name === "boxed.png")).toMatchObject({ status: "정리 상자", tone: "box" });
     expect(rows.find((row) => row.name === "shelf.png")).toMatchObject({ status: "선반", tone: "shelf" });
-    expect(rows.find((row) => row.name === "fallen.png")).toMatchObject({ status: "9일째 · 쓰러짐", tone: "fallen" });
-    expect(rows.find((row) => row.name === "tilted.png")).toMatchObject({ status: "4일째 · 기울어짐", tone: "tilted" });
+    expect(rows.find((row) => row.name === "stale.png")).toMatchObject({ status: "31일째 그대로", tone: "stale" });
+    expect(rows.find((row) => row.name === "recent.png")).toMatchObject({ status: "제자리", tone: "ok" });
     expect(rows.some((row) => row.name === "gone.png")).toBe(false);
     expect(tableRows(room("empty", []), now)).toEqual([]);
   });
@@ -78,7 +77,7 @@ describe("수첩에 꺼낼 파일", () => {
   const ids = (files: { thing: { id: string } }[]) => files.map((file) => file.thing.id);
 
   it("최근 파일과 선반을 따로 꺼내요", () => {
-    expect(ids(recentFiles(rooms, now))).toEqual(expect.arrayContaining(["fresh", "calm-1", "tilted"]));
+    expect(ids(recentFiles(rooms, now))).toEqual(expect.arrayContaining(["fresh", "calm-1", "recent"]));
     expect(ids(recentFiles(rooms, now))).not.toContain("older");
     expect(ids(shelfFiles(rooms, now))).toEqual(["shelf", "unknown"]);
   });

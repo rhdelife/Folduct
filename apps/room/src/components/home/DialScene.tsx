@@ -1,7 +1,8 @@
-import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { ObjectShape } from "../../art/ObjectShape";
 import { kindTones } from "../../art/palette";
-import { kindParts, kindSummary, vaseBands, vaseIndex, vasePaths } from "../../art/vases";
+import { kindParts, kindSummary, vaseBands } from "../../art/vases";
+import { RoomFaceArt } from "../RoomFace";
 import { relativeDay } from "../../domain/care";
 import { dialRooms, type DialRoom } from "../../domain/home";
 import { formatBytes } from "../../domain/model";
@@ -23,20 +24,10 @@ const viewSize = () => innerWidth * 100000 + innerHeight;
 
 // 화병 하나. 지도처럼 형식별로 차오릅니다. 완료한 방은 빈 점선 몸통과 글자로 말해요.
 const DialFace = memo(function DialFace({ entry: { room, done, bytes } }: { entry: DialRoom }) {
-  const clip = useId();
-  const vase = vaseIndex(room.id);
   const bands = vaseBands(kindParts(room.things), vaseFill(room, bytes));
   return (
     <span className={`dial-face${done ? " is-done" : ""}`}>
-      <svg className="dial-art" viewBox="-100 -102 200 204" aria-hidden="true" focusable="false">
-        {/* WebKit은 크기 0인 다른 svg의 clipPath를 따라가지 못해 화병마다 둡니다. */}
-        <clipPath id={clip}><path d={vasePaths[vase]} /></clipPath>
-        <path className="dial-glass" d={vasePaths[vase]} />
-        <g clipPath={`url(#${clip})`}>
-          {bands.map((band) => <rect key={band.label} className="dial-vase-band" x={-100} y={band.y} width={200} height={band.height} fill={band.color} />)}
-        </g>
-        <path className="dial-vase-line" d={vasePaths[vase]} />
-      </svg>
+      <RoomFaceArt face={room.face} roomId={room.id} bands={bands} className="dial-art" viewBox="-100 -102 200 204" glass="dial-glass" band="dial-vase-band" line="dial-vase-line" />
       <span className="dial-label">{room.name}</span>
       <span className="dial-denom">{formatBytes(bytes)}{done && <b> · 완료</b>}</span>
     </span>

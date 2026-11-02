@@ -1,7 +1,7 @@
 import { useRef, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent } from "react";
 import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
-import { budgetLevel, objectScale, roomUsage, thingStage } from "../domain/care";
+import { budgetLevel, objectScale, roomUsage } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
 import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { Icon } from "./Icon";
@@ -138,7 +138,6 @@ export function RoomScene({
             key={thing.id}
             thing={thing}
             order={order}
-            stage={thingStage(thing, room.care, room.workDays, now)}
             selected={thing.id === selectedId}
             onPointerDown={(event) => {
               justDragged.current = false;
@@ -195,13 +194,11 @@ export function RoomScene({
 function ThingObject({
   thing,
   order,
-  stage,
   selected,
   ...handlers
 }: {
   thing: Thing;
   order: number;
-  stage: { stage: "normal" | "tilted" | "fallen"; days: number };
   selected: boolean;
 } & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
   const at = toScreen(thing.spot!);
@@ -209,24 +206,22 @@ function ThingObject({
   // 종이마다 비율이 달라요. 버튼을 종이에 꼭 맞춰야 이름표와 포커스 테두리가 종이에 붙습니다.
   const art = pickArt(thing.kind, thing.id);
   const height = Math.round((size * art.h) / art.w);
-  // 쓰러진 종이는 옆으로 눕습니다. 버튼도 누운 모양으로 잡아 이름표가 종이를 가리지 않게 합니다.
-  const [boxWidth, boxHeight] = stage.stage === "fallen" ? [height, size] : [size, height];
   // 종이마다 아주 살짝 다르게 놓입니다(상태와 헷갈리지 않을 만큼만).
   const lean = ((thing.id.charCodeAt(0) + thing.id.charCodeAt(thing.id.length - 1)) % 5) - 2;
-  const short = thing.missing ? "파일 없음" : stage.stage === "fallen" ? `${stage.days}일 · 쓰러짐` : stage.stage === "tilted" ? `${stage.days}일 · 기울어짐` : null;
+  const short = thing.missing ? "파일 없음" : null;
   return (
     <button
       type="button"
-      className={`thing stage-${stage.stage}${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
-      style={{ left: at.left, top: at.top, width: boxWidth, height: boxHeight, marginLeft: -boxWidth / 2, marginTop: -boxHeight / 2, zIndex: depth(thing.spot!) }}
+      className={`thing${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
+      style={{ left: at.left, top: at.top, width: size, height, marginLeft: -size / 2, marginTop: -height / 2, zIndex: depth(thing.spot!) }}
       data-thing-id={thing.id}
       data-tag={tagPlacement(thing.spot!)}
       aria-pressed={selected}
-      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${short ? `, ${short}` : ""}${!thing.missing && stage.stage === "fallen" ? ", 다음 정리 때 상자로" : ""}${thing.pinned ? ", 고정됨" : ""}`}
+      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${short ? `, ${short}` : ""}${thing.pinned ? ", 고정됨" : ""}`}
       aria-describedby="plane-hint"
       {...handlers}
     >
-      <span className="body" style={{ left: (boxWidth - size) / 2, top: (boxHeight - height) / 2, width: size, height, rotate: `${lean}deg`, "--i": Math.min(order, 16) } as CSSProperties}>
+      <span className="body" style={{ left: 0, top: 0, width: size, height, rotate: `${lean}deg`, "--i": Math.min(order, 16) } as CSSProperties}>
         <ObjectShape kind={thing.kind} size={size} name={thing.name} seed={thing.id} />
       </span>
       {/* 고른 물건에는 연필로 동그라미를 칩니다. 그림자 대신이에요. */}

@@ -1,7 +1,9 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { shortPath } from "../domain/platform";
 import { ObjectShape } from "../art/ObjectShape";
-import { kindParts, vaseBands, vaseIndex, vasePaths } from "../art/vases";
-import { lastActivity, relativeDay, thingStage } from "../domain/care";
+import { kindParts, vaseBands } from "../art/vases";
+import { RoomFaceArt } from "./RoomFace";
+import { lastActivity, relativeDay, thingAge } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { homeActivity, pickStarThings, progressText, roomActivity, stateAfterDone, type RoomStat } from "../domain/sky";
 import { vaseFill } from "../domain/dial";
@@ -13,57 +15,55 @@ import { MiniRoom } from "./MiniRoom";
 // 스크립트로 움직이는 스크롤도 '동작 줄이기'를 따릅니다.
 const scrollBehavior = (): ScrollBehavior => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
-export function HomeSummary({ rooms, stats }: { rooms: Room[]; stats: Map<string, RoomStat> }) {
+export function HomeSummary({ rooms, stats, now }: { rooms: Room[]; stats: Map<string, RoomStat>; now: number }) {
   let total = 0;
-  let fallen = 0;
-  for (const { usage, mess } of stats.values()) {
+  let staleFiles = 0;
+  for (const { usage, stale } of stats.values()) {
     total += usage.totalBytes;
-    fallen += mess.fallen;
+    staleFiles += stale;
   }
   const active = rooms.filter((item) => !item.care.done).length;
   return (
     <div className="sky-summary">
-      <h2>내 방들</h2>
       <p className="lede">
         {active === 0
           ? "진행 중인 방이 없어요. 새 방을 만들거나, 완료된 프로젝트에서 방을 골라 다시 진행 중으로 되돌릴 수 있어요."
-          : "화병은 방, 찬 높이는 한도 대비 용량, 색은 파일 형식이에요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 성긴 점선으로 이어진 것은 쓰러진 파일이에요. 완료된 프로젝트는 지도에서 빠지고 아래 목록에 모여요."}
+          : "화병은 방, 찬 높이는 한도 대비 용량, 색은 파일 형식이에요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 완료된 프로젝트는 지도에서 빠지고 아래 목록에 모여요."}
       </p>
       <dl>
         <div><dt>진행 중 / 완료</dt><dd>{active}<small> / {rooms.length - active}</small></dd></div>
         <div><dt>{rooms.some((item) => item.source === "sample") ? "전체 용량 (샘플 포함)" : "전체 용량"}</dt><dd>{formatBytes(total)}</dd></div>
-        <div><dt>쓰러진 파일</dt><dd>{fallen}<small>개</small></dd></div>
+        <div><dt>오래된 파일</dt><dd>{staleFiles}<small>개</small></dd></div>
       </dl>
+      <ActivityChart title="최근 14일 · 사용한 방 수" bars={homeActivity(rooms, now)} unit="개 방" />
     </div>
   );
 }
 
-// 메뉴 안의 방 순위와 14일 그래프.
-export function RoomRanking({ rooms, stats, now, onSelectRoom, onRoomMenu }: { rooms: Room[]; stats: Map<string, RoomStat>; now: number; onSelectRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {
+// 메뉴 안의 방 목록. 누르면 그 방으로 바로 들어갑니다.
+export function RoomRanking({ rooms, stats, now, onOpenRoom, onRoomMenu }: { rooms: Room[]; stats: Map<string, RoomStat>; now: number; onOpenRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {
   const [roomSort, setRoomSort] = useState<"size" | "messy">("size");
   const rows = rooms.map((item) => ({ room: item, ...stats.get(item.id)! }));
-  rows.sort((a, b) => (roomSort === "size" ? b.usage.totalBytes - a.usage.totalBytes : b.mess.fallen * 10 + b.mess.tilted - (a.mess.fallen * 10 + a.mess.tilted)));
+  rows.sort((a, b) => (roomSort === "size" ? b.usage.totalBytes - a.usage.totalBytes : b.stale - a.stale));
   const activeRows = rows.filter((row) => !row.room.care.done);
   const doneRows = rows.filter((row) => row.room.care.done);
   return (
     <div className="sky-panel-body">
       <header>
-        <h2>방 순위</h2>
-        <p className="soft">방 {rooms.length}개 · 지도나 아래 목록에서 골라 보세요</p>
+        <h2>방 {rooms.length}개</h2>
       </header>
       <div className="sort" role="group" aria-label="정렬">
         <button type="button" aria-pressed={roomSort === "size"} onClick={() => setRoomSort("size")}>용량 순</button>
         <button type="button" aria-pressed={roomSort === "messy"} onClick={() => setRoomSort("messy")}>정리할 것 순</button>
       </div>
       {/* 완료한 방은 아래에 접어 둡니다. 활성 상태가 아니라 순위 경쟁에서도 빠집니다. 모두 완료했으면 펼쳐 둡니다. */}
-      <RoomRows rows={activeRows} now={now} onSelectRoom={onSelectRoom} onRoomMenu={onRoomMenu} />
+      <RoomRows rows={activeRows} now={now} onSelectRoom={onOpenRoom} onRoomMenu={onRoomMenu} />
       {doneRows.length > 0 && (
         <details className="done-group" open={activeRows.length === 0}>
           <summary>완료된 프로젝트 {doneRows.length}</summary>
-          <RoomRows rows={doneRows} now={now} onSelectRoom={onSelectRoom} onRoomMenu={onRoomMenu} />
+          <RoomRows rows={doneRows} now={now} onSelectRoom={onOpenRoom} onRoomMenu={onRoomMenu} />
         </details>
       )}
-      <ActivityChart title="최근 14일 · 사용한 방 수" bars={homeActivity(rooms, now)} unit="개 방" />
     </div>
   );
 }
@@ -107,20 +107,20 @@ export function SkyPanel({
     box.scrollTo({ top: top - box.clientHeight / 2, behavior: scrollBehavior() });
   }, [focusId]);
 
-  const things = room.things.filter((thing) => !thing.missing).map((thing) => ({ thing, ...thingStage(thing, room.care, room.workDays, now) }));
+  const things = room.things.filter((thing) => !thing.missing).map((thing) => ({ thing, ...thingAge(thing, room.care, room.workDays, now) }));
   things.sort((a, b) => (thingSort === "size" ? b.thing.size - a.thing.size : (a.thing.touchedAt === null ? Infinity : lastActivity(a.thing)) - (b.thing.touchedAt === null ? Infinity : lastActivity(b.thing))));
   // 고른 순서로 100개, 그리고 지도에 뜬 파일은 모두 넣어 지도의 별마다 줄이 있게 합니다. 완료된 방은 지도에 없어요.
   const starIds = new Set(room.care.done ? [] : pickStarThings(room, 40).map((thing) => thing.id));
   const listed = things.filter((item, index) => index < 100 || starIds.has(item.thing.id));
-  const { mess, progress: roomProgress } = stats.get(room.id)!;
+  const { stale, progress: roomProgress } = stats.get(room.id)!;
   const progress = progressText(roomProgress, now);
   return (
     <div className="sky-panel-body" ref={body}>
       <header className="room-mode">
         <button type="button" className="link back" onClick={() => onSelectRoom(null)}>← 닫기</button>
         <h2 tabIndex={-1} ref={heading}>{room.name}</h2>
-        <p className="soft">{room.source === "sample" ? "샘플 방" : `${room.rootName} 폴더`} · 파일 {room.things.filter((thing) => !thing.box).length}개 · 기울어짐·쓰러짐 {mess.tilted + mess.fallen}개</p>
-        {room.care.done && <p className="soft">완료된 프로젝트라 물건이 기울지 않고, 주간 정리와 용량 경고도 쉬어요.</p>}
+        <p className="soft">{room.source === "sample" ? "샘플 방" : `${room.rootName} 폴더`} · 파일 {room.things.filter((thing) => !thing.box).length}개 · 오래됨 {stale}개</p>
+        {room.care.done && <p className="soft">완료된 프로젝트라 주간 정리와 용량 경고가 쉬어요.</p>}
         <button type="button" className="preview" onClick={() => onEnter(room.id)} aria-label={`${room.name} 방에 들어가기`}>
           <MiniRoom room={room} now={now} />
         </button>
@@ -139,15 +139,15 @@ export function SkyPanel({
         </div>
       </div>
       <ol className="rank files">
-        {listed.map(({ thing, stage, days }) => (
+        {listed.map(({ thing, stale: old, days }) => (
           <li key={thing.id} ref={thing.id === focusId ? focusRow : undefined} className={thing.id === focusId ? "focused" : ""}>
             <button type="button" onClick={() => onFocusThing(room.id, thing.id)}>
               <ObjectShape kind={thing.kind} size={20} seed={thing.id} />
               <span className="rank-name"><strong>{thing.name}</strong><small>{thing.path}</small></span>
               <span className="rank-num">
                 <strong>{formatBytes(thing.size)}</strong>
-                <small className={stage === "fallen" ? "warn" : stage === "tilted" ? "soft-warn" : ""}>
-                  {thing.box ? "정리 상자" : !thing.spot ? "선반" : stage === "fallen" ? `${days}일째 · 쓰러짐` : stage === "tilted" ? `${days}일째 · 기울어짐` : "제자리"}
+                <small className={old ? "warn" : ""}>
+                  {thing.box ? "정리 상자" : !thing.spot ? "선반" : old ? `${days}일째 그대로` : "제자리"}
                 </small>
               </span>
             </button>
@@ -162,32 +162,21 @@ export function SkyPanel({
 
 // 방은 어디서나 화병입니다. 지도와 같은 그림을 줄 높이에 맞춰 작게 그려요.
 export function RankVase({ room, bytes, partial }: { room: Room; bytes: number; partial: boolean }) {
-  const clip = useId();
-  const path = vasePaths[vaseIndex(room.id)];
-  return (
-    <svg className="rank-vase" viewBox="-100 -100 200 200" aria-hidden="true" focusable="false">
-      <clipPath id={clip}><path d={path} /></clipPath>
-      <path className="vase-body" d={path} />
-      <g clipPath={`url(#${clip})`}>
-        {vaseBands(kindParts(room.things), partial ? 0 : vaseFill(room, bytes)).map((band) => <rect key={band.label} className="vase-band" x={-100} y={band.y} width={200} height={band.height} fill={band.color} />)}
-      </g>
-      <path className="vase-line" d={path} />
-    </svg>
-  );
+  return <RoomFaceArt face={room.face} roomId={room.id} compact bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill(room, bytes))} className="rank-vase" />;
 }
 
 function RoomRows({ rows, now, onSelectRoom, onRoomMenu }: { rows: ({ room: Room } & RoomStat)[]; now: number; onSelectRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {
   return (
     <ol className="rank">
-      {rows.map(({ room, usage, mess, progress }, index) => (
+      {rows.map(({ room, usage, stale, progress }, index) => (
         <li key={room.id} className={room.care.done ? "done" : ""}>
           <button type="button" data-room-id={room.id} onClick={() => onSelectRoom(room.id)} {...roomMenuTriggers(room.id, onRoomMenu)}>
             <span className="rank-no">{room.care.done ? "✓" : index + 1}</span>
             <RankVase room={room} bytes={usage.totalBytes} partial={!usage.exact} />
-            <span className="rank-name"><strong>{room.name}</strong><small>{room.source === "sample" ? "샘플 방" : room.origin ? room.origin.replace(/^\/Users\/[^/]+/, "~") : room.rootName}</small><KindMix things={room.things} /></span>
+            <span className="rank-name"><strong>{room.name}</strong><small>{room.source === "sample" ? "샘플 방" : room.origin ? shortPath(room.origin) : room.rootName}</small><KindMix things={room.things} /></span>
             <span className="rank-num">
               <strong>{usage.exact ? "" : "최소 "}{formatBytes(usage.totalBytes)}</strong>
-              <small className={!room.care.done && mess.fallen ? "warn" : ""}>{room.care.done ? "완료" : mess.fallen + mess.tilted === 0 ? "깨끗함" : [mess.fallen && `쓰러짐 ${mess.fallen}`, mess.tilted && `기울어짐 ${mess.tilted}`].filter(Boolean).join(" · ")}</small>
+              <small className={!room.care.done && stale ? "warn" : ""}>{room.care.done ? "완료" : stale === 0 ? "깨끗함" : `오래됨 ${stale}`}</small>
               {progress.lastActivityAt !== null && <small>마지막 작업 {relativeDay(progress.lastActivityAt, now)}</small>}
             </span>
           </button>

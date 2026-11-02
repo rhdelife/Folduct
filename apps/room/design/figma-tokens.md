@@ -17,7 +17,7 @@
 | 움직임(시간·곡선) | 변수로 못 넣어요 | Prototype 설정에 참고 |
 
 ## 규칙 (디자인 시스템 요약)
-- 색은 **파일 형식**에만 써요. 상태(기울어짐·쓰러짐·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
+- 색은 **파일 형식**에만 써요. 상태(오래됨·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
 - 파일 오브제는 불투명한 종이예요. 비치거나 겹쳐 곱하지 않아요.
 - `ink-faint`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.
@@ -46,6 +46,14 @@
 | `color/neutral/stitch` | `#1b1a1838` |  |
 | `color/neutral/halo` | `{color.lightbox.2}` |  |
 | `color/neutral/ink-wash` | `#1b1a180f` |  |
+| `color/neutral/face-1` | `#1d3557` |  |
+| `color/neutral/face-2` | `#2f5d50` |  |
+| `color/neutral/face-3` | `#7a2e3a` |  |
+| `color/neutral/face-4` | `#5b3a6e` |  |
+| `color/neutral/face-5` | `#7a5a1f` |  |
+| `color/neutral/face-6` | `#1f5f6b` |  |
+| `color/neutral/face-7` | `#8a4b2a` |  |
+| `color/neutral/face-8` | `#3f3f46` |  |
 | `color/neutral/ground-mark` | `#e2e2da` |  |
 | `color/neutral/line-ground` | `#d8d8d2` |  |
 
@@ -144,7 +152,7 @@
 | `size/layout/topbar-h` | `72px` |  |
 | `size/layout/chrome-y` | `42px` |  |
 | `size/layout/chrome-x` | `40px` |  |
-| `size/layout/chrome-reserve` | `260px` |  |
+| `size/layout/chrome-reserve` | `300px` |  |
 | `size/layout/gap-hair` | `2px` |  |
 | `size/layout/menu-w` | `420px` |  |
 | `size/layout/content-max` | `1440px` |  |
@@ -179,6 +187,16 @@
 
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
+| `scene/z-intro` | `8000` |  |
+| `scene/intro-vase` | `min(40dvh, 56vw)` |  |
+| `scene/intro-foot` | `112px` |  |
+| `scene/intro-paper-scale` | `1` |  |
+| `scene/intro-fly` | `900ms` |  |
+| `scene/intro-stagger` | `110ms` |  |
+| `scene/intro-band` | `700ms` |  |
+| `scene/intro-fill` | `1500ms` |  |
+| `scene/intro-rise` | `1300ms` |  |
+| `scene/intro-leave` | `600ms` |  |
 | `scene/hero-type` | `max(2.22vw, 3vh)` |  |
 | `scene/hero-layer-z` | `40` |  |
 | `scene/hero-tip-z` | `50` |  |
@@ -202,13 +220,12 @@
 | `scene/dial-info-w` | `360px` |  |
 | `scene/dial-clear` | `88px` |  |
 | `scene/dial-wait-blur` | `80px` |  |
-| `scene/jar-h` | `min(62dvh, 560px)` |  |
-| `scene/jar-box-h` | `44px` |  |
-| `scene/jar-labels` | `200px` |  |
-| `scene/jar-list` | `420px` |  |
-| `scene/jar-gap` | `var(--space-6)` |  |
-| `scene/jar-box` | `#eeece7` |  |
-| `scene/jar-box-hover` | `#e3e0d9` |  |
+| `scene/pile-h` | `min(76dvh, 620px)` |  |
+| `scene/pile-w` | `132px` |  |
+| `scene/pile-sheet` | `72px` |  |
+| `scene/pile-step` | `10px` |  |
+| `scene/pile-list` | `420px` |  |
+| `scene/pile-gap` | `var(--space-6)` |  |
 | `scene/footer-text` | `max(var(--text-xs), 0.85vw, 1.25vh)` |  |
 | `scene/footer-inset` | `7vw` |  |
 | `scene/footer-gap` | `max(1vw, 1.4vh)` |  |

@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { BudgetBanner, BudgetPicker, CapacityBar } from "../components/Capacity";
+import { kindParts, vaseBands } from "../art/vases";
+import { FacePicker } from "../components/RoomFace";
 import { FileViewer, previewMode, type ViewerState } from "../components/FileViewer";
 import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
-import { boxFolderName, budgetNoticeDue, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingStage } from "../domain/care";
+import { boxFolderName, budgetNoticeDue, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
 import { progressText, roomProgress } from "../domain/sky";
+import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
 import { askFolder, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
@@ -297,7 +300,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       const file = await readFolderFile(folder, thing.path);
       if (stale()) return;
       setViewer({ thingId, state: { status: "ready", file } });
-      // 미리보기를 연 것도 손댄 것으로 셉니다. 기울던 물건이 다시 섭니다.
+      // 미리보기를 연 것도 손댄 것으로 셉니다.
       patchThing(thingId, {});
     } catch (error) {
       if (stale()) return;
@@ -311,7 +314,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     setViewer(null);
   }
 
-  // 데스크톱: macOS 기본 앱으로 열거나 Finder에서 보여줍니다. 연 것은 손댄 것으로 셉니다. 실패하면 이유를 돌려줍니다.
+  // 데스크톱: OS 기본 앱으로 열거나 파일 관리자에서 보여줍니다. 연 것은 손댄 것으로 셉니다. 실패하면 이유를 돌려줍니다.
   async function openApp(thingId: string, folder: string, reveal = false): Promise<string | null> {
     const thing = latest.current?.things.find((item) => item.id === thingId);
     if (!thing) return null;
@@ -415,7 +418,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
           <BrandMark size={32} />
           <span aria-hidden="true">←</span>
-          집
+          돌아가기
         </button>
         <div className="topnav-title">
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
@@ -433,7 +436,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {folderIssue && (
           <p className="banner danger" role="alert">
-            {folderIssues[folderIssue]}{folderIssue === "denied" && isNative() && " 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더에서 허용해 주세요."}{" "}
+            {folderIssues[folderIssue]}{folderIssue === "denied" && isNative() && ` ${permissionHint()}`}{" "}
             <button type="button" onClick={() => void rescan()} disabled={busy !== null}>다시 시도</button>
             {(canPickFolder() || isNative()) && <button type="button" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 다시 고르기</button>}
           </p>
@@ -448,13 +451,13 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.care.done && (
           <p className="banner happy-banner">
-            완료된 프로젝트예요. 물건이 기울지 않고, 주간 정리와 용량 경고도 쉬어요.{" "}
+            완료된 프로젝트예요. 주간 정리와 용량 경고가 쉬어요.{" "}
             <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>다시 진행 중으로</button>
           </p>
         )}
         {room.source === "input" && (
           <p className="banner soft-banner">
-            {room.origin ? `가져온 목록으로 만든 보기 전용 방이에요(${room.origin.replace(/^\/Users\/[^/]+/, "~")}).` : "이 방은 브라우저가 폴더를 기억하지 못하는 방식으로 연결됐어요."} 폴더를 연결하면 다시 보기와 정리 상자 이동을 할 수 있어요. 그 전에는 정리 상자가 Folduct 안에서만 쓰여요.
+            {room.origin ? `가져온 목록으로 만든 보기 전용 방이에요(${shortPath(room.origin)}).` : "이 방은 브라우저가 폴더를 기억하지 못하는 방식으로 연결됐어요."} 폴더를 연결하면 다시 보기와 정리 상자 이동을 할 수 있어요. 그 전에는 정리 상자가 Folduct 안에서만 쓰여요.
             {(canPickFolder() || isNative()) && <button type="button" className="primary" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 연결</button>}
           </p>
         )}
@@ -464,6 +467,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           <BudgetBanner
             things={room.things}
             totalBytes={usage.totalBytes}
+            now={now}
             onCopy={copy}
             onGrow={(budgetBytes) => {
               setBudgetBanner(false);
@@ -581,7 +585,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           thing={room.things.find((thing) => thing.id === viewer.thingId)!}
           state={viewer.state}
           busy={busy !== null}
-          folderHint={room.origin ? room.origin.replace(/^\/Users\/[^/]+/, "~") : room.rootName}
+          folderHint={room.origin ? shortPath(room.origin) : room.rootName}
           onClose={closeViewer}
           onConnect={() => {
             const { thingId } = viewer;
@@ -643,7 +647,7 @@ function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
 }
 
 function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelve, onOpenApp }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onCopy: (path: string) => Promise<boolean>; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onOpenApp?: (id: string, reveal: boolean) => void }) {
-  const stage = thingStage(thing, room.care, room.workDays, now);
+  const age = thingAge(thing, room.care, room.workDays, now);
   const last = lastActivity(thing);
   return (
     <div className="thing-panel">
@@ -656,13 +660,12 @@ function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelv
       </div>
       {folder && previewMode(thing) === "image" && !thing.missing && thing.size <= imageLimit && <ThingImage folder={folder} thing={thing} />}
       <p className="path">{thing.path}</p>
-      <p className={`state state-${stage.stage}`}>
+      <p className={`state${age.stale ? " state-stale" : ""}`}>
         {thing.missing ? "폴더에서 찾지 못했어요. 메모와 자리는 남겨 둘게요."
-          : thing.pinned ? "고정한 물건이라 기울지 않아요."
-          : stage.stage === "fallen" ? `${stage.days}일째 그대로라 쓰러졌어요. 다음 주간 정리 때 정리 상자로 옮길 후보예요.`
-          : stage.stage === "tilted" ? `${stage.days}일째 그대로라 살짝 기울었어요.`
+          : thing.pinned ? "고정한 물건이라 정리 후보가 되지 않아요."
+          : age.stale ? `${age.days}일째 그대로예요. 다음 주간 정리 때 물어볼게요.`
           : last > (thing.touchedAt ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
-          : "잘 서 있어요."}
+          : "최근에 손댄 물건이에요."}
       </p>
       <label className="field note">
         이유 메모
@@ -671,8 +674,8 @@ function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelv
       <div className="row wrap">
         <button type="button" className="primary" onClick={() => onOpen(thing.id)}>파일 열기</button>
         {onOpenApp && previewMode(thing) !== "none" && <button type="button" onClick={() => onOpenApp(thing.id, false)}>기본 앱으로 열기</button>}
-        {onOpenApp && <button type="button" onClick={() => onOpenApp(thing.id, true)}>Finder에서 보기</button>}
-        {stage.stage !== "normal" && <button type="button" onClick={() => onPatch(thing.id, {})}>다시 세우기 (아직 써요)</button>}
+        {onOpenApp && <button type="button" onClick={() => onOpenApp(thing.id, true)}>{fileManagerName()}에서 보기</button>}
+        {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
         <button type="button" onClick={() => void onCopy(thing.path)}>경로 복사</button>
@@ -705,7 +708,7 @@ function ShelfPanel({ things, onPlace, onPlaceMany, onOpen }: { things: Thing[];
     <div>
       <div className="drawer-head">
         <h2 tabIndex={-1}>선반 · 놓지 않은 물건 {shelf.length}</h2>
-        <p className="soft">폴더에 있지만 아직 방 바닥에 놓지 않은 파일이에요. 놓은 물건만 기울고 정리 대상이 돼요.</p>
+        <p className="soft">폴더에 있지만 아직 방 바닥에 놓지 않은 파일이에요. 놓은 물건만 주간 정리 대상이 돼요.</p>
         <label className="field">찾기 <input id="shelf-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="파일 이름이나 경로" /></label>
         {needle && shown.length > 0 && (
           <button type="button" onClick={() => onPlaceMany(shown.slice(0, placeLimit).map((thing) => thing.id))}>
@@ -740,9 +743,9 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
     <div>
       <div className="drawer-head">
         <h2 tabIndex={-1}>정리 상자 {things.length}</h2>
-        <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? "Finder에서" : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
+        <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? `${fileManagerName()}에서` : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
       </div>
-      {things.length === 0 ? <p className="soft">상자가 비어 있어요. 주간 정리 때 쓰러진 물건이 이곳에 모여요.</p> : (
+      {things.length === 0 ? <p className="soft">상자가 비어 있어요. 주간 정리 때 오래된 물건이 이곳에 모여요.</p> : (
         <ul className="list">
           {things.map((thing) => {
             const entry = thing.box!;
@@ -771,19 +774,19 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
 
 type Status = "active" | "resting" | "done";
 const statuses: [Status, string, Partial<CareSettings>, string][] = [
-  ["active", "진행 중", { done: false, resting: false }, "진행 중: 손대지 않은 물건이 기울고, 쓰러지면 주간 정리 때 정리 상자로 옮겨요"],
-  ["resting", "잠시 쉼", { done: false, resting: true }, "잠시 쉼: 기울기와 주간 정리만 멈추고 지도에는 그대로"],
-  ["done", "완료", { done: true, resting: false }, "완료: 기울기·주간 정리·용량 경고를 멈추고 완료된 프로젝트로 옮겨요"],
+  ["active", "진행 중", { done: false, resting: false }, "진행 중: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"],
+  ["resting", "잠시 쉼", { done: false, resting: true }, "잠시 쉼: 주간 정리만 멈추고 지도에는 그대로"],
+  ["done", "완료", { done: true, resting: false }, "완료: 주간 정리·용량 경고를 멈추고 완료된 프로젝트로 옮겨요"],
 ];
 
 function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room: Room; totalBytes: number; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
-  const [clamped, setClamped] = useState(false);
   const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
   const status: Status = room.care.done ? "done" : room.care.resting ? "resting" : "active";
   return (
     <div className="settings">
       <h2 tabIndex={-1}>방 설정</h2>
       <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => onChange({ name: event.target.value })} /></label>
+      <FacePicker roomId={room.id} face={room.face} bands={vaseBands(kindParts(room.things), room.budgetBytes ? totalBytes / room.budgetBytes : 0.8)} onChange={(face) => onChange({ face })} />
       <fieldset className="care">
         <legend>방 돌보기</legend>
         <div className="seg" role="radiogroup" aria-label="프로젝트 상태">
@@ -793,14 +796,12 @@ function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room:
         </div>
         <p className="soft">{statuses.find(([key]) => key === status)![3]}</p>
         <div className="row">
-          <label>기울어짐 <input type="number" min={1} max={365} value={room.care.tiltAfterDays} onChange={(event) => { const value = days(event.target.value); setClamped(value > room.care.fallAfterDays); onCare({ tiltAfterDays: Math.min(value, room.care.fallAfterDays) }); }} />일</label>
-          <label>쓰러짐 <input type="number" min={1} max={365} value={room.care.fallAfterDays} onChange={(event) => { const value = days(event.target.value); setClamped(value < room.care.tiltAfterDays); onCare({ fallAfterDays: Math.max(value, room.care.tiltAfterDays) }); }} />일</label>
-          <span className="soft" aria-live="polite">{clamped ? "쓰러짐은 기울어짐보다 길어야 해요." : ""}</span>
+          <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
         </div>
         <p className="soft">방 안이든 밖이든 이 폴더를 쓴 날이 있었는데 그 물건만 그대로였을 때만 세요. 폴더를 아예 안 쓴 기간은 세지 않아요.</p>
         <details>
           <summary>고급</summary>
-          <label><input type="checkbox" checked={room.care.enabled} onChange={(event) => onCare({ enabled: event.target.checked })} /> 손대지 않은 물건 기울이기</label>
+          <label><input type="checkbox" checked={room.care.enabled} onChange={(event) => onCare({ enabled: event.target.checked })} /> 오래된 물건 정리 제안 받기</label>
         </details>
       </fieldset>
       <BudgetPicker totalBytes={totalBytes} value={room.budgetBytes} onChange={(budgetBytes) => onChange({ budgetBytes, budgetNoticeAt: null })} />

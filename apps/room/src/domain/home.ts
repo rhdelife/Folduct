@@ -1,34 +1,34 @@
 import { boxColor, colorGroups } from "../art/palette";
-import { budgetLevel, dayMs, lastActivity, roomUsage, sweepDue, thingStage, withinWeek, type RoomUsage, type Stage } from "./care";
+import { budgetLevel, dayMs, lastActivity, roomUsage, sweepDue, thingAge, withinWeek, type RoomUsage } from "./care";
 import { formatBytes, kindLabels, type Kind, type Room, type Thing } from "./model";
 
 // 집 화면 장면들이 보여 줄 내용을 고릅니다. 화면과 무관한 순수 함수만 둡니다.
 
 // days는 마지막 활동 뒤로 지난 날수, 활동을 모르면 null입니다.
-export type FileRef = { room: Room; thing: Thing; stage: Stage; days: number | null };
+export type FileRef = { room: Room; thing: Thing; stale: boolean; days: number | null };
 
 function fileRef(room: Room, thing: Thing, now: number): FileRef {
   const last = lastActivity(thing);
-  return { room, thing, stage: thingStage(thing, room.care, room.workDays, now).stage, days: last > 0 ? Math.max(0, Math.floor((now - last) / dayMs)) : null };
+  return { room, thing, stale: thingAge(thing, room.care, room.workDays, now).stale, days: last > 0 ? Math.max(0, Math.floor((now - last) / dayMs)) : null };
 }
 
 // 상자 안이나 사라진 파일을 뺀, 폴더 자리에 있는 파일.
 const present = (room: Room) => room.things.filter((thing) => !thing.missing && !thing.box);
 const usedRecently = (thing: Thing, now: number) => withinWeek(lastActivity(thing), now);
-// 기울고 쓰러지는 건 바닥에 놓은 파일뿐입니다(지도의 roomMess와 같은 기준).
-const placedRefs = (rooms: Room[], now: number, stage: Stage) => rooms.flatMap((room) => present(room).filter((thing) => thing.spot).map((thing) => fileRef(room, thing, now)).filter((file) => file.stage === stage));
+// 오래됨으로 치는 건 바닥에 놓은 파일뿐입니다(지도의 staleCount와 같은 기준).
+const staleRefs = (room: Room, now: number) => present(room).filter((thing) => thing.spot).map((thing) => fileRef(room, thing, now)).filter((file) => file.stale);
 const byDaysDesc = (a: FileRef, b: FileRef) => (b.days ?? 0) - (a.days ?? 0);
 
 export type NotebookSections = {
-  first: { fallen: { room: Room; files: FileRef[] }[]; overBudget: { room: Room; usage: RoomUsage; budgetBytes: number }[]; sweepOverdue: boolean };
-  info: { tilted: FileRef[]; recent: { label: string; color: string; kinds: Kind[]; count: number }[] };
+  first: { stale: { room: Room; files: FileRef[] }[]; overBudget: { room: Room; usage: RoomUsage; budgetBytes: number }[]; sweepOverdue: boolean };
+  info: { recent: { label: string; color: string; kinds: Kind[]; count: number }[] };
   later: { doneRooms: number; shelfFiles: number };
 };
 
-// 손댈 것: 먼저(쓰러진 파일, 한도 넘은 방, 밀린 정리), 참고(기울어진 파일, 최근 7일에 쓴 형식), 나중에(완료한 방, 선반 위 파일).
+// 손댈 것: 먼저(오래된 파일, 한도 넘은 방, 밀린 정리), 참고(최근 7일에 쓴 형식), 나중에(완료한 방, 선반 위 파일).
 export function notebookSections(rooms: Room[], now: number, lastSweepAt: number | null = null): NotebookSections {
   const active = rooms.filter((room) => !room.care.done);
-  const fallen = active.map((room) => ({ room, files: placedRefs([room], now, "fallen").sort(byDaysDesc) })).filter((item) => item.files.length > 0);
+  const stale = active.map((room) => ({ room, files: staleRefs(room, now).sort(byDaysDesc) })).filter((item) => item.files.length > 0);
   const overBudget = active.flatMap((room) => {
     const usage = roomUsage(room);
     return room.budgetBytes !== null && budgetLevel(usage, room.budgetBytes) === "over" ? [{ room, usage, budgetBytes: room.budgetBytes }] : [];
@@ -42,13 +42,13 @@ export function notebookSections(rooms: Room[], now: number, lastSweepAt: number
     }))
     .filter((group) => group.count > 0);
   return {
-    first: { fallen, overBudget, sweepOverdue: sweepDue(lastSweepAt, now) && fallen.length > 0 },
-    info: { tilted: placedRefs(active, now, "tilted").sort(byDaysDesc), recent },
+    first: { stale, overBudget, sweepOverdue: sweepDue(lastSweepAt, now) && stale.length > 0 },
+    info: { recent },
     later: { doneRooms: rooms.length - active.length, shelfFiles: active.reduce((sum, room) => sum + present(room).filter((thing) => !thing.spot).length, 0) },
   };
 }
 
-export type StatusTone = "ok" | "tilted" | "fallen" | "shelf" | "box";
+export type StatusTone = "ok" | "stale" | "shelf" | "box";
 export type TableRow = { thing: Thing; name: string; path: string; size: number; kind: Kind; kindLabel: string; status: string; tone: StatusTone };
 
 // 방 한 장의 표. 큰 파일부터, 패널 목록과 같은 상태 말로 적습니다.
@@ -56,8 +56,8 @@ export function tableRows(room: Room, now: number): TableRow[] {
   return room.things
     .filter((thing) => !thing.missing)
     .map((thing) => {
-      const { stage, days } = thingStage(thing, room.care, room.workDays, now);
-      const [status, tone]: [string, StatusTone] = thing.box ? ["정리 상자", "box"] : !thing.spot ? ["선반", "shelf"] : stage === "fallen" ? [`${days}일째 · 쓰러짐`, "fallen"] : stage === "tilted" ? [`${days}일째 · 기울어짐`, "tilted"] : ["제자리", "ok"];
+      const { stale, days } = thingAge(thing, room.care, room.workDays, now);
+      const [status, tone]: [string, StatusTone] = thing.box ? ["정리 상자", "box"] : !thing.spot ? ["선반", "shelf"] : stale ? [`${days}일째 그대로`, "stale"] : ["제자리", "ok"];
       return { thing, name: thing.name, path: thing.path, size: thing.size, kind: thing.kind, kindLabel: kindLabels[thing.kind], status, tone };
     })
     .sort((a, b) => b.size - a.size);
@@ -95,8 +95,8 @@ export function kindGroups(rooms: Room[], now: number, topCount = 5): KindGroup[
 export function captionWords(rooms: Room[], now: number): string[] {
   const active = rooms.filter((room) => !room.care.done);
   const { first } = notebookSections(rooms, now);
-  const fallen = first.fallen.reduce((sum, item) => sum + item.files.length, 0);
-  const urgent = [fallen > 0 && `쓰러진 파일 ${fallen}개`, first.overBudget.length > 0 && `한도 넘은 방 ${first.overBudget.length}개`].filter(Boolean);
+  const stale = first.stale.reduce((sum, item) => sum + item.files.length, 0);
+  const urgent = [stale > 0 && `오래된 파일 ${stale}개`, first.overBudget.length > 0 && `한도 넘은 방 ${first.overBudget.length}개`].filter(Boolean);
   // 표 장면에는 완료한 방의 탭도 있어서, 방과 파일은 완료까지 함께 셉니다.
   const files = rooms.reduce((sum, room) => sum + present(room).length, 0);
   const done = rooms.length - active.length;

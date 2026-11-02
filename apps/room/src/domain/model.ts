@@ -29,8 +29,12 @@ export type Thing = {
   box: BoxEntry | null;
 };
 
-// done: 완료한 프로젝트. 기울기·주간 정리·용량 경고가 모두 멈춥니다.
-export type CareSettings = { enabled: boolean; resting: boolean; done: boolean; tiltAfterDays: number; fallAfterDays: number };
+// done: 완료한 프로젝트. 주간 정리·용량 경고가 모두 멈춥니다.
+export type CareSettings = { enabled: boolean; resting: boolean; done: boolean; staleAfterDays: number };
+
+// 방의 얼굴: 화병 모양 번호와 목 색 번호. domain/face.ts
+// mark가 있으면 이미지 오브제를 쓰는 방이고, 값은 이미지를 넣은 시각입니다.
+export type RoomFace = { shape: number; color: number; mark?: number };
 
 export type RoomSource = "handle" | "input" | "sample";
 
@@ -49,6 +53,9 @@ export type Room = {
   care: CareSettings;
   budgetBytes: number | null;
   budgetNoticeAt: number | null;
+  // 오래 안 쓴 방을 완료로 옮길지 마지막으로 물은 시각. 그 뒤로 방을 다시 쓰기 전까지 묻지 않습니다.
+  doneOfferAt: number | null;
+  face: RoomFace;
 };
 
 export type ScannedFile = { path: string; name: string; kind: Kind; size: number; lastModified: number; lastUsedAt?: number | null };

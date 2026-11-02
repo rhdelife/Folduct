@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Folduct",
-  "version": "0.1.0",
+  "version": "../package.json",
   "identifier": "com.folduct.room",
   "build": {
     "frontendDist": "../dist",
@@ -21,14 +21,26 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; frame-src blob:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": ["app", "dmg", "nsis", "deb", "appimage"],
+    "category": "Productivity",
+    "shortDescription": "작업 폴더마다 작은 방 하나",
+    "longDescription": "작업 폴더를 방으로 보여 주는 로컬 앱이에요. 파일은 지우지 않고, 오래 안 쓴 파일은 정리 상자 안팎으로만 옮겨요.",
+    "resources": {
+      "THIRD-PARTY-LICENSES.txt": "THIRD-PARTY-LICENSES.txt",
+      "../public/fonts/LICENSE-Pretendard.txt": "LICENSE-Pretendard.txt"
+    },
     "macOS": {
       "minimumSystemVersion": "13.0"
+    },
+    "windows": {
+      "nsis": {
+        "languages": ["Korean", "English"]
+      }
     },
     "icon": [
       "icons/32x32.png",
