@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
 import type { Room, Thing } from "../domain/model";
 import { pickStarThings, roomMess, stepRoom } from "../domain/sky";
+import { clampMenu, isMenuKey, menuStep, swallowNextClick } from "../components/ContextMenu";
 
 const start = new Date(2026, 9, 5, 12).getTime();
 
 function thing(id: string, patch: Partial<Thing> = {}): Thing {
-  return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: 0, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
+  return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
@@ -33,6 +34,48 @@ describe("지도 방 사이 이동", () => {
     expect(stepRoom(ids, null, "ArrowLeft")).toBe("a");
     expect(stepRoom(ids, "a", "Tab")).toBeNull();
     expect(stepRoom([], "a", "ArrowRight")).toBeNull();
+  });
+});
+
+describe("오른쪽 클릭 메뉴", () => {
+  it("화면 밖으로 나가지 않게 안쪽으로 당긴다", () => {
+    expect(clampMenu(100, 100, 200, 40, 375, 600, 8)).toEqual({ left: 100, top: 100 });
+    expect(clampMenu(370, 595, 200, 40, 375, 600, 8)).toEqual({ left: 167, top: 552 });
+    expect(clampMenu(-5, -5, 500, 40, 375, 600, 8)).toEqual({ left: 8, top: 8 });
+  });
+
+  it("메뉴를 닫은 클릭 하나만 삼키고, click 없이 다른 입력이 오면 풀어 준다", () => {
+    const click = (target: EventTarget) => {
+      const event = new Event("click", { cancelable: true });
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    const window = new EventTarget();
+    swallowNextClick(window);
+    expect(click(window)).toBe(true);
+    expect(click(window)).toBe(false);
+
+    for (const next of ["pointerdown", "keydown"]) {
+      swallowNextClick(window);
+      window.dispatchEvent(new Event(next));
+      expect(click(window)).toBe(false);
+    }
+  });
+
+  it("위아래 화살표는 돌아가고, Home과 End는 끝으로 가고, 다른 키는 움직이지 않는다", () => {
+    expect(menuStep("ArrowDown", 2, 3)).toBe(0);
+    expect(menuStep("ArrowUp", 0, 3)).toBe(2);
+    expect(menuStep("ArrowDown", 0, 1)).toBe(0);
+    expect(menuStep("ArrowUp", 0, 1)).toBe(0);
+    expect(menuStep("Home", 2, 3)).toBe(0);
+    expect(menuStep("End", 0, 3)).toBe(2);
+    expect(menuStep("Enter", 0, 3)).toBeNull();
+  });
+
+  it("메뉴 키와 Shift+F10으로 열고, F10만으로는 열지 않는다", () => {
+    expect(isMenuKey({ key: "ContextMenu", shiftKey: false })).toBe(true);
+    expect(isMenuKey({ key: "F10", shiftKey: true })).toBe(true);
+    expect(isMenuKey({ key: "F10", shiftKey: false })).toBe(false);
   });
 });
 

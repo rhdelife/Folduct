@@ -4,8 +4,8 @@ import { kindOf, newId, type Room, type Thing } from "../domain/model";
 const MB = 1024 ** 2;
 
 // 실제 파일 없이 구경하는 방들. 정리는 Folduct 안에서만 일어납니다.
-// [경로, 크기, 바닥 x(없으면 선반), 바닥 y, 며칠 전 손댐, 이유 메모]
-type Item = [path: string, size: number, x: number | null, y: number, daysAgo: number, note: string];
+// [경로, 크기, 바닥 x(없으면 선반), 바닥 y, 며칠 전 손댐, 이유 메모, 며칠 전 방 밖에서 씀]
+type Item = [path: string, size: number, x: number | null, y: number, daysAgo: number, note: string, usedAgo?: number];
 
 const workshop: Item[] = [
   ["영상/졸업전시_최종.mov", 2.4 * GB, 7.4, 1.9, 1, "최종 렌더. 상영 전에 색 보정 한 번 더"],
@@ -14,9 +14,9 @@ const workshop: Item[] = [
   ["소리/인터뷰_녹음.m4a", 48 * MB, 4.7, 1.9, 2, "2분 30초부터 인용할 부분"],
   ["그림/표지_시안3.png", 12 * MB, 6.1, 4.4, 8, "시안 3이 제일 나았음"],
   ["문서/기획서.pdf", 3.2 * MB, 3.3, 6.0, 0, "다음 회의 전에 3쪽 고치기"],
-  ["표/예산.xlsx", 86 * 1024, 6.6, 7.9, 5, ""],
+  ["표/예산.xlsx", 86 * 1024, 6.6, 7.9, 5, "", 1],
   ["글/메모.md", 4 * 1024, 4.2, 8.3, 0, "오늘 할 일: 자막 맞추기"],
-  ["문서/발표자료.key", 210 * MB, null, 0, 0, ""],
+  ["문서/발표자료.key", 210 * MB, null, 0, 0, "", 3],
   ["그림/스케치_01.jpg", 2.1 * MB, null, 0, 0, ""],
   ["글/참고링크.txt", 1200, null, 0, 0, ""],
 ];
@@ -25,7 +25,7 @@ const lecture: Item[] = [
   ["강의/01_오리엔테이션.mp4", 1.6 * GB, 6.8, 2.2, 1, "편집 끝. 자막만 남음"],
   ["강의/02_기초.mp4", 1.4 * GB, 3.0, 2.6, 10, ""],
   ["소스/원본소스.zip", 900 * MB, 8.2, 6.6, 12, "백업용, 지워도 될지 확인"],
-  ["소리/배경음악.mp3", 8 * MB, 5.0, 5.6, 4, "저작권 확인 필요"],
+  ["소리/배경음악.mp3", 8 * MB, 5.0, 5.6, 4, "저작권 확인 필요", 2],
   ["그림/썸네일.png", 3 * MB, 2.8, 6.4, 0, ""],
   ["글/편집메모.md", 2 * 1024, 4.6, 8.0, 0, "2강 컷 순서 다시"],
   ["글/자막_01.txt", 40 * 1024, null, 0, 0, ""],
@@ -36,20 +36,21 @@ const photos: Item[] = [
   ["보정/표지후보.psd", 300 * MB, 3.2, 2.8, 5, ""],
   ["앨범/앨범_초안.pdf", 25 * MB, 5.4, 5.0, 0, "인쇄소에 보낼 버전"],
   ["여행/여행_001.jpg", 5.4 * MB, 2.6, 5.6, 1, ""],
-  ["여행/여행_014.jpg", 4.8 * MB, 7.0, 6.2, 9, ""],
+  ["여행/여행_014.jpg", 4.8 * MB, 7.0, 6.2, 9, "", 3],
   ["여행/여행_027.jpg", 6.1 * MB, 4.2, 7.8, 2, "앨범 첫 장"],
   ["여행/여행_033.jpg", 5.2 * MB, null, 0, 0, ""],
   ["여행/여행_040.jpg", 4.4 * MB, null, 0, 0, ""],
 ];
 
 function build(name: string, budgetBytes: number | null, items: Item[], workedAgo: number[], now: number): Room {
-  const things: Thing[] = items.map(([path, size, x, y, daysAgo, note]) => ({
+  const things: Thing[] = items.map(([path, size, x, y, daysAgo, note, usedAgo]) => ({
     id: newId(),
     path,
     name: path.split("/").pop()!,
     kind: kindOf(path),
     size: Math.round(size),
     lastModified: now - 30 * dayMs,
+    lastUsedAt: usedAgo === undefined ? null : now - usedAgo * dayMs,
     missing: false,
     spot: x === null ? null : { x, y },
     note,

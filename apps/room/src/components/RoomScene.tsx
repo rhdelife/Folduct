@@ -1,6 +1,6 @@
 import { useRef, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent } from "react";
-import { ObjectShape } from "../art/ObjectShape";
-import { boxColor } from "../art/palette";
+import { ObjectShape, pickArt } from "../art/ObjectShape";
+import { boxColor, tonesFrom } from "../art/palette";
 import { budgetLevel, objectScale, roomUsage, thingStage } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
 import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
@@ -15,7 +15,49 @@ export function tagPlacement(spot: Spot): string | undefined {
   return parts.length ? parts.join(" ") : undefined;
 }
 
-// 방 안: 빛을 받는 하얀 판 위에 파일 형식별 색의 반투명한 오브제들이 놓입니다. 방은 그림이 아니라 점선 테두리로만 보입니다.
+// 모눈은 판 좌표로 긋고 non-scaling-stroke로 어떤 배율에서도 한 기기 픽셀을 지킵니다. 판 안쪽으로 한 칸(20) 여백을 둡니다.
+const gridStep = 20;
+const gridPath = [
+  ...Array.from({ length: plane.width / gridStep - 1 }, (_, at) => `M${(at + 1) * gridStep} ${gridStep}V${plane.height - gridStep}`),
+  ...Array.from({ length: plane.height / gridStep - 1 }, (_, at) => `M${gridStep} ${(at + 1) * gridStep}H${plane.width - gridStep}`),
+].join("");
+
+export function GridPaper() {
+  return (
+    <svg className="grid-paper" viewBox={`0 0 ${plane.width} ${plane.height}`} aria-hidden="true" focusable="false">
+      <path d={gridPath} />
+    </svg>
+  );
+}
+
+const boxTones = tonesFrom(boxColor);
+// 상자에 든 종이는 위로 조금 삐져나옵니다. 앞판이 종이를 가려서 상자 안에 든 것처럼 보여요.
+const peeks = [{ left: "16%", rotate: "-8deg" }, { left: "42%", rotate: "6deg" }, { left: "29%", rotate: "-2deg" }];
+
+// 정리 상자: 윗날개가 열린 문서 보관 상자. 색은 파일 형식이 아니라 상자 몫의 회색(palette.ts) 한 벌입니다.
+export function CardboardBox({ things }: { things: Thing[] }) {
+  return (
+    <span className="cardboard" aria-hidden="true">
+      <svg viewBox="0 0 100 100" focusable="false">
+        <path d="M18 38L28 20H72L82 38Z" fill={boxTones.soft} />
+        <path d="M18 38H82V60H18Z" fill={boxTones.edge} />
+      </svg>
+      {things.slice(-peeks.length).map((thing, at) => (
+        <span key={thing.id} className="cardboard-peek" style={peeks[at]}><ObjectShape kind={thing.kind} size={38} seed={thing.id} /></span>
+      ))}
+      <svg viewBox="0 0 100 100" focusable="false">
+        <path d="M18 38L3 31L8 50L18 56Z" fill={boxTones.soft} />
+        <path d="M82 38L97 31L92 50L82 56Z" fill={boxTones.soft} />
+        <path d="M18 52H82V98H18Z" fill={boxTones.pale} />
+        <path d="M40 60H60Q63 60 63 63Q63 66 60 66H40Q37 66 37 63Q37 60 40 60Z" fill={boxTones.edge} />
+        <path d="M31 74H69V90H31Z" fill="var(--bg)" />
+        <path d="M37 80H63M37 85H54" stroke={boxTones.soft} strokeWidth="1.5" />
+      </svg>
+    </span>
+  );
+}
+
+// 방 안: 모눈종이 한 장 위에 파일 종이들이 놓입니다.
 export function RoomScene({
   room,
   now,
@@ -42,7 +84,9 @@ export function RoomScene({
   const justDragged = useRef(false);
   const usage = roomUsage(room);
   const level = budgetLevel(usage, room.budgetBytes);
-  const fill = level === "partial" || room.budgetBytes === null ? null : Math.min(1, usage.totalBytes / room.budgetBytes);
+  const percent = level === "partial" || room.budgetBytes === null ? 0 : Math.round((usage.totalBytes / room.budgetBytes) * 100);
+  // 0%면 판 아랫변에 선만 남으니 긋지 않습니다.
+  const fill = percent === 0 ? null : Math.min(1, percent / 100);
   const placed = room.things.filter((thing) => thing.spot && !thing.box);
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxCount = room.things.filter((thing) => thing.box).length;
@@ -62,11 +106,12 @@ export function RoomScene({
   return (
     <div className="room-frame" ref={frame} style={{ height: plane.height * scale }}>
       <div className="room-plane" style={{ width: plane.width, height: plane.height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
+        <GridPaper />
         {/* 방 용량만큼 판 아래쪽이 옅게 차오릅니다. 정확한 값은 위쪽 글자로 함께 보여줍니다. */}
         {fill !== null && (
-          <div className={`plane-fill level-${level}`} style={{ height: `${fill * 100}%` }} aria-hidden="true">
+          <div className={`plane-fill level-${level}${fill > 0.94 ? " high" : ""}`} style={{ height: `${fill * 100}%` }} aria-hidden="true">
             {/* 점선이 무엇인지 판 위에서 바로 읽히게 합니다(한도를 넘으면 100%보다 큰 값). */}
-            <span className="plane-fill-label">용량 {Math.round((usage.totalBytes / (room.budgetBytes ?? 1)) * 100)}%</span>
+            <span className="plane-fill-label">용량 {percent}%</span>
           </div>
         )}
         <p id="plane-hint" className="sr-only">Enter로 고르고, 화살표로 옮겨요. 고른 물건에서 Enter를 한 번 더 누르면 파일을 열어요.</p>
@@ -85,13 +130,14 @@ export function RoomScene({
           </div>
         )}
         <button type="button" className="box-spot" style={{ left: boxAt.left, top: boxAt.top, zIndex: depth(boxSpot) }} onClick={onOpenBox} aria-label={`정리 상자, ${boxCount}개 들어 있음`}>
-          <ObjectShape kind="archive" color={boxColor} size={84} />
+          <CardboardBox things={room.things.filter((thing) => thing.box)} />
           <span className="tag"><b>정리 상자</b><span>{boxCount}개</span></span>
         </button>
-        {placed.map((thing) => (
+        {placed.map((thing, order) => (
           <ThingObject
             key={thing.id}
             thing={thing}
+            order={order}
             stage={thingStage(thing, room.care, room.workDays, now)}
             selected={thing.id === selectedId}
             onPointerDown={(event) => {
@@ -148,22 +194,31 @@ export function RoomScene({
 
 function ThingObject({
   thing,
+  order,
   stage,
   selected,
   ...handlers
 }: {
   thing: Thing;
+  order: number;
   stage: { stage: "normal" | "tilted" | "fallen"; days: number };
   selected: boolean;
 } & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
   const at = toScreen(thing.spot!);
   const size = Math.round(60 * objectScale(thing.size));
+  // 종이마다 비율이 달라요. 버튼을 종이에 꼭 맞춰야 이름표와 포커스 테두리가 종이에 붙습니다.
+  const art = pickArt(thing.kind, thing.id);
+  const height = Math.round((size * art.h) / art.w);
+  // 쓰러진 종이는 옆으로 눕습니다. 버튼도 누운 모양으로 잡아 이름표가 종이를 가리지 않게 합니다.
+  const [boxWidth, boxHeight] = stage.stage === "fallen" ? [height, size] : [size, height];
+  // 종이마다 아주 살짝 다르게 놓입니다(상태와 헷갈리지 않을 만큼만).
+  const lean = ((thing.id.charCodeAt(0) + thing.id.charCodeAt(thing.id.length - 1)) % 5) - 2;
   const short = thing.missing ? "파일 없음" : stage.stage === "fallen" ? `${stage.days}일 · 쓰러짐` : stage.stage === "tilted" ? `${stage.days}일 · 기울어짐` : null;
   return (
     <button
       type="button"
       className={`thing stage-${stage.stage}${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
-      style={{ left: at.left, top: at.top, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, zIndex: depth(thing.spot!) }}
+      style={{ left: at.left, top: at.top, width: boxWidth, height: boxHeight, marginLeft: -boxWidth / 2, marginTop: -boxHeight / 2, zIndex: depth(thing.spot!) }}
       data-thing-id={thing.id}
       data-tag={tagPlacement(thing.spot!)}
       aria-pressed={selected}
@@ -171,9 +226,15 @@ function ThingObject({
       aria-describedby="plane-hint"
       {...handlers}
     >
-      <span className="body">
-        <ObjectShape kind={thing.kind} size={size} />
+      <span className="body" style={{ left: (boxWidth - size) / 2, top: (boxHeight - height) / 2, width: size, height, rotate: `${lean}deg`, "--i": Math.min(order, 16) } as CSSProperties}>
+        <ObjectShape kind={thing.kind} size={size} name={thing.name} seed={thing.id} />
       </span>
+      {/* 고른 물건에는 연필로 동그라미를 칩니다. 그림자 대신이에요. */}
+      {selected && (
+        <svg className="hand-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <path d="M20 12C42 0 82 2 94 30C104 58 84 92 50 96C18 100 0 74 4 44C7 24 26 6 60 5" />
+        </svg>
+      )}
       <span className="tag">
         <b>{thing.name}</b>
         <span>

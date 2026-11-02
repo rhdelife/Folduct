@@ -109,15 +109,15 @@ export function setLastSweepAt(at: number): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(at, "lastSweepAt"));
 }
 
-const count = (value: unknown, fallback: number): number => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback);
+const count = <T>(value: unknown, fallback: T): number | T => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback);
 
 // 예전 기록에 없는 칸은 기본값으로 채웁니다. scan은 네 칸만 다시 만들어, 예전에 같이 저장된 파일 목록 사본을 버립니다.
-function normalizeRoom(value: unknown): Room {
+export function normalizeRoom(value: unknown): Room {
   const room = value as Room;
   const scan: Partial<Room["scan"]> = room.scan ?? {};
   return {
     ...room,
-    things: Array.isArray(room.things) ? room.things : [],
+    things: Array.isArray(room.things) ? room.things.map((thing) => ({ ...thing, lastUsedAt: count(thing.lastUsedAt, null) })) : [],
     workDays: Array.isArray(room.workDays) ? room.workDays : [],
     care: { ...defaultCare, ...room.care },
     scan: { complete: scan.complete === true, failed: count(scan.failed, 0), at: count(scan.at, room.createdAt), freedBytes: count(scan.freedBytes, 0) },

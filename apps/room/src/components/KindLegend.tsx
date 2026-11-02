@@ -2,8 +2,7 @@ import { ObjectShape } from "../art/ObjectShape";
 import { colorGroups } from "../art/palette";
 import { objectScale } from "../domain/care";
 import { formatBytes, type Kind, type Thing } from "../domain/model";
-
-const groupIndex = Object.fromEntries(colorGroups.flatMap((group, index) => group.kinds.map((kind) => [kind, index]))) as Record<Kind, number>;
+import { kindParts, kindSummary } from "../art/vases";
 
 // 지금 보이는 파일에 있는 색 묶음만 범례로 보여줍니다. 견본은 실제 오브제와 같은 모양이고, 색만으로 뜻을 전하지 않도록 글자를 붙입니다.
 export function KindLegend({ kinds }: { kinds: Iterable<Kind> }) {
@@ -21,14 +20,10 @@ export function KindLegend({ kinds }: { kinds: Iterable<Kind> }) {
 
 // 프로젝트 하나에 어떤 색 묶음이 얼마나(용량 기준) 있는지 한 줄 막대로 보여줍니다.
 export function KindMix({ things }: { things: Thing[] }) {
-  const sizes = colorGroups.map(() => 0);
-  for (const thing of things) if (!thing.missing) sizes[groupIndex[thing.kind]] += thing.size;
-  const parts = colorGroups.map((group, index) => ({ group, size: sizes[index] })).filter((part) => part.size > 0);
-  const total = parts.reduce((sum, part) => sum + part.size, 0);
-  const summary = [...parts].sort((a, b) => b.size - a.size).slice(0, 3).map((part) => `${part.group.label} ${Math.round((part.size / total) * 100)}%`).join(", ");
+  const parts = kindParts(things);
   return (
-    <span className="mix" role="img" aria-label={total ? `형식 비율: ${summary}` : "파일 없음"}>
-      {parts.map((part) => <span key={part.group.label} style={{ flexGrow: part.size, background: part.group.color }} title={`${part.group.label} ${formatBytes(part.size)}`} />)}
+    <span className="mix" role="img" aria-label={parts.length ? `형식 비율: ${kindSummary(parts)}` : "파일 없음"}>
+      {parts.map((part) => <span key={part.label} style={{ flexGrow: part.size, background: part.color }} title={`${part.label} ${formatBytes(part.size)}`} />)}
     </span>
   );
 }

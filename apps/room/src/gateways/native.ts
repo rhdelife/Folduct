@@ -2,7 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readDir, readFile, rename, stat } from "@tauri-apps/plugin-fs";
 import { isSafeRelativePath } from "../domain/model";
-import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, type Access, type AccessMode, type DirectorySource } from "./folder";
+import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, scanFolder, type Access, type AccessMode, type DirectorySource, type ScanResult } from "./folder";
 import { asMoveDirectory, canMoveFiles, type MoveDirectory } from "./mover";
 
 // 데스크톱 앱(Tauri)에서는 폴더를 핸들 대신 절대 경로로 다룹니다. 브라우저 빌드는 folder.ts·mover.ts를 그대로 씁니다.
@@ -32,6 +32,14 @@ export function pathSource(dir: string): DirectorySource {
       return pathSource(`${dir}/${name}`);
     },
   };
+}
+
+// mdls가 찍는 "2026-11-01 15:40:41 +0000"을 ms로. 다른 모양은 null입니다.
+export function parseSpotlightDate(value: string | null | undefined): number | null {
+  const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{2})(\d{2})$/.exec(value ?? "");
+  if (!match) return null;
+  const at = Date.parse(`${match[1]}T${match[2]}${match[3]}:${match[4]}`);
+  return Number.isNaN(at) ? null : at;
 }
 
 // mover.ts의 규칙(덮어쓰지 않기, (2) 이름, 상자 안팎만)은 그대로 두고, 폴더 다루는 손만 경로로 바꿉니다.
@@ -109,6 +117,21 @@ export const sameFolder = (a: string | undefined, b: string): boolean => a !== u
 export const folderAccess = (folder: Folder, mode?: AccessMode): Promise<Access> => (typeof folder === "string" ? Promise.resolve("granted") : readAccess(folder, mode));
 export const askFolder = (folder: Folder, mode?: AccessMode): Promise<boolean> => (typeof folder === "string" ? Promise.resolve(true) : askAccess(folder, mode));
 export const folderSource = (folder: Folder): DirectorySource => (typeof folder === "string" ? pathSource(folder) : handleSource(folder));
+// 스캔한 뒤 macOS에 마지막 사용 시각을 묻습니다. 브라우저 핸들은 플랫폼이 알려 주지 않아요. 시각을 못 읽어도 스캔은 그대로 씁니다.
+export async function scanRoomFolder(folder: Folder, onProgress?: (count: number) => void): Promise<ScanResult> {
+  const scan = await scanFolder(folderSource(folder), onProgress);
+  if (typeof folder !== "string") return scan;
+  for (let start = 0; start < scan.files.length; start += 200) {
+    const chunk = scan.files.slice(start, start + 200);
+    try {
+      const dates = await invoke<(string | null)[]>("last_used_dates", { root: folder, paths: chunk.map((file) => file.path) });
+      chunk.forEach((file, index) => (file.lastUsedAt = parseSpotlightDate(dates[index])));
+    } catch {
+      // 이 묶음만 날짜 없이 둡니다.
+    }
+  }
+  return scan;
+}
 export const folderMover = (folder: Folder): MoveDirectory => (typeof folder === "string" ? pathDirectory(folder) : asMoveDirectory(folder));
 export const canMoveIn = (folder: Folder): boolean => typeof folder === "string" || canMoveFiles();
 export const readFolderFile = (folder: Folder, path: string): Promise<File> => (typeof folder === "string" ? readPathFile(folder, path) : readFileAt(folder, path));

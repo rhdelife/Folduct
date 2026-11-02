@@ -11,28 +11,30 @@
 | 색(중립·라이트박스·상태·파일 형식) | Variables (color) | **Color** |
 | 간격·모서리·글자 크기·줄 높이·레이아웃·컨트롤 높이 | Variables (number) | **Size** |
 | 글꼴 | Variables (string) | **Type** |
-| 글자 묶음 | Text styles | Display, Heading/*, Body/*, Label/SM, Meta/XS, Tag/2XS |
+| 글자 묶음 | Text styles | Heading/*, Body/*, Label/SM, Meta/XS, Tag/2XS |
 | 그림자 | Effect styles | Shadow/1~3 |
 | 라이트박스 그라데이션 | Paint style | Lightbox |
 | 움직임(시간·곡선) | 변수로 못 넣어요 | Prototype 설정에 참고 |
 
 ## 규칙 (디자인 시스템 요약)
 - 색은 **파일 형식**에만 써요. 상태(기울어짐·쓰러짐·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
-- 파일 오브제는 채움색 **불투명도 34% + Multiply**, 테두리와 점선은 edge 색이에요.
+- 파일 오브제는 불투명한 종이예요. 비치거나 겹쳐 곱하지 않아요.
 - `ink-faint`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.
-- 그레인은 코드(SVG 노이즈 16% Multiply)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
+- 그레인은 코드(SVG 노이즈 4%)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
 
 ## 색 · 중립
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `color/neutral/bg` | `#ffffff` |  |
-| `color/neutral/page-glow` | `#ffffff` |  |
+| `color/neutral/bg` | `#fefefb` |  |
+| `color/neutral/ground` | `#f5f5f2` |  |
 | `color/neutral/surface` | `#ffffff` |  |
 | `color/neutral/surface-sunken` | `#f4f1ea` |  |
 | `color/neutral/surface-hover` | `#f2eee6` |  |
 | `color/neutral/surface-selected` | `#ebe6dc` |  |
-| `color/neutral/ink` | `#111111` |  |
+| `color/neutral/ink` | `#171717` |  |
+| `color/neutral/ink-caption` | `#555555` |  |
+| `color/neutral/ink-caption-soft` | `#727272` |  |
 | `color/neutral/ink-hover` | `#34312d` |  |
 | `color/neutral/ink-pressed` | `#0d0c0b` |  |
 | `color/neutral/ink-soft` | `#66635d` |  |
@@ -44,6 +46,8 @@
 | `color/neutral/stitch` | `#1b1a1838` |  |
 | `color/neutral/halo` | `{color.lightbox.2}` |  |
 | `color/neutral/ink-wash` | `#1b1a180f` |  |
+| `color/neutral/ground-mark` | `#e2e2da` |  |
+| `color/neutral/line-ground` | `#d8d8d2` |  |
 
 ## 색 · 라이트박스
 | 토큰 | 값 | 설명 |
@@ -66,15 +70,15 @@
 ## 색 · 파일 형식
 | 묶음 | 채움 (fill) | 테두리 (edge) | 형식 |
 | --- | --- | --- | --- |
-| 이미지 | `#e3b015` | `#9d7b16` | image |
-| 글·코드 | `#3f9f50` | `#3b904a` | text |
-| 영상 | `#3d6fd3` | `#3d6fd3` | video |
-| PDF·문서·발표 | `#e04a3a` | `#e04a3a` | pdf, office |
-| 표 | `#ec8a2e` | `#b86e28` | table |
-| 소리 | `#8a5cd6` | `#8a5cd6` | audio |
-| 디자인 | `#d4479b` | `#d4479b` | design |
-| 압축 | `#8d6a45` | `#8d6a45` | archive |
-| 기타 | `#8b9098` | `#7b7f86` | unknown |
+| 이미지 | `#e5bb4d` | `#8e6e1a` | image |
+| 글·코드 | `#5f9b6d` | `#3b5f4d` | text |
+| 영상 | `#2a64ad` | `#123f80` | video |
+| PDF·문서·발표 | `#c9553f` | `#8d2d1e` | pdf, office |
+| 표 | `#dd8b47` | `#a35a22` | table |
+| 소리 | `#8371c0` | `#54438e` | audio |
+| 디자인 | `#c95b93` | `#863a62` | design |
+| 압축 | `#98743f` | `#6b4d29` | archive |
+| 기타 | `#a5a5a1` | `#6e6e6a` | unknown |
 | 정리 상자 | `#5f6670` | `#5f6670` | 상자 |
 
 ## 글자
@@ -93,24 +97,22 @@
 | `size/text/base` | `14px` |  |
 | `size/text/md` | `16px` |  |
 | `size/text/lg` | `18px` |  |
+| `size/text/caption` | `20px` |  |
 | `size/text/xl` | `22px` |  |
 | `size/text/2xl` | `28px` |  |
-| `size/text/display-min` | `32px` |  |
-| `size/text/display-max` | `52px` |  |
 | `size/lineHeight/2xs` | `1.35` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/xs` | `1.4` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/sm` | `1.45` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/base` | `1.5` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/md` | `1.5` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/lg` | `1.35` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
+| `size/lineHeight/caption` | `1.2` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/xl` | `1.25` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/2xl` | `1.15` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
-| `size/lineHeight/display` | `1.05` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 
 ### Text styles
 | 이름 | 크기 | 줄 높이 | 굵기 | 쓰는 곳 |
 | --- | --- | --- | --- | --- |
-| Display | 52px | 1.05 | 800 | 집 화면 큰 제목 (데스크톱 52px, 좁으면 32px까지) |
 | Heading/2XL | 28px | 1.15 | 700 | 방 이름, 페이지 제목 |
 | Heading/XL | 22px | 1.25 | 700 | 패널 제목 |
 | Heading/LG | 18px | 1.35 | 700 | 섹션 제목, 대화창 제목 |
@@ -138,10 +140,18 @@
 | `size/radius/lg` | `0` |  |
 | `size/radius/xl` | `0` |  |
 | `size/radius/pill` | `0` |  |
+| `size/radius/sheet` | `32px` |  |
+| `size/layout/topbar-h` | `72px` |  |
+| `size/layout/chrome-y` | `42px` |  |
+| `size/layout/chrome-x` | `40px` |  |
+| `size/layout/chrome-reserve` | `260px` |  |
+| `size/layout/gap-hair` | `2px` |  |
+| `size/layout/menu-w` | `420px` |  |
 | `size/layout/content-max` | `1440px` |  |
 | `size/layout/rail-min` | `280px` |  |
 | `size/layout/rail-max` | `360px` |  |
 | `size/layout/gutter` | `24px` |  |
+| `size/layout/thing-image-h` | `240px` |  |
 | `size/control/sm` | `28px` |  |
 | `size/control/md` | `32px` |  |
 | `size/control/lg` | `44px` |  |
@@ -160,8 +170,76 @@
 | `motion/dur-2` | `200ms` |  |
 | `motion/dur-3` | `320ms` |  |
 | `motion/ease-standard` | `0.2, 0, 0, 1` |  |
+| `motion/ease-settle` | `0.22, 1, 0.36, 1` |  |
+| `motion/ease-fan` | `0.2, 0.8, 0.2, 1` |  |
 | `motion/ease-spring` | `0.3, 1.4, 0.5, 1` |  |
 
+## 장면
+집 화면 장면들이 쓰는 값이에요. 색은 `color`, 나머지는 `other`로 넣었어요.
+
+| 토큰 | 값 | 설명 |
+| --- | --- | --- |
+| `scene/hero-type` | `max(2.22vw, 3vh)` |  |
+| `scene/hero-layer-z` | `40` |  |
+| `scene/hero-tip-z` | `50` |  |
+| `scene/paper-dim` | `0.18` |  |
+| `scene/room-label-max` | `max(22vw, 144px)` |  |
+| `scene/nb-sheet-w` | `min(55vw, 760px)` |  |
+| `scene/nb-top` | `calc(3vh + clamp(36px, 7vw, 90px) + 2vh)` |  |
+| `scene/nb-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
+| `scene/folder-paper` | `#f8f4ef` |  |
+| `scene/folder-paper-fold` | `#f2eee9` |  |
+| `scene/folder-paper-light` | `#fbf8f4` |  |
+| `scene/table-w` | `min(92vw, 1120px)` |  |
+| `scene/table-rooms` | `240px` |  |
+| `scene/table-room-max` | `180px` |  |
+| `scene/table-col-path` | `150px` |  |
+| `scene/table-col-size` | `72px` |  |
+| `scene/table-col-status` | `150px` |  |
+| `scene/sum-days-w` | `196px` |  |
+| `scene/hairline` | `0.5px` |  |
+| `scene/dial-card-w` | `260px` |  |
+| `scene/dial-info-w` | `360px` |  |
+| `scene/dial-clear` | `88px` |  |
+| `scene/dial-wait-blur` | `80px` |  |
+| `scene/jar-h` | `min(62dvh, 560px)` |  |
+| `scene/jar-box-h` | `44px` |  |
+| `scene/jar-labels` | `200px` |  |
+| `scene/jar-list` | `420px` |  |
+| `scene/jar-gap` | `var(--space-6)` |  |
+| `scene/jar-box` | `#eeece7` |  |
+| `scene/jar-box-hover` | `#e3e0d9` |  |
+| `scene/footer-text` | `max(var(--text-xs), 0.85vw, 1.25vh)` |  |
+| `scene/footer-inset` | `7vw` |  |
+| `scene/footer-gap` | `max(1vw, 1.4vh)` |  |
+| `scene/footer-pad` | `max(1.5vw, 2vh)` |  |
+| `scene/footer-rows` | `max(0.3vw, 0.4vh)` |  |
+| `scene/dial-gap` | `max(1.2vw, 1.8vh)` |  |
+| `scene/dial-w` | `max(5vw, 7vh)` |  |
+| `scene/dial-h` | `max(6.25vw, 8.75vh)` |  |
+| `scene/giants-w` | `min(93vw, 150dvh)` |  |
+| `scene/empty-text` | `max(var(--text-md), var(--hero-type))` |  |
+| `scene/label-track` | `0.158em` |  |
+| `scene/punch-col` | `30px` |  |
+| `scene/rank-num-file` | `88px` |  |
+| `scene/rank-num-room` | `124px` |  |
+| `scene/menu-scrim` | `rgb(27 26 24 / 0.1)` |  |
+| `scene/room-tab-1` | `#ecece8` |  |
+| `scene/room-tab-2` | `#e3e3df` |  |
+| `scene/room-tab-3` | `#dadad6` |  |
+| `scene/room-grid` | `#e0e0e0` |  |
+| `scene/room-line` | `#dcdcda` |  |
+| `scene/room-line-strong` | `#c8c8c6` |  |
+| `scene/room-hover` | `#efefec` |  |
+| `scene/room-selected` | `#e6e6e3` |  |
+| `scene/room-tab` | `var(--room-tab-3)` |  |
+| `scene/room-tab-h` | `36px` |  |
+| `scene/room-slope` | `42px` |  |
+| `scene/room-step` | `20px` |  |
+| `scene/room-radius` | `7px` |  |
+| `scene/room-chip` | `2px` |  |
+| `scene/room-sheet-tab` | `160px` |  |
+| `scene/room-hair` | `1px` |  |
+
 ## 참고
-- --text-display은 화면 너비에 따라 32px~52px로 변해요(1280 창에서 약 44px).
 - 오른쪽 레일 너비는 280px~360px(창 너비의 26%)예요.

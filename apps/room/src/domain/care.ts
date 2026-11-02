@@ -20,17 +20,40 @@ export function markWorkDay(workDays: string[], now: number): string[] {
   return workDays.includes(today) ? workDays : [...workDays, today].sort().slice(-60);
 }
 
+// 스캔에서 본 '방 밖 작업' 날도 방을 쓴 날로 칩니다. 최근 60일 안, 미래가 아닌 날만요.
+export function mergeActivityDays(workDays: string[], things: Pick<Thing, "lastModified" | "lastUsedAt">[], now: number): string[] {
+  const days = new Set(workDays);
+  for (const thing of things) {
+    for (const at of [thing.lastModified, thing.lastUsedAt ?? 0]) if (at >= now - 60 * dayMs && at <= now) days.add(localDay(at));
+  }
+  return [...days].sort().slice(-60);
+}
+
+// 방 안에서 손댄 때, 고친 때, 방 밖에서 연 때 중 가장 늦은 시각.
+export function lastActivity(thing: Pick<Thing, "touchedAt" | "lastModified" | "lastUsedAt">): number {
+  return Math.max(thing.touchedAt ?? 0, thing.lastModified, thing.lastUsedAt ?? 0);
+}
+
+// 최근 7일 안의 시각인지. 화면의 now가 방금 찍힌 파일보다 뒤처질 수 있어 하루는 봐주고, 그보다 먼 미래는 치지 않습니다.
+export const withinWeek = (at: number, now: number) => at > 0 && at <= now + dayMs && now - at <= 7 * dayMs;
+
+// 달력 날짜로 셉니다. 어젯밤에 쓴 파일은 오늘 새벽에도 '어제'예요.
+export function relativeDay(at: number, now: number): string {
+  const midnight = (time: number) => new Date(time).setHours(0, 0, 0, 0);
+  const days = Math.round((midnight(now) - midnight(at)) / dayMs);
+  return days <= 0 ? "오늘" : days === 1 ? "어제" : `${days}일 전`;
+}
+
 // shortcut: 기기 시계만 믿습니다. 시계가 뒤로 가면 판정이 늦어질 뿐이고, 옮기기 전에는 항상 사용자 확인을 거칩니다.
 export function thingStage(thing: Thing, care: CareSettings, workDays: string[], now: number): { stage: Stage; days: number } {
   if (thing.touchedAt === null) return { stage: "normal", days: 0 };
-  const days = Math.max(0, Math.floor((now - thing.touchedAt) / dayMs));
+  const last = lastActivity(thing);
+  const days = Math.max(0, Math.floor((now - last) / dayMs));
   if (!care.enabled || care.resting || care.done || thing.pinned || thing.missing || thing.box) return { stage: "normal", days };
-  // 원본이 손댄 뒤에 수정됐다면 밖에서 작업 중일 수 있습니다.
-  if (thing.lastModified > thing.touchedAt) return { stage: "normal", days };
-  // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 손댄 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
-  const touchedDay = localDay(thing.touchedAt);
+  // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
+  const lastDay = localDay(last);
   const today = localDay(now);
-  if (!workDays.some((day) => day > touchedDay && day <= today)) return { stage: "normal", days };
+  if (!workDays.some((day) => day > lastDay && day <= today)) return { stage: "normal", days };
   if (days >= care.fallAfterDays) return { stage: "fallen", days };
   if (days >= care.tiltAfterDays) return { stage: "tilted", days };
   return { stage: "normal", days };
@@ -120,15 +143,16 @@ export const budgetPresets = [GB, 5 * GB, 20 * GB];
 // 부분 스캔(파일 수·깊이 제한, 읽기 실패)에서 못 본 파일은 없어진 게 아니라 못 본 것이라 '파일 없음'으로 바꾸지 않습니다.
 export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }, now: number): Room {
   const byPath = new Map(files.map((file) => [file.path, file]));
+  const sure = scan.complete && scan.failed === 0;
   const used = new Set<string>();
-  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, missing: false });
+  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false });
   const things = room.things.map((thing): Thing => {
     const entry = thing.box;
     // 옮기던 중 멈춘 물건은 두 자리 다 이 물건 몫으로 잡아 선반에 중복이 생기지 않게 합니다. 실제 위치는 reconcileBox가 맞춥니다.
     if (entry?.state === "moving-in" || entry?.state === "moving-out") {
       used.add(entry.fromPath);
       used.add(entry.boxPath);
-      return byPath.has(entry.fromPath) || byPath.has(entry.boxPath) ? { ...thing, missing: false } : scan.complete ? { ...thing, missing: true } : thing;
+      return byPath.has(entry.fromPath) || byPath.has(entry.boxPath) ? { ...thing, missing: false } : sure ? { ...thing, missing: true } : thing;
     }
     // Finder에서 상자 속 파일을 원래 자리로 직접 돌려놓았다면 상자 기록을 풉니다.
     if (entry?.state === "boxed" && !byPath.has(thing.path) && byPath.has(entry.fromPath)) {
@@ -137,13 +161,13 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
       return { ...seen(thing, back), path: back.path, box: null };
     }
     const found = byPath.get(thing.path);
-    if (!found) return scan.complete ? { ...thing, missing: true } : thing;
+    if (!found) return sure ? { ...thing, missing: true } : thing;
     used.add(found.path);
     return seen(thing, found);
   });
   for (const file of files) if (!used.has(file.path)) things.push(newThing(file));
   const before = roomUsage(room).totalBytes;
-  const next = { ...room, things, scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
+  const next = { ...room, things, workDays: mergeActivityDays(room.workDays, things, now), scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
   next.scan.freedBytes = Math.max(0, before - roomUsage(next).totalBytes);
   return next;
 }
@@ -156,5 +180,5 @@ export function scanOverlap(room: Room, files: ScannedFile[]): { kept: number; t
 }
 
 export function newThing(file: ScannedFile): Thing {
-  return { id: newId(), path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null };
+  return { id: newId(), path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: file.lastUsedAt ?? null, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null };
 }

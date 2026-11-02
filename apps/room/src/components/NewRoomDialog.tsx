@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { localDay, mergeScan } from "../domain/care";
 import { buildRoom, doneAfterDays, looksDone } from "../domain/importFile";
 import { formatBytes, type Room, type RoomSource } from "../domain/model";
-import { canPickFolder, handleSource, pickFolder, scanFileList, scanFolder, type ScanResult } from "../gateways/folder";
-import { allowRooms, folderName, isNative, pathSource, pickParent, sameFolder, type ChildFolder } from "../gateways/native";
+import { canPickFolder, pickFolder, scanFileList, type ScanResult } from "../gateways/folder";
+import { allowRooms, folderName, isNative, pickParent, sameFolder, scanRoomFolder, type ChildFolder } from "../gateways/native";
 import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
 import { BudgetPicker } from "./Capacity";
 import { useModal } from "./useModal";
@@ -62,7 +62,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     setSame(null);
     setStep("scanning");
     try {
-      const scan = await scanFolder(handleSource(handle), setCount);
+      const scan = await scanRoomFolder(handle, setCount);
       ready({ source: "handle", rootName: handle.name, handle, scan });
     } catch {
       readFailed();
@@ -104,7 +104,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     let counted = 0;
     for (const folder of picks) {
       try {
-        const scan = await scanFolder(pathSource(folder.path), (n) => setCount(counted + n));
+        const scan = await scanRoomFolder(folder.path, (n) => setCount(counted + n));
         counted += scan.files.length;
         const old = known.find((room) => sameFolder(room.origin, folder.path));
         if (old) {
@@ -122,7 +122,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     }
     onCreatedMany(
       `새 방 ${added}개${refreshed ? `, 다시 이은 방 ${refreshed}개` : ""}를 만들었어요.` +
-        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 고친 파일이 없어 완료한 프로젝트로 두었어요.` : "") +
+        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 완료된 프로젝트로 두었어요.` : "") +
         (failed ? ` 읽지 못한 폴더 ${failed}개는 뺐어요.` : ""),
     );
   }

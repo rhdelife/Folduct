@@ -24,34 +24,27 @@ const px = (value) => Number(value.replace("px", ""));
 
 // CSS 이름을 Figma 변수 이름(그룹/이름)으로 옮깁니다.
 function path(name) {
-  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) return `color.neutral.${name}`;
+  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) return `color.neutral.${name}`;
   if (name.startsWith("lightbox")) return `color.lightbox.${name.replace("lightbox-", "") || "gradient"}`;
   if (name.startsWith("status-")) return `color.status.${name.replace("status-", "")}`;
   return name;
 }
 
-const tokens = { color: { neutral: {}, lightbox: {}, status: {}, kind: {}, box: {} }, size: { text: {}, lineHeight: {}, space: {}, radius: {}, layout: {}, control: {} }, font: {}, fontWeight: {}, typography: {}, shadow: {}, motion: {} };
+const tokens = { color: { neutral: {}, lightbox: {}, status: {}, kind: {}, box: {} }, size: { text: {}, lineHeight: {}, space: {}, radius: {}, layout: {}, control: {} }, font: {}, fontWeight: {}, typography: {}, shadow: {}, motion: {}, scene: {} };
 const notes = [];
 
 for (const [name, raw] of Object.entries(vars)) {
   const value = raw.trim();
-  if (/^(bg|page-glow|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
+  if (/^(bg|ground|surface|ink|line|on-ink|stitch|halo|brand)/.test(name)) tokens.color.neutral[name] = { $type: "color", $value: alias(hex(value)) };
   else if (name === "lightbox") tokens.color.lightbox.gradient = { $type: "gradient", $value: value.replace(/var\(--lightbox-(\d)\)/g, (_, n) => vars[`lightbox-${n}`]), $description: "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요." };
   else if (name.startsWith("lightbox-")) tokens.color.lightbox[name.replace("lightbox-", "")] = { $type: "color", $value: value };
   else if (name.startsWith("status-")) tokens.color.status[name.replace("status-", "")] = { $type: "color", $value: value };
-  else if (name.startsWith("text-")) {
-    const key = name.replace("text-", "");
-    if (value.startsWith("clamp")) {
-      const [min, , max] = value.match(/clamp\(([^,]+),([^,]+),([^)]+)\)/).slice(1).map((s) => s.trim());
-      tokens.size.text[`${key}-min`] = { $type: "dimension", $value: min };
-      tokens.size.text[`${key}-max`] = { $type: "dimension", $value: max };
-      notes.push(`--${name}은 화면 너비에 따라 ${min}~${max}로 변해요(1280 창에서 약 44px).`);
-    } else tokens.size.text[key] = { $type: "dimension", $value: value };
-  } else if (name.startsWith("lh-")) tokens.size.lineHeight[name.replace("lh-", "")] = { $type: "number", $value: Number(value), $description: "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요." };
+  else if (name.startsWith("text-")) tokens.size.text[name.replace("text-", "")] = { $type: "dimension", $value: value };
+  else if (name.startsWith("lh-")) tokens.size.lineHeight[name.replace("lh-", "")] = { $type: "number", $value: Number(value), $description: "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요." };
   else if (name.startsWith("space-")) tokens.size.space[name.replace("space-", "")] = { $type: "dimension", $value: value };
   else if (name.startsWith("radius-")) tokens.size.radius[name.replace("radius-", "")] = { $type: "dimension", $value: value };
   else if (name.startsWith("control-")) tokens.size.control[name.replace("control-", "")] = { $type: "dimension", $value: value };
-  else if (["content-max", "gutter"].includes(name)) tokens.size.layout[name] = { $type: "dimension", $value: value };
+  else if (["content-max", "gutter", "topbar-h", "menu-w", "thing-image-h", "gap-hair", "chrome-x", "chrome-y", "chrome-reserve", "chrome-reserve-sm"].includes(name)) tokens.size.layout[name] = { $type: "dimension", $value: value };
   else if (name === "rail-w") {
     const [min, , max] = value.match(/clamp\(([^,]+),([^,]+),([^)]+)\)/).slice(1).map((s) => s.trim());
     tokens.size.layout["rail-min"] = { $type: "dimension", $value: min };
@@ -69,13 +62,13 @@ for (const [name, raw] of Object.entries(vars)) {
   } else if (name.startsWith("dur-")) tokens.motion[name] = { $type: "duration", $value: value };
   else if (name.startsWith("ease-")) tokens.motion[name] = { $type: "cubicBezier", $value: value.match(/cubic-bezier\(([^)]+)\)/)[1].split(",").map(Number) };
   else if (name === "z-toast") continue;
-  else notes.push(`정리하지 못한 토큰: --${name}: ${value}`);
+  else tokens.scene[name] = { $type: /^#[0-9a-f]{6}$/.test(value) ? "color" : "other", $value: value };
 }
 
-for (const m of palette.matchAll(/\{ label: "([^"]+)", color: "(#[0-9a-f]{6})", edge: "(#[0-9a-f]{6})", kinds: \[([^\]]*)\] \}/g)) {
+for (const m of palette.matchAll(/\{ label: "([^"]+)", color: "(#[0-9a-f]{6})", edge: "(#[0-9a-f]{6})",[^}]*?kinds: \[([^\]]*)\] \}/g)) {
   tokens.color.kind[m[1]] = {
-    fill: { $type: "color", $value: m[2], $description: "채움. 화면에서는 불투명도 34% + Multiply" },
-    edge: { $type: "color", $value: m[3], $description: "테두리와 바느질 점선" },
+    fill: { $type: "color", $value: m[2], $description: "화병 띠와 색 막대, 종이의 진한 면" },
+    edge: { $type: "color", $value: m[3], $description: "판 위에서 3:1이 필요한 진한 색" },
     $description: `파일 형식: ${m[4].replace(/"/g, "")}`,
   };
 }
@@ -86,7 +79,6 @@ for (const [k, v] of Object.entries(weights)) tokens.fontWeight[k] = { $type: "f
 
 // 디자인 시스템 문서의 쓰임새대로 묶은 Text style 목록입니다.
 const textStyles = [
-  ["Display", "display-max", "display", "heavy", "집 화면 큰 제목 (데스크톱 52px, 좁으면 32px까지)"],
   ["Heading/2XL", "2xl", "2xl", "bold", "방 이름, 페이지 제목"],
   ["Heading/XL", "xl", "xl", "bold", "패널 제목"],
   ["Heading/LG", "lg", "lg", "bold", "섹션 제목, 대화창 제목"],
@@ -124,17 +116,17 @@ const md = `# Folduct 디자인 토큰 → Figma
 | 색(중립·라이트박스·상태·파일 형식) | Variables (color) | **Color** |
 | 간격·모서리·글자 크기·줄 높이·레이아웃·컨트롤 높이 | Variables (number) | **Size** |
 | 글꼴 | Variables (string) | **Type** |
-| 글자 묶음 | Text styles | Display, Heading/*, Body/*, Label/SM, Meta/XS, Tag/2XS |
+| 글자 묶음 | Text styles | Heading/*, Body/*, Label/SM, Meta/XS, Tag/2XS |
 | 그림자 | Effect styles | Shadow/1~3 |
 | 라이트박스 그라데이션 | Paint style | Lightbox |
 | 움직임(시간·곡선) | 변수로 못 넣어요 | Prototype 설정에 참고 |
 
 ## 규칙 (디자인 시스템 요약)
 - 색은 **파일 형식**에만 써요. 상태(기울어짐·쓰러짐·용량 한도)는 판과 지도 위에서 잉크 + 굵은 글자로만, 패널·배너에서만 상태 색을 써요.
-- 파일 오브제는 채움색 **불투명도 34% + Multiply**, 테두리와 점선은 edge 색이에요.
+- 파일 오브제는 불투명한 종이예요. 비치거나 겹쳐 곱하지 않아요.
 - \`ink-faint\`는 선·눈금 전용이고 글자에는 쓰지 않아요.
 - 화면 크기 기준: 데스크톱 기본 창 1280×840, 최소 창 720×520, 휴대폰 375. 720보다 좁으면 한 줄로 쌓여요.
-- 그레인은 코드(SVG 노이즈 16% Multiply)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
+- 그레인은 코드(SVG 노이즈 4%)라 Figma에서는 비슷한 노이즈 레이어로만 흉내 내세요.
 
 ## 색 · 중립
 | 토큰 | 값 | 설명 |
@@ -188,7 +180,13 @@ ${rows(tokens.shadow, "shadow/")}
 | --- | --- | --- |
 ${rows(tokens.motion, "motion/")}
 
+## 장면
+집 화면 장면들이 쓰는 값이에요. 색은 \`color\`, 나머지는 \`other\`로 넣었어요.
+
+| 토큰 | 값 | 설명 |
+| --- | --- | --- |
+${rows(tokens.scene, "scene/")}
+
 ${notes.length ? `## 참고\n${notes.map((n) => `- ${n}`).join("\n")}\n` : ""}`;
 await writeFile(join(out, "figma-tokens.md"), md);
 console.log(`색 ${Object.keys(tokens.color.neutral).length + Object.keys(tokens.color.lightbox).length + Object.keys(tokens.color.status).length}개 · 파일 형식 ${Object.keys(tokens.color.kind).length}묶음 · 글자 스타일 ${textStyles.length}개 → ${out}`);
-if (notes.some((n) => n.startsWith("정리하지 못한"))) process.exitCode = 1;

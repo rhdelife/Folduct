@@ -6,11 +6,12 @@ import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
-import { boxFolderName, budgetNoticeDue, firstLine, isInBox, markWorkDay, mergeScan, roomUsage, scanOverlap, thingStage } from "../domain/care";
+import { boxFolderName, budgetNoticeDue, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingStage } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
-import { canPickFolder, pickFolder, scanFolder, scanLimits, type Access } from "../gateways/folder";
-import { askFolder, folderAccess, folderSource, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, type Folder } from "../gateways/native";
+import { progressText, roomProgress } from "../domain/sky";
+import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
+import { askFolder, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { forgetRoom, getRoom, saveHandle, saveRoom } from "../storage/db";
 
@@ -19,6 +20,13 @@ type Panel = (typeof panels)[number];
 
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
 const previewLimit = 300 * 1024 ** 2;
+// 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
+const imageLimit = 30 * 1024 ** 2;
+const folderIssues = {
+  denied: "폴더 접근 권한이 없어요. 목록과 메모는 그대로예요.",
+  gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록과 메모는 그대로예요.",
+  other: "폴더를 읽지 못했어요. 목록과 메모는 그대로예요.",
+};
 // 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
 const stacked = "(max-width: 719.98px)";
 
@@ -46,6 +54,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [saveError, setSaveError] = useState(false);
   const [handle, setHandle] = useState<Folder | null>(null);
   const [access, setAccess] = useState<Access | "none">("none");
+  const [folderIssue, setFolderIssue] = useState<keyof typeof folderIssues | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>("shelf");
   const [budgetBanner, setBudgetBanner] = useState(false);
@@ -56,6 +65,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const { toast, toastRegion } = useToast();
   const latest = useRef<Room | null>(null);
   const dirty = useRef(false);
+  // 방을 지우는 중이거나 지운 뒤에는 저장하지 않습니다. 늦게 끝난 동기화가 지운 방을 되살리지 않게요.
+  const forgetting = useRef(false);
   // 파일 열기 요청 번호. 창을 닫거나 다른 파일을 열면 늘어나서, 늦게 끝난 읽기는 버립니다.
   const viewerReq = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -65,7 +76,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   // 저장이 실패하면 다시 '고칠 것 있음'으로 두고 배너로 알립니다. 화면의 내용은 그대로라 다시 저장할 수 있어요.
   function flush() {
     const snap = latest.current;
-    if (!dirty.current || !snap) return;
+    if (forgetting.current || !dirty.current || !snap) return;
     dirty.current = false;
     saveRoom(snap).then(
       () => setSaveError(false),
@@ -108,7 +119,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         }
         const foundHandle = await roomFolder(found);
         const state = foundHandle ? await folderAccess(foundHandle) : "none";
-        if (foundHandle && state === "granted") found = await reconcileBox(found, foundHandle);
         if (cancelled) return;
         const opened = Date.now();
         // 용량 한도를 넘은 방은 주 1회만 배너를 띄웁니다. 띄운 시각을 남겨 이번 주에는 다시 묻지 않습니다.
@@ -120,6 +130,11 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         setHandle(foundHandle);
         setAccess(state);
         setRoom(found);
+        // 방을 먼저 보여 주고, 상자 기록과 목록은 뒤에서 맞춥니다. 기다리지 않아요.
+        if (foundHandle && state === "granted" && !cancelled) {
+          latest.current = found;
+          void syncFolder(foundHandle, true, () => cancelled);
+        }
       } catch {
         if (!cancelled) setLoadError(true);
       }
@@ -177,27 +192,42 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     const granted = await askFolder(handle);
     setAccess(granted ? "granted" : "denied");
     if (!granted) return toast("폴더 접근이 허용되지 않았어요. 방 배치와 메모는 그대로예요.");
-    // 맞추지 못하면 다음에 방을 열 때 다시 맞춥니다.
-    await reconcileBox(latest.current, handle).then(adoptBox, () => undefined);
+    await syncFolder(handle, true);
   }
 
-  async function rescan() {
-    if (!handle || !latest.current) return;
-    if (access !== "granted" && !(await askFolder(handle))) return toast("폴더 접근이 있어야 다시 볼 수 있어요.");
-    setAccess("granted");
+  // 실제 폴더에 목록을 맞춥니다. silent면 성공 알림을 띄우지 않아요. 손댄 것으로 세지 않습니다.
+  // left: 기다리는 사이 방을 떠났는지. 떠났으면 늦게 온 결과는 버립니다.
+  async function syncFolder(folder: Folder, silent: boolean, left = () => false) {
     setBusy("폴더를 다시 보는 중…");
     try {
       flush();
       // 옮기던 중 멈춘 상자 기록부터 실제 위치에 맞춘 뒤 목록을 합칩니다.
-      adoptBox(await reconcileBox(latest.current, handle));
-      const scan = await scanFolder(folderSource(handle));
+      if (latest.current) {
+        const settled = await reconcileBox(latest.current, folder);
+        if (left()) return;
+        adoptBox(settled);
+      }
+      const scan = await scanRoomFolder(folder);
+      if (left()) return;
       update((current) => mergeScan(current, scan.files, scan, Date.now()));
-      toast(`폴더를 다시 봤어요. 파일 ${scan.files.length.toLocaleString("ko-KR")}개.`);
-    } catch {
-      toast("폴더를 다시 읽지 못했어요.");
+      setFolderIssue(null);
+      if (!silent) toast(`폴더를 다시 봤어요. 파일 ${scan.files.length.toLocaleString("ko-KR")}개.`);
+    } catch (error) {
+      if (left()) return;
+      const problem = folderProblem(error);
+      setFolderIssue(problem);
+      if (!silent && problem === "other") toast("폴더를 읽지 못했어요. 잠시 뒤 다시 해 주세요. 목록은 그대로예요.");
     } finally {
-      setBusy(null);
+      if (!left()) setBusy(null);
     }
+  }
+
+  async function rescan() {
+    if (!handle || !latest.current) return;
+    // 상태에 남은 값 대신 지금 권한을 봅니다. 그사이 풀렸으면 '다시 시도'가 이 클릭에서 다시 물어요.
+    if ((await folderAccess(handle)) !== "granted" && !(await askFolder(handle))) return toast("폴더 접근이 있어야 다시 볼 수 있어요.");
+    setAccess("granted");
+    await syncFolder(handle, false);
   }
 
   // 가져오기나 폴더 입력으로 만든 보기 전용 방에 실제 폴더를 이어 줍니다. 메모와 자리는 그대로 두고 목록만 다시 봅니다.
@@ -216,15 +246,16 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     setBusy("폴더를 읽는 중…");
     try {
       flush();
-      const scan = await scanFolder(folderSource(folder));
+      const scan = await scanRoomFolder(folder);
       // 이름 대신 내용으로 맞는 폴더인지 봅니다. 다 읽지 못한 스캔은 못 본 파일을 ‘파일 없음’으로 바꾸지 않으니 묻지 않아요.
       const { kept, total } = scanOverlap(latest.current ?? current, scan.files);
       // 데스크톱에서는 window.confirm이 Promise를 돌려줘서 await로 기다립니다(브라우저에서는 그대로 true/false).
-      if (scan.complete && kept < total * 0.8 && !(await window.confirm(`이 방 파일 ${total}개 중 ${kept}개만 고른 폴더에 있어요. 연결하면 ${total - kept}개가 ‘파일 없음’으로 바뀌어요(메모·자리는 남아요).`))) return null;
+      if (scan.complete && scan.failed === 0 && kept < total * 0.8 && !(await window.confirm(`이 방 파일 ${total}개 중 ${kept}개만 고른 폴더에 있어요. 연결하면 ${total - kept}개가 ‘파일 없음’으로 바뀌어요(메모·자리는 남아요).`))) return null;
       if (typeof folder !== "string") await saveHandle(current.id, folder);
       update((latestRoom) => ({ ...mergeScan(latestRoom, scan.files, scan, Date.now()), source: "handle", ...(typeof folder === "string" ? { origin: folder } : {}) }));
       setHandle(folder);
       setAccess("granted");
+      setFolderIssue(null);
       return { folder };
     } catch {
       return { error: "폴더를 읽지 못했어요. 다른 폴더를 골라 주세요." };
@@ -375,30 +406,37 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const selected = room.things.find((thing) => thing.id === selectedId && thing.spot && !thing.box) ?? null;
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxed = room.things.filter((thing) => thing.box);
+  const progress = progressText(roomProgress(room, now), now);
   const tabLabels: Record<Panel, string> = { thing: "물건", shelf: `선반 ${shelfCount}`, box: `정리 상자 ${boxed.length}`, settings: "방 설정" };
 
   return (
     <main className="room-page">
       <header className="topnav">
         <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
+          <BrandMark size={32} />
           <span aria-hidden="true">←</span>
-          <BrandMark size={24} />
           집
         </button>
         <div className="topnav-title">
-          <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
+          <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}{progress && ` · ${progress}`}</p>
         </div>
         <div className="row">
           <div aria-live="polite">{busy && <span className="scanning">{busy}</span>}</div>
           {room.source === "handle" && <button type="button" onClick={() => void rescan()} disabled={busy !== null}>폴더 다시 보기</button>}
         </div>
       </header>
-      <div className="room-capacity"><CapacityBar usage={usage} budgetBytes={room.budgetBytes} /></div>
 
       <div className="banners">
         {saveError && (
           <p className="banner danger" role="alert">변경 내용을 저장하지 못했어요. 화면의 내용은 그대로예요. <button type="button" onClick={flush}>다시 저장</button></p>
+        )}
+        {folderIssue && (
+          <p className="banner danger" role="alert">
+            {folderIssues[folderIssue]}{folderIssue === "denied" && isNative() && " 시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더에서 허용해 주세요."}{" "}
+            <button type="button" onClick={() => void rescan()} disabled={busy !== null}>다시 시도</button>
+            {(canPickFolder() || isNative()) && <button type="button" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 다시 고르기</button>}
+          </p>
         )}
         {room.source === "sample" && <p className="banner soft-banner">샘플 방이에요. 실제 파일은 없고, 옮기기·정리는 Folduct 안에서만 일어나요. 물건을 끌어 옮기고 눌러서 메모를 남겨 보세요.</p>}
         {handle && access !== "granted" && (
@@ -410,7 +448,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.care.done && (
           <p className="banner happy-banner">
-            완료한 프로젝트예요. 물건이 기울지 않고, 주간 정리와 용량 경고도 쉬어요.{" "}
+            완료된 프로젝트예요. 물건이 기울지 않고, 주간 정리와 용량 경고도 쉬어요.{" "}
             <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>다시 진행 중으로</button>
           </p>
         )}
@@ -442,6 +480,9 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
       <div className="room-body">
         <section className="room-stage-wrap" aria-label={`${room.name} 방. 물건을 끌거나 화살표 키로 옮길 수 있어요.`}>
+          <div className="room-capacity">
+            <CapacityBar usage={usage} budgetBytes={room.budgetBytes} />
+          </div>
           <RoomScene
             room={room}
             now={now}
@@ -465,8 +506,9 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
         <aside className="side" ref={side}>
           <div className="tabs" role="tablist" aria-label="방 서랍" onKeyDown={moveTab}>
-            {panels.map((key) => (
-              <button key={key} id={`tab-${key}`} type="button" role="tab" aria-selected={panel === key} tabIndex={panel === key ? 0 : -1} onClick={() => setPanel(key)}>
+            {panels.map((key, at) => (
+              // 고른 탭에서 멀수록 어둡고 뒤로 갑니다(RoomPage.css).
+              <button key={key} id={`tab-${key}`} type="button" role="tab" aria-selected={panel === key} tabIndex={panel === key ? 0 : -1} data-away={Math.abs(at - panels.indexOf(panel))} onClick={() => setPanel(key)}>
                 {tabLabels[key]}
               </button>
             ))}
@@ -478,6 +520,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                   room={room}
                   thing={selected}
                   now={now}
+                  folder={access === "granted" ? handle : null}
                   onPatch={patchThing}
                   onCopy={copy}
                   onOpen={(id) => void openFile(id)}
@@ -486,8 +529,10 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 />
               ) : (
                 <div>
-                  <h2 tabIndex={-1}>물건</h2>
-                  <p className="soft">방 안 물건을 누르면 여기서 이유 메모를 쓸 수 있어요.</p>
+                  <div className="drawer-head">
+                    <h2 tabIndex={-1}>물건</h2>
+                    <p className="soft">방 안 물건을 누르면 여기서 이유 메모를 쓸 수 있어요.</p>
+                  </div>
                 </div>
               ))}
             {panel === "shelf" && (
@@ -516,11 +561,12 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onCare={(patch) => update((current) => ({ ...current, care: { ...current.care, ...patch } }))}
                 onForget={async () => {
                   if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 메모와 배치만 사라져요.`))) return;
-                  dirty.current = false;
+                  forgetting.current = true;
                   try {
                     await forgetRoom(room.id);
                     onBack();
                   } catch {
+                    forgetting.current = false;
                     dirty.current = true;
                     toast("방을 지우지 못했어요. 잠시 뒤 다시 해 주세요.");
                   }
@@ -573,24 +619,49 @@ const nudges: [label: string, glyph: string, dx: number, dy: number][] = [
   ["오른쪽으로 옮기기", "→", 0.5, 0],
 ];
 
-function ThingPanel({ room, thing, now, onPatch, onCopy, onOpen, onShelve, onOpenApp }: { room: Room; thing: Thing; now: number; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onCopy: (path: string) => Promise<boolean>; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onOpenApp?: (id: string, reveal: boolean) => void }) {
+// 서랍의 실제 이미지. 읽기만 하고 권한을 묻지 않으며 손댄 것으로 세지 않아요. 읽거나 그리지 못하면(HEIC 등) 조용히 숨깁니다.
+function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let stale = false;
+    let made: string | null = null;
+    setUrl(null);
+    readFolderFile(folder, thing.path).then(
+      (file) => {
+        if (stale) return;
+        made = URL.createObjectURL(file);
+        setUrl(made);
+      },
+      () => undefined,
+    );
+    return () => {
+      stale = true;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [folder, thing.path, thing.lastModified]);
+  return url && <img className="thing-image" src={url} alt={`${thing.name} 미리보기`} onError={() => setUrl(null)} />;
+}
+
+function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelve, onOpenApp }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onCopy: (path: string) => Promise<boolean>; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onOpenApp?: (id: string, reveal: boolean) => void }) {
   const stage = thingStage(thing, room.care, room.workDays, now);
+  const last = lastActivity(thing);
   return (
     <div className="thing-panel">
       <div className="thing-head">
-        <span className="thing-icon"><ObjectShape kind={thing.kind} size={56} /></span>
+        <span className="thing-icon"><ObjectShape kind={thing.kind} size={64} name={thing.name} seed={thing.id} /></span>
         <div>
           <h2 tabIndex={-1}>{thing.name}</h2>
-          <p className="soft">{kindLabels[thing.kind]} · {formatBytes(thing.size)} · 고친 날 {new Date(thing.lastModified).toLocaleDateString("ko-KR")}</p>
+          <p className="soft">{kindLabels[thing.kind]} · {formatBytes(thing.size)} · 고친 날 {new Date(thing.lastModified).toLocaleDateString("ko-KR")}{thing.lastUsedAt !== null && ` · 마지막 사용 ${new Date(thing.lastUsedAt).toLocaleDateString("ko-KR")}`}</p>
         </div>
       </div>
+      {folder && previewMode(thing) === "image" && !thing.missing && thing.size <= imageLimit && <ThingImage folder={folder} thing={thing} />}
       <p className="path">{thing.path}</p>
       <p className={`state state-${stage.stage}`}>
         {thing.missing ? "폴더에서 찾지 못했어요. 메모와 자리는 남겨 둘게요."
           : thing.pinned ? "고정한 물건이라 기울지 않아요."
           : stage.stage === "fallen" ? `${stage.days}일째 그대로라 쓰러졌어요. 다음 주간 정리 때 정리 상자로 옮길 후보예요.`
           : stage.stage === "tilted" ? `${stage.days}일째 그대로라 살짝 기울었어요.`
-          : thing.lastModified > (thing.touchedAt ?? 0) ? "방 밖에서 최근에 고친 파일이에요."
+          : last > (thing.touchedAt ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
           : "잘 서 있어요."}
       </p>
       <label className="field note">
@@ -632,21 +703,23 @@ function ShelfPanel({ things, onPlace, onPlaceMany, onOpen }: { things: Thing[];
   const shown = needle ? shelf.filter((thing) => thing.path.toLowerCase().includes(needle)) : shelf;
   return (
     <div>
-      <h2 tabIndex={-1}>선반 · 놓지 않은 물건 {shelf.length}</h2>
-      <p className="soft">폴더에 있지만 아직 방 바닥에 놓지 않은 파일이에요. 놓은 물건만 기울고 정리 대상이 돼요.</p>
-      <label className="field">찾기 <input id="shelf-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="파일 이름이나 경로" /></label>
-      {needle && shown.length > 0 && (
-        <button type="button" onClick={() => onPlaceMany(shown.slice(0, placeLimit).map((thing) => thing.id))}>
-          {shown.length > placeLimit ? `찾은 ${shown.length}개 중 ${placeLimit}개 놓기` : `찾은 ${shown.length}개 모두 놓기`}
-        </button>
-      )}
+      <div className="drawer-head">
+        <h2 tabIndex={-1}>선반 · 놓지 않은 물건 {shelf.length}</h2>
+        <p className="soft">폴더에 있지만 아직 방 바닥에 놓지 않은 파일이에요. 놓은 물건만 기울고 정리 대상이 돼요.</p>
+        <label className="field">찾기 <input id="shelf-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="파일 이름이나 경로" /></label>
+        {needle && shown.length > 0 && (
+          <button type="button" onClick={() => onPlaceMany(shown.slice(0, placeLimit).map((thing) => thing.id))}>
+            {shown.length > placeLimit ? `찾은 ${shown.length}개 중 ${placeLimit}개 놓기` : `찾은 ${shown.length}개 모두 놓기`}
+          </button>
+        )}
+      </div>
       <ul className="list">
         {shown.slice(0, 200).map((thing) => (
           <li key={thing.id}>
-            <ObjectShape kind={thing.kind} size={28} />
+            <ObjectShape kind={thing.kind} size={28} seed={thing.id} />
             <div>
               <strong>{thing.name}</strong>
-              <span className="soft">{formatBytes(thing.size)} · {thing.path}{isInBox(thing.path) && " · 정리 상자 폴더"}{thing.missing && " · 파일 없음"}</span>
+              <span className="soft" title={thing.path}>{formatBytes(thing.size)} · {thing.path}{isInBox(thing.path) && " · 정리 상자 폴더"}{thing.missing && " · 파일 없음"}</span>
             </div>
             <div className="col">
               <button type="button" onClick={() => onPlace(thing.id)}>방에 놓기</button>
@@ -665,7 +738,10 @@ function ShelfPanel({ things, onPlace, onPlaceMany, onOpen }: { things: Thing[];
 function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: boolean; onRestore: (id: string) => void; onCopy: (path: string) => Promise<boolean> }) {
   return (
     <div>
-      <h2 tabIndex={-1}>정리 상자 {things.length}</h2>
+      <div className="drawer-head">
+        <h2 tabIndex={-1}>정리 상자 {things.length}</h2>
+        <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? "Finder에서" : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
+      </div>
       {things.length === 0 ? <p className="soft">상자가 비어 있어요. 주간 정리 때 쓰러진 물건이 이곳에 모여요.</p> : (
         <ul className="list">
           {things.map((thing) => {
@@ -673,7 +749,7 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
             const note = firstLine(thing.note);
             return (
               <li key={thing.id}>
-                <ObjectShape kind={thing.kind} size={28} />
+                <ObjectShape kind={thing.kind} size={28} seed={thing.id} />
                 <div>
                   <strong>{thing.name}</strong>
                   <span className="soft">{formatBytes(thing.size)} · {new Date(entry.at).toLocaleDateString("ko-KR")} 상자에 넣음</span>
@@ -689,7 +765,6 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
           })}
         </ul>
       )}
-      <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? "Finder에서" : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
     </div>
   );
 }
@@ -698,7 +773,7 @@ type Status = "active" | "resting" | "done";
 const statuses: [Status, string, Partial<CareSettings>, string][] = [
   ["active", "진행 중", { done: false, resting: false }, "진행 중: 손대지 않은 물건이 기울고, 쓰러지면 주간 정리 때 정리 상자로 옮겨요"],
   ["resting", "잠시 쉼", { done: false, resting: true }, "잠시 쉼: 기울기와 주간 정리만 멈추고 지도에는 그대로"],
-  ["done", "완료", { done: true, resting: false }, "완료: 기울기·주간 정리·용량 경고를 멈추고 지도에서 흐리게"],
+  ["done", "완료", { done: true, resting: false }, "완료: 기울기·주간 정리·용량 경고를 멈추고 완료된 프로젝트로 옮겨요"],
 ];
 
 function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room: Room; totalBytes: number; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
@@ -722,7 +797,7 @@ function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room:
           <label>쓰러짐 <input type="number" min={1} max={365} value={room.care.fallAfterDays} onChange={(event) => { const value = days(event.target.value); setClamped(value < room.care.tiltAfterDays); onCare({ fallAfterDays: Math.max(value, room.care.tiltAfterDays) }); }} />일</label>
           <span className="soft" aria-live="polite">{clamped ? "쓰러짐은 기울어짐보다 길어야 해요." : ""}</span>
         </div>
-        <p className="soft">이 방을 쓴 날이 있었는데 그 물건만 그대로였을 때만 셉니다. 방을 아예 안 연 기간은 세지 않아요.</p>
+        <p className="soft">방 안이든 밖이든 이 폴더를 쓴 날이 있었는데 그 물건만 그대로였을 때만 세요. 폴더를 아예 안 쓴 기간은 세지 않아요.</p>
         <details>
           <summary>고급</summary>
           <label><input type="checkbox" checked={room.care.enabled} onChange={(event) => onCare({ enabled: event.target.checked })} /> 손대지 않은 물건 기울이기</label>

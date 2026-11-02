@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ObjectShape } from "../art/ObjectShape";
 import { dayMs, firstLine, thingStage } from "../domain/care";
 import { formatBytes } from "../domain/model";
 import { isNative } from "../gateways/native";
@@ -124,6 +125,7 @@ export function SweepDialog({ plans, now, onDone }: { plans: SweepPlan[]; now: n
                         <li key={thing.id}>
                           <label>
                             <input type="checkbox" checked={selected.has(thing.id)} onChange={(event) => toggle([thing.id], event.target.checked)} />
+                            <ObjectShape kind={thing.kind} size={24} seed={thing.id} />
                             <span className="name">{thing.name}</span>
                             <span className="soft">{thingStage(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로 · {formatBytes(thing.size)}</span>
                           </label>

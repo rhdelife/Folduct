@@ -25,6 +25,10 @@ function contrast(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+// 화면 코드가 style로 넣는 변수들. 소스에서 찾아 모읍니다.
+const sources = Object.values(import.meta.glob("../**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true })) as string[];
+const inlineVars = new Set(sources.flatMap((source) => [...source.matchAll(/["'`]--([\w-]+)["'`]/g)].map((match) => match[1])));
+
 const hex = (name: string) => {
   const value = tokens[name];
   expect(value, `--${name}`).toMatch(/^#[0-9a-f]{6}$/i);
@@ -62,9 +66,10 @@ describe("디자인 토큰", () => {
     for (const gone of ["tint", "ok", "near", "warn", "radius"]) expect(tokens[gone], `--${gone}`).toBeUndefined();
   });
 
-  it("쓰는 변수는 모두 :root에 있어요(--s, --k, --i는 화면이 직접 넣어요)", () => {
+  it("쓰는 변수는 모두 어딘가에서 정해요(:root나 규칙 안, 또는 화면이 style로 넣어요)", () => {
     const used = new Set([...css.matchAll(/var\(--([\w-]+)/g)].map((match) => match[1]));
-    const missing = [...used].filter((name) => !(name in tokens) && !["s", "k", "i"].includes(name));
+    const defined = new Set([...css.matchAll(/(?:^|[\s;{])--([\w-]+)\s*:/g)].map((match) => match[1]));
+    const missing = [...used].filter((name) => !(name in tokens) && !defined.has(name) && !inlineVars.has(name));
     expect(missing).toEqual([]);
   });
 });

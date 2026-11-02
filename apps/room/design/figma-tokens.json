@@ -3,11 +3,11 @@
     "neutral": {
       "bg": {
         "$type": "color",
-        "$value": "#ffffff"
+        "$value": "#fefefb"
       },
-      "page-glow": {
+      "ground": {
         "$type": "color",
-        "$value": "#ffffff"
+        "$value": "#f5f5f2"
       },
       "surface": {
         "$type": "color",
@@ -27,7 +27,15 @@
       },
       "ink": {
         "$type": "color",
-        "$value": "#111111"
+        "$value": "#171717"
+      },
+      "ink-caption": {
+        "$type": "color",
+        "$value": "#555555"
+      },
+      "ink-caption-soft": {
+        "$type": "color",
+        "$value": "#727272"
       },
       "ink-hover": {
         "$type": "color",
@@ -72,6 +80,14 @@
       "ink-wash": {
         "$type": "color",
         "$value": "#1b1a180f"
+      },
+      "ground-mark": {
+        "$type": "color",
+        "$value": "#e2e2da"
+      },
+      "line-ground": {
+        "$type": "color",
+        "$value": "#d8d8d2"
       }
     },
     "lightbox": {
@@ -123,117 +139,117 @@
       "이미지": {
         "fill": {
           "$type": "color",
-          "$value": "#e3b015",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#e5bb4d",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#9d7b16",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#8e6e1a",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: image"
       },
       "글·코드": {
         "fill": {
           "$type": "color",
-          "$value": "#3f9f50",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#5f9b6d",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#3b904a",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#3b5f4d",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: text"
       },
       "영상": {
         "fill": {
           "$type": "color",
-          "$value": "#3d6fd3",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#2a64ad",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#3d6fd3",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#123f80",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: video"
       },
       "PDF·문서·발표": {
         "fill": {
           "$type": "color",
-          "$value": "#e04a3a",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#c9553f",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#e04a3a",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#8d2d1e",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: pdf, office"
       },
       "표": {
         "fill": {
           "$type": "color",
-          "$value": "#ec8a2e",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#dd8b47",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#b86e28",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#a35a22",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: table"
       },
       "소리": {
         "fill": {
           "$type": "color",
-          "$value": "#8a5cd6",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#8371c0",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#8a5cd6",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#54438e",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: audio"
       },
       "디자인": {
         "fill": {
           "$type": "color",
-          "$value": "#d4479b",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#c95b93",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#d4479b",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#863a62",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: design"
       },
       "압축": {
         "fill": {
           "$type": "color",
-          "$value": "#8d6a45",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#98743f",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#8d6a45",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#6b4d29",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: archive"
       },
       "기타": {
         "fill": {
           "$type": "color",
-          "$value": "#8b9098",
-          "$description": "채움. 화면에서는 불투명도 34% + Multiply"
+          "$value": "#a5a5a1",
+          "$description": "화병 띠와 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
-          "$value": "#7b7f86",
-          "$description": "테두리와 바느질 점선"
+          "$value": "#6e6e6a",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: unknown"
       }
@@ -272,6 +288,10 @@
         "$type": "dimension",
         "$value": "18px"
       },
+      "caption": {
+        "$type": "dimension",
+        "$value": "20px"
+      },
       "xl": {
         "$type": "dimension",
         "$value": "22px"
@@ -279,14 +299,6 @@
       "2xl": {
         "$type": "dimension",
         "$value": "28px"
-      },
-      "display-min": {
-        "$type": "dimension",
-        "$value": "32px"
-      },
-      "display-max": {
-        "$type": "dimension",
-        "$value": "52px"
       }
     },
     "lineHeight": {
@@ -320,6 +332,11 @@
         "$value": 1.35,
         "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
       },
+      "caption": {
+        "$type": "number",
+        "$value": 1.2,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
       "xl": {
         "$type": "number",
         "$value": 1.25,
@@ -328,11 +345,6 @@
       "2xl": {
         "$type": "number",
         "$value": 1.15,
-        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
-      },
-      "display": {
-        "$type": "number",
-        "$value": 1.05,
         "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
       }
     },
@@ -398,9 +410,37 @@
       "pill": {
         "$type": "dimension",
         "$value": "0"
+      },
+      "sheet": {
+        "$type": "dimension",
+        "$value": "32px"
       }
     },
     "layout": {
+      "topbar-h": {
+        "$type": "dimension",
+        "$value": "72px"
+      },
+      "chrome-y": {
+        "$type": "dimension",
+        "$value": "42px"
+      },
+      "chrome-x": {
+        "$type": "dimension",
+        "$value": "40px"
+      },
+      "chrome-reserve": {
+        "$type": "dimension",
+        "$value": "260px"
+      },
+      "gap-hair": {
+        "$type": "dimension",
+        "$value": "2px"
+      },
+      "menu-w": {
+        "$type": "dimension",
+        "$value": "420px"
+      },
       "content-max": {
         "$type": "dimension",
         "$value": "1440px"
@@ -416,6 +456,10 @@
       "gutter": {
         "$type": "dimension",
         "$value": "24px"
+      },
+      "thing-image-h": {
+        "$type": "dimension",
+        "$value": "240px"
       }
     },
     "control": {
@@ -479,16 +523,6 @@
     }
   },
   "typography": {
-    "Display": {
-      "$type": "typography",
-      "$value": {
-        "fontFamily": "{font.sans}",
-        "fontSize": "{size.text.display-max}",
-        "lineHeight": "{size.lineHeight.display}",
-        "fontWeight": "{fontWeight.heavy}"
-      },
-      "$description": "집 화면 큰 제목 (데스크톱 52px, 좁으면 32px까지)"
-    },
     "Heading/2XL": {
       "$type": "typography",
       "$value": {
@@ -640,6 +674,24 @@
         1
       ]
     },
+    "ease-settle": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.22,
+        1,
+        0.36,
+        1
+      ]
+    },
+    "ease-fan": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0.8,
+        0.2,
+        1
+      ]
+    },
     "ease-spring": {
       "$type": "cubicBezier",
       "$value": [
@@ -648,6 +700,252 @@
         0.5,
         1
       ]
+    }
+  },
+  "scene": {
+    "hero-type": {
+      "$type": "other",
+      "$value": "max(2.22vw, 3vh)"
+    },
+    "hero-layer-z": {
+      "$type": "other",
+      "$value": "40"
+    },
+    "hero-tip-z": {
+      "$type": "other",
+      "$value": "50"
+    },
+    "paper-dim": {
+      "$type": "other",
+      "$value": "0.18"
+    },
+    "room-label-max": {
+      "$type": "other",
+      "$value": "max(22vw, 144px)"
+    },
+    "nb-sheet-w": {
+      "$type": "other",
+      "$value": "min(55vw, 760px)"
+    },
+    "nb-top": {
+      "$type": "other",
+      "$value": "calc(3vh + clamp(36px, 7vw, 90px) + 2vh)"
+    },
+    "nb-shadow": {
+      "$type": "other",
+      "$value": "0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)"
+    },
+    "folder-paper": {
+      "$type": "color",
+      "$value": "#f8f4ef"
+    },
+    "folder-paper-fold": {
+      "$type": "color",
+      "$value": "#f2eee9"
+    },
+    "folder-paper-light": {
+      "$type": "color",
+      "$value": "#fbf8f4"
+    },
+    "table-w": {
+      "$type": "other",
+      "$value": "min(92vw, 1120px)"
+    },
+    "table-rooms": {
+      "$type": "other",
+      "$value": "240px"
+    },
+    "table-room-max": {
+      "$type": "other",
+      "$value": "180px"
+    },
+    "table-col-path": {
+      "$type": "other",
+      "$value": "150px"
+    },
+    "table-col-size": {
+      "$type": "other",
+      "$value": "72px"
+    },
+    "table-col-status": {
+      "$type": "other",
+      "$value": "150px"
+    },
+    "sum-days-w": {
+      "$type": "other",
+      "$value": "196px"
+    },
+    "hairline": {
+      "$type": "other",
+      "$value": "0.5px"
+    },
+    "dial-card-w": {
+      "$type": "other",
+      "$value": "260px"
+    },
+    "dial-info-w": {
+      "$type": "other",
+      "$value": "360px"
+    },
+    "dial-clear": {
+      "$type": "other",
+      "$value": "88px"
+    },
+    "dial-wait-blur": {
+      "$type": "other",
+      "$value": "80px"
+    },
+    "jar-h": {
+      "$type": "other",
+      "$value": "min(62dvh, 560px)"
+    },
+    "jar-box-h": {
+      "$type": "other",
+      "$value": "44px"
+    },
+    "jar-labels": {
+      "$type": "other",
+      "$value": "200px"
+    },
+    "jar-list": {
+      "$type": "other",
+      "$value": "420px"
+    },
+    "jar-gap": {
+      "$type": "other",
+      "$value": "var(--space-6)"
+    },
+    "jar-box": {
+      "$type": "color",
+      "$value": "#eeece7"
+    },
+    "jar-box-hover": {
+      "$type": "color",
+      "$value": "#e3e0d9"
+    },
+    "footer-text": {
+      "$type": "other",
+      "$value": "max(var(--text-xs), 0.85vw, 1.25vh)"
+    },
+    "footer-inset": {
+      "$type": "other",
+      "$value": "7vw"
+    },
+    "footer-gap": {
+      "$type": "other",
+      "$value": "max(1vw, 1.4vh)"
+    },
+    "footer-pad": {
+      "$type": "other",
+      "$value": "max(1.5vw, 2vh)"
+    },
+    "footer-rows": {
+      "$type": "other",
+      "$value": "max(0.3vw, 0.4vh)"
+    },
+    "dial-gap": {
+      "$type": "other",
+      "$value": "max(1.2vw, 1.8vh)"
+    },
+    "dial-w": {
+      "$type": "other",
+      "$value": "max(5vw, 7vh)"
+    },
+    "dial-h": {
+      "$type": "other",
+      "$value": "max(6.25vw, 8.75vh)"
+    },
+    "giants-w": {
+      "$type": "other",
+      "$value": "min(93vw, 150dvh)"
+    },
+    "empty-text": {
+      "$type": "other",
+      "$value": "max(var(--text-md), var(--hero-type))"
+    },
+    "label-track": {
+      "$type": "other",
+      "$value": "0.158em"
+    },
+    "punch-col": {
+      "$type": "other",
+      "$value": "30px"
+    },
+    "rank-num-file": {
+      "$type": "other",
+      "$value": "88px"
+    },
+    "rank-num-room": {
+      "$type": "other",
+      "$value": "124px"
+    },
+    "menu-scrim": {
+      "$type": "other",
+      "$value": "rgb(27 26 24 / 0.1)"
+    },
+    "room-tab-1": {
+      "$type": "color",
+      "$value": "#ecece8"
+    },
+    "room-tab-2": {
+      "$type": "color",
+      "$value": "#e3e3df"
+    },
+    "room-tab-3": {
+      "$type": "color",
+      "$value": "#dadad6"
+    },
+    "room-grid": {
+      "$type": "color",
+      "$value": "#e0e0e0"
+    },
+    "room-line": {
+      "$type": "color",
+      "$value": "#dcdcda"
+    },
+    "room-line-strong": {
+      "$type": "color",
+      "$value": "#c8c8c6"
+    },
+    "room-hover": {
+      "$type": "color",
+      "$value": "#efefec"
+    },
+    "room-selected": {
+      "$type": "color",
+      "$value": "#e6e6e3"
+    },
+    "room-tab": {
+      "$type": "other",
+      "$value": "var(--room-tab-3)"
+    },
+    "room-tab-h": {
+      "$type": "other",
+      "$value": "36px"
+    },
+    "room-slope": {
+      "$type": "other",
+      "$value": "42px"
+    },
+    "room-step": {
+      "$type": "other",
+      "$value": "20px"
+    },
+    "room-radius": {
+      "$type": "other",
+      "$value": "7px"
+    },
+    "room-chip": {
+      "$type": "other",
+      "$value": "2px"
+    },
+    "room-sheet-tab": {
+      "$type": "other",
+      "$value": "160px"
+    },
+    "room-hair": {
+      "$type": "other",
+      "$value": "1px"
     }
   }
 }

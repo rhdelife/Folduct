@@ -1,7 +1,7 @@
-import { boxPathCandidate, sweepCandidates } from "../domain/care";
+import { boxPathCandidate, mergeScan, sweepCandidates } from "../domain/care";
 import { isSafeRelativePath, type BoxEntry, type Room, type Thing } from "../domain/model";
 import { fileExists, moveFile, type MoveDirectory } from "../gateways/mover";
-import { askFolder, canMoveIn, folderAccess, folderMover, isNative, type Folder } from "../gateways/native";
+import { askFolder, canMoveIn, folderAccess, folderMover, folderSource, isNative, scanRoomFolder, type Folder } from "../gateways/native";
 import { getHandle, listRooms, patchRoom, setLastSweepAt } from "./db";
 
 export type SweepPlan = {
@@ -42,15 +42,28 @@ export async function roomFolder(room: Room): Promise<Folder | null> {
   return isNative() ? (room.origin ?? null) : getHandle(room.id);
 }
 
-// rooms를 주면 다시 읽지 않습니다. 방마다 권한 확인은 동시에 합니다.
+// rooms를 주면 다시 읽지 않습니다. 방마다 권한 확인과 폴더 읽기는 동시에 합니다.
 export async function planSweep(rooms?: Room[], now = Date.now()): Promise<SweepPlan[]> {
   const plans = await Promise.all(
     (rooms ?? (await listRooms())).map(async (room): Promise<SweepPlan | null> => {
       const handle = await roomFolder(room);
-      const current = handle && (await folderAccess(handle)) === "granted" ? await reconcileBox(room, handle) : room;
-      const candidates = sweepCandidates(current, now);
-      if (candidates.length === 0) return null;
+      let current = room;
+      let seen: Set<string> | null = null;
+      if (handle && (await folderAccess(handle)) === "granted") {
+        current = await reconcileBox(room, handle);
+        // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 쓰러져 보이지 않게 폴더를 먼저 다시 읽습니다.
+        try {
+          const scan = await scanRoomFolder(handle);
+          current = await patchRoom(room.id, (latest) => mergeScan(latest, scan.files, scan, now));
+          seen = new Set(scan.files.map((file) => file.path));
+        } catch (error) {
+          console.error(error);
+        }
+      }
       const real = handle !== null && canMoveIn(handle);
+      // 실제 파일을 옮기는 방은 이번에 폴더에서 확인한 파일만 제안합니다. 옛 기록만 보고 옮기지 않아요.
+      const candidates = sweepCandidates(current, now).filter((thing) => !real || seen?.has(thing.path));
+      if (candidates.length === 0) return null;
       return { room: current, mode: real ? "real" : "virtual", handle: real ? handle : null, candidates };
     }),
   );
@@ -144,8 +157,21 @@ async function reserveBoxPath(root: MoveDirectory, fromPath: string, reserved: S
   return null;
 }
 
+// 방 폴더 자체를 못 읽으면(옮겨짐·드라이브 분리·권한) 파일이 두 자리 모두 없어 보여서, 맞추기 전에 확인합니다.
+async function folderReadable(handle: Folder): Promise<boolean> {
+  try {
+    for await (const _ of folderSource(handle).list()) break;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 옮기던 중 꺼졌던 기록은 파일이 실제로 있는 쪽에 맞춥니다. 최신 저장본에 적고 그 방을 돌려줍니다.
+// 폴더에 닿지 못하면 기록을 그대로 두고 다음에 다시 맞춥니다.
 export async function reconcileBox(room: Room, handle: Folder): Promise<Room> {
+  const stuck = room.things.some((thing) => thing.box?.state === "moving-in" || thing.box?.state === "moving-out");
+  if (!stuck || !(await folderReadable(handle))) return room;
   const root = folderMover(handle);
   const settled = new Map<string, { boxPath: string; patch: Partial<Thing> }>();
   for (const thing of room.things) {

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultCare, localDay, dayMs } from "../domain/care";
-import type { Room, Thing } from "../domain/model";
-import { askFolder, folderAccess, type Folder } from "../gateways/native";
+import type { Room, ScannedFile, Thing } from "../domain/model";
+import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
 import { planSweep, reconcileBox, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
-import { listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
+import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { put, seed, view, type MemoryDir } from "./fakeFolder";
 
 // 저장소는 메모리 Map으로 바꿉니다. patchRoom은 진짜처럼 최신 기록을 읽어 고친 뒤 씁니다.
@@ -33,7 +33,13 @@ vi.mock("../gateways/native", () => ({
   folderAccess: vi.fn(async () => "granted"),
   askFolder: vi.fn(async () => true),
   folderMover: (folder: unknown) => folder,
+  folderSource: (folder: { raw: MemoryDir & { unreachable?: boolean } }) => ({
+    async *list() {
+      if (folder.raw.unreachable) throw new DOMException("없음", "NotFoundError");
+    },
+  }),
   canMoveIn: () => true,
+  scanRoomFolder: vi.fn(),
 }));
 
 const start = new Date(2026, 9, 5, 12).getTime();
@@ -41,7 +47,7 @@ const now = start + 9 * dayMs;
 const box = "_Folduct 정리상자";
 
 function thing(path: string, patch: Partial<Thing> = {}): Thing {
-  return { id: crypto.randomUUID(), path, name: path.split("/").pop()!, kind: "design", size: 100, lastModified: 0, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
+  return { id: crypto.randomUUID(), path, name: path.split("/").pop()!, kind: "design", size: 100, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
@@ -67,6 +73,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(folderAccess).mockResolvedValue("granted");
   vi.mocked(askFolder).mockResolvedValue(true);
+});
+
+describe("저장된 방 옮겨 오기", () => {
+  it("lastUsedAt이 없는 예전 방은 메모·자리·상자를 그대로 두고 null을 얻는다", async () => {
+    const { normalizeRoom } = await vi.importActual<typeof import("../storage/db")>("../storage/db");
+    const entry = { state: "boxed" as const, fromPath: "a.psd", boxPath: `${box}/a.psd`, at: start };
+    const { lastUsedAt: _gone, ...old } = thing(`${box}/a.psd`, { note: "왜 두었나", spot: { x: 2, y: 5 }, box: entry });
+    const migrated = normalizeRoom({ ...room([]), things: [old, { ...old, id: "망가짐", lastUsedAt: "어제" }, { ...old, id: "음수", lastUsedAt: -1 }, { ...old, id: "그대로", lastUsedAt: start }] });
+    expect(migrated.things[0]).toEqual({ ...old, lastUsedAt: null });
+    expect(migrated.things.map((item) => item.lastUsedAt)).toEqual([null, null, null, start]);
+  });
 });
 
 describe("주간 정리 기록", () => {
@@ -98,6 +115,23 @@ describe("주간 정리 기록", () => {
     const lost = thing(entry.boxPath, { box: { ...entry, state: "moving-in" } });
     store(room([lost]));
     expect((await reconcileBox(stored(), folder(seed({})))).things[0]).toMatchObject({ box: null, path: entry.fromPath });
+  });
+
+  it("방 폴더 자체에 닿지 못하면 옮기던 기록을 그대로 두고, 다시 닿으면 맞춘다", async () => {
+    const entry = { fromPath: "참고/시안.psd", boxPath: `${box}/참고/시안.psd`, at: start };
+    const inBox = thing(entry.fromPath, { box: { ...entry, state: "moving-in" } });
+    const out = thing(entry.boxPath, { box: { ...entry, fromPath: "참고/다른.psd", boxPath: `${box}/참고/다른.psd`, state: "moving-out" } });
+    store(room([inBox, out]));
+    const before = structuredClone(stored());
+    // 빠진 드라이브처럼 어느 경로든 '없음'으로 답하는 폴더입니다.
+    const gone = Object.assign(seed({}), { unreachable: true });
+    expect(await reconcileBox(stored(), folder(gone))).toEqual(before);
+    expect(stored()).toEqual(before);
+
+    const back = seed({ [entry.boxPath]: "원본", "참고/다른.psd": "다른" });
+    const fixed = await reconcileBox(stored(), folder(back));
+    expect(fixed.things[0]).toMatchObject({ path: entry.boxPath, box: { state: "boxed" } });
+    expect(fixed.things[1]).toMatchObject({ path: "참고/다른.psd", box: null });
   });
 
   it("옮길 자리에 다른 파일이 생기면 기록은 그대로 두고, 실패를 물건 id·경로와 함께 알린다", async () => {
@@ -165,6 +199,48 @@ describe("주간 정리 기록", () => {
     await runSweep([realPlan(a, seed()), plan], new Set([...a.things, ...sample.things].map((item) => item.id)), now);
     expect(setLastSweepAt).toHaveBeenCalledWith(now);
     expect(stored("s").things[0].box?.state).toBe("virtual");
+  });
+
+  describe("정리 후보를 고르기 전에 폴더를 다시 읽는다", () => {
+    const scanned = (path: string, patch: Partial<ScannedFile> = {}): ScannedFile => ({ path, name: path, kind: "design", size: 100, lastModified: 0, ...patch });
+    const handleRoom = (...things: Thing[]) => {
+      const item = room(things);
+      store(item);
+      vi.mocked(getHandle).mockResolvedValue(folder(seed()) as FileSystemDirectoryHandle);
+      return item;
+    };
+
+    it("방 밖에서 어제 연 파일은 후보에서 빠지고, 새 활동은 저장된다", async () => {
+      const opened = thing("열었음.psd");
+      const idle = thing("그대로.psd");
+      const item = handleRoom(opened, idle);
+      vi.mocked(scanRoomFolder).mockResolvedValue({ files: [scanned(opened.path, { lastUsedAt: now - dayMs }), scanned(idle.path)], failed: 0, complete: true, note: null });
+      const [plan] = await planSweep([item], now);
+      expect(plan.candidates.map((candidate) => candidate.id)).toEqual([idle.id]);
+      expect(stored().things[0].lastUsedAt).toBe(now - dayMs);
+    });
+
+    it("이번 스캔에서 못 본 파일은 옛 기록만 보고 제안하지 않는다", async () => {
+      const unseen = thing("한도밖.psd");
+      const idle = thing("그대로.psd");
+      const item = handleRoom(unseen, idle);
+      vi.mocked(scanRoomFolder).mockResolvedValue({ files: [scanned(idle.path)], failed: 0, complete: false, note: null });
+      const [plan] = await planSweep([item], now);
+      expect(plan.candidates.map((candidate) => candidate.id)).toEqual([idle.id]);
+    });
+
+    it("폴더를 못 읽거나 권한이 없으면 실제로 옮길 후보를 내지 않고 기록도 그대로 둔다", async () => {
+      const item = handleRoom(thing("그대로.psd"));
+      const before = structuredClone(stored());
+      vi.mocked(scanRoomFolder).mockRejectedValue(new DOMException("없음", "NotFoundError"));
+      expect(await planSweep([item], now)).toEqual([]);
+      expect(stored()).toEqual(before);
+
+      vi.mocked(scanRoomFolder).mockClear();
+      vi.mocked(folderAccess).mockResolvedValue("prompt");
+      expect(await planSweep([item], now)).toEqual([]);
+      expect(scanRoomFolder).not.toHaveBeenCalled();
+    });
   });
 });
 

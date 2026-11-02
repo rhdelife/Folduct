@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import capabilities from "../../src-tauri/capabilities/default.json";
 import { scanFolder } from "../gateways/folder";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
-import { openInApp, pathDirectory, pathSource, readPathFile } from "../gateways/native";
+import { openInApp, parseSpotlightDate, pathDirectory, pathSource, readPathFile, scanRoomFolder } from "../gateways/native";
 
 // 메모리 디스크. rename은 POSIX처럼 덮어쓰므로, 덮어쓰지 않는 건 어댑터가 지켜야 합니다.
 type Entry = { dir?: boolean; link?: boolean; data?: string; mtime?: number };
@@ -40,6 +40,8 @@ vi.mock("@tauri-apps/plugin-fs", () => {
   };
 });
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: async () => null }));
+const invoke = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 
 function seed() {
   disk.clear();
@@ -63,6 +65,48 @@ describe("데스크톱 폴더 읽기", () => {
       ["참고/시안.psd", "design", 2, 5],
       ["영상/a.mov", "video", 5, 9],
     ]);
+  });
+});
+
+describe("마지막 사용 시각", () => {
+  it("Spotlight 날짜 글자만 시각으로 읽는다", () => {
+    expect(parseSpotlightDate("2026-11-01 15:40:41 +0000")).toBe(Date.UTC(2026, 10, 1, 15, 40, 41));
+    expect(parseSpotlightDate("2026-11-01 15:40:41 +0900")).toBe(Date.UTC(2026, 10, 1, 6, 40, 41));
+    for (const bad of ["(null)", "", null, undefined, "2026-11-01", "2026-13-01 15:40:41 +0000", "어제"]) expect(parseSpotlightDate(bad)).toBeNull();
+  });
+
+  it("경로 폴더는 200개씩 물어 자리대로 채우고, 실패한 묶음만 비워 둔다", async () => {
+    disk.clear();
+    disk.set("/p", { dir: true });
+    for (let i = 0; i < 201; i += 1) disk.set(`/p/f${i}.txt`, { data: "x" });
+    invoke.mockReset();
+    invoke.mockImplementation(async (_cmd: string, args: { paths: string[] }) => args.paths.map((_, i) => (i === 0 ? "2026-11-01 15:40:41 +0000" : null)));
+    const { files } = await scanRoomFolder("/p");
+    expect(invoke.mock.calls.map(([cmd, args]) => [cmd, args.root, args.paths.length])).toEqual([["last_used_dates", "/p", 200], ["last_used_dates", "/p", 1]]);
+    expect(files.filter((file) => file.lastUsedAt !== null).map((file) => file.path)).toEqual([files[0].path, files[200].path]);
+
+    invoke.mockReset();
+    invoke.mockRejectedValueOnce(new Error("mdls 없음")).mockResolvedValueOnce(["2026-11-01 15:40:41 +0000"]);
+    const partly = await scanRoomFolder("/p");
+    expect(partly.files).toHaveLength(201);
+    expect(partly.files[0].lastUsedAt).toBeUndefined();
+    expect(partly.files[200].lastUsedAt).toBe(Date.UTC(2026, 10, 1, 15, 40, 41));
+  });
+
+  it("브라우저 핸들은 묻지 않고, 폴더를 못 읽으면 예전처럼 실패한다", async () => {
+    invoke.mockReset();
+    const handle = {
+      async *entries() {
+        yield ["a.txt", { kind: "file" }];
+      },
+      getFileHandle: async () => ({ getFile: async () => ({ size: 1, lastModified: 5 }) }),
+    } as unknown as FileSystemDirectoryHandle;
+    const { files } = await scanRoomFolder(handle);
+    expect(files).toHaveLength(1);
+    expect(files[0].lastUsedAt).toBeUndefined();
+    expect(invoke).not.toHaveBeenCalled();
+    disk.clear();
+    await expect(scanRoomFolder("/없음")).rejects.toThrow();
   });
 });
 

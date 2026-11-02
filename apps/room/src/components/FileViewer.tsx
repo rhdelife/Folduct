@@ -80,7 +80,7 @@ export function FileViewer({
     <dialog ref={dialog} className="sheet viewer" aria-labelledby="viewer-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
       <div className="sheet-body">
         <header className="viewer-head">
-          <ObjectShape kind={thing.kind} size={40} />
+          <ObjectShape kind={thing.kind} size={40} name={thing.name} seed={thing.id} />
           <div>
             <h2 id="viewer-title">{thing.name}</h2>
             <p className="soft">{kindLabels[thing.kind]} · {formatBytes(state.status === "ready" ? state.file.size : thing.size)} · {thing.path}</p>

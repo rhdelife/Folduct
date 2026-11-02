@@ -1,8 +1,8 @@
-import { dayMs, defaultCare, newThing } from "./care";
+import { dayMs, defaultCare, mergeActivityDays, newThing } from "./care";
 import { freeSpot } from "./plane";
 import { isSafeRelativePath, kindOf, newId, type Room, type RoomSource, type ScannedFile } from "./model";
 
-// 이만큼 아무 파일도 고치지 않은 폴더는 가져올 때 '완료한 프로젝트'로 둡니다. 방 설정에서 언제든 바꿀 수 있어요.
+// 이만큼 아무 파일도 쓰거나 고치지 않은 폴더는 가져올 때 '완료한 프로젝트'로 둡니다. 방 설정에서 언제든 바꿀 수 있어요.
 export const doneAfterDays = 60;
 
 export type ImportedRoom = { name: string; origin: string; complete: boolean; failed: number; files: ScannedFile[] };
@@ -31,7 +31,7 @@ export function parseRoomsFile(text: string): { rooms: ImportedRoom[]; skipped: 
       if (isObject(file) && typeof file.path === "string" && isSafeRelativePath(file.path) && isCount(file.size) && isCount(file.lastModified)) {
         // 이름과 종류는 경로의 마지막 칸에서만 정합니다. 따로 적힌 name을 믿으면 index.html이 그림으로 열릴 수 있어요.
         const name = file.path.split("/").pop()!;
-        files.push({ path: file.path, name, kind: kindOf(name), size: file.size, lastModified: file.lastModified });
+        files.push({ path: file.path, name, kind: kindOf(name), size: file.size, lastModified: file.lastModified, lastUsedAt: isCount(file.lastUsedAt) ? file.lastUsedAt : null });
       } else {
         skipped += 1;
       }
@@ -49,7 +49,7 @@ export function parseRoomsFile(text: string): { rooms: ImportedRoom[]; skipped: 
 }
 
 export function looksDone(files: ScannedFile[], now: number): boolean {
-  const newest = files.reduce((latest, file) => Math.max(latest, file.lastModified), 0);
+  const newest = files.reduce((latest, file) => Math.max(latest, file.lastModified, file.lastUsedAt ?? 0), 0);
   return now - newest > doneAfterDays * dayMs;
 }
 
@@ -80,7 +80,7 @@ export function buildRoom(input: {
     ...(input.origin ? { origin: input.origin } : {}),
     scan: { complete: input.scan.complete, failed: input.scan.failed, at: input.now, freedBytes: 0 },
     things,
-    workDays: input.workDays,
+    workDays: mergeActivityDays(input.workDays, things, input.now),
     care: { ...defaultCare, done: input.done },
     budgetBytes: input.budgetBytes,
     budgetNoticeAt: null,

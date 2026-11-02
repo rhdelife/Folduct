@@ -18,6 +18,8 @@ export type Thing = {
   kind: Kind;
   size: number;
   lastModified: number;
+  // 방 밖에서 마지막으로 연 시각(macOS Spotlight). 알 수 없으면 null.
+  lastUsedAt: number | null;
   missing: boolean;
   // null이면 아직 선반 위에 있습니다(방 바닥에 놓지 않음).
   spot: Spot | null;
@@ -42,14 +44,14 @@ export type Room = {
   origin?: string;
   scan: { complete: boolean; failed: number; at: number; freedBytes: number };
   things: Thing[];
-  // 이 방에서 무언가를 손댄 날(YYYY-MM-DD). 방치 판정의 기준입니다.
+  // 방 안에서 손대거나 방 밖에서 파일을 쓴 날(YYYY-MM-DD). 방치 판정의 기준입니다.
   workDays: string[];
   care: CareSettings;
   budgetBytes: number | null;
   budgetNoticeAt: number | null;
 };
 
-export type ScannedFile = { path: string; name: string; kind: Kind; size: number; lastModified: number };
+export type ScannedFile = { path: string; name: string; kind: Kind; size: number; lastModified: number; lastUsedAt?: number | null };
 
 const extensions: [Kind, string[]][] = [
   ["image", ["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "bmp", "heic", "ico"]],

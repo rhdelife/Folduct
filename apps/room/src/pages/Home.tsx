@@ -1,36 +1,64 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BrandMark, Icon } from "../components/Icon";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ContextMenu } from "../components/ContextMenu";
+import { JarScene } from "../components/home/JarScene";
+import { createEngine, EngineContext, nearestStop, sheetLift, stops, useScene, type HomeActions } from "../components/home/engine";
+import { FooterScene } from "../components/home/FooterScene";
+import { HeroScene } from "../components/home/HeroScene";
+import { HomeHeader } from "../components/home/HomeHeader";
+import { NotebookScene } from "../components/home/NotebookScene";
+import { DialScene } from "../components/home/DialScene";
+import { TableScene } from "../components/home/TableScene";
+import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
-import { KindLegend, SizeKey } from "../components/KindLegend";
-import { HomeSummary, scrollBehavior, SkyPanel } from "../components/SkyPanel";
-import { SkyMap } from "../components/SkyMap";
+import { HomeMenu } from "../components/HomeMenu";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
 import { mergeScan, sweepDue } from "../domain/care";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
-import { roomStats } from "../domain/sky";
+import { roomStats, stateAfterDone } from "../domain/sky";
 import { isNative } from "../gateways/native";
 import { planSweep, type SweepPlan } from "../storage/box";
 import { forgetRoom, getLastSweepAt, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { sampleRooms } from "../storage/sample";
 
-// 주간 정리 창은 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 버튼 글자로 알립니다.
+// 주간 정리 창은 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 메뉴 버튼 글자로 알립니다.
 let sweepChecked = false;
+// 방에 들어갔다 나오면 보던 장면으로 돌아옵니다.
+let lastStop = 0;
 
 const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms.json 폴더1 폴더2…";
 
+// 그 방의 화병으로 포커스를 옮깁니다. 화병이 없으면 지도로 들어오는 자리(첫 화병이나 빈 지도의 버튼)로요.
+function landFocus(id: string) {
+  (document.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('.room-node[tabindex="0"], .sky-empty button'))?.focus();
+}
+
+// 모든 장면을 태운 판 한 장. 맨 끝에서 판째로 들려 아래 장면이 드러납니다.
+function Sheet({ children }: { children: ReactNode }) {
+  const sheet = useRef<HTMLDivElement>(null);
+  useScene((pos) => {
+    sheet.current!.style.transform = `translate3d(0, ${sheetLift(pos)}dvh, 0)`;
+  });
+  return <div className="home-sheet" ref={sheet}>{children}</div>;
+}
+
 export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (id: string) => void }) {
+  const [engine] = useState(() => createEngine(lastStop));
   const [rooms, setRooms] = useState<Room[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [lastSweepAt, setLastSweep] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   // 방에서 돌아오면 그 방이 골라진 채로 시작합니다.
-  const [selectedId, setSelectedId] = useState(returnTo);
+  const [selectedId, setSelectedId] = useState(lastStop === 0 ? returnTo : null);
+  // 패널이 닫히며 미끄러지는 동안에도 내용이 남도록 마지막으로 고른 방을 기억합니다.
+  const [panelId, setPanelId] = useState(lastStop === 0 ? returnTo : null);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [roomMenu, setRoomMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLElement>(null);
   const { toast, toastRegion } = useToast();
@@ -64,6 +92,8 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
       sweepChecked = true;
       if (!sweepDue(last, Date.now())) return;
       const due = await planSweep(list);
+      // 정리 계획이 폴더를 다시 읽었으니 지도도 맞춥니다.
+      await load();
       if (due.length > 0) setPlans(due);
     } catch (error) {
       // 정리 확인이 안 돼도 방은 그대로 씁니다.
@@ -92,20 +122,79 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   // 지운 방이 골라져 있으면 고르지 않은 것으로 봅니다.
   const selected = rooms?.find((room) => room.id === selectedId) ?? null;
 
-  // 좁은 창에서는 목록이 지도 아래에 있으니, 방을 고르면 목록이 보이게 내립니다.
+  if (selected && selected.id !== panelId) setPanelId(selected.id);
+
+  // 패널을 닫으면 포커스가 갈 곳을 잃으니, 방금 본 방의 화병으로 돌려줍니다. 다른 곳에 있는 포커스는 빼앗지 않습니다.
+  // 새로 연 방은 패널 맨 위부터 보여 줍니다. 파일을 눌러 열면 그 줄로 가는 스크롤을 두고요.
   useEffect(() => {
-    if (!selected || !matchMedia("(max-width: 719.98px)").matches) return;
-    panel.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+    if (selected) {
+      if (!focusId) panel.current?.scrollTo(0, 0);
+      return;
+    }
+    // 다른 장면으로 떠나며 닫혔다면 첫 화면으로 포커스를 끌어오지 않습니다.
+    if (!panelId || engine.target !== 0) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || panel.current?.contains(active)) landFocus(panelId);
   }, [selected?.id]);
 
+  // 방은 첫 화면의 지도와 패널에서 열립니다. 다른 장면에서 고르면 첫 화면으로 돌아옵니다.
   const selectRoom = useCallback((id: string | null) => {
     setSelectedId(id);
     setFocusId(null);
-  }, []);
+    if (id) engine.goTo(0);
+  }, [engine]);
+
+  // 패널 글자나 별을 눌러 포커스가 패널 밖으로 나가도 Esc로 닫습니다. 대화상자와 오른쪽 클릭 메뉴가 먼저예요.
+  const panelOpen = selected !== null;
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog[open]")) selectRoom(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [panelOpen, selectRoom]);
   const focusThing = useCallback((roomId: string, thingId: string) => {
     setSelectedId(roomId);
     setFocusId(thingId);
-  }, []);
+    engine.goTo(0);
+  }, [engine]);
+
+  // 불러오는 중이거나 실패하면 움직일 장면이 없습니다.
+  const ready = rooms !== null && !loadFailed;
+  useEffect(() => {
+    if (!ready) return;
+    const detach = engine.attach();
+    return () => {
+      detach();
+      lastStop = nearestStop(engine.pos);
+    };
+  }, [engine, ready]);
+
+  // 방이 하나도 없으면 집 화면은 빈 첫 화면 하나뿐입니다.
+  const noRooms = rooms?.length === 0;
+  useEffect(() => engine.lock(noRooms), [engine, noRooms]);
+
+  // 첫 화면 말고 다른 자리로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
+  useEffect(() => {
+    if (!selected) return;
+    return engine.subscribe(() => {
+      if (engine.target !== 0) selectRoom(null);
+    });
+  }, [engine, !selected, selectRoom]);
+
+  // 떠나는 장면의 화병에는 메뉴를 열지 않습니다. 메뉴만 다음 장면 위에 남아요. 돌아오는 중이면 마저 도착해서 엽니다. 창 안의 목록은 장면과 상관없어요.
+  const openRoomMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => {
+    if (!opener.closest("dialog") && engine.moving) {
+      if (engine.target !== stops[Number(opener.closest<HTMLElement>("[data-scene]")?.dataset.scene)]) return;
+      engine.arrive();
+    }
+    setRoomMenu({ id, opener, x, y });
+  }, [engine]);
+  useEffect(() => {
+    if (!roomMenu || roomMenu.opener.closest("dialog")) return;
+    return engine.subscribe(() => setRoomMenu(null));
+  }, [engine, roomMenu]);
 
   const stats = useMemo(() => roomStats(rooms ?? [], now), [rooms, now]);
   const kinds = useMemo(() => new Set((rooms ?? []).flatMap((room) => room.things.map((thing) => thing.kind))), [rooms]);
@@ -119,8 +208,10 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   };
 
   async function openSweep() {
+    toast("폴더를 다시 보는 중…");
     const due = await planSweep(rooms ?? undefined);
-    if (due.length === 0) toast("지금은 쓰러진 물건이 없어요. 방들이 깔끔해요.");
+    await load();
+    if (due.length === 0) toast("지금은 정리할 파일이 없어요.");
     else setPlans(due);
   }
 
@@ -129,6 +220,7 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
     for (const room of samples) await saveRoom(room);
     setRooms((list) => [...(list ?? []), ...samples]);
     selectRoom(samples[0].id);
+    toast(`샘플 방 ${samples.length}개를 띄웠어요.`);
   }
 
   // 샘플 방은 한 번에 치우고, 잠깐 동안 되돌릴 수 있습니다.
@@ -139,7 +231,16 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
     setRooms((list) => list && list.filter((room) => !gone.has(room.id)));
     toast(`샘플 방 ${samples.length}개를 치웠어요.`, {
       label: "되돌리기",
-      run: () => void Promise.all(samples.map((room) => saveRoom(room))).then(load).catch(fail("샘플 방을 되돌리지 못했어요.")),
+      run: () =>
+        void Promise.all(samples.map((room) => saveRoom(room)))
+          .then(load)
+          .then(() => {
+            toast(`샘플 방 ${samples.length}개를 되돌렸어요.`);
+            requestAnimationFrame(() => {
+              if (document.activeElement === document.body) landFocus(samples[0].id);
+            });
+          })
+          .catch(fail("샘플 방을 되돌리지 못했어요.")),
     });
   }
 
@@ -169,113 +270,136 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
     }
     toast(
       `새 방 ${added}개${refreshed ? `, 다시 본 방 ${refreshed}개` : ""}를 띄웠어요.` +
-        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 고친 파일이 없어 완료한 방으로 두었어요. 방을 고르면 바꿀 수 있어요.` : "") +
+        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 완료된 프로젝트로 두었어요. 메뉴에서 고르면 바꿀 수 있어요.` : "") +
         (parsed.skipped ? ` 읽을 수 없는 항목 ${parsed.skipped}개는 뺐어요.` : ""),
     );
     await load();
   }
 
-  async function toggleDone(id: string) {
-    const done = !rooms?.find((room) => room.id === id)?.care.done;
+  // 실제 폴더는 그대로 두고 앱 안의 표시만 바꿉니다. 되돌리기는 나중에 불리니 옛 목록을 읽지 않게 바꿀 값을 받습니다.
+  async function moveRoom(id: string, done: boolean) {
     const saved = await patchRoom(id, (room) => ({ ...room, care: { ...room.care, done } }));
     setRooms((list) => list && list.map((room) => (room.id === id ? saved : room)));
+    // 고른 방이 옮겨 가면 고르기를 풀어 카메라를 제자리로 돌립니다.
+    setSelectedId((current) => (current === id ? null : current));
+    setFocusId((current) => (saved.things.some((thing) => thing.id === current) ? null : current));
+    toast(done ? "완료된 프로젝트로 옮겼어요. 폴더와 파일은 그대로예요." : `${stateAfterDone(saved.care)}으로 되돌렸어요.`, {
+      label: "되돌리기",
+      run: () => void moveRoom(id, !done).catch(fail(saveFailed)),
+    });
+    // 화병이 사라져 포커스를 잃었으면 지도로 이어 줍니다.
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) landFocus(id);
+    });
   }
+
+  // 메뉴의 동작은 메뉴를 닫고 실행합니다. 대화상자와 알림이 메뉴 뒤에 가리지 않게요.
+  const fromMenu = (run: () => void) => () => {
+    setMenuOpen(false);
+    run();
+  };
 
   const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
   const hasSample = rooms?.some((room) => room.source === "sample");
+  const menuRoom = rooms?.find((room) => room.id === roomMenu?.id);
+  const actions: HomeActions = {
+    selectRoom,
+    focusThing,
+    openRoom: onOpen,
+    openSweep: () => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요.")),
+    openNew: () => setCreating(true),
+    openMenu: () => setMenuOpen(true),
+    importList: isNative() ? null : () => importInput.current?.click(),
+    addSample: () => void addSample().catch(fail(saveFailed)),
+    clearSamples: () => void clearSamples().catch(fail("샘플 방을 치우지 못했어요. 잠시 뒤 다시 해 주세요.")),
+    roomMenu: openRoomMenu,
+    toggleDone: (id, done) => void moveRoom(id, done).catch(fail(saveFailed)),
+  };
+  const scene = rooms && { rooms, stats, now, lastSweepAt, returnTo, actions };
   return (
     <main className="home">
-      <header className="topnav topnav-centered">
-        <div className="topnav-brand">
-          <BrandMark size={36} />
-          <h1 className="sr-only">Folduct</h1>
-        </div>
-        <div className="row">
-          <button type="button" className="quiet" onClick={() => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요."))}>
-            <Icon name="sweep" />
-            주간 정리{overdue ? " · 할 때예요" : ""}
-          </button>
-          {rooms && !isNative() && (
-            <>
-              <button type="button" className="quiet" disabled={importing} onClick={() => importInput.current?.click()}>
-                <Icon name="import" />
-                {importing ? "가져오는 중…" : "목록 파일 가져오기"}
-              </button>
-              <input
-                ref={importInput}
-                type="file"
-                accept="application/json,.json"
-                hidden
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (!file) return;
-                  setImporting(true);
-                  void importRooms(file)
-                    .catch(fail("가져오지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요."))
-                    .finally(() => setImporting(false));
-                }}
-              />
-            </>
-          )}
-          {hasSample ? (
-            <button type="button" className="quiet" onClick={() => void clearSamples().catch(fail("샘플 방을 치우지 못했어요. 잠시 뒤 다시 해 주세요."))}>샘플 방 치우기</button>
-          ) : rooms?.length ? (
-            <button type="button" className="quiet" onClick={() => void addSample().catch(fail(saveFailed))}>샘플 방 구경하기</button>
-          ) : null}
-          <button type="button" className="primary" onClick={() => setCreating(true)}>+ 새 방 만들기</button>
-        </div>
-      </header>
-
-      {loadFailed ? (
-        <div className="page-status" role="alert">
-          <p>저장소를 열지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.</p>
-          <button type="button" onClick={() => { setLoadFailed(false); void start(); }}>다시 시도</button>
-        </div>
-      ) : rooms === null ? (
-        <p className="loading">저장된 방을 불러오는 중…</p>
-      ) : (
-        <div className={`sky-layout${rooms.length === 0 ? " is-empty" : ""}`}>
-          <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected?.id ?? null} focusId={focusId} onSelectRoom={selectRoom} onFocusThing={focusThing}>
-              {rooms.length === 0 ? (
-                <div className="sky-empty">
-                  <h2>아직 비어 있어요</h2>
-                  <p>작업 폴더를 하나 골라 첫 방을 만들어 보세요. 파일은 형식별 색의 반투명한 오브제가 되고, 클수록 크게 놓여요.</p>
-                  <div className="row">
-                    <button type="button" className="primary" onClick={() => setCreating(true)}>첫 방 만들기</button>
-                    <button type="button" onClick={() => void addSample().catch(fail(saveFailed))}>샘플 방 구경하기</button>
-                  </div>
-                </div>
-              ) : (
-                <HomeSummary rooms={rooms} room={selected} stats={stats} />
-              )}
-            </SkyMap>
-            {rooms.length > 0 && (
-              <div className="legend-strip">
-                <KindLegend kinds={kinds} />
-                <SizeKey />
+      <EngineContext.Provider value={engine}>
+        <div className="home-stage">
+          {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
+          <HomeHeader rooms={rooms ?? []} now={now} ready={ready} canTravel={ready && !noRooms} overdue={overdue} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} />
+          <Sheet>
+            {loadFailed ? (
+              <div className="scene page-status" role="alert">
+                <p>저장소를 열지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.</p>
+                <button type="button" onClick={() => { setLoadFailed(false); void start(); }}>다시 시도</button>
               </div>
+            ) : !scene ? (
+              <p className="scene loading">저장된 방을 불러오는 중…</p>
+            ) : (
+              <>
+                <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} />
+                {!noRooms && (
+                  <>
+                    <NotebookScene {...scene} />
+                    <TableScene {...scene} />
+                    <DialScene {...scene} />
+                    <JarScene {...scene} />
+                  </>
+                )}
+              </>
             )}
-          </section>
-          {rooms.length > 0 && (
-            <aside className="sky-panel" ref={panel}>
-              <SkyPanel
-                rooms={rooms}
-                room={selected}
-                stats={stats}
-                now={now}
-                focusId={focusId}
-                onSelectRoom={selectRoom}
-                onFocusThing={focusThing}
-                onEnter={onOpen}
-                onToggleDone={(id) => void toggleDone(id).catch(fail(saveFailed))}
-              />
-            </aside>
-          )}
+          </Sheet>
+          {scene && !loadFailed && !noRooms && <FooterScene {...scene} />}
         </div>
+      </EngineContext.Provider>
+      {!isNative() && (
+        <input
+          ref={importInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            setImporting(true);
+            void importRooms(file)
+              .catch(fail("가져오지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요."))
+              .finally(() => setImporting(false));
+          }}
+        />
       )}
 
+      {menuOpen && rooms && (
+        <HomeMenu
+          rooms={rooms}
+          stats={stats}
+          now={now}
+          kinds={kinds}
+          onClose={() => setMenuOpen(false)}
+          onSelectRoom={(id) => {
+            setMenuOpen(false);
+            selectRoom(id);
+            // 메뉴가 닫히며 포커스가 메뉴 버튼으로 돌아간 다음, 열린 패널로 옮깁니다.
+            requestAnimationFrame(() => panel.current?.querySelector("h2")?.focus());
+          }}
+          onRoomMenu={openRoomMenu}
+          actions={
+            <>
+              <button type="button" className="quiet" onClick={fromMenu(actions.openSweep)}>
+                <Icon name="sweep" />
+                주간 정리{overdue && <b> · 할 때예요</b>}
+              </button>
+              {actions.importList && (
+                <button type="button" className="quiet" disabled={importing} onClick={fromMenu(actions.importList)}>
+                  <Icon name="import" />
+                  {importing ? "가져오는 중…" : "목록 파일 가져오기"}
+                </button>
+              )}
+              {hasSample ? (
+                <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
+              ) : (
+                <button type="button" className="quiet" onClick={fromMenu(actions.addSample)}>샘플 방 구경하기</button>
+              )}
+            </>
+          }
+        />
+      )}
       {creating && (
         <NewRoomDialog
           onClose={() => setCreating(false)}
@@ -298,6 +422,17 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
             getLastSweepAt().then(setLastSweep, (error: unknown) => console.error(error));
             if (changed) void load();
           }}
+        />
+      )}
+      {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}
+      {roomMenu && menuRoom && (
+        <ContextMenu
+          x={roomMenu.x}
+          y={roomMenu.y}
+          opener={roomMenu.opener}
+          label={`${menuRoom.name} 방`}
+          items={[{ label: menuRoom.care.done ? `${stateAfterDone(menuRoom.care)}으로 되돌리기` : "완료된 프로젝트로 이동", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
+          onClose={() => setRoomMenu(null)}
         />
       )}
       {toastRegion}

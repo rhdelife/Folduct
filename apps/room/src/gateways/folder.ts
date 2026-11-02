@@ -61,6 +61,15 @@ export async function askAccess(handle: FileSystemDirectoryHandle, mode: AccessM
   }
 }
 
+// 폴더를 못 읽은 이유. 브라우저는 DOMException, Tauri는 문자열로 거절합니다.
+// shortcut: 경로에 같은 말이 들어 있으면 이유를 잘못 볼 수 있어요. 문구만 달라지니, Tauri가 오류 코드를 주면 코드로 바꿉니다.
+export function folderProblem(error: unknown): "denied" | "gone" | "other" {
+  if (error instanceof DOMException) return error.name === "NotAllowedError" || error.name === "SecurityError" ? "denied" : error.name === "NotFoundError" ? "gone" : "other";
+  const text = String(error);
+  if (/forbidden path|not allowed|operation not permitted|permission denied|os error 1\b|os error 13\b/i.test(text)) return "denied";
+  return /no such file|os error 2\b|not found/i.test(text) ? "gone" : "other";
+}
+
 export function handleSource(handle: FileSystemDirectoryHandle): DirectorySource {
   return {
     async *list() {
@@ -82,12 +91,20 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
     let listing: { name: string; kind: "file" | "directory" }[] = [];
     try {
       for await (const entry of dir.list()) listing.push(entry);
-    } catch {
+    } catch (error) {
+      // 방 폴더 자체를 못 읽으면(옮겨짐·드라이브 분리) 빈 폴더가 아니라 실패입니다. 하위 폴더는 세고 넘어갑니다.
+      if (level === 0) throw error;
       result.failed += 1;
       return;
     }
     for (const entry of listing) {
       if (isExcludedName(entry.name)) continue;
+      // 폴더로 내려가기 전에 봐야, 한도를 채운 뒤 남은 폴더를 더 읽지 않습니다. 위 단계도 다음 항목에서 바로 멈춥니다.
+      if (result.files.length >= scanLimits.files) {
+        result.complete = false;
+        result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
+        return;
+      }
       // 한글 이름은 NFC로 맞춰, 가져오기 스크립트(Node)가 읽은 경로와 같게 비교합니다.
       const name = entry.name.normalize("NFC");
       const path = parent ? `${parent}/${name}` : name;
@@ -103,11 +120,6 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
           result.failed += 1;
         }
         continue;
-      }
-      if (result.files.length >= scanLimits.files) {
-        result.complete = false;
-        result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
-        return;
       }
       try {
         const info = await dir.file(entry.name);
