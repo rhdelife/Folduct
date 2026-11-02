@@ -50,7 +50,6 @@ const windowsReserved = /^(?:con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt
 
 // Windows가 다른 뜻으로 읽는 이름. 콜론은 드라이브·대체 데이터 스트림이 되고, 끝의 점·공백은 잘려 다른 파일을 가리켜요. 그러면 '덮어쓰지 않기' 확인이 어긋납니다.
 export function isSafeWindowsName(name: string): boolean {
-  // eslint-disable-next-line no-control-regex
   return name.length > 0 && !/[<>:"|?*\\/\u0000-\u001f]/.test(name) && !/[. ]$/.test(name) && !windowsReserved.test(name);
 }
 
