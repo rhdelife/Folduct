@@ -45,7 +45,7 @@ describe("망가진 기록", () => {
 
   it("이름·시각·칸이 없어도 방을 그릴 수 있다", () => {
     const fixed = normalizeRoom({ id: "r", rootName: "폴더", workDays: ["2026-11-01", 3], things: "망가짐", care: null, scan: null, face: "망가짐" });
-    expect(fixed).toMatchObject({ name: "폴더", createdAt: 0, things: [], workDays: ["2026-11-01"], care: { enabled: true }, scan: { complete: false } });
+    expect(fixed).toMatchObject({ name: "폴더", createdAt: 0, things: [], workDays: ["2026-11-01"], care: { done: false }, scan: { complete: false } });
     expect(normalizeRoom({ id: "r" }).name).toBe("이름 없는 방");
   });
 

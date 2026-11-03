@@ -16,7 +16,7 @@ const inRange = (value: unknown, count: number): value is number => Number.isInt
 export function normalizeFace(value: unknown, id: string): RoomFace {
   const face = (value ?? {}) as Partial<RoomFace>;
   const fallback = defaultFace(id);
-  return { shape: inRange(face.shape, vasePaths.length) ? face.shape : fallback.shape, color: inRange(face.color, faceColors.length) ? face.color : fallback.color, ...(typeof face.mark === "number" ? { mark: face.mark } : {}) };
+  return { shape: inRange(face.shape, vasePaths.length) ? face.shape : fallback.shape, color: inRange(face.color, faceColors.length) ? face.color : fallback.color };
 }
 
 // 가장 덜 쓰인 번호 중 하나. 같은 순서로 만들어도 방마다 조금씩 다르게 고릅니다.

@@ -252,11 +252,6 @@ export function roomProgress(room: Room, now: number): RoomProgress {
   };
 }
 
-// 완료를 풀면 돌아갈 상태. 쉬던 방은 되돌리기가 정확하도록 '잠시 쉼'을 그대로 지니고 돌아갑니다.
-export function stateAfterDone(care: Pick<CareSettings, "resting">): string {
-  return care.resting ? "잠시 쉼" : "진행 중";
-}
-
 // 활동을 모르는 방은 null이라 줄째 숨깁니다.
 export function progressText({ lastActivityAt, recentCount }: RoomProgress, now: number): string | null {
   if (lastActivityAt === null) return null;

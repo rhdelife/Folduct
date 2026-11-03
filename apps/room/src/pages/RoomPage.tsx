@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
-import { kindParts, vaseBands } from "../art/vases";
 import { FacePicker } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
 import { BrandMark, Icon } from "../components/Icon";
@@ -11,7 +10,6 @@ import { useToast } from "../components/Toast";
 import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
-import { progressText, roomProgress, vaseFill } from "../domain/sky";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
 import { askFolder, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
@@ -25,9 +23,9 @@ type Panel = (typeof panels)[number];
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
 const folderIssues = {
-  denied: "폴더 접근 권한이 없어요. 목록과 메모는 그대로예요.",
-  gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록과 메모는 그대로예요.",
-  other: "폴더를 읽지 못했어요. 목록과 메모는 그대로예요.",
+  denied: "폴더 접근 권한이 없어요. 목록은 그대로예요.",
+  gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록은 그대로예요.",
+  other: "폴더를 읽지 못했어요. 목록은 그대로예요.",
 };
 // 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
 const stacked = "(max-width: 719.98px)";
@@ -175,7 +173,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     if (!handle || !latest.current) return;
     const granted = await askFolder(handle);
     setAccess(granted ? "granted" : "denied");
-    if (!granted) return toast("폴더 접근이 허용되지 않았어요. 방 배치와 메모는 그대로예요.");
+    if (!granted) return toast("폴더 접근이 허용되지 않았어요. 방 배치는 그대로예요.");
     await syncFolder(handle, true);
   }
 
@@ -390,7 +388,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const selected = room.things.find((thing) => thing.id === selectedId && thing.spot && !thing.box) ?? null;
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxed = room.things.filter((thing) => thing.box);
-  const progress = progressText(roomProgress(room, now), now);
   const tabLabels: Record<Panel, string> = { thing: "물건", shelf: `선반 ${shelfCount}`, box: `정리 상자 ${boxed.length}`, settings: "방 설정" };
 
   return (
@@ -403,7 +400,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         </button>
         <div className="topnav-title">
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
-          <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}{progress && ` · ${progress}`}</p>
+          <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
         </div>
         <div className="row">
           <div aria-live="polite">{busy && <span className="scanning">{busy}</span>}</div>
@@ -422,10 +419,10 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {(canPickFolder() || isNative()) && <button type="button" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 다시 고르기</button>}
           </p>
         )}
-        {room.source === "sample" && <p className="banner soft-banner">샘플 방이에요. 실제 파일은 없고, 옮기기·정리는 Folduct 안에서만 일어나요. 물건을 끌어 옮기고 눌러서 메모를 남겨 보세요.</p>}
+        {room.source === "sample" && <p className="banner soft-banner">샘플 방이에요. 실제 파일은 없고, 옮기기·정리는 Folduct 안에서만 일어나요.</p>}
         {handle && access !== "granted" && (
           <p className="banner soft-banner">
-            폴더 접근을 허용하면 상자 정리와 다시 보기를 할 수 있어요. 배치와 메모는 그대로예요. <button type="button" className="primary" onClick={() => void allowFolder()}>폴더 접근 허용</button>
+            폴더 접근을 허용하면 상자 정리와 다시 보기를 할 수 있어요. <button type="button" className="primary" onClick={() => void allowFolder()}>폴더 접근 허용</button>
             {/* 한 번 거절되면 다시 물어도 창이 뜨지 않을 수 있어요. 폴더를 새로 고르면 늘 다시 열 수 있습니다. */}
             {access === "denied" && canPickFolder() && <button type="button" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 다시 고르기</button>}
           </p>
@@ -442,7 +439,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {(canPickFolder() || isNative()) && <button type="button" className="primary" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 연결</button>}
           </p>
         )}
-        {!usage.exact && <p className="banner soft-banner">폴더를 다 읽지 못했어요(파일 {scanLimits.files.toLocaleString("ko-KR")}개·폴더 {scanLimits.depth}단계까지만 읽거나, 읽지 못한 항목이 있어요). 못 본 파일은 ‘파일 없음’으로 바꾸지 않고, 용량은 확인한 만큼만 보여 주며 경고하지 않아요.</p>}
+        {!usage.exact && <p className="banner soft-banner">폴더를 다 읽지 못했어요(파일 {scanLimits.files.toLocaleString("ko-KR")}개·폴더 {scanLimits.depth}단계까지만 읽거나, 읽지 못한 항목이 있어요). 못 본 파일은 ‘파일 없음’으로 바꾸지 않고, 용량은 확인한 만큼만 보여 줘요.</p>}
         {room.scan.freedBytes > 0 && <p className="banner happy-banner">지난 확인보다 {formatBytes(room.scan.freedBytes)} 비웠어요. 방이 한결 넓어졌어요.</p>}
       </div>
 
@@ -490,16 +487,15 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                   now={now}
                   folder={access === "granted" ? handle : null}
                   onPatch={patchThing}
-                  onCopy={copy}
                   onOpen={(id) => void openFile(id)}
                   onShelve={shelve}
-                  onOpenApp={typeof handle === "string" ? (id, reveal) => void openApp(id, handle, reveal).then((error) => error && toast(error)) : undefined}
+                  onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
                 />
               ) : (
                 <div>
                   <div className="drawer-head">
                     <h2 tabIndex={-1}>물건</h2>
-                    <p className="soft">방 안 물건을 누르면 여기서 이유 메모를 쓸 수 있어요.</p>
+                    <p className="soft">방 안 물건을 누르면 여기서 열거나 옮길 수 있어요.</p>
                   </div>
                 </div>
               ))}
@@ -527,7 +523,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onChange={(patch) => update((current) => ({ ...current, ...patch }))}
                 onCare={(patch) => update((current) => ({ ...current, care: { ...current.care, ...patch } }))}
                 onForget={async () => {
-                  if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 메모와 배치만 사라져요.`))) return;
+                  if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 방 기록만 사라져요.`))) return;
                   forgetting.current = true;
                   try {
                     await forgetRoom(room.id);
@@ -609,7 +605,7 @@ function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
   return url && <img className="thing-image" src={url} alt={`${thing.name} 미리보기`} onError={() => setUrl(null)} />;
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelve, onOpenApp }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onCopy: (path: string) => Promise<boolean>; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onOpenApp?: (id: string, reveal: boolean) => void }) {
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onReveal }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onReveal?: (id: string) => void }) {
   const age = thingAge(thing, room.care, room.workDays, now);
   const last = lastActivity(thing);
   return (
@@ -624,24 +620,20 @@ function ThingPanel({ room, thing, now, folder, onPatch, onCopy, onOpen, onShelv
       {folder && previewMode(thing) === "image" && !thing.missing && thing.size <= imageLimit && <ThingImage folder={folder} thing={thing} />}
       <p className="path">{thing.path}</p>
       <p className={`state${age.stale ? " state-stale" : ""}`}>
-        {thing.missing ? "폴더에서 찾지 못했어요. 메모와 자리는 남겨 둘게요."
+        {thing.missing ? "폴더에서 찾지 못했어요."
           : thing.pinned ? "고정한 물건이라 정리 후보가 되지 않아요."
           : age.stale ? `${age.days}일째 그대로예요. 다음 주간 정리 때 물어볼게요.`
           : last > (thing.touchedAt ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
           : "최근에 손댄 물건이에요."}
       </p>
-      <label className="field note">
-        이유 메모
-        <textarea value={thing.note} maxLength={2000} rows={5} placeholder="왜 이 물건을 여기 두었나요? 다음에 무엇을 할까요?" onChange={(event) => onPatch(thing.id, { note: event.target.value })} />
-      </label>
+      {/* 메모는 더 쓰지 않아요. 예전에 쓴 메모는 지우지 않고 보여 줍니다. */}
+      {thing.note && <p className="note-line">“{thing.note}”</p>}
       <div className="row wrap">
         <button type="button" className="primary" onClick={() => onOpen(thing.id)}>파일 열기</button>
-        {onOpenApp && previewMode(thing) !== "none" && <button type="button" onClick={() => onOpenApp(thing.id, false)}>기본 앱으로 열기</button>}
-        {onOpenApp && <button type="button" onClick={() => onOpenApp(thing.id, true)}>{fileManagerName()}에서 보기</button>}
+        {onReveal && <button type="button" onClick={() => onReveal(thing.id)}>{fileManagerName()}에서 보기</button>}
         {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
-        <button type="button" onClick={() => void onCopy(thing.path)}>경로 복사</button>
         <button type="button" onClick={() => onShelve(thing)}>선반에 올려두기</button>
       </div>
       {/* 끌기 없이 한 번씩 눌러서도 옮길 수 있게 합니다. */}
@@ -735,37 +727,23 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
   );
 }
 
-type Status = "active" | "resting" | "done";
-const statuses: [Status, string, Partial<CareSettings>, string][] = [
-  ["active", "진행 중", { done: false, resting: false }, "진행 중: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"],
-  ["resting", "잠시 쉼", { done: false, resting: true }, "잠시 쉼: 주간 정리만 멈추고 지도에는 그대로"],
-  ["done", "완료", { done: true, resting: false }, "완료: 주간 정리를 멈추고 완료된 프로젝트로 옮겨요"],
-];
-
 function SettingsPanel({ room, onChange, onCare, onForget }: { room: Room; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
   const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
-  const status: Status = room.care.done ? "done" : room.care.resting ? "resting" : "active";
   return (
     <div className="settings">
       <h2 tabIndex={-1}>방 설정</h2>
       <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => onChange({ name: event.target.value })} /></label>
-      <FacePicker roomId={room.id} face={room.face} bands={vaseBands(kindParts(room.things), vaseFill)} onChange={(face) => onChange({ face })} />
+      <FacePicker face={room.face} onChange={(face) => onChange({ face })} />
       <fieldset className="care">
         <legend>방 돌보기</legend>
         <div className="seg" role="radiogroup" aria-label="프로젝트 상태">
-          {statuses.map(([key, label, patch]) => (
-            <label key={key}><input type="radio" name="room-status" checked={status === key} onChange={() => onCare(patch)} />{label}</label>
-          ))}
+          <label><input type="radio" name="room-status" checked={!room.care.done} onChange={() => onCare({ done: false })} />진행 중</label>
+          <label><input type="radio" name="room-status" checked={room.care.done} onChange={() => onCare({ done: true })} />완료</label>
         </div>
-        <p className="soft">{statuses.find(([key]) => key === status)![3]}</p>
+        <p className="soft">{room.care.done ? "완료: 주간 정리를 멈추고 완료된 프로젝트로 옮겨요" : "진행 중: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
         <div className="row">
           <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
         </div>
-        <p className="soft">방 안이든 밖이든 이 폴더를 쓴 날이 있었는데 그 물건만 그대로였을 때만 세요. 폴더를 아예 안 쓴 기간은 세지 않아요.</p>
-        <details>
-          <summary>고급</summary>
-          <label><input type="checkbox" checked={room.care.enabled} onChange={(event) => onCare({ enabled: event.target.checked })} /> 오래된 물건 정리 제안 받기</label>
-        </details>
       </fieldset>
       <button type="button" className="danger" onClick={() => void onForget()}>이 방을 Folduct에서 지우기 (파일은 그대로)</button>
     </div>

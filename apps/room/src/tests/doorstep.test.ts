@@ -338,7 +338,7 @@ describe("방으로 옮기기", () => {
 });
 
 describe("문서를 받을 수 있는 방", () => {
-  const base = { things: [], care: { enabled: true, resting: false, done: false, staleAfterDays: 30 }, workDays: [] as string[], createdAt: 1, source: "handle" };
+  const base = { things: [], care: { done: false, staleAfterDays: 30 }, workDays: [] as string[], createdAt: 1, source: "handle" };
   const room = (id: string, extra: Record<string, unknown> = {}) => ({ ...base, id, name: id, origin: `/p/${id}`, ...extra }) as unknown as Room;
   const item = { folder: dl } as DoorItem;
 

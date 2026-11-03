@@ -1,7 +1,6 @@
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
-import type { RoomMark } from "../domain/halftone";
 import { kindLabels, kindOf, type Room, type Thing } from "../domain/model";
 
 // 이 브라우저 안에만 저장합니다. 파일 내용은 저장하지 않고 이름·크기·자리·메모만 둡니다.
@@ -132,14 +131,6 @@ export function setIntroOn(on: boolean): Promise<unknown> {
 }
 
 // 방 오브제 이미지. 방 기록을 자주 저장하니 무거운 그림은 따로 둡니다. 저장소를 새로 만들지 않고 meta에 방별 키로 넣어요.
-export async function getRoomMark(id: string): Promise<RoomMark | null> {
-  return (await run<RoomMark | undefined>("meta", "readonly", (store) => store.get(`mark:${id}`))) ?? null;
-}
-
-export function setRoomMark(id: string, mark: RoomMark): Promise<unknown> {
-  return run("meta", "readwrite", (store) => store.put(mark, `mark:${id}`));
-}
-
 export function deleteRoomMark(id: string): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.delete(`mark:${id}`));
 }

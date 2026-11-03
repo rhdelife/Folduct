@@ -93,7 +93,7 @@ describe("돌보기 설정 옮기기", () => {
     const { normalizeRoom } = await vi.importActual<typeof import("../storage/db")>("../storage/db");
     const { doneOfferAt: _, face: __, ...saved } = room([]);
     const old = { ...saved, care: { enabled: true, resting: false, done: false, tiltAfterDays: 3, fallAfterDays: 7 } };
-    expect(normalizeRoom(old)).toMatchObject({ doneOfferAt: null, care: { enabled: true, resting: false, done: false, staleAfterDays: 30 } });
+    expect(normalizeRoom(old)).toMatchObject({ doneOfferAt: null, care: { done: false, staleAfterDays: 30 } });
     expect(normalizeRoom(old).care).not.toHaveProperty("fallAfterDays");
     expect(normalizeRoom({ ...old, care: { ...old.care, fallAfterDays: 14 } }).care.staleAfterDays).toBe(14);
     expect(normalizeRoom({ ...old, doneOfferAt: 5 }).doneOfferAt).toBe(5);

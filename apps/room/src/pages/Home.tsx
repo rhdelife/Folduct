@@ -13,7 +13,7 @@ import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
-import { roomStats, stateAfterDone } from "../domain/sky";
+import { roomStats } from "../domain/sky";
 import { isNative } from "../gateways/native";
 import { planSweep, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
@@ -300,7 +300,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     // 고른 방이 옮겨 가면 고르기를 풀어 카메라를 제자리로 돌립니다.
     setSelectedId((current) => (current === id ? null : current));
     setFocusId((current) => (saved.things.some((thing) => thing.id === current) ? null : current));
-    toast(done ? "완료된 프로젝트로 옮겼어요. 폴더와 파일은 그대로예요." : `${stateAfterDone(saved.care)}으로 되돌렸어요.`, {
+    toast(done ? "완료된 프로젝트로 옮겼어요. 폴더와 파일은 그대로예요." : "진행 중으로 되돌렸어요.", {
       label: "되돌리기",
       run: () => void moveRoom(id, !done).catch(fail(saveFailed)),
     });
@@ -495,7 +495,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           y={roomMenu.y}
           opener={roomMenu.opener}
           label={`${menuRoom.name} 방`}
-          items={[{ label: menuRoom.care.done ? `${stateAfterDone(menuRoom.care)}으로 되돌리기` : "완료된 프로젝트로 이동", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
+          items={[{ label: menuRoom.care.done ? "진행 중으로 되돌리기" : "완료된 프로젝트로 이동", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
           onClose={() => setRoomMenu(null)}
         />
       )}

@@ -5,16 +5,17 @@ import { newId } from "./model";
 export const boxFolderName = "_Folduct 정리상자";
 export const sweepIntervalDays = 7;
 export const dayMs = 24 * 60 * 60 * 1000;
-export const defaultCare: CareSettings = { enabled: true, resting: false, done: false, staleAfterDays: 30 };
+export const defaultCare: CareSettings = { done: false, staleAfterDays: 30 };
 // 방 전체를 이만큼 안 쓰면 완료로 옮길지 묻습니다.
 export const doneAfterDays = 60;
 
 // 옛 기록은 기울어짐·쓰러짐 일수를 따로 가졌습니다. 예전 기본값 7일은 새 기본값으로 올리고, 직접 정한 쓰러짐 일수는 지킵니다.
+// 없어진 잠시 쉼과 정리 제안 끄기는 버립니다. 그런 방은 진행 중으로 돌아와요.
 export function normalizeCare(care: Partial<CareSettings> & { fallAfterDays?: unknown } | undefined): CareSettings {
-  const { enabled, resting, done, staleAfterDays } = { ...defaultCare, ...care };
+  const { done, staleAfterDays } = { ...defaultCare, ...care };
   const old = care?.fallAfterDays;
   const kept = care?.staleAfterDays === undefined && typeof old === "number" && old > 0 && old !== 7 ? old : staleAfterDays;
-  return { enabled, resting, done, staleAfterDays: kept };
+  return { done, staleAfterDays: kept };
 }
 
 export function localDay(timestamp: number): string {
@@ -57,7 +58,7 @@ export function thingAge(thing: Thing, care: CareSettings, workDays: string[], n
   if (thing.touchedAt === null) return { stale: false, days: 0 };
   const last = lastActivity(thing);
   const days = Math.max(0, Math.floor((now - last) / dayMs));
-  if (!care.enabled || care.resting || care.done || thing.pinned || thing.missing || thing.box) return { stale: false, days };
+  if (care.done || thing.pinned || thing.missing || thing.box) return { stale: false, days };
   // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
   const lastDay = localDay(last);
   const today = localDay(now);
@@ -67,7 +68,7 @@ export function thingAge(thing: Thing, care: CareSettings, workDays: string[], n
 
 // 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
 export function sweepCandidates(room: Room, now: number): Thing[] {
-  if (!room.care.enabled || room.care.resting || room.care.done) return [];
+  if (room.care.done) return [];
   return room.things.filter((thing) => thing.spot && thingAge(thing, room.care, room.workDays, now).stale).sort((a, b) => b.size - a.size);
 }
 
@@ -78,7 +79,7 @@ export function roomLastActivity(room: Pick<Room, "things">): number {
 
 // 방을 통째로 안 쓴 기간은 파일 판정에서 빠지니, 그런 방은 파일 대신 방 하나로 묻습니다. 답한 뒤로 다시 쓰기 전까지는 묻지 않아요.
 export function doneOfferDue(room: Room, now: number): boolean {
-  if (!room.care.enabled || room.care.resting || room.care.done) return false;
+  if (room.care.done) return false;
   const last = roomLastActivity(room);
   return last > 0 && now - last > doneAfterDays * dayMs && (room.doneOfferAt === null || last > room.doneOfferAt);
 }

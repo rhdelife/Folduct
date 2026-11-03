@@ -397,7 +397,7 @@ const MapLayers = memo(function MapLayers({
               <span className="vase-lift">
                 <span className="vase-shadow" />
                 <span className="vase-float">
-                  <RoomFaceArt face={room.face} roomId={room.id} bands={bands} className="vase-art" />
+                  <RoomFaceArt face={room.face} bands={bands} className="vase-art" />
                 </span>
               </span>
               <span className="vase-tag">

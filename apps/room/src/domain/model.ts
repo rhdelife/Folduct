@@ -30,11 +30,10 @@ export type Thing = {
 };
 
 // done: 완료한 프로젝트. 주간 정리가 멈춥니다.
-export type CareSettings = { enabled: boolean; resting: boolean; done: boolean; staleAfterDays: number };
+export type CareSettings = { done: boolean; staleAfterDays: number };
 
 // 방의 얼굴: 화병 모양 번호와 목 색 번호. domain/face.ts
-// mark가 있으면 이미지 오브제를 쓰는 방이고, 값은 이미지를 넣은 시각입니다.
-export type RoomFace = { shape: number; color: number; mark?: number };
+export type RoomFace = { shape: number; color: number };
 
 export type RoomSource = "handle" | "input" | "sample";
 

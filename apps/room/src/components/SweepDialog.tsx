@@ -128,7 +128,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
           </>
         ) : (
           <>
-            {plans.length > 0 && <p>오래 안 쓴 파일을 각 방 폴더 안 정리 상자(<span className="path">_Folduct 정리상자</span>)로 옮겨요. <strong>지우지 않아요.</strong> 메모와 원래 자리는 상자 안에서도 그대로예요.</p>}
+            {plans.length > 0 && <p>오래 안 쓴 파일을 각 방 폴더 안 정리 상자(<span className="path">_Folduct 정리상자</span>)로 옮겨요. <strong>지우지 않아요.</strong></p>}
             {asking.length > 0 && (
               <section className="sweep-room" aria-labelledby="sweep-offers">
                 <div className="row"><h3 id="sweep-offers">오래 안 쓴 방</h3></div>

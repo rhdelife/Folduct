@@ -53,9 +53,9 @@ describe("방 얼굴", () => {
   });
 });
 
-describe("이미지 오브제 표시", () => {
-  it("넣은 시각은 지키고, 망가진 값은 버려요", () => {
-    expect(normalizeFace({ shape: 1, color: 1, mark: 5 }, "r")).toEqual({ shape: 1, color: 1, mark: 5 });
-    expect(normalizeFace({ shape: 1, color: 1, mark: "어제" }, "r")).toEqual({ shape: 1, color: 1 });
+describe("이미지 얼굴", () => {
+  it("없어진 표시는 버려요", () => {
+    // 없어진 이미지 얼굴 표시는 남기지 않습니다. 그런 방은 화병으로 보여요.
+    expect(normalizeFace({ shape: 1, color: 1, mark: 5 }, "r")).toEqual({ shape: 1, color: 1 });
   });
 });

@@ -980,7 +980,6 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .room-page .path { padding: 0; border: 0; border-radius: 0; background: none; letter-spacing: 0; }
 .state { padding: 0; border-radius: 0; font-weight: 500; background: none; }
 .state-stale { padding: var(--space-2) var(--space-3); font-weight: 700; background: var(--status-caution-bg); }
-.note textarea { background-image: repeating-linear-gradient(transparent 0 calc(1.6em - var(--room-hair)), var(--room-line) calc(1.6em - var(--room-hair)) 1.6em); background-attachment: local; background-position-y: var(--space-2); }
 
 /* 목록 줄: 집 화면 표와 같은 칸. 줄 사이 틈 없이 얇은 선이 맞닿습니다. */
 .list li { padding: var(--space-2); border: var(--room-hair) solid var(--room-line); margin-top: calc(var(--room-hair) * -1); background: var(--bg); }
@@ -1161,9 +1160,3 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .face-art { width: 100%; height: 100%; overflow: visible; }
 .face-swatch { display: block; width: 100%; height: 100%; }
 
-/* 방 오브제: 실루엣 종이 위에 망점. 첫 화면 바닥과 구분되도록 종이는 한 단 어둡게 둡니다. */
-.mark-paper { fill: var(--surface-sunken); }
-.mark-preview { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.mark-preview-art { flex: none; width: calc(var(--space-12) * 2); height: calc(var(--space-12) * 2); overflow: visible; }
-.mark-actions { display: grid; justify-items: start; gap: var(--space-2); }
-.mark-add { justify-self: start; }

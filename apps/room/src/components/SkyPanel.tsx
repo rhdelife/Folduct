@@ -5,7 +5,7 @@ import { kindParts, vaseBands } from "../art/vases";
 import { RoomFaceArt } from "./RoomFace";
 import { lastActivity, relativeDay, thingAge } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
-import { homeActivity, pickStarThings, progressText, roomActivity, stateAfterDone, vaseFill, type RoomStat } from "../domain/sky";
+import { homeActivity, pickStarThings, progressText, roomActivity, vaseFill, type RoomStat } from "../domain/sky";
 import { Capacity } from "./Capacity";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { KindMix } from "./KindLegend";
@@ -127,7 +127,7 @@ export function SkyPanel({
         {progress && <p className="soft">{progress}</p>}
         <div className="row">
           <button type="button" className="primary enter" onClick={() => onEnter(room.id)}>방에 들어가기</button>
-          <button type="button" onClick={() => onToggleDone(room.id)}>{room.care.done ? `${stateAfterDone(room.care)}으로 되돌리기` : "완료된 프로젝트로 이동"}</button>
+          <button type="button" onClick={() => onToggleDone(room.id)}>{room.care.done ? "진행 중으로 되돌리기" : "완료된 프로젝트로 이동"}</button>
         </div>
       </header>
       <div className="rank-head">
@@ -161,7 +161,7 @@ export function SkyPanel({
 
 // 방은 어디서나 화병입니다. 지도와 같은 그림을 줄 높이에 맞춰 작게 그려요.
 export function RankVase({ room, partial }: { room: Room; partial: boolean }) {
-  return <RoomFaceArt face={room.face} roomId={room.id} compact bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill)} className="rank-vase" />;
+  return <RoomFaceArt face={room.face} bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill)} className="rank-vase" />;
 }
 
 function RoomRows({ rows, now, onSelectRoom, onRoomMenu }: { rows: ({ room: Room } & RoomStat)[]; now: number; onSelectRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {
