@@ -20,7 +20,7 @@ const dragSlop = 4;
 const askShownMs = 30_000;
 // 작업 중에 새 파일을 찾는 주기.
 const watchEveryMs = 10_000;
-const doneShownMs = 8_000;
+const doneShownMs = 20_000;
 
 // 앱 화면과 따로 늘 떠 있는 작은 창. 화병은 지금 하는 프로젝트이고, 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
@@ -203,8 +203,12 @@ export function Pet() {
   }
 
   async function addFolder() {
+    const win = getCurrentWindow();
+    const home = await win.outerPosition();
     try {
       const folder = await pickRoomFolder(await downloadDir());
+      // 선택 창이 작은 화병 창에 붙으면서 창을 밀어내요. 제자리로 돌려놓습니다.
+      await win.setPosition(home);
       if (!folder) return;
       const { state, error } = await addDoorFolder(folder);
       setDoor(state);

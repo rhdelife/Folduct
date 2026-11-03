@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
@@ -12,7 +13,7 @@ import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
-import { askFolder, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
+import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { forgetRoom, getRoom, saveHandle, saveRoom } from "../storage/db";
 
@@ -125,6 +126,21 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       cancelled = true;
     };
   }, [roomId, attempt]);
+
+  // 방을 열어 둔 채 플로팅 화병으로 파일을 넣거나 되돌리면 목록을 바로 맞춥니다.
+  useEffect(() => {
+    if (!isNative() || !handle || access !== "granted") return;
+    let left = false;
+    let stop: (() => void) | undefined;
+    void listen(doorChanged, () => void syncFolder(handle, true, () => left)).then((unlisten) => {
+      if (left) unlisten();
+      else stop = unlisten;
+    });
+    return () => {
+      left = true;
+      stop?.();
+    };
+  }, [handle, access]);
 
   // 방에 들어오면 제목으로 포커스를 옮겨, 화면 읽기 프로그램이 어느 방인지 읽게 합니다.
   useEffect(() => {
