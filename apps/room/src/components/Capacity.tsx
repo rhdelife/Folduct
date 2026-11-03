@@ -6,7 +6,7 @@ export function Capacity({ usage }: { usage: RoomUsage }) {
   const total = formatBytes(usage.totalBytes);
   return (
     <div className="capacity">
-      <p>{usage.exact ? total : `최소 ${total} 확인`}</p>
+      <p>{usage.exact ? `폴더 전체 ${total}` : `최소 ${total} 확인`}</p>
       {usage.boxBytes > 0 && <p className="capacity-box">그중 정리 상자 {formatBytes(usage.boxBytes)}</p>}
     </div>
   );
