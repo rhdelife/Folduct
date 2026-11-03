@@ -12,6 +12,11 @@ export type Folder = FileSystemDirectoryHandle | string;
 
 export const isNative = (): boolean => isTauri();
 
+export const petSettingsChanged = "pet-settings";
+
+export const setPetVisible = (visible: boolean): Promise<void> => invoke("set_pet_visible", { visible });
+
+
 const notFound = () => new DOMException("없음", "NotFoundError");
 
 function inside(root: string, path: string): string {

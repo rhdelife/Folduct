@@ -1,4 +1,4 @@
-import { normalizeSession, type Session } from "../domain/session";
+import { normalizePet, normalizeSession, type PetSettings, type Session } from "../domain/session";
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
@@ -129,6 +129,14 @@ export async function getSession(): Promise<Session | null> {
 
 export function saveSession(session: Session | null): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(session, "session"));
+}
+
+export async function getPetSettings(): Promise<PetSettings> {
+  return normalizePet(await run<unknown>("meta", "readonly", (store) => store.get("pet")));
+}
+
+export function savePetSettings(pet: PetSettings): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(pet, "pet"));
 }
 
 export async function getIntroOn(): Promise<boolean> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkpointSession, formatWorked, normalizeSession, pauseSession, restoreSession, resumeSession, startSession, workedTime } from "../domain/session";
+import { checkpointSession, defaultPet, formatWorked, normalizePet, normalizeSession, pauseSession, restoreSession, resumeSession, startSession, workedTime } from "../domain/session";
 
 describe("작업 시간", () => {
   it("작업 중인 시간만 쌓이고 멈춘 시간은 세지 않아요", () => {
@@ -42,6 +42,17 @@ describe("저장된 작업 읽기", () => {
   it("망가진 칸은 멈춤과 0으로 고쳐요", () => {
     expect(normalizeSession({ roomId: "r", status: "working", workedMs: "많이", since: "어제" })).toEqual({ roomId: "r", status: "paused", workedMs: 0, since: null });
     expect(normalizeSession({ roomId: "r", status: "working", workedMs: 5, since: 10 })).toEqual({ roomId: "r", status: "working", workedMs: 5, since: 10 });
+  });
+});
+
+describe("플로팅 설정 읽기", () => {
+  it("없거나 망가지면 기본값이에요", () => {
+    for (const value of [undefined, null, 3, { askEvery: 7 }, { askEvery: "자주", hidden: "네" }]) expect(normalizePet(value)).toEqual(defaultPet);
+  });
+
+  it("고를 수 있는 주기와 숨김은 그대로 읽어요", () => {
+    expect(normalizePet({ askEvery: 0, hidden: true })).toEqual({ askEvery: 0, hidden: true });
+    expect(normalizePet({ askEvery: 5 })).toEqual({ askEvery: 5, hidden: false });
   });
 });
 

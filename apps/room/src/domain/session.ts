@@ -24,6 +24,16 @@ export function normalizeSession(value: unknown): Session | null {
   return since !== null && session.status === "working" ? { roomId: session.roomId, status: "working", workedMs, since } : { roomId: session.roomId, status: "paused", workedMs, since: null };
 }
 
+// 플로팅 화병 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.
+export const askChoices = [0, 5, 10, 30] as const;
+export type PetSettings = { askEvery: number; hidden: boolean };
+export const defaultPet: PetSettings = { askEvery: 10, hidden: false };
+
+export function normalizePet(value: unknown): PetSettings {
+  const pet = value as Partial<PetSettings> | null | undefined;
+  return { askEvery: askChoices.some((choice) => choice === pet?.askEvery) ? pet!.askEvery! : defaultPet.askEvery, hidden: pet?.hidden === true };
+}
+
 export function formatWorked(ms: number): string {
   const total = Math.floor(ms / 1000);
   const two = (value: number) => String(value).padStart(2, "0");

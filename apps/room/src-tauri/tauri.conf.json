@@ -24,6 +24,7 @@
       {
         "label": "pet",
         "title": "Folduct 화병",
+        "visible": false,
         "url": "index.html#/pet",
         "width": 200,
         "height": 180,

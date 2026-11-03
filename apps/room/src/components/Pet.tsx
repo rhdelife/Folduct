@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, vaseBands } from "../art/vases";
 import type { Room } from "../domain/model";
-import { checkpointSession, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type Session } from "../domain/session";
+import { checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { vaseFill } from "../domain/sky";
-import { isNative } from "../gateways/native";
-import { getSession, listRooms, saveSession } from "../storage/db";
+import { isNative, petSettingsChanged, setPetVisible } from "../gateways/native";
+import { getPetSettings, getSession, listRooms, savePetSettings, saveSession } from "../storage/db";
 import { BrandMark } from "./Icon";
 import { RoomFaceArt } from "./RoomFace";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
+// 답이 없으면 상태는 그대로 두고 묻기만 거둡니다.
+const askShownMs = 30_000;
 
 // 앱 화면과 따로 늘 떠 있는 작은 창. 화병은 지금 하는 프로젝트이고, 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
@@ -19,6 +22,8 @@ export function Pet() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pet, setPet] = useState<PetSettings>(defaultPet);
+  const [asking, setAsking] = useState(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const dragged = useRef(false);
@@ -28,6 +33,7 @@ export function Pet() {
   const change = useCallback((next: Session | null) => {
     setSession(next);
     setNow(Date.now());
+    setAsking(false);
     saveSession(next).catch((error: unknown) => console.error(error));
   }, []);
 
@@ -48,6 +54,42 @@ export function Pet() {
       }
     })();
   }, [change, loadRooms]);
+
+  // 설정을 읽은 뒤에 창을 띄웁니다. 앱의 환경설정에서 바꾸면 바로 따라와요.
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let left = false;
+    const read = () => getPetSettings().then(setPet, (error: unknown) => console.error(error));
+    getPetSettings()
+      .then((saved) => {
+        setPet(saved);
+        if (!saved.hidden && isNative()) return setPetVisible(true);
+      })
+      .catch((error: unknown) => console.error(error));
+    if (isNative()) {
+      void listen(petSettingsChanged, () => void read()).then((unlisten) => {
+        if (left) unlisten();
+        else stop = unlisten;
+      });
+    }
+    return () => {
+      left = true;
+      stop?.();
+    };
+  }, []);
+
+  // 정한 주기마다 지금 상태가 맞는지 묻습니다. 상태를 바꾸면 주기를 처음부터 다시 세요.
+  const status = session?.status;
+  useEffect(() => {
+    if (!status || pet.hidden || pet.askEvery === 0) return setAsking(false);
+    const timer = window.setInterval(() => setAsking(true), pet.askEvery * 60_000);
+    return () => window.clearInterval(timer);
+  }, [status, pet.hidden, pet.askEvery]);
+  useEffect(() => {
+    if (!asking) return;
+    const timer = window.setTimeout(() => setAsking(false), askShownMs);
+    return () => window.clearTimeout(timer);
+  }, [asking]);
 
   useEffect(() => {
     if (!working) return;
@@ -105,6 +147,14 @@ export function Pet() {
     invoke("show_main").catch((error: unknown) => console.error(error));
   }
 
+  function hide() {
+    setMenuOpen(false);
+    const next = { ...pet, hidden: true };
+    setPet(next);
+    savePetSettings(next).catch((error: unknown) => console.error(error));
+    setPetVisible(false).catch((error: unknown) => console.error(error));
+  }
+
   const choices = rooms.filter((item) => !item.care.done);
   const state = session ? session.status : "off";
   return (
@@ -134,6 +184,15 @@ export function Pet() {
         </div>
       ) : (
         <button type="button" className="pet-start" data-no-drag aria-haspopup="menu" aria-expanded={menuOpen} onClick={openMenu}>작업 시작</button>
+      )}
+      {asking && session && (
+        <div className="pet-ask" data-no-drag>
+          <p role="status">{working ? "계속 작업 중인가요?" : "다시 시작할까요?"}</p>
+          <div>
+            <button type="button" onClick={() => change(working ? checkpointSession(session, Date.now()) : resumeSession(session, Date.now()))}>{working ? "계속" : "다시 시작"}</button>
+            <button type="button" onClick={() => (working ? change(pauseSession(session, Date.now())) : setAsking(false))}>{working ? "멈춤" : "계속 멈춤"}</button>
+          </div>
+        </div>
       )}
       {menuOpen && (
         <div className="pet-menu" data-no-drag>
@@ -173,6 +232,7 @@ export function Pet() {
             </button>
           )}
           {isNative() && <button type="button" onClick={openApp}>앱 열기</button>}
+          {isNative() && <button type="button" onClick={hide}>화병 숨기기</button>}
           {isNative() && <button type="button" onClick={() => invoke("quit_app").catch((error: unknown) => console.error(error))}>Folduct 끄기</button>}
         </div>
       )}

@@ -33,6 +33,44 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
   }
 }
 
+// 숨김 설정을 읽은 뒤에 띄우려고 처음에는 숨겨 둡니다. 띄워도 사용자가 쓰던 메인 창의 포커스는 뺏지 않아요.
+#[tauri::command]
+fn set_pet_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
+  let pet = app.get_webview_window("pet").ok_or("플로팅 창이 없어요.")?;
+  if !visible {
+    return pet.hide().map_err(|e| e.to_string());
+  }
+  let main = app.get_webview_window("main").filter(|window| window.is_focused().unwrap_or(false));
+  pet.show().map_err(|e| e.to_string())?;
+  if let Some(main) = main {
+    let _ = main.set_focus();
+  }
+  Ok(())
+}
+
+// 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 화병이 따라옵니다. 설정 파일로는 전체 화면 동작을 정할 수 없어 창에 직접 알려요.
+#[cfg(target_os = "macos")]
+fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
+  use std::ffi::{c_char, c_void};
+  #[link(name = "objc")]
+  unsafe extern "C" {
+    fn sel_registerName(name: *const c_char) -> *const c_void;
+    fn objc_msgSend();
+  }
+  const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
+  const STATIONARY: usize = 1 << 4;
+  const IGNORES_CYCLE: usize = 1 << 6;
+  const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+  const STATUS_WINDOW_LEVEL: isize = 25;
+  let Ok(ns_window) = window.ns_window() else { return };
+  unsafe {
+    let set_behavior: extern "C" fn(*mut c_void, *const c_void, usize) = std::mem::transmute(objc_msgSend as *const ());
+    let set_level: extern "C" fn(*mut c_void, *const c_void, isize) = std::mem::transmute(objc_msgSend as *const ());
+    set_behavior(ns_window, sel_registerName(c"setCollectionBehavior:".as_ptr()), CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE | FULL_SCREEN_AUXILIARY);
+    set_level(ns_window, sel_registerName(c"setLevel:".as_ptr()), STATUS_WINDOW_LEVEL);
+  }
+}
+
 // 플로팅 화병의 메뉴에서 부릅니다.
 #[tauri::command]
 fn show_main<R: Runtime>(app: AppHandle<R>) {
@@ -127,7 +165,14 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, open_in_app, reveal_in_finder, last_used_dates])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates])
+    .setup(|_app| {
+      #[cfg(target_os = "macos")]
+      if let Some(pet) = _app.get_webview_window("pet") {
+        float_everywhere(&pet);
+      }
+      Ok(())
+    })
     // 메인 창을 닫아도 플로팅 화병은 남습니다. 완전히 끄는 건 ⌘Q나 화병 메뉴예요.
     .on_window_event(|window, event| {
       if let (WindowEvent::CloseRequested { api, .. }, "main") = (event, window.label()) {
