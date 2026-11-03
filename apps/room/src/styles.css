@@ -146,6 +146,12 @@
   --paper-dim: 0.18;
   --room-label-max: max(22vw, 144px);
 
+  /* 플로팅 화병 */
+  --pet-w: 216px;
+  --pet-vase: 104px;
+  --pet-list-h: 168px;
+  --pet-rest: 0.45;
+
   /* 주간 정리 */
   --weekly-w: min(55vw, 760px);
   --weekly-shadow: 0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06);
@@ -1076,6 +1082,35 @@ main.page-status { min-height: 100dvh; align-content: center; }
   .room-page { padding: 0 var(--gutter) var(--space-8); }
   .topnav { grid-template-columns: minmax(0, 1fr) max-content; gap: 0 var(--space-3); padding: var(--space-3) 0; }
   .topnav-title { grid-row: 2; grid-column: 1 / -1; margin-top: var(--space-2); }
+}
+
+/* ══ 플로팅 화병 ══ */
+/* 창 자체가 투명해서 화병과 조작창만 바탕화면 위에 뜹니다. 상태는 색 대신 바탕의 반전, 굵은 글자, 움직임으로 말해요. */
+html[data-window="pet"], html[data-window="pet"] body { min-height: 0; overflow: hidden; background: transparent; }
+html[data-window="pet"] body::after { display: none; }
+.pet { box-sizing: border-box; width: var(--pet-w); padding: var(--space-2); display: grid; justify-items: center; gap: var(--space-2); cursor: grab; -webkit-user-select: none; user-select: none; }
+:where(button).pet-vase { min-height: 0; padding: 0; border: 0; background: none; cursor: grab; }
+:where(button).pet-vase:hover:not(:disabled), :where(button).pet-vase:active:not(:disabled) { background: none; transform: none; }
+.pet-vase svg:not(.mark) { display: block; width: var(--pet-vase); height: var(--pet-vase); overflow: visible; }
+.pet-vase .vase-body { fill: var(--surface); }
+.pet-working .pet-vase svg { transform-origin: 50% 100%; animation: pet-sway 1600ms ease-in-out infinite alternate; }
+.pet-paused .pet-vase svg { opacity: var(--pet-rest); }
+@keyframes pet-sway { from { rotate: -4deg; } to { rotate: 4deg; } }
+.pet-bar { box-sizing: border-box; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border: 2px solid var(--ink); background: var(--surface); color: var(--ink); }
+.pet-working .pet-bar { background: var(--ink); color: var(--bg); }
+.pet-status { min-width: 0; display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; column-gap: var(--space-2); }
+.pet-status strong { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; white-space: nowrap; }
+.pet-status time { font-size: var(--text-sm); line-height: var(--lh-sm); font-variant-numeric: tabular-nums; }
+.pet-status small { grid-column: 1 / -1; overflow: hidden; font-size: var(--text-xs); line-height: var(--lh-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pet .pet-toggle { flex: none; min-height: var(--control-sm); padding: 0 var(--space-2); border: 1px solid currentColor; background: none; color: inherit; font-size: var(--text-xs); white-space: nowrap; }
+.pet .pet-toggle:hover:not(:disabled), .pet .pet-toggle:active:not(:disabled) { background: none; color: inherit; transform: none; }
+.pet .pet-start { width: 100%; min-height: var(--control-lg); border: 2px solid var(--ink); background: var(--surface); color: var(--ink); font-weight: 800; }
+.pet-menu { box-sizing: border-box; width: 100%; display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--ink); background: var(--surface); color: var(--ink); cursor: default; font-size: var(--text-sm); }
+.pet-menu ul { max-height: var(--pet-list-h); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.pet-menu button { width: 100%; min-height: var(--control-sm); justify-content: flex-start; padding: 0 var(--space-1); border: 0; background: none; color: var(--ink); font-size: var(--text-sm); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-menu button:hover:not(:disabled) { background: var(--surface-sunken); }
+@media (prefers-reduced-motion: reduce) {
+  .pet-working .pet-vase svg { animation: none; }
 }
 
 /* ══ 인트로 ══ */

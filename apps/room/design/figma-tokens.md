@@ -203,6 +203,10 @@
 | `scene/hero-tip-z` | `50` |  |
 | `scene/paper-dim` | `0.18` |  |
 | `scene/room-label-max` | `max(22vw, 144px)` |  |
+| `scene/pet-w` | `216px` |  |
+| `scene/pet-vase` | `104px` |  |
+| `scene/pet-list-h` | `168px` |  |
+| `scene/pet-rest` | `0.45` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |

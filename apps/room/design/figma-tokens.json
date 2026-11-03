@@ -799,6 +799,22 @@
       "$type": "other",
       "$value": "max(22vw, 144px)"
     },
+    "pet-w": {
+      "$type": "other",
+      "$value": "216px"
+    },
+    "pet-vase": {
+      "$type": "other",
+      "$value": "104px"
+    },
+    "pet-list-h": {
+      "$type": "other",
+      "$value": "168px"
+    },
+    "pet-rest": {
+      "$type": "other",
+      "$value": "0.45"
+    },
     "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"

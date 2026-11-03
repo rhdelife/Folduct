@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime, WindowEvent};
 use tauri_plugin_fs::FsExt;
 
 // 사용자가 고른 폴더(런타임 fs 스코프) 안의 경로만 받습니다. 스코프는 심볼릭 링크와 '..'를 풀어서 비교합니다.
@@ -23,6 +23,25 @@ fn allow_rooms<R: Runtime>(app: AppHandle<R>, folders: Vec<PathBuf>) -> Result<(
     app.fs_scope().allow_directory(folder, true).map_err(|e| e.to_string())?;
   }
   Ok(())
+}
+
+fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+  if let Some(window) = app.get_webview_window("main") {
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+  }
+}
+
+// 플로팅 화병의 메뉴에서 부릅니다.
+#[tauri::command]
+fn show_main<R: Runtime>(app: AppHandle<R>) {
+  show_main_window(&app);
+}
+
+#[tauri::command]
+fn quit_app<R: Runtime>(app: AppHandle<R>) {
+  app.exit(0);
 }
 
 #[tauri::command]
@@ -108,9 +127,23 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, open_in_app, reveal_in_finder, last_used_dates])
+    // 메인 창을 닫아도 플로팅 화병은 남습니다. 완전히 끄는 건 ⌘Q나 화병 메뉴예요.
+    .on_window_event(|window, event| {
+      if let (WindowEvent::CloseRequested { api, .. }, "main") = (event, window.label()) {
+        api.prevent_close();
+        let _ = window.hide();
+      }
+    })
+    .build(tauri::generate_context!())
+    .expect("error while running tauri application")
+    .run(|_app, _event| {
+      // Dock 아이콘을 누르면 숨긴 메인 창을 다시 엽니다.
+      #[cfg(target_os = "macos")]
+      if let tauri::RunEvent::Reopen { .. } = _event {
+        show_main_window(_app);
+      }
+    });
 }
 
 #[cfg(test)]

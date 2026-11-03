@@ -10,14 +10,34 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "Folduct",
         "width": 1280,
         "height": 840,
         "minWidth": 720,
         "minHeight": 520,
         "zoomHotkeysEnabled": true
+      },
+      {
+        "label": "pet",
+        "title": "Folduct 화병",
+        "url": "index.html#/pet",
+        "width": 200,
+        "height": 180,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "visibleOnAllWorkspaces": true,
+        "skipTaskbar": true,
+        "focus": false,
+        "acceptFirstMouse": true
       }
     ],
     "security": {

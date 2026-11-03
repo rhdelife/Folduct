@@ -1,3 +1,4 @@
+import { normalizeSession, type Session } from "../domain/session";
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
@@ -122,6 +123,14 @@ export function setLastSweepAt(at: number): Promise<unknown> {
 }
 
 // 끈 적이 없으면 켜져 있습니다.
+export async function getSession(): Promise<Session | null> {
+  return normalizeSession(await run<unknown>("meta", "readonly", (store) => store.get("session")));
+}
+
+export function saveSession(session: Session | null): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(session, "session"));
+}
+
 export async function getIntroOn(): Promise<boolean> {
   return (await run<boolean | undefined>("meta", "readonly", (store) => store.get("introOn"))) !== false;
 }
