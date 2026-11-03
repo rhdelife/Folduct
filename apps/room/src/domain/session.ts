@@ -1,14 +1,17 @@
-// 지금 하고 있는 작업 하나. 플로팅 화병의 시작·멈춤·끝내기가 이 값만 바꿉니다. 없으면 꺼진 상태예요.
-// since는 작업 중으로 들어간 시각이고, 멈춰 있으면 null입니다. 쌓인 시간은 workedMs에 있어요.
-export type Session = { roomId: string; status: "working" | "paused"; workedMs: number; since: number | null };
+import type { DoorItem } from "./doorstep";
 
-export const startSession = (roomId: string, now: number): Session => ({ roomId, status: "working", workedMs: 0, since: now });
+// 지금 하고 있는 작업 하나. 플로팅 화병의 시작·멈춤·끝내기가 이 값만 바꿉니다. 없으면 꺼진 상태예요.
+// since는 시간을 세기 시작한 시각이고, 멈춰 있으면 null입니다. 쌓인 시간은 workedMs에 있어요.
+// watchFrom은 마지막으로 시작하거나 다시 시작한 시각이에요. 이 뒤에 들어온 파일만 이 작업의 파일로 봅니다.
+export type Session = { roomId: string; status: "working" | "paused"; workedMs: number; since: number | null; watchFrom: number };
+
+export const startSession = (roomId: string, now: number): Session => ({ roomId, status: "working", workedMs: 0, since: now, watchFrom: now });
 
 export const workedTime = (session: Session, now: number): number => session.workedMs + (session.since === null ? 0 : Math.max(0, now - session.since));
 
 export const pauseSession = (session: Session, now: number): Session => ({ ...session, status: "paused", workedMs: workedTime(session, now), since: null });
 
-export const resumeSession = (session: Session, now: number): Session => (session.status === "working" ? session : { ...session, status: "working", since: now });
+export const resumeSession = (session: Session, now: number): Session => (session.status === "working" ? session : { ...session, status: "working", since: now, watchFrom: now });
 
 // 작업 중에 틈틈이 저장합니다. 앱이 갑자기 꺼져도 그때까지의 시간은 남아요.
 export const checkpointSession = (session: Session, now: number): Session => (session.status === "working" ? { ...session, workedMs: workedTime(session, now), since: now } : session);
@@ -21,7 +24,14 @@ export function normalizeSession(value: unknown): Session | null {
   if (typeof session?.roomId !== "string" || !session.roomId) return null;
   const workedMs = typeof session.workedMs === "number" && session.workedMs > 0 ? session.workedMs : 0;
   const since = typeof session.since === "number" ? session.since : null;
-  return since !== null && session.status === "working" ? { roomId: session.roomId, status: "working", workedMs, since } : { roomId: session.roomId, status: "paused", workedMs, since: null };
+  const watchFrom = typeof session.watchFrom === "number" ? session.watchFrom : (since ?? 0);
+  return since !== null && session.status === "working" ? { roomId: session.roomId, status: "working", workedMs, since, watchFrom } : { roomId: session.roomId, status: "paused", workedMs, since: null, watchFrom };
+}
+
+// 작업 중에 들어온 새 파일. 멈춘 동안이나 시작 전에 들어온 파일은 현관 줄에만 남아요. since는 그 파일을 찾기 직전에 폴더를 읽은 시각입니다.
+export function arrivals(items: DoorItem[], session: Session | null): DoorItem[] {
+  if (session?.status !== "working") return [];
+  return items.filter((item) => item.since >= session.watchFrom).sort((a, b) => a.since - b.since || a.lastModified - b.lastModified);
 }
 
 // 플로팅 화병 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.

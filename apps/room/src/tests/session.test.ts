@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { checkpointSession, defaultPet, formatWorked, normalizePet, normalizeSession, pauseSession, restoreSession, resumeSession, startSession, workedTime } from "../domain/session";
+import type { DoorItem } from "../domain/doorstep";
+import { arrivals, checkpointSession, defaultPet, formatWorked, normalizePet, normalizeSession, pauseSession, restoreSession, resumeSession, startSession, workedTime } from "../domain/session";
 
 describe("작업 시간", () => {
   it("작업 중인 시간만 쌓이고 멈춘 시간은 세지 않아요", () => {
@@ -40,8 +41,33 @@ describe("저장된 작업 읽기", () => {
   });
 
   it("망가진 칸은 멈춤과 0으로 고쳐요", () => {
-    expect(normalizeSession({ roomId: "r", status: "working", workedMs: "많이", since: "어제" })).toEqual({ roomId: "r", status: "paused", workedMs: 0, since: null });
-    expect(normalizeSession({ roomId: "r", status: "working", workedMs: 5, since: 10 })).toEqual({ roomId: "r", status: "working", workedMs: 5, since: 10 });
+    expect(normalizeSession({ roomId: "r", status: "working", workedMs: "많이", since: "어제" })).toEqual({ roomId: "r", status: "paused", workedMs: 0, since: null, watchFrom: 0 });
+    expect(normalizeSession({ roomId: "r", status: "working", workedMs: 5, since: 10 })).toEqual({ roomId: "r", status: "working", workedMs: 5, since: 10, watchFrom: 10 });
+  });
+});
+
+describe("작업 중에 들어온 파일", () => {
+  const item = (id: string, since: number) => ({ id, since, lastModified: since }) as DoorItem;
+
+  it("시작한 뒤에 들어온 파일만 이 작업의 파일이에요", () => {
+    const session = startSession("r", 1000);
+    expect(arrivals([item("전", 999), item("뒤", 1000), item("더뒤", 2000)], session).map((file) => file.id)).toEqual(["뒤", "더뒤"]);
+  });
+
+  it("멈추면 묻지 않고, 멈춘 동안 들어온 파일은 다시 시작해도 넣지 않아요", () => {
+    const paused = pauseSession(startSession("r", 1000), 2000);
+    expect(arrivals([item("중", 1500)], paused)).toEqual([]);
+    const resumed = resumeSession(paused, 5000);
+    expect(arrivals([item("멈춘 동안", 3000), item("다시 시작 뒤", 5000)], resumed).map((file) => file.id)).toEqual(["다시 시작 뒤"]);
+  });
+
+  it("틈틈이 저장해도 기준 시각은 그대로예요", () => {
+    const saved = checkpointSession(startSession("r", 1000), 60000);
+    expect(arrivals([item("처음", 1000)], saved).map((file) => file.id)).toEqual(["처음"]);
+  });
+
+  it("꺼져 있으면 아무것도 넣지 않아요", () => {
+    expect(arrivals([item("a", 1)], null)).toEqual([]);
   });
 });
 

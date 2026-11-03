@@ -304,6 +304,33 @@ mod tests {
     std::fs::remove_dir_all(&base).unwrap();
   }
 
+  // 플로팅 화병도 고른 폴더 안에서만 옮기고, 지우거나 고쳐 쓰지 못합니다.
+  #[test]
+  fn pet_moves_but_never_deletes() {
+    let base = std::env::temp_dir().join(format!("folduct-pet-{}", std::process::id()));
+    let (door, room, outside) = (base.join("door"), base.join("room"), base.join("outside"));
+    for folder in [&door, &room, &outside] {
+      std::fs::create_dir_all(folder).unwrap();
+    }
+    std::fs::write(door.join("보고서.pdf"), "원본").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "pet", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&door, true).unwrap();
+    app.fs_scope().allow_directory(&room, true).unwrap();
+    let (from, to) = (door.join("보고서.pdf"), room.join("보고서.pdf"));
+
+    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": outside.join("보고서.pdf") })).is_err());
+    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": to })).unwrap();
+    assert_eq!(std::fs::read_to_string(&to).unwrap(), "원본");
+    assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": to })).is_err());
+    assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": to })).is_err());
+    assert!(to.exists());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
   #[test]
   fn last_used_keeps_each_date_with_its_file() {
     let base = std::env::temp_dir().join(format!("folduct-used-{}", std::process::id()));

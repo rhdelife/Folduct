@@ -1,11 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "pet",
-  "description": "Floating vase: move and resize its own window only. No file permissions.",
+  "description": "Floating vase: moves its own window, reads inbox folders, and moves files only inside folders the user picked (runtime fs scope). No remove/write permissions.",
   "windows": ["pet"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
-    "core:window:allow-set-size"
+    "core:window:allow-set-size",
+    "dialog:allow-open",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    "fs:allow-exists",
+    "fs:allow-rename"
   ]
 }

@@ -4,20 +4,25 @@ import { addFolder, doorTargets, doorTitle, dropItem, emptyDoorstep, isPartialFi
 import type { Room, ScannedFile } from "../domain/model";
 import { readDoorFolder, type DirectorySource } from "../gateways/folder";
 import { moveDoorFile, type MoveDirectory } from "../gateways/mover";
-import { addDoorFolder, assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
+import { addDoorFolder, assignDoorItem, bringIntoRoom, refreshDoorstep, undoBring, undoDoorMove } from "../storage/doorstep";
 import { seed, view, type MemoryDir } from "./fakeFolder";
 
 // 저장소와 Tauri 폴더 손만 메모리로 바꿉니다. 등록하지 않은 폴더는 읽기에 실패합니다.
-const disk = vi.hoisted(() => ({ state: null as unknown as Doorstep, folders: new Map<string, DirectorySource>(), dirs: new Map<string, MoveDirectory>(), rooms: [] as { origin?: string }[] }));
+const disk = vi.hoisted(() => ({ state: null as unknown as Doorstep, folders: new Map<string, DirectorySource>(), dirs: new Map<string, MoveDirectory>(), rooms: [] as { origin?: string }[], patched: null as Room | null, scanned: null as MemoryDir | null, scanFails: false }));
 
 vi.mock("../storage/db", () => ({
   getDoorstep: async () => disk.state,
   patchDoorstep: async (mutate: (state: Doorstep) => Doorstep) => (disk.state = mutate(disk.state)),
   listRooms: async () => disk.rooms,
+  patchRoom: async (_id: string, mutate: (room: Room) => Room) => (disk.patched = mutate(disk.patched!)),
 }));
 
 vi.mock("../gateways/native", () => ({
   sameFolder: (a: string | undefined, b: string) => a === b,
+  scanRoomFolder: async () => {
+    if (disk.scanFails) throw new Error("읽기 실패");
+    return { files: [...disk.scanned!.files.keys()].map((name) => ({ path: name, name, kind: "pdf", size: 10, lastModified: 1 })), complete: true, failed: 0 };
+  },
   folderMover: (folder: string) => disk.dirs.get(folder),
   pathSource: (folder: string) =>
     disk.folders.get(folder) ?? {
@@ -334,6 +339,53 @@ describe("방으로 옮기기", () => {
     expect(await moveDoorFile(from, "보고서.pdf", to, "하위/보고서.pdf")).toMatchObject({ ok: false, reason: "invalid" });
     expect(await moveDoorFile(from, "보고서.pdf", to, "_Folduct 정리상자/보고서.pdf")).toMatchObject({ ok: false, reason: "invalid" });
     expect(downloads.files.has("보고서.pdf")).toBe(true);
+  });
+});
+
+describe("작업 중인 방으로 가져오기", () => {
+  const roomPath = "/Users/me/Projects/졸업";
+  const target = { id: "r", name: "졸업", source: "handle", origin: roomPath, things: [], workDays: [], scan: { complete: true, failed: 0, at: 0, freedBytes: 0 }, care: { done: false, staleAfterDays: 30 } } as unknown as Room;
+  let downloads: MemoryDir;
+  let room: MemoryDir;
+  let item: DoorItem;
+
+  beforeEach(() => {
+    downloads = seed({ "보고서.pdf": "내 문서" });
+    room = seed({});
+    disk.dirs.set(dl, view(downloads));
+    disk.dirs.set(roomPath, view(room));
+    disk.scanned = room;
+    disk.scanFails = false;
+    disk.patched = target;
+    disk.state = settleFolder(opened([]), dl, read(["보고서.pdf"], [file("보고서.pdf")]), now);
+    item = disk.state.items[0];
+  });
+
+  it("파일을 방 폴더로 옮기고 방 목록에도 바로 올려요", async () => {
+    const { moved, error } = await bringIntoRoom(item, target);
+    expect(error).toBeNull();
+    expect(moved).toEqual({ folder: roomPath, name: "보고서.pdf" });
+    expect(room.files.get("보고서.pdf")).toBe("내 문서");
+    expect(downloads.files.has("보고서.pdf")).toBe(false);
+    expect(disk.patched!.things.map((thing) => thing.path)).toEqual(["보고서.pdf"]);
+  });
+
+  it("방 목록을 못 맞춰도 옮긴 결과는 그대로예요", async () => {
+    disk.scanFails = true;
+    const { moved, error } = await bringIntoRoom(item, target);
+    expect(error).toBeNull();
+    expect(moved).not.toBeNull();
+    expect(room.files.has("보고서.pdf")).toBe(true);
+  });
+
+  it("되돌리면 원래 폴더로 돌아가고 방 목록에서는 없는 파일이 돼요", async () => {
+    const { moved } = await bringIntoRoom(item, target);
+    const { state, error } = await undoBring(item, moved!, target);
+    expect(error).toBeNull();
+    expect(downloads.files.get("보고서.pdf")).toBe("내 문서");
+    expect(room.files.has("보고서.pdf")).toBe(false);
+    expect(state.items.map((entry) => entry.id)).toEqual([item.id]);
+    expect(disk.patched!.things.every((thing) => thing.missing)).toBe(true);
   });
 });
 

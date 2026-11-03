@@ -1,8 +1,10 @@
+import { mergeScan } from "../domain/care";
 import { addFolder, dropItem, restoreItem, settleFolder, settleMoved, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { readDoorFolder } from "../gateways/folder";
 import { freeDoorName, moveDoorFile } from "../gateways/mover";
-import { folderMover, pathSource, sameFolder } from "../gateways/native";
-import { getDoorstep, listRooms, patchDoorstep } from "./db";
+import type { Room } from "../domain/model";
+import { folderMover, pathSource, sameFolder, scanRoomFolder } from "../gateways/native";
+import { getDoorstep, listRooms, patchDoorstep, patchRoom } from "./db";
 
 export type DoorMove = { folder: string; name: string };
 
@@ -46,6 +48,29 @@ export async function assignDoorItem(item: DoorItem, folder: string): Promise<{ 
   // 파일이 이미 없으면 줄에 둘 이유가 없습니다. 그 밖의 실패는 다시 고를 수 있게 남겨 둬요.
   const state = result.reason === "missing" ? await patchDoorstep((latest) => dropItem(latest, item.id)) : await getDoorstep();
   return { state, moved: null, error: result.message };
+}
+
+// 방 목록을 폴더에 맞춥니다. 못 읽어도 옮긴 파일은 그대로고, 방을 열 때 다시 맞춰요.
+async function syncRoom(room: Room) {
+  try {
+    const scan = await scanRoomFolder(room.origin!);
+    await patchRoom(room.id, (latest) => mergeScan(latest, scan.files, scan, Date.now()));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// 작업 중인 방으로 가져옵니다. 파일을 그 방 폴더로 옮기고 방 목록에도 바로 올려요.
+export async function bringIntoRoom(item: DoorItem, room: Room): Promise<{ state: Doorstep; moved: DoorMove | null; error: string | null }> {
+  const result = await assignDoorItem(item, room.origin!);
+  if (result.moved) await syncRoom(room);
+  return result;
+}
+
+export async function undoBring(item: DoorItem, moved: DoorMove, room: Room): Promise<{ state: Doorstep; error: string | null }> {
+  const result = await undoDoorMove(item, moved);
+  if (!result.error) await syncRoom(room);
+  return result;
 }
 
 // 되돌리기: 원래 이름으로 현관 폴더에 돌려놓고 줄에 다시 올립니다. 그 자리에 다른 파일이 있으면 덮어쓰지 않아요.

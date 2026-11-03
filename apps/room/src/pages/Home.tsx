@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
 import { createEngine, EngineContext, type HomeActions } from "../components/home/engine";
@@ -14,7 +16,7 @@ import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type 
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
 import { roomStats } from "../domain/sky";
-import { isNative } from "../gateways/native";
+import { doorChanged, isNative, sessionEnded } from "../gateways/native";
 import { planSweep, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
@@ -77,7 +79,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const findSweep = useCallback(async (list?: Room[]) => {
     const due = await planSweep(list);
     const fresh = (await load()) ?? [];
-    const asks = fresh.filter((room) => doneOfferDue(room, Date.now()));
+    const asks = fresh.filter((room) => (!list || list.some((item) => item.id === room.id)) && doneOfferDue(room, Date.now()));
     if (due.length === 0 && asks.length === 0) return false;
     setOffers(asks);
     setPlans(due);
@@ -126,6 +128,31 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       }
     })();
   }, [toast]);
+
+  // 플로팅 화병이 파일을 옮겼거나 작업을 끝냈을 때입니다. 끝낸 방에 치울 파일이 있으면 정리 창을 띄워요.
+  useEffect(() => {
+    if (!isNative()) return;
+    let left = false;
+    const stops: (() => void)[] = [];
+    const add = (stop: () => void) => {
+      if (left) stop();
+      else stops.push(stop);
+    };
+    void listen(doorChanged, () => {
+      void getDoorstep().then(setDoor, (error: unknown) => console.error(error));
+      void load();
+    }).then(add);
+    void listen<string>(sessionEnded, (event) => {
+      void (async () => {
+        const room = (await load())?.find((item) => item.id === event.payload);
+        if (room && (await findSweep([room]))) await invoke("show_main");
+      })().catch((error: unknown) => console.error(error));
+    }).then(add);
+    return () => {
+      left = true;
+      for (const stop of stops) stop();
+    };
+  }, [load, findSweep]);
 
   // 오래 켜 둔 창으로 돌아오면 시각만 새로 고칩니다. 밀린 정리 표시가 따라옵니다.
   useEffect(() => {

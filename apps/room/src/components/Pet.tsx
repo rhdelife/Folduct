@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
+import { downloadDir } from "@tauri-apps/api/path";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, vaseBands } from "../art/vases";
+import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
-import { checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
+import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { vaseFill } from "../domain/sky";
-import { isNative, petSettingsChanged, setPetVisible } from "../gateways/native";
-import { getPetSettings, getSession, listRooms, savePetSettings, saveSession } from "../storage/db";
+import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded, setPetVisible } from "../gateways/native";
+import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, savePetSettings, saveSession } from "../storage/db";
+import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { BrandMark } from "./Icon";
 import { RoomFaceArt } from "./RoomFace";
 
@@ -15,6 +18,9 @@ const saveEveryMs = 60_000;
 const dragSlop = 4;
 // 답이 없으면 상태는 그대로 두고 묻기만 거둡니다.
 const askShownMs = 30_000;
+// 작업 중에 새 파일을 찾는 주기.
+const watchEveryMs = 10_000;
+const doneShownMs = 8_000;
 
 // 앱 화면과 따로 늘 떠 있는 작은 창. 화병은 지금 하는 프로젝트이고, 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
@@ -24,6 +30,9 @@ export function Pet() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pet, setPet] = useState<PetSettings>(defaultPet);
   const [asking, setAsking] = useState(false);
+  const [door, setDoor] = useState<Doorstep | null>(null);
+  const [done, setDone] = useState<{ text: string; undo?: { item: DoorItem; moved: DoorMove; room: Room } } | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const dragged = useRef(false);
@@ -106,6 +115,107 @@ export function Pet() {
     };
   }, [working]);
 
+  // 작업 중에만 폴더를 봅니다. 시작하는 순간 한 번 읽어 두어야 그 전에 들어온 파일이 이 작업의 파일로 잡히지 않아요.
+  useEffect(() => {
+    if (!working) return;
+    let left = false;
+    let count: number | null = null;
+    const look = async () => {
+      try {
+        const state = isNative() ? (await refreshDoorstep()).state : await getDoorstep();
+        if (left) return;
+        setDoor(state);
+        if (isNative() && count !== null && count !== state.items.length) await emit(doorChanged);
+        count = state.items.length;
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    void look();
+    const timer = window.setInterval(() => void look(), watchEveryMs);
+    return () => {
+      left = true;
+      window.clearInterval(timer);
+    };
+  }, [working]);
+
+  useEffect(() => {
+    if (!done) return;
+    const timer = window.setTimeout(() => setDone(null), doneShownMs);
+    return () => window.clearTimeout(timer);
+  }, [done]);
+
+  const tellMain = () => {
+    if (isNative()) emit(doorChanged).catch((error: unknown) => console.error(error));
+  };
+
+  // 파일은 '넣기'를 누른 것만 옮깁니다.
+  async function bring(items: DoorItem[], target: Room) {
+    setFileBusy(true);
+    let last: { item: DoorItem; moved: DoorMove } | null = null;
+    let count = 0;
+    let problem: string | null = null;
+    try {
+      for (const item of items) {
+        const { state, moved, error } = await bringIntoRoom(item, target);
+        setDoor(state);
+        if (moved) {
+          last = { item, moved };
+          count += 1;
+        }
+        problem ??= error;
+      }
+    } catch (error) {
+      console.error(error);
+      problem = "옮기지 못했어요. 폴더 권한을 확인해 주세요.";
+    }
+    setFileBusy(false);
+    tellMain();
+    if (problem) setDone({ text: problem });
+    else if (count === 1 && last) setDone({ text: `${target.name} 방으로 옮겼어요.${last.moved.name === last.item.path ? "" : ` 이름이 같아 ${last.moved.name.normalize("NFC")}(으)로 두었어요.`}`, undo: { ...last, room: target } });
+    else setDone({ text: `${target.name} 방으로 ${count}개 옮겼어요.` });
+    void loadRooms().catch((error: unknown) => console.error(error));
+  }
+
+  // 현관 줄에서만 뺍니다. 파일은 폴더에 그대로 있어요.
+  async function skip(item: DoorItem) {
+    try {
+      setDoor(await patchDoorstep((state) => dropItem(state, item.id)));
+      tellMain();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function undo({ item, moved, room: target }: { item: DoorItem; moved: DoorMove; room: Room }) {
+    setDone(null);
+    try {
+      const { state, error } = await undoBring(item, moved, target);
+      // 되돌린 파일을 다시 묻지 않게 줄에서는 빼 둡니다. 원래 폴더에 돌아가 있어요.
+      setDoor(error ? state : await patchDoorstep((latest) => dropItem(latest, item.id)));
+      setDone({ text: error ?? "원래 폴더로 되돌렸어요." });
+      tellMain();
+      void loadRooms().catch((reason: unknown) => console.error(reason));
+    } catch (error) {
+      console.error(error);
+      setDone({ text: "되돌리지 못했어요. 폴더 권한을 확인해 주세요." });
+    }
+  }
+
+  async function addFolder() {
+    try {
+      const folder = await pickRoomFolder(await downloadDir());
+      if (!folder) return;
+      const { state, error } = await addDoorFolder(folder);
+      setDoor(state);
+      if (error) setDone({ text: error });
+      tellMain();
+    } catch (error) {
+      console.error(error);
+      setDone({ text: "폴더를 읽지 못했어요. 권한을 확인해 주세요." });
+    }
+  }
+
   // 앱에서 방 이름이나 얼굴을 바꿨을 수 있어 돌아올 때마다 다시 읽습니다. 다른 곳을 누르면 메뉴를 닫아요.
   useEffect(() => {
     const onFocus = () => void loadRooms().catch((error: unknown) => console.error(error));
@@ -156,6 +266,8 @@ export function Pet() {
   }
 
   const choices = rooms.filter((item) => !item.care.done);
+  const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
+  const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
   const state = session ? session.status : "off";
   return (
     <main ref={root} className={`pet pet-${state}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => (press.current = null)}>
@@ -176,7 +288,7 @@ export function Pet() {
           <p className="pet-status" role="status">
             <strong>{working ? "작업 중" : "멈춤"}</strong>
             <time>{formatWorked(workedTime(session, now))}</time>
-            {room && <small>{room.name}</small>}
+            {room && <small>{roomLinked ? room.name : `${room.name} · 파일 연결 안 됨`}</small>}
           </p>
           <button type="button" className="pet-toggle" data-no-drag onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>
             {working ? "멈춤" : "다시 시작"}
@@ -184,6 +296,30 @@ export function Pet() {
         </div>
       ) : (
         <button type="button" className="pet-start" data-no-drag aria-haspopup="menu" aria-expanded={menuOpen} onClick={openMenu}>작업 시작</button>
+      )}
+      {incoming.length > 0 && room && (
+        <div className="pet-ask" data-no-drag>
+          <p role="status">새 파일{incoming.length > 1 ? ` ${incoming.length}개` : ""}</p>
+          <strong title={incoming[0].name}>{incoming[0].name}</strong>
+          <small>{room.name} 방으로 옮길까요?</small>
+          <div>
+            <button type="button" className="primary" disabled={fileBusy} onClick={() => void bring([incoming[0]], room)}>넣기</button>
+            <button type="button" disabled={fileBusy} onClick={() => void skip(incoming[0])}>빼기</button>
+          </div>
+          {incoming.length > 1 && <button type="button" disabled={fileBusy} onClick={() => void bring(incoming, room)}>{incoming.length}개 모두 넣기</button>}
+        </div>
+      )}
+      {done && (
+        <div className="pet-ask" data-no-drag>
+          <p role="status">{done.text}</p>
+          {done.undo && <button type="button" onClick={() => void undo(done.undo!)}>되돌리기</button>}
+        </div>
+      )}
+      {working && roomLinked && door && door.folders.length === 0 && isNative() && (
+        <div className="pet-ask" data-no-drag>
+          <p role="status">새 파일이 들어오는 폴더를 골라 주세요.</p>
+          <button type="button" className="primary" onClick={() => void addFolder()}>폴더 고르기</button>
+        </div>
       )}
       {asking && session && (
         <div className="pet-ask" data-no-drag>
@@ -225,6 +361,7 @@ export function Pet() {
               type="button"
               onClick={() => {
                 setMenuOpen(false);
+                if (isNative()) emit(sessionEnded, session.roomId).catch((error: unknown) => console.error(error));
                 change(null);
               }}
             >
