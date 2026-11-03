@@ -32,7 +32,7 @@ export function vaseIndex(roomId: string): number {
 
 export type VaseBand = { label: string; color: string; y: number; height: number };
 
-// 형식별 용량을 바닥부터 쌓습니다. 전체 높이는 한도 대비 용량이고(넘으면 끝까지), 칸 비율은 형식별 용량 비율입니다.
+// 형식별 용량을 바닥부터 쌓습니다. 전체 높이는 ratio이고, 칸 비율은 형식별 용량 비율입니다.
 export function vaseBands(parts: { label: string; color: string; size: number }[], ratio: number): VaseBand[] {
   const total = parts.reduce((sum, part) => sum + part.size, 0);
   const level = Math.min(1, Math.max(0, ratio));

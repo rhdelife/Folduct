@@ -12,7 +12,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
   return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: ago(30), lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: ago(0), pinned: false, box: null, ...patch };
 }
 function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id, name: id, createdAt: ago(40), source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
+  return { id, name: id, createdAt: ago(40), source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 const fallen = thing("stale", { touchedAt: ago(31), lastModified: ago(31) });
@@ -23,7 +23,7 @@ const shelf = thing("shelf", { spot: null, touchedAt: null, lastModified: ago(50
 const boxed = thing("boxed", { box, touchedAt: ago(9), lastModified: ago(9), kind: "pdf", size: 500 });
 const gone = thing("gone", { missing: true, touchedAt: ago(9), lastModified: ago(9) });
 const unknown = thing("unknown", { spot: null, touchedAt: null, lastModified: 0 });
-const main = room("main", [fallen, older, tilted, fresh, shelf, boxed, gone, unknown], { budgetBytes: GB });
+const main = room("main", [fallen, older, tilted, fresh, shelf, boxed, gone, unknown]);
 const calm = room("calm", [thing("calm-1")]);
 const done = room("done", [thing("done-1", { touchedAt: ago(30), lastModified: ago(30), size: 5 * GB })], { care: { ...defaultCare, done: true } });
 const rooms = [done, main, calm];
@@ -37,9 +37,7 @@ describe("손댈 것", () => {
     expect(first.stale[0].files[0].days).toBe(45);
   });
 
-  it("한도 넘은 방과 밀린 정리를 알려요", () => {
-    expect(first.overBudget.map((item) => item.room.id)).toEqual(["main"]);
-    expect(first.overBudget[0].budgetBytes).toBe(GB);
+  it("밀린 정리를 알려요", () => {
     expect(first.sweepOverdue).toBe(true);
     expect(notebookSections(rooms, now, ago(1)).first.sweepOverdue).toBe(false);
     expect(notebookSections(rooms, now).first.sweepOverdue).toBe(false);
@@ -56,7 +54,7 @@ describe("손댈 것", () => {
   });
 
   it("방이 없어도 빈 칸으로 돌려줘요", () => {
-    expect(notebookSections([], now)).toEqual({ first: { stale: [], overBudget: [], sweepOverdue: false }, info: { recent: [] }, later: { doneRooms: 0, shelfFiles: 0 } });
+    expect(notebookSections([], now)).toEqual({ first: { stale: [], sweepOverdue: false }, info: { recent: [] }, later: { doneRooms: 0, shelfFiles: 0 } });
   });
 });
 
@@ -127,8 +125,7 @@ describe("주간 공책", () => {
     expect(weeklyHasWork([room("a", [fresh], { workDays: [localDay(ago(1))] })], now)).toBe(false);
     expect(weeklyHasWork([], now)).toBe(false);
   });
-  it("오래된 파일이나 한도 넘은 방이 있으면 띄워요", () => {
+  it("오래된 파일이 있으면 띄워요", () => {
     expect(weeklyHasWork([room("a", [fallen])], now)).toBe(true);
-    expect(weeklyHasWork([room("a", [fresh], { budgetBytes: 1 })], now)).toBe(true);
   });
 });

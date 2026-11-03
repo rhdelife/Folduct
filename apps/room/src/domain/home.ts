@@ -1,5 +1,5 @@
 import { boxColor, colorGroups } from "../art/palette";
-import { budgetLevel, dayMs, doneOfferDue, lastActivity, roomUsage, sweepDue, thingAge, withinWeek, type RoomUsage } from "./care";
+import { dayMs, doneOfferDue, lastActivity, roomUsage, sweepDue, thingAge, withinWeek } from "./care";
 import { formatBytes, kindLabels, type Kind, type Room, type Thing } from "./model";
 
 // 집 화면 장면들이 보여 줄 내용을 고릅니다. 화면과 무관한 순수 함수만 둡니다.
@@ -20,7 +20,7 @@ const staleRefs = (room: Room, now: number) => present(room).filter((thing) => t
 const byDaysDesc = (a: FileRef, b: FileRef) => (b.days ?? 0) - (a.days ?? 0);
 
 export type NotebookSections = {
-  first: { stale: { room: Room; files: FileRef[] }[]; overBudget: { room: Room; usage: RoomUsage; budgetBytes: number }[]; sweepOverdue: boolean };
+  first: { stale: { room: Room; files: FileRef[] }[]; sweepOverdue: boolean };
   info: { recent: { label: string; color: string; kinds: Kind[]; count: number }[] };
   later: { doneRooms: number; shelfFiles: number };
 };
@@ -28,17 +28,13 @@ export type NotebookSections = {
 // 주간 공책을 저절로 띄울 만한 일이 있는지. 손댈 게 없는 주에는 띄우지 않아요.
 export function weeklyHasWork(rooms: Room[], now: number): boolean {
   const { first } = notebookSections(rooms, now);
-  return first.stale.length > 0 || first.overBudget.length > 0 || rooms.some((room) => doneOfferDue(room, now));
+  return first.stale.length > 0 || rooms.some((room) => doneOfferDue(room, now));
 }
 
-// 손댈 것: 먼저(오래된 파일, 한도 넘은 방, 밀린 정리), 참고(최근 7일에 쓴 형식), 나중에(완료한 방, 선반 위 파일).
+// 손댈 것: 먼저(오래된 파일, 밀린 정리), 참고(최근 7일에 쓴 형식), 나중에(완료한 방, 선반 위 파일).
 export function notebookSections(rooms: Room[], now: number, lastSweepAt: number | null = null): NotebookSections {
   const active = rooms.filter((room) => !room.care.done);
   const stale = active.map((room) => ({ room, files: staleRefs(room, now).sort(byDaysDesc) })).filter((item) => item.files.length > 0);
-  const overBudget = active.flatMap((room) => {
-    const usage = roomUsage(room);
-    return room.budgetBytes !== null && budgetLevel(usage, room.budgetBytes) === "over" ? [{ room, usage, budgetBytes: room.budgetBytes }] : [];
-  });
   const recent = colorGroups
     .map(({ label, color, kinds }) => ({
       label,
@@ -48,7 +44,7 @@ export function notebookSections(rooms: Room[], now: number, lastSweepAt: number
     }))
     .filter((group) => group.count > 0);
   return {
-    first: { stale, overBudget, sweepOverdue: sweepDue(lastSweepAt, now) && stale.length > 0 },
+    first: { stale, sweepOverdue: sweepDue(lastSweepAt, now) && stale.length > 0 },
     info: { recent },
     later: { doneRooms: rooms.length - active.length, shelfFiles: active.reduce((sum, room) => sum + present(room).filter((thing) => !thing.spot).length, 0) },
   };
@@ -94,13 +90,12 @@ export function captionWords(rooms: Room[], now: number): string[] {
   const active = rooms.filter((room) => !room.care.done);
   const { first } = notebookSections(rooms, now);
   const stale = first.stale.reduce((sum, item) => sum + item.files.length, 0);
-  const urgent = [stale > 0 && `오래된 파일 ${stale}개`, first.overBudget.length > 0 && `한도 넘은 방 ${first.overBudget.length}개`].filter(Boolean);
   // 표 장면에는 완료한 방의 탭도 있어서, 방과 파일은 완료까지 함께 셉니다.
   const files = rooms.reduce((sum, room) => sum + present(room).length, 0);
   const kinds = kindGroups(rooms, now, 0).filter((group) => !group.box);
   return [
     `${active.length}개 · ${formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}`,
-    urgent.join(" · ") || "급한 건 없어요",
+    stale > 0 ? `오래된 파일 ${stale}개` : "급한 건 없어요",
     `${rooms.length}개 · 파일 ${files}개`,
     `파일 ${kinds.reduce((sum, group) => sum + group.count, 0)}개 · ${formatBytes(kinds.reduce((sum, group) => sum + group.bytes, 0))}`,
   ];

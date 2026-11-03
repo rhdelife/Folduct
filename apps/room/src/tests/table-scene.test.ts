@@ -12,7 +12,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
   return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: now - 30 * dayMs, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null, ...patch };
 }
 function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id, name: id, createdAt: now - 40 * dayMs, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
+  return { id, name: id, createdAt: now - 40 * dayMs, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: now, freedBytes: 0 }, things, workDays: [localDay(now)], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("방 순서", () => {
@@ -95,11 +95,9 @@ describe("요약", () => {
   it("정말 빈 방은 아직 없다고 해요", () => {
     expect(summary(room("r", []))).toContain("이 방에는 아직 파일이 없어요");
   });
-  it("부분 스캔이 한도에 닿으면 %로 말하지 않아요", () => {
+  it("부분 스캔의 합계는 최소라고 적어요", () => {
     const partial = { complete: false, failed: 0, at: now, freedBytes: 0 };
-    expect(summary(room("r", [thing("a", { size: 140 })], { scan: partial, budgetBytes: 100 }))).toContain("한도를 넘었어요");
-    const under = summary(room("r", [thing("a", { size: 50 })], { scan: partial, budgetBytes: 100 }));
-    expect(under).toContain("50% 찼어요");
-    expect(under).not.toContain("attention");
+    expect(summary(room("r", [thing("a", { size: 140 })], { scan: partial }))).toContain("최소");
+    expect(summary(room("r", [thing("a", { size: 140 })]))).not.toContain("최소");
   });
 });

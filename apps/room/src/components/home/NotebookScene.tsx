@@ -28,7 +28,6 @@ export function Task({ row, actions, style }: { row: TaskRow; actions: HomeActio
       <button type="button" className="nb-room-main" onClick={() => actions.selectRoom(row.room.id)}>
         <RoomFaceArt face={row.room.face} roomId={row.room.id} compact className="nb-vase" />
         <span className="nb-room-name">{row.room.name}</span>
-        {row.over !== null && <b className="nb-over">한도 {formatBytes(row.over)} 넘음</b>}
       </button>
       <button type="button" className="nb-go" aria-label={`${row.room.name} 방으로 가기`} onClick={() => actions.openRoom(row.room.id)}>방으로</button>
     </li>
@@ -59,7 +58,7 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
   const limit = fitLadder[fit];
 
   const { first, info, later } = useMemo(() => notebookSections(rooms, now, lastSweepAt), [rooms, now, lastSweepAt]);
-  const { rows, more, moreFiles } = useMemo(() => taskRows(first, limit), [first, limit]);
+  const { rows, more } = useMemo(() => taskRows(first, limit), [first, limit]);
   const staleCount = first.stale.reduce((sum, item) => sum + item.files.length, 0);
   const recentFiles = useMemo(() => listRecent(rooms, now).filter((file) => !file.room.care.done), [rooms, now]);
   const shelf = useMemo(() => shelfFiles(rooms, now).filter((file) => !file.room.care.done), [rooms, now]);
@@ -138,7 +137,7 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
                 {rows.map((row) => <Task key={row.key} row={row} actions={actions} />)}
                 {more > 0 && (
                   <li className="nb-row" data-nb="row">
-                    <button type="button" className="nb-more" onClick={moreFiles > 0 ? actions.openSweep : actions.openMenu}>외 {more}개 더 있어요</button>
+                    <button type="button" className="nb-more" onClick={actions.openSweep}>외 {more}개 더 있어요</button>
                   </li>
                 )}
               </ul>

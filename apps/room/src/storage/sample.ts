@@ -42,7 +42,7 @@ const photos: Item[] = [
   ["여행/여행_040.jpg", 4.4 * MB, null, 0, 0, ""],
 ];
 
-function build(name: string, budgetBytes: number | null, items: Item[], workedAgo: number[], face: RoomFace, now: number): Room {
+function build(name: string, items: Item[], workedAgo: number[], face: RoomFace, now: number): Room {
   const things: Thing[] = items.map(([path, size, x, y, daysAgo, note, usedAgo]) => ({
     id: newId(),
     path,
@@ -69,8 +69,6 @@ function build(name: string, budgetBytes: number | null, items: Item[], workedAg
     // 최근에 이 방을 쓴 날이 있어야 손대지 않은 물건이 오래됨으로 잡힙니다.
     workDays: workedAgo.map((ago) => localDay(now - ago * dayMs)),
     care: defaultCare,
-    budgetBytes,
-    budgetNoticeAt: null,
     doneOfferAt: null,
     face,
   };
@@ -78,8 +76,8 @@ function build(name: string, budgetBytes: number | null, items: Item[], workedAg
 
 export function sampleRooms(now = Date.now()): Room[] {
   return [
-    build("샘플 작업실", 5 * GB, workshop, [10, 6, 3, 1], { shape: 7, color: 0 }, now),
-    build("영상 수업", 5 * GB, lecture, [11, 8, 4, 2, 0], { shape: 4, color: 1 }, now + 1),
-    build("사진 정리", 2 * GB, photos, [12, 7, 3, 1], { shape: 6, color: 2 }, now + 2),
+    build("샘플 작업실", workshop, [10, 6, 3, 1], { shape: 7, color: 0 }, now),
+    build("영상 수업", lecture, [11, 8, 4, 2, 0], { shape: 4, color: 1 }, now + 1),
+    build("사진 정리", photos, [12, 7, 3, 1], { shape: 6, color: 2 }, now + 2),
   ];
 }

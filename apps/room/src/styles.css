@@ -33,7 +33,7 @@
   --halo: var(--lightbox-2);
   --ink-wash: rgb(27 26 24 / 0.06);
 
-  /* 상태 글자색: 패널·배너·용량 막대·오류 글자에만 씁니다. 판과 지도 위에서는 잉크와 굵은 글자로만 상태를 알립니다. */
+  /* 상태 글자색: 패널·배너·오류 글자에만 씁니다. 판과 지도 위에서는 잉크와 굵은 글자로만 상태를 알립니다. */
   --status-danger: #b42318;
   --status-danger-bg: #fdeeec;
   --status-caution: #8f5600;
@@ -351,13 +351,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .banner { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--surface); font-size: var(--text-sm); }
 .banner button:not(.link) { margin-left: var(--space-2); min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
 .happy-banner { border-color: transparent; background: var(--status-ok-bg); color: var(--status-ok); }
-.banner.danger, .budget-banner { border-color: transparent; border-left: 4px solid var(--status-danger); background: var(--status-danger-bg); }
-.budget-banner ul { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; gap: var(--space-1); }
-.budget-banner li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
-/* 띄어쓰기 없는 긴 파일 이름이 페이지를 옆으로 밀지 않게 줄을 바꿉니다. */
-.budget-banner li span { min-width: 0; overflow-wrap: anywhere; }
-.budget-banner li button { flex: none; white-space: nowrap; }
-.budget-banner .row { margin-top: var(--space-1); }
+.banner.danger { border-color: transparent; border-left: 4px solid var(--status-danger); background: var(--status-danger-bg); }
 
 /* ── 토스트: 잠깐 알리는 결과. 영역은 늘 붙어 있고(role=status), 창(dialog)이 열려 있을 때는 창 안에서 알립니다. ── */
 .toast-region { position: fixed; left: 50%; bottom: var(--space-6); z-index: var(--z-toast); transform: translateX(-50%); display: grid; gap: var(--space-2); justify-items: center; width: max-content; max-width: min(560px, calc(100vw - 32px)); pointer-events: none; }
@@ -489,9 +483,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .vase-body { fill: var(--lightbox-1); }
 .vase-band { fill-opacity: 0.75; }
 .vase-line { fill: none; stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-/* 상태는 새 색 없이 윤곽선 굵기로 나눕니다(글자 · 한도에 거의 참 / · 한도 넘음 과 함께). */
-.vase-line.level-near { stroke-width: 2; }
-.vase-line.level-over { stroke-width: 3; }
 .vase-tag { position: absolute; left: 50%; top: calc(100% + var(--half) * 0.24 * var(--u)); display: grid; justify-items: center; white-space: nowrap; transform: translateX(-50%); transition: transform 750ms var(--ease-standard); }
 @media (hover: hover) and (pointer: fine) {
   .room-node:hover .vase-lift { transform: scale(1.06); }
@@ -507,7 +498,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-label, .room-sub { text-shadow: 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo); }
 .room-label { max-width: 34cqw; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
 .room-sub { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-soft); }
-.room-sub b { font-weight: 700; color: var(--ink); }
 /* 고른 방은 카메라가 확대하니(최대 2.4배) 패널 왼쪽에 들어오게 이름표를 줄입니다. */
 .room-node.selected .room-label { max-width: 24cqw; }
 /* 방이 많으면 이름표가 겹칩니다. 고르거나 가리킨 방만 이름을 보입니다. 이름은 메뉴 목록과 화면 읽기 이름표에 그대로 있어요. */
@@ -562,11 +552,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-plane { --s: 1; position: absolute; left: 0; top: 0; transform-origin: 0 0; border-width: calc(1px / var(--s)); border-radius: calc(var(--radius-xl) / var(--s)); -webkit-user-select: none; user-select: none; }
 /* 방은 그림 대신 바느질 같은 점선 테두리로만 보여줍니다. */
 .room-plane::before { content: ""; position: absolute; inset: 18px; border: calc(1.5px / var(--s)) dashed var(--stitch); border-radius: calc(var(--radius-md) / var(--s)); pointer-events: none; }
-.plane-fill { position: absolute; left: 0; right: 0; bottom: 0; background: rgb(27 26 24 / 0.035); border-top: calc(1px / var(--s)) dashed rgb(27 26 24 / 0.35); pointer-events: none; }
-.plane-fill.level-near { border-top: calc(1.5px / var(--s)) dashed var(--ink); }
-.plane-fill.level-over { border-top: calc(2px / var(--s)) solid var(--ink); background: var(--ink-wash); }
-.plane-fill-label { position: absolute; right: 30px; bottom: 100%; margin-bottom: calc(4px / var(--s)); font-size: calc(12px / clamp(0.55, var(--s), 1)); font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
-.plane-fill.level-over .plane-fill-label { bottom: auto; top: calc(6px / var(--s)); margin: 0; color: var(--ink); }
 /* 바닥에 놓인 물건이 없을 때 판 가운데의 안내 글자 */
 .plane-empty { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); display: grid; gap: var(--space-2); justify-items: center; width: max-content; max-width: calc(360px / clamp(0.55, var(--s), 1)); color: var(--ink-soft); font-size: calc(var(--text-sm) / clamp(0.55, var(--s), 1)); text-align: center; pointer-events: none; }
 .plane-empty strong { color: var(--ink); font-size: 1.15em; }
@@ -628,11 +613,6 @@ fieldset { border: 1px solid var(--line); border-radius: var(--radius-md); paddi
 legend { font-weight: 700; font-size: var(--text-sm); padding: 0 var(--space-1); }
 :where(.care) label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .care input[type="number"] { width: 68px; }
-.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.chips button { min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
-.chips label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
-.chips input { width: 80px; padding: 2px var(--space-2); }
-.budget-picker p { font-size: var(--text-sm); color: var(--ink-soft); }
 
 /* 범례: 색은 파일 형식, 크기는 파일 용량 */
 .legend-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); font-size: var(--text-xs); color: var(--ink-soft); }
@@ -644,9 +624,6 @@ legend { font-weight: 700; font-size: var(--text-sm); padding: 0 var(--space-1);
 
 .capacity { display: grid; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); }
 .capacity p { color: var(--ink-soft); font-weight: 600; }
-.capacity strong { color: var(--ink); font-weight: 700; }
-.capacity-track { display: block; height: 6px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; }
-.capacity-track i { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
 .capacity-box { font-size: var(--text-xs); }
 
 /* ── 창 ── */
@@ -838,7 +815,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .nb-vase { flex: none; width: var(--space-5); height: var(--space-5); overflow: visible; }
 .nb-vase path { fill: none; stroke: var(--ink); stroke-width: 9; stroke-linejoin: round; }
 .nb-room-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 500; }
-.nb-over { flex: none; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 800; }
 :is(.scene-notebook, .weekly) .nb-go { flex: none; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); text-decoration: underline; text-underline-offset: 0.2em; }
 :is(.scene-notebook, .weekly) .nb-go:hover { background: none; color: var(--ink); }
 
@@ -926,13 +902,11 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .sum-col { min-width: 0; }
 .sum-size { display: flex; align-items: center; gap: var(--space-3); }
 .sum-vase { flex: none; width: var(--space-12); height: auto; overflow: visible; }
-.sum-vase .vase-line, .sum-vase .vase-line.level-near { stroke-width: 1.2; }
-.sum-vase .vase-line.level-over { stroke-width: 2; }
+.sum-vase .vase-line { stroke-width: 1.2; }
 .sum-stat { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .sum-stat strong { color: var(--ink); font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 500; font-variant-numeric: tabular-nums; }
 .sum-stat small { margin-left: var(--space-1); font-size: var(--text-sm); }
 .sum-stat span { display: block; }
-.sum-stat .attention { color: var(--ink); font-weight: 800; }
 .sum-days svg { display: block; width: 100%; max-width: var(--sum-days-w); height: auto; margin-top: var(--space-2); }
 .sum-dot, .sum-dot-empty { fill: none; stroke-linecap: round; }
 .sum-dot { stroke: var(--ink); }
@@ -1114,7 +1088,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .home .activity { max-width: none; margin: var(--space-2) 0 0; padding: 0; border-radius: 0; background: none; }
 .home .activity-axis span { font-weight: 400; }
 .home .capacity p { font-weight: 500; }
-.home .capacity-track { height: var(--space-1); border-radius: 0; background: var(--line); }
 .home .capacity-box { font-size: var(--text-2xs); }
 
 /* ── 메뉴 ── */
@@ -1229,17 +1202,13 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .banner { border: 0; border-radius: 0; font-size: var(--text-sm); }
 .banner.soft-banner { padding: 0; border: 0; background: none; color: var(--ink-soft); }
 .banner.happy-banner { padding: var(--space-2) var(--space-3); }
-.banner.danger, .budget-banner { border-left: 0; padding: var(--space-3) var(--space-4); }
-/* 넓은 창에서는 큰 파일 다섯 줄을 나란히 놓아 판을 아래로 밀지 않습니다. */
-.budget-banner ul { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--space-10) * 7)), 1fr)); gap: var(--space-1) var(--space-8); }
-.budget-banner li button:not(.link), .budget-banner .row button:not(.link):first-child { margin-left: 0; }
+.banner.danger { border-left: 0; padding: var(--space-3) var(--space-4); }
 
 /* ── 몸: 왼쪽 모눈종이 판, 오른쪽 폴더. 탭 줄과 용량 줄의 높이가 같아 두 판의 윗선이 맞습니다. ── */
 .room-body { max-width: var(--content-max); margin: 0 auto; }
 .room-capacity { display: flex; align-items: center; min-height: var(--room-tab-h); max-width: none; margin: 0; }
 .room-capacity .capacity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
 .room-capacity .capacity p { font-weight: 500; color: var(--ink-soft); }
-.room-capacity .capacity-track { width: calc(var(--space-12) * 2); height: var(--space-1); background: var(--room-tab-2); }
 
 /* 판: 물건이 놓이는 큰 모눈종이. 틀과 함께 통째로 scale되므로 모서리는 --s로 되돌립니다. */
 .room-plane { border: 0; border-radius: calc(var(--room-radius) / var(--s)); background: var(--ground); box-shadow: none; }
@@ -1251,14 +1220,6 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 }
 /* 작은 미리보기에서는 칸이 촘촘해 결처럼만 보이게 옅게 긋습니다. */
 .mini .grid-paper path { stroke: var(--room-hover); }
-/* 용량은 면 대신 모눈 위에 그은 점선 하나로 말합니다. 이름표 바탕과 판 색이 갈리지 않아요. */
-.plane-fill, .plane-fill.level-over { left: var(--room-step); right: var(--room-step); background: none; }
-.plane-fill { border-top: calc(1px / var(--s)) dashed var(--ink-faint); }
-.plane-fill.level-near { border-top: calc(1.5px / var(--s)) dashed var(--ink); }
-.plane-fill.level-over { border-top: calc(2px / var(--s)) solid var(--ink); }
-.plane-fill-label { right: var(--room-step); font-weight: 500; }
-/* 판 윗변에 가까우면 글자가 잘리니 선 아래로 내립니다. */
-.plane-fill.high .plane-fill-label { bottom: auto; top: calc(6px / var(--s)); margin: 0; }
 .shelf-chip { left: calc(var(--room-step) * 2); top: calc(var(--room-step) * 2); border-width: calc(var(--room-hair) / var(--s)); border-color: var(--room-line); border-radius: calc(var(--room-chip) / var(--s)); color: var(--ink-soft); }
 .shelf-chip:hover:not(:disabled) { border-color: var(--room-line-strong); background: var(--surface); color: var(--ink); }
 .plane-empty { padding: var(--space-3) var(--space-4); background: var(--ground); }

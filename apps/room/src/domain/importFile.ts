@@ -40,7 +40,7 @@ export function parseRoomsFile(text: string): { rooms: ImportedRoom[]; skipped: 
     rooms.push({
       name: raw.name.trim().slice(0, 40),
       origin: raw.origin.slice(0, 1024),
-      // 빠진 항목이 있으면 부분 목록으로 보고 용량 경고를 하지 않습니다.
+      // 빠진 항목이 있으면 부분 목록으로 봅니다.
       complete: raw.complete === true && files.length === raw.files.length,
       failed: Number.isInteger(raw.failed) && (raw.failed as number) >= 0 ? (raw.failed as number) : 0,
       files,
@@ -62,7 +62,6 @@ export function buildRoom(input: {
   origin?: string;
   files: ScannedFile[];
   scan: { complete: boolean; failed: number };
-  budgetBytes: number | null;
   done: boolean;
   workDays: string[];
   now: number;
@@ -86,8 +85,6 @@ export function buildRoom(input: {
     things,
     workDays: mergeActivityDays(input.workDays, things, input.now),
     care: { ...defaultCare, done: input.done },
-    budgetBytes: input.budgetBytes,
-    budgetNoticeAt: null,
     doneOfferAt: null,
     face: pickFace(input.taken ?? [], id),
   };

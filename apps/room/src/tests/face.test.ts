@@ -41,7 +41,7 @@ describe("방 얼굴", () => {
   });
 
   it("방을 만들 때 이미 있는 얼굴을 피해요", () => {
-    const made = (taken: RoomFace[]) => buildRoom({ taken, name: "방", source: "input", rootName: "방", files: [], scan: { complete: true, failed: 0 }, budgetBytes: null, done: false, workDays: [], now: 0 }).face;
+    const made = (taken: RoomFace[]) => buildRoom({ taken, name: "방", source: "input", rootName: "방", files: [], scan: { complete: true, failed: 0 }, done: false, workDays: [], now: 0 }).face;
     const all = Array.from({ length: vasePaths.length - 1 }, (_, at) => ({ shape: at, color: at }));
     expect(made(all)).toEqual({ shape: vasePaths.length - 1, color: faceColors.length - 1 });
   });

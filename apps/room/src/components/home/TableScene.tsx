@@ -183,7 +183,7 @@ export function TableScene({ rooms, now, returnTo, actions }: SceneProps) {
                     onContextMenu={menu.onContextMenu}
                     onKeyDown={menu.onKeyDown}
                   >
-                    <RankVase room={item} bytes={used.totalBytes} partial={!used.exact} />
+                    <RankVase room={item} partial={!used.exact} />
                     <span className="table-room-name">{item.name}</span>
                     <small>{item.care.done ? "완료" : formatBytes(used.totalBytes)}</small>
                   </button>
@@ -197,7 +197,7 @@ export function TableScene({ rooms, now, returnTo, actions }: SceneProps) {
                   <p>
                     <span aria-hidden="true">파일 <span ref={counter}>{allRows.length}</span>개</span>
                     <span className="sr-only">파일 {allRows.length}개</span>
-                    {` · ${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}${room.budgetBytes ? ` / ${formatBytes(room.budgetBytes)}` : ""}`}
+                    {` · ${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`}
                   </p>
                 </div>
                 <div className="table-mode" role="group" aria-label="보기">

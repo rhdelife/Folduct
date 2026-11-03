@@ -142,27 +142,6 @@ export function roomUsage(room: Pick<Room, "things" | "scan">): RoomUsage {
   return { totalBytes, boxBytes, exact: room.scan.complete && room.scan.failed === 0 };
 }
 
-export type BudgetLevel = "unset" | "partial" | "ok" | "near" | "over";
-
-// 부분 스캔은 실제보다 작게 보이므로 경고하지 않습니다.
-export function budgetLevel(usage: RoomUsage, budgetBytes: number | null): BudgetLevel {
-  if (!usage.exact) return "partial";
-  if (budgetBytes === null) return "unset";
-  const ratio = usage.totalBytes / budgetBytes;
-  return ratio >= 1 ? "over" : ratio >= 0.8 ? "near" : "ok";
-}
-
-export function budgetNoticeDue(room: Room, now: number): boolean {
-  return !room.care.done && budgetLevel(roomUsage(room), room.budgetBytes) === "over" && (room.budgetNoticeAt === null || now - room.budgetNoticeAt >= sweepIntervalDays * dayMs);
-}
-
-// 지금 용량 × 1.5를 GB 단위로 반올림합니다. 1GB 아래 방도 1GB부터 제안합니다.
-export function suggestBudget(totalBytes: number): number {
-  return Math.max(1, Math.round((totalBytes * 1.5) / GB)) * GB;
-}
-
-export const budgetPresets = [GB, 5 * GB, 20 * GB];
-
 // ── 다시 보기: 스캔 결과를 방에 합칩니다. 메모와 자리는 지우지 않습니다. ──
 // 부분 스캔(파일 수·깊이 제한, 읽기 실패)에서 못 본 파일은 없어진 게 아니라 못 본 것이라 '파일 없음'으로 바꾸지 않습니다.
 export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }, now: number): Room {

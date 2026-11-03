@@ -6,7 +6,7 @@ import { RoomFaceArt } from "./RoomFace";
 import { lastActivity, relativeDay, thingAge } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { homeActivity, pickStarThings, progressText, roomActivity, stateAfterDone, vaseFill, type RoomStat } from "../domain/sky";
-import { CapacityBar } from "./Capacity";
+import { Capacity } from "./Capacity";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { KindMix } from "./KindLegend";
 import { MiniRoom } from "./MiniRoom";
@@ -27,7 +27,7 @@ export function HomeSummary({ rooms, stats, now }: { rooms: Room[]; stats: Map<s
       <p className="lede">
         {active === 0
           ? "진행 중인 방이 없어요. 새 방을 만들거나, 완료된 프로젝트에서 방을 골라 다시 진행 중으로 되돌릴 수 있어요."
-          : "화병은 방, 찬 높이는 한도 대비 용량, 색은 파일 형식이에요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 완료된 프로젝트는 지도에서 빠지고 아래 목록에 모여요."}
+          : "화병은 방, 색은 파일 형식이에요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 완료된 프로젝트는 지도에서 빠지고 아래 목록에 모여요."}
       </p>
       <dl>
         <div><dt>진행 중 / 완료</dt><dd>{active}<small> / {rooms.length - active}</small></dd></div>
@@ -119,11 +119,11 @@ export function SkyPanel({
         <button type="button" className="link back" onClick={() => onSelectRoom(null)}>← 닫기</button>
         <h2 tabIndex={-1} ref={heading}>{room.name}</h2>
         <p className="soft">{room.source === "sample" ? "샘플 방" : `${room.rootName} 폴더`} · 파일 {room.things.filter((thing) => !thing.box).length}개 · 오래됨 {stale}개</p>
-        {room.care.done && <p className="soft">완료된 프로젝트라 주간 정리와 용량 경고가 쉬어요.</p>}
+        {room.care.done && <p className="soft">완료된 프로젝트라 주간 정리가 쉬어요.</p>}
         <button type="button" className="preview" onClick={() => onEnter(room.id)} aria-label={`${room.name} 방에 들어가기`}>
           <MiniRoom room={room} now={now} />
         </button>
-        <CapacityBar usage={stats.get(room.id)!.usage} budgetBytes={room.budgetBytes} />
+        <Capacity usage={stats.get(room.id)!.usage} />
         {progress && <p className="soft">{progress}</p>}
         <div className="row">
           <button type="button" className="primary enter" onClick={() => onEnter(room.id)}>방에 들어가기</button>
@@ -160,8 +160,8 @@ export function SkyPanel({
 }
 
 // 방은 어디서나 화병입니다. 지도와 같은 그림을 줄 높이에 맞춰 작게 그려요.
-export function RankVase({ room, bytes, partial }: { room: Room; bytes: number; partial: boolean }) {
-  return <RoomFaceArt face={room.face} roomId={room.id} compact bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill(room, bytes))} className="rank-vase" />;
+export function RankVase({ room, partial }: { room: Room; partial: boolean }) {
+  return <RoomFaceArt face={room.face} roomId={room.id} compact bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill)} className="rank-vase" />;
 }
 
 function RoomRows({ rows, now, onSelectRoom, onRoomMenu }: { rows: ({ room: Room } & RoomStat)[]; now: number; onSelectRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {
@@ -171,7 +171,7 @@ function RoomRows({ rows, now, onSelectRoom, onRoomMenu }: { rows: ({ room: Room
         <li key={room.id} className={room.care.done ? "done" : ""}>
           <button type="button" data-room-id={room.id} onClick={() => onSelectRoom(room.id)} {...roomMenuTriggers(room.id, onRoomMenu)}>
             <span className="rank-no">{room.care.done ? "✓" : index + 1}</span>
-            <RankVase room={room} bytes={usage.totalBytes} partial={!usage.exact} />
+            <RankVase room={room} partial={!usage.exact} />
             <span className="rank-name"><strong>{room.name}</strong><small>{room.source === "sample" ? "샘플 방" : room.origin ? shortPath(room.origin) : room.rootName}</small><KindMix things={room.things} /></span>
             <span className="rank-num">
               <strong>{usage.exact ? "" : "최소 "}{formatBytes(usage.totalBytes)}</strong>

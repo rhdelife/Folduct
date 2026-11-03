@@ -5,7 +5,6 @@ import { formatBytes, type Room, type RoomSource } from "../domain/model";
 import { canPickFolder, pickFolder, scanFileList, type ScanResult } from "../gateways/folder";
 import { allowRooms, folderName, isNative, pickParent, pickRoomFolder, sameFolder, scanRoomFolder, type ChildFolder } from "../gateways/native";
 import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
-import { BudgetPicker } from "./Capacity";
 import { useModal } from "./useModal";
 
 type Draft = { source: RoomSource; rootName: string; handle: FileSystemDirectoryHandle | null; origin?: string; scan: ScanResult };
@@ -18,7 +17,6 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   // handle이 있으면 이름만 같은 보기 전용 방이라, 그래도 새 방으로 만들 수 있게 고른 폴더를 들고 있습니다.
   const [same, setSame] = useState<{ room: Room; handle: FileSystemDirectoryHandle | null } | null>(null);
   const [name, setName] = useState("");
-  const [budget, setBudget] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // 데스크톱: 상위 폴더 하나를 고르고, 그 안의 폴더 여러 개를 한 번에 방으로 만듭니다.
@@ -135,7 +133,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
         }
         const finished = looksDone(scan.files, at);
         if (finished) done += 1;
-        const built = buildRoom({ taken, name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, budgetBytes: null, done: finished, workDays: [], now: at });
+        const built = buildRoom({ taken, name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, done: finished, workDays: [], now: at });
         taken.push(built.face);
         await saveRoom(built);
         added += 1;
@@ -171,7 +169,6 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       origin: draft.origin,
       files: draft.scan.files,
       scan: { complete: draft.scan.complete, failed: draft.scan.failed },
-      budgetBytes: budget,
       done: false,
       workDays: [localDay(now)],
       now,
@@ -307,10 +304,6 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
           {draft.scan.failed > 0 && <p className="soft">읽지 못한 항목 {draft.scan.failed}개는 빼고 들였어요.</p>}
           {draft.source === "input" && <p className="soft">이 브라우저에서는 폴더 안 파일을 옮기지 못해요. 정리 상자는 Folduct 안에서만 쓰여요.</p>}
           <label className="field">방 이름 <input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} required /></label>
-          <details className="sheet-more">
-            <summary>용량 한도 {budget === null ? "정하기" : formatBytes(budget)}</summary>
-            <BudgetPicker totalBytes={total} value={budget} onChange={setBudget} />
-          </details>
           {error && <p className="error" role="alert">{error}</p>}
           <div className="row end">
             <button type="button" onClick={onClose} disabled={saving}>그만두기</button>

@@ -17,7 +17,7 @@ export function WeeklyNote({ rooms, now, actions, onClose, onSweep }: { rooms: R
   const { rows, more } = useMemo(() => taskRows(first, rowLimit), [first]);
   const stale = first.stale.reduce((sum, item) => sum + item.files.length, 0);
   const asks = rooms.filter((room) => doneOfferDue(room, now)).length;
-  const summary = [stale > 0 && `오래된 파일 ${stale}개`, first.overBudget.length > 0 && `한도 넘은 방 ${first.overBudget.length}개`, asks > 0 && `오래 쉰 방 ${asks}개`].filter(Boolean).join(" · ");
+  const summary = [stale > 0 && `오래된 파일 ${stale}개`, asks > 0 && `오래 쉰 방 ${asks}개`].filter(Boolean).join(" · ");
   // 줄을 누르면 공책을 닫고 그 자리로 갑니다.
   const leaving = <A extends unknown[]>(run: (...args: A) => void) => (...args: A) => {
     onClose();

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { BudgetBanner, BudgetPicker, CapacityBar } from "../components/Capacity";
+import { Capacity } from "../components/Capacity";
 import { kindParts, vaseBands } from "../art/vases";
 import { FacePicker } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
@@ -8,10 +8,10 @@ import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
-import { boxFolderName, budgetNoticeDue, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
+import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
-import { progressText, roomProgress } from "../domain/sky";
+import { progressText, roomProgress, vaseFill } from "../domain/sky";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
 import { askFolder, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
@@ -49,7 +49,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [folderIssue, setFolderIssue] = useState<keyof typeof folderIssues | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>("shelf");
-  const [budgetBanner, setBudgetBanner] = useState(false);
   // 지금 하고 있는 일(폴더 읽기, 옮기기)을 글자로 보여 줍니다. null이면 쉬는 중.
   const [busy, setBusy] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ thingId: string; state: ViewerState } | null>(null);
@@ -103,7 +102,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     let cancelled = false;
     void (async () => {
       try {
-        let found = await getRoom(roomId);
+        const found = await getRoom(roomId);
         if (cancelled) return;
         if (!found) {
           setMissing(true);
@@ -112,13 +111,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         const foundHandle = await roomFolder(found);
         const state = foundHandle ? await folderAccess(foundHandle) : "none";
         if (cancelled) return;
-        const opened = Date.now();
-        // 용량 한도를 넘은 방은 주 1회만 배너를 띄웁니다. 띄운 시각을 남겨 이번 주에는 다시 묻지 않습니다.
-        if (budgetNoticeDue(found, opened)) {
-          found = { ...found, budgetNoticeAt: opened };
-          await saveRoom(found);
-          setBudgetBanner(true);
-        }
         setHandle(foundHandle);
         setAccess(state);
         setRoom(found);
@@ -440,7 +432,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.care.done && (
           <p className="banner happy-banner">
-            완료된 프로젝트예요. 주간 정리와 용량 경고가 쉬어요.{" "}
+            완료된 프로젝트예요. 주간 정리가 쉬어요.{" "}
             <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>다시 진행 중으로</button>
           </p>
         )}
@@ -452,29 +444,12 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {!usage.exact && <p className="banner soft-banner">폴더를 다 읽지 못했어요(파일 {scanLimits.files.toLocaleString("ko-KR")}개·폴더 {scanLimits.depth}단계까지만 읽거나, 읽지 못한 항목이 있어요). 못 본 파일은 ‘파일 없음’으로 바꾸지 않고, 용량은 확인한 만큼만 보여 주며 경고하지 않아요.</p>}
         {room.scan.freedBytes > 0 && <p className="banner happy-banner">지난 확인보다 {formatBytes(room.scan.freedBytes)} 비웠어요. 방이 한결 넓어졌어요.</p>}
-        {budgetBanner && (
-          <BudgetBanner
-            things={room.things}
-            totalBytes={usage.totalBytes}
-            now={now}
-            onCopy={copy}
-            onGrow={(budgetBytes) => {
-              setBudgetBanner(false);
-              update((current) => ({ ...current, budgetBytes }));
-              heading.current?.focus();
-            }}
-            onHide={() => {
-              setBudgetBanner(false);
-              heading.current?.focus();
-            }}
-          />
-        )}
       </div>
 
       <div className="room-body">
         <section className="room-stage-wrap" aria-label={`${room.name} 방. 물건을 끌거나 화살표 키로 옮길 수 있어요.`}>
           <div className="room-capacity">
-            <CapacityBar usage={usage} budgetBytes={room.budgetBytes} />
+            <Capacity usage={usage} />
           </div>
           <RoomScene
             room={room}
@@ -549,7 +524,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {panel === "settings" && (
               <SettingsPanel
                 room={room}
-                totalBytes={usage.totalBytes}
                 onChange={(patch) => update((current) => ({ ...current, ...patch }))}
                 onCare={(patch) => update((current) => ({ ...current, care: { ...current.care, ...patch } }))}
                 onForget={async () => {
@@ -765,17 +739,17 @@ type Status = "active" | "resting" | "done";
 const statuses: [Status, string, Partial<CareSettings>, string][] = [
   ["active", "진행 중", { done: false, resting: false }, "진행 중: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"],
   ["resting", "잠시 쉼", { done: false, resting: true }, "잠시 쉼: 주간 정리만 멈추고 지도에는 그대로"],
-  ["done", "완료", { done: true, resting: false }, "완료: 주간 정리·용량 경고를 멈추고 완료된 프로젝트로 옮겨요"],
+  ["done", "완료", { done: true, resting: false }, "완료: 주간 정리를 멈추고 완료된 프로젝트로 옮겨요"],
 ];
 
-function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room: Room; totalBytes: number; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
+function SettingsPanel({ room, onChange, onCare, onForget }: { room: Room; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
   const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
   const status: Status = room.care.done ? "done" : room.care.resting ? "resting" : "active";
   return (
     <div className="settings">
       <h2 tabIndex={-1}>방 설정</h2>
       <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => onChange({ name: event.target.value })} /></label>
-      <FacePicker roomId={room.id} face={room.face} bands={vaseBands(kindParts(room.things), room.budgetBytes ? totalBytes / room.budgetBytes : 0.8)} onChange={(face) => onChange({ face })} />
+      <FacePicker roomId={room.id} face={room.face} bands={vaseBands(kindParts(room.things), vaseFill)} onChange={(face) => onChange({ face })} />
       <fieldset className="care">
         <legend>방 돌보기</legend>
         <div className="seg" role="radiogroup" aria-label="프로젝트 상태">
@@ -793,7 +767,6 @@ function SettingsPanel({ room, totalBytes, onChange, onCare, onForget }: { room:
           <label><input type="checkbox" checked={room.care.enabled} onChange={(event) => onCare({ enabled: event.target.checked })} /> 오래된 물건 정리 제안 받기</label>
         </details>
       </fieldset>
-      <BudgetPicker totalBytes={totalBytes} value={room.budgetBytes} onChange={(budgetBytes) => onChange({ budgetBytes, budgetNoticeAt: null })} />
       <button type="button" className="danger" onClick={() => void onForget()}>이 방을 Folduct에서 지우기 (파일은 그대로)</button>
     </div>
   );

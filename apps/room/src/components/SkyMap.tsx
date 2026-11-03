@@ -3,7 +3,7 @@ import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { kindColors } from "../art/palette";
 import { kindParts, kindSummary, vaseBands } from "../art/vases";
 import { RoomFaceArt } from "./RoomFace";
-import { budgetLevel, lastActivity, relativeDay } from "../domain/care";
+import { lastActivity, relativeDay } from "../domain/care";
 import { heroLayout, namedPaper, rowOnlyCards, type Card, type HeroNode } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { hash, labelsHideFrom, sky, stageUnit, stepRoom, toPx, vaseFill, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
@@ -367,16 +367,12 @@ const MapLayers = memo(function MapLayers({
         })}
       </div>
       {/* 방이 8개부터는 이름표가 겹치니, 고르거나 가리킨 방만 이름을 보입니다. */}
-      <div className={`sky-rooms${ids.length >= labelsHideFrom ? " crowded" : ""}`} style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 화병은 방, 작은 오브제는 파일이에요. 화병이 찬 높이는 한도 대비 용량이고, 색은 파일 형식이에요. 한도가 없는 방은 형식 비율만 보여요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
+      <div className={`sky-rooms${ids.length >= labelsHideFrom ? " crowded" : ""}`} style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 화병은 방, 작은 오브제는 파일이에요. 색은 파일 형식이에요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
         {ordered.map(({ room, at, r }) => {
           const { usage } = stats.get(room.id)!;
-          const level = budgetLevel(usage, room.budgetBytes);
           const parts = kindParts(room.things);
-          const ratio = level === "partial" ? 0 : vaseFill(room, usage.totalBytes);
-          const bands = vaseBands(parts, ratio);
-          const size = level === "partial" ? `최소 ${formatBytes(usage.totalBytes)}` : room.budgetBytes ? `${formatBytes(usage.totalBytes)} / ${formatBytes(room.budgetBytes)}` : formatBytes(usage.totalBytes);
-          // 상태는 새 색 없이 먹색 굵은 글자로 말합니다.
-          const warn = level === "near" ? "한도에 거의 참" : level === "over" ? "한도 넘음" : "";
+          const bands = vaseBands(parts, usage.exact ? vaseFill : 0);
+          const size = `${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`;
           const menu = roomMenuTriggers(room.id, onRoomMenu);
           return (
             <button
@@ -387,7 +383,7 @@ const MapLayers = memo(function MapLayers({
               style={{ left: `${(at.x / sky.width) * 100}%`, top: `${(at.y / sky.height) * 100}%`, "--half": vaseHalf(r), "--lift": vaseLift, "--phase": hash(room.id, 3) } as CSSProperties}
               tabIndex={room.id === tabStop ? 0 : -1}
               aria-pressed={selectedId === room.id}
-              aria-label={`${room.name} 방, ${size}${warn ? `, ${warn}` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
+              aria-label={`${room.name} 방, ${size}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
               onClick={() => onOpenRoom(room.id)}
               onContextMenu={menu.onContextMenu}
               onFocus={() => setLastFocus(room.id)}
@@ -401,15 +397,12 @@ const MapLayers = memo(function MapLayers({
               <span className="vase-lift">
                 <span className="vase-shadow" />
                 <span className="vase-float">
-                  <RoomFaceArt face={room.face} roomId={room.id} bands={bands} level={level} className="vase-art" />
+                  <RoomFaceArt face={room.face} roomId={room.id} bands={bands} className="vase-art" />
                 </span>
               </span>
               <span className="vase-tag">
                 <span className="room-label">{room.name}</span>
-                <span className="room-sub">
-                  {size}
-                  {warn && <b> · {warn}</b>}
-                </span>
+                <span className="room-sub">{size}</span>
               </span>
             </button>
           );

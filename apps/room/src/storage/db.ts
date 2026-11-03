@@ -190,8 +190,6 @@ export function normalizeRoom(value: unknown): Room {
     workDays: Array.isArray(room.workDays) ? room.workDays.filter((day) => typeof day === "string") : [],
     care: normalizeCare(room.care),
     scan: { complete: scan.complete === true, failed: count(scan.failed, 0), at: count(scan.at, room.createdAt), freedBytes: count(scan.freedBytes, 0) },
-    budgetBytes: typeof room.budgetBytes === "number" && room.budgetBytes > 0 ? room.budgetBytes : null,
-    budgetNoticeAt: typeof room.budgetNoticeAt === "number" ? room.budgetNoticeAt : null,
     doneOfferAt: typeof room.doneOfferAt === "number" ? room.doneOfferAt : null,
     face: normalizeFace(room.face, room.id),
   };

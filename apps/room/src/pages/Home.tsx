@@ -325,7 +325,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       }
       const finished = looksDone(item.files, at);
       if (finished) done += 1;
-      const built = buildRoom({ taken, name: item.name, source: "input", rootName: item.name, origin: item.origin, files: item.files, scan: item, budgetBytes: null, done: finished, workDays: [], now: at });
+      const built = buildRoom({ taken, name: item.name, source: "input", rootName: item.name, origin: item.origin, files: item.files, scan: item, done: finished, workDays: [], now: at });
       taken.push(built.face);
       await saveRoom(built);
       added += 1;

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { budgetLevel, budgetNoticeDue, dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, suggestBudget, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -19,7 +19,7 @@ function thing(patch: Partial<Thing> = {}): Thing {
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
+  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("물건 크기", () => {
@@ -128,7 +128,7 @@ describe("방 밖 작업", () => {
 
   it("다시 보기와 새 방 만들기 모두 방 밖 작업을 방을 쓴 날로 친다", () => {
     expect(mergeScan(room([]), [scanned("a", day(2), day(3))], sure, day(4)).workDays).toEqual([localDay(day(2)), localDay(day(3))]);
-    const built = buildRoom({ name: "방", source: "input", rootName: "방", files: [scanned("a", day(1), day(2))], scan: sure, budgetBytes: null, done: false, workDays: [], now: day(4) });
+    const built = buildRoom({ name: "방", source: "input", rootName: "방", files: [scanned("a", day(1), day(2))], scan: sure, done: false, workDays: [], now: day(4) });
     expect(built.workDays).toEqual([localDay(day(1)), localDay(day(2))]);
     expect(built.things[0].lastUsedAt).toBe(day(2));
   });
@@ -150,7 +150,7 @@ describe("방 밖 작업", () => {
     expect(staleCount(scanOnly, day(20))).toBe(0);
 
     const files = [scanned("a", day(0)), scanned("b", day(0), day(0))];
-    const built = buildRoom({ name: "방", source: "input", rootName: "방", files, scan: sure, budgetBytes: null, done: false, workDays: [], now: day(20) });
+    const built = buildRoom({ name: "방", source: "input", rootName: "방", files, scan: sure, done: false, workDays: [], now: day(20) });
     const again = mergeScan(built, files, sure, day(50));
     expect(staleCount(again, day(50))).toBe(0);
   });
@@ -219,22 +219,6 @@ describe("방 용량", () => {
     expect(roomUsage(room([a, { ...a, id: "dup" }, boxed, gone]))).toEqual({ totalBytes: 3 * GB, boxBytes: GB, exact: true });
   });
 
-  it("부분 스캔은 최소값이라 방 크기를 넘어도 경고하지 않는다", () => {
-    const big = [thing({ size: 9 * GB })];
-    expect(budgetLevel(roomUsage(room(big, { scan: { complete: false, failed: 0, at: start, freedBytes: 0 } })), GB)).toBe("partial");
-    expect(budgetLevel(roomUsage(room(big, { scan: { complete: true, failed: 2, at: start, freedBytes: 0 } })), GB)).toBe("partial");
-    const usage = roomUsage(room(big));
-    expect([null, 20 * GB, 11 * GB, 5 * GB].map((budget) => budgetLevel(usage, budget))).toEqual(["unset", "ok", "near", "over"]);
-  });
-
-  it("넘친 방 배너는 주 1회, 제안값은 현재 × 1.5를 GB로 반올림한다", () => {
-    const over = room([thing({ size: 6 * GB })], { budgetBytes: 5 * GB });
-    expect(budgetNoticeDue(over, start)).toBe(true);
-    expect(budgetNoticeDue({ ...over, budgetNoticeAt: start }, start + 6 * dayMs)).toBe(false);
-    expect(budgetNoticeDue({ ...over, budgetNoticeAt: start }, start + 7 * dayMs)).toBe(true);
-    expect(suggestBudget(2.1 * GB)).toBe(3 * GB);
-    expect(suggestBudget(100 * MB)).toBe(GB);
-  });
 });
 
 describe("다시 보기", () => {
@@ -461,7 +445,7 @@ describe("밤하늘 지도", () => {
     expect(distance(fallen.id)).toBeGreaterThan(distance(fresh.id));
   });
 
-  it("화병은 방마다 정해지고, 형식별 용량이 바닥부터 한도 비율만큼 쌓인다", () => {
+  it("화병은 방마다 정해지고, 형식별 용량이 바닥부터 주어진 높이만큼 쌓인다", () => {
     expect(vaseIndex("방-1")).toBe(vaseIndex("방-1"));
     expect(new Set(Array.from({ length: 80 }, (_, i) => vaseIndex(`방-${i}`))).size).toBe(vasePaths.length);
     for (const path of vasePaths) expect(path).not.toContain("NaN");
@@ -473,7 +457,7 @@ describe("밤하늘 지도", () => {
     expect(half[0].y + half[0].height).toBe(100);
     expect(half[1].y + half[1].height).toBe(half[0].y);
     expect(half[1].y).toBe(0);
-    // 한도를 넘어도 화병 밖으로 넘치지 않고, 한도가 없으면 비어 있습니다.
+    // 1을 넘어도 화병 밖으로 넘치지 않고, 0이면 비어 있습니다.
     expect(vaseBands(parts, 1.4)[1].y).toBe(-100);
     expect(vaseBands(parts, 0)).toEqual([]);
   });
@@ -522,7 +506,7 @@ describe("한꺼번에 가져오기", () => {
   it("파일 이름과 종류는 따로 적힌 name이 아니라 경로의 마지막 칸에서 정한다", () => {
     const parsed = parseRoomsFile(file([{ name: "x", origin: "/x", complete: true, failed: 0, files: [{ path: "notes/index.html", name: "cover.png", size: 1, lastModified: 0 }] }]))!;
     expect(parsed.rooms[0].files[0]).toMatchObject({ name: "index.html", kind: "text" });
-    const built = buildRoom({ name: "x", source: "input", rootName: "x", files: [], scan: parsed.rooms[0], budgetBytes: null, done: false, workDays: [], now: start });
+    const built = buildRoom({ name: "x", source: "input", rootName: "x", files: [], scan: parsed.rooms[0], done: false, workDays: [], now: start });
     expect(Object.keys(built.scan).sort()).toEqual(["at", "complete", "failed", "freedBytes"]);
   });
 
@@ -531,7 +515,7 @@ describe("한꺼번에 가져오기", () => {
     expect(looksDone(files, start + 10 * dayMs)).toBe(false);
     expect(looksDone(files, start + 61 * dayMs)).toBe(true);
     expect(looksDone([], start)).toBe(true);
-    const built = buildRoom({ name: "방", source: "input", rootName: "방", origin: "/Users/me/방", files, scan: { complete: true, failed: 0 }, budgetBytes: null, done: true, workDays: [], now: start });
+    const built = buildRoom({ name: "방", source: "input", rootName: "방", origin: "/Users/me/방", files, scan: { complete: true, failed: 0 }, done: true, workDays: [], now: start });
     expect(built.things.filter((item) => item.spot).map((item) => item.path).sort()).toEqual(["f0.txt", "f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt"]);
     expect(built.care.done).toBe(true);
     expect(built.origin).toBe("/Users/me/방");
@@ -595,15 +579,13 @@ describe("예전 돌보기 설정 옮기기", () => {
 });
 
 describe("완료한 프로젝트", () => {
-  it("오래됨으로 세지 않고, 주간 정리 후보도 없고, 용량 경고도 쉬지만 다시 진행 중으로 돌리면 돌아온다", () => {
+  it("오래됨으로 세지 않고, 주간 정리 후보도 없지만 다시 진행 중으로 돌리면 돌아온다", () => {
     const done = { ...defaultCare, done: true };
     const workDays = [localDay(start + dayMs)];
     expect(thingAge(thing(), done, workDays, start + 31 * dayMs).stale).toBe(false);
     expect(thingAge(thing(), defaultCare, workDays, start + 31 * dayMs).stale).toBe(true);
-    const finished = room([thing({ size: 6 * GB })], { care: done, workDays, budgetBytes: 5 * GB });
+    const finished = room([thing({ size: 6 * GB })], { care: done, workDays });
     expect(sweepCandidates(finished, start + 31 * dayMs)).toEqual([]);
-    expect(budgetNoticeDue(finished, start)).toBe(false);
-    expect(budgetNoticeDue({ ...finished, care: defaultCare }, start)).toBe(true);
   });
 
   it("완료한 방은 지도에 놓지 않고, 진행 중인 방이 많아도 판 안에 놓는다", () => {

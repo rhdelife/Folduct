@@ -49,6 +49,11 @@ describe("망가진 기록", () => {
     expect(normalizeRoom({ id: "r" }).name).toBe("이름 없는 방");
   });
 
+  it("예전 한도 값이 남은 방도 그대로 열리고, 값은 지우지 않는다", () => {
+    const fixed = normalizeRoom({ ...room, budgetBytes: 100, budgetNoticeAt: 5 });
+    expect(fixed).toMatchObject({ id: room.id, budgetBytes: 100, budgetNoticeAt: 5 });
+  });
+
   it("망가진 기록이 끼어도 나머지 방은 그대로 나온다", async () => {
     fakeIndexedDb([null, "망가짐", { name: "id 없음" }, { ...room, id: "b", createdAt: 9 }, room]);
     const { listRooms: list } = await import("../storage/db");

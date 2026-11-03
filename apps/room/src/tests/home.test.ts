@@ -11,7 +11,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
+  return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 
 describe("지도 방 사이 이동", () => {

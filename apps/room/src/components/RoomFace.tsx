@@ -6,7 +6,7 @@ import type { RoomFace } from "../domain/model";
 import { cutoutFromFile, renderMark } from "../gateways/markImage";
 import { deleteRoomMark, getRoomMark, setRoomMark } from "../storage/db";
 
-// 목 높이. 어느 화병이든 입구에서 이만큼 칠하면 몸통의 층과 겹치지 않아요(한도를 넘어 끝까지 찬 때만 층 위로 덮습니다).
+// 목 높이. 어느 화병이든 입구에서 이만큼 칠하면 몸통의 층과 겹치지 않아요(끝까지 찬 때만 층 위로 덮습니다).
 const neckHeight = 30;
 // 오브제 안에 파일 형식 층을 채울지. 끄면 오브제가 방 색 하나로만 보입니다.
 const markShowsLayers = true;
@@ -38,7 +38,7 @@ function useRoomMark(roomId: string | undefined, stamp: number | undefined): Roo
 
 type Art = { face: RoomFace; bands: VaseBand[]; className?: string; viewBox: string };
 
-function VaseArt({ face, bands, className, viewBox, level, glass, band, line }: Art & { level?: string; glass: string; band: string; line: string }) {
+function VaseArt({ face, bands, className, viewBox, glass, band, line }: Art & { glass: string; band: string; line: string }) {
   // WebKit은 크기 0인 다른 svg의 clipPath를 따라가지 못해 화병마다 둡니다.
   const clip = useId();
   const path = vasePaths[face.shape];
@@ -50,7 +50,7 @@ function VaseArt({ face, bands, className, viewBox, level, glass, band, line }: 
         {bands.map((item) => <rect key={item.label} className={band} x={-100} y={item.y} width={200} height={item.height} fill={item.color} />)}
         <rect className="vase-neck" x={-100} y={-100} width={200} height={neckHeight} style={{ fill: faceColorVar(face.color) }} />
       </g>
-      <path className={level ? `${line} level-${level}` : line} d={path} />
+      <path className={line} d={path} />
     </svg>
   );
 }
@@ -83,21 +83,20 @@ function MarkArt({ face, mark, bands, compact, className, viewBox }: Art & { mar
 }
 
 // 방은 어디서나 이 그림입니다. 모양과 색은 프로젝트, 안쪽 층은 파일 형식과 찬 정도를 뜻해요. 이미지를 넣은 방은 화병 자리에 오브제가 놓입니다.
-export function RoomFaceArt({ face, roomId, compact = false, bands = [], className, viewBox = "-100 -100 200 200", level, glass = "vase-body", band = "vase-band", line = "vase-line" }: {
+export function RoomFaceArt({ face, roomId, compact = false, bands = [], className, viewBox = "-100 -100 200 200", glass = "vase-body", band = "vase-band", line = "vase-line" }: {
   face: RoomFace;
   roomId?: string;
   compact?: boolean;
   bands?: VaseBand[];
   className?: string;
   viewBox?: string;
-  level?: string;
   glass?: string;
   band?: string;
   line?: string;
 }) {
   const mark = useRoomMark(roomId, face.mark);
   if (mark) return <MarkArt face={face} mark={mark} bands={bands} compact={compact} className={className} viewBox={viewBox} />;
-  return <VaseArt face={face} bands={bands} className={className} viewBox={viewBox} level={level} glass={glass} band={band} line={line} />;
+  return <VaseArt face={face} bands={bands} className={className} viewBox={viewBox} glass={glass} band={band} line={line} />;
 }
 
 // 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다.

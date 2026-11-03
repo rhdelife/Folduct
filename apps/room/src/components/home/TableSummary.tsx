@@ -1,7 +1,7 @@
 import { ObjectShape } from "../../art/ObjectShape";
 import { kindParts, kindSummary, vaseBands } from "../../art/vases";
 import { RoomFaceArt } from "../RoomFace";
-import { budgetLevel, roomUsage } from "../../domain/care";
+import { roomUsage } from "../../domain/care";
 import { formatBytes, type Room } from "../../domain/model";
 import { progressText, roomActivity, staleCount, roomProgress } from "../../domain/sky";
 import { kindCounts } from "../../domain/table";
@@ -13,13 +13,7 @@ const objectSize = 18;
 
 export function TableSummary({ room, now }: { room: Room; now: number }) {
   const usage = roomUsage(room);
-  const level = budgetLevel(usage, room.budgetBytes);
   const parts = kindParts(room.things);
-  // 지도의 화병은 한도 대비로 차지만, 여기서는 한도가 없는 방도 형식 비율을 보여 줍니다.
-  const ratio = room.budgetBytes && level !== "partial" ? usage.totalBytes / room.budgetBytes : 1;
-  // 부분 스캔의 합계는 최솟값이라, 한도에 닿았으면 넘은 게 확실합니다. 그래서 level이 아니라 합계로 봅니다.
-  const over = !!room.budgetBytes && usage.totalBytes >= room.budgetBytes;
-  const limit = room.budgetBytes ? (over ? "한도를 넘었어요" : `${Math.round((usage.totalBytes / room.budgetBytes) * 100)}% 찼어요`) : "한도 없음";
 
   const days = roomActivity(room, now);
   const filled = days.flatMap((day, x) => Array.from({ length: Math.min(dotRows, day.value) }, (_, y) => `M${(x + 0.5) * pitch} ${(dotRows - y - 0.5) * pitch}h0`)).join("");
@@ -36,11 +30,10 @@ export function TableSummary({ room, now }: { room: Room; now: number }) {
       <section className="sum-col" aria-label="용량">
         <h3 className="sum-label">용량</h3>
         <div className="sum-size">
-          <RoomFaceArt face={room.face} roomId={room.id} bands={vaseBands(parts, ratio)} level={level} className="sum-vase" viewBox="-90 -100 180 200" />
+          <RoomFaceArt face={room.face} roomId={room.id} bands={vaseBands(parts, 1)} className="sum-vase" viewBox="-90 -100 180 200" />
           <p className="sum-stat">
             <strong>{formatBytes(usage.totalBytes)}</strong>
-            {(room.budgetBytes || !usage.exact) && <small>{usage.exact ? `/ ${formatBytes(room.budgetBytes!)}` : "최소"}</small>}
-            <span className={over ? "attention" : undefined}>{limit}</span>
+            {!usage.exact && <small>최소</small>}
           </p>
         </div>
       </section>

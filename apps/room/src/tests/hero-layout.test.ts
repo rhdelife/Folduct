@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
 import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
-import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseFill, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
+import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { rowRest } from "../components/home/engine";
 import { rowOnlyPose, arrivalFrames, spillFrames, cardPose, cardsGone, vaseLeave } from "../components/home/heroMotion";
 
@@ -14,7 +14,7 @@ function thing(id: string, patch: Partial<Thing> = {}): Thing {
   return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 5 * MB, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
 }
 function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
-  return { id, name: id, createdAt: start, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, budgetBytes: null, budgetNoticeAt: null, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
+  return { id, name: id, createdAt: start, source: "handle", rootName: id, scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
 const many = (rooms: number, files: number) =>
   Array.from({ length: rooms }, (_, r) => room(`room-${r}`, Array.from({ length: files }, (_, f) => thing(`r${r}-f${f}`, { size: 1024 * 2 ** ((f * 7 + r * 3) % 20) }))));
@@ -268,13 +268,6 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     const tall = Math.max(...papers.map((card) => card.height));
     const vase = keepOut(few, view).slice(3);
     expect(vase.every((box) => y + tall / 2 <= box.y - box.hh || y - tall / 2 >= box.y + box.hh)).toBe(true);
-  });
-});
-
-describe("화병 채움", () => {
-  it("한도 대비 용량이고, 한도가 없으면 0.8이다", () => {
-    expect(vaseFill({ budgetBytes: 100 } as Room, 50)).toBe(0.5);
-    expect(vaseFill({ budgetBytes: null } as Room, 50)).toBe(0.8);
   });
 });
 

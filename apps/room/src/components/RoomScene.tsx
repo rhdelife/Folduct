@@ -1,7 +1,7 @@
 import { useRef, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent } from "react";
 import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
-import { budgetLevel, objectScale, roomUsage } from "../domain/care";
+import { objectScale } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
 import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { Icon } from "./Icon";
@@ -82,11 +82,6 @@ export function RoomScene({
   const [frame, scale] = useFitScale<HTMLDivElement>(plane.width, 1.3, 0.55);
   const drag = useRef<{ id: string; x: number; y: number; start: Spot; moved: boolean } | null>(null);
   const justDragged = useRef(false);
-  const usage = roomUsage(room);
-  const level = budgetLevel(usage, room.budgetBytes);
-  const percent = level === "partial" || room.budgetBytes === null ? 0 : Math.round((usage.totalBytes / room.budgetBytes) * 100);
-  // 0%면 판 아랫변에 선만 남으니 긋지 않습니다.
-  const fill = percent === 0 ? null : Math.min(1, percent / 100);
   const placed = room.things.filter((thing) => thing.spot && !thing.box);
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxCount = room.things.filter((thing) => thing.box).length;
@@ -107,13 +102,6 @@ export function RoomScene({
     <div className="room-frame" ref={frame} style={{ height: plane.height * scale }}>
       <div className="room-plane" style={{ width: plane.width, height: plane.height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
         <GridPaper />
-        {/* 방 용량만큼 판 아래쪽이 옅게 차오릅니다. 정확한 값은 위쪽 글자로 함께 보여줍니다. */}
-        {fill !== null && (
-          <div className={`plane-fill level-${level}${fill > 0.94 ? " high" : ""}`} style={{ height: `${fill * 100}%` }} aria-hidden="true">
-            {/* 점선이 무엇인지 판 위에서 바로 읽히게 합니다(한도를 넘으면 100%보다 큰 값). */}
-            <span className="plane-fill-label">용량 {percent}%</span>
-          </div>
-        )}
         <p id="plane-hint" className="sr-only">Enter로 고르고, 화살표로 옮겨요. 고른 물건에서 Enter를 한 번 더 누르면 파일을 열어요.</p>
         <button type="button" className="shelf-chip" onClick={onOpenShelf}>선반 · 놓지 않은 물건 {shelfCount}</button>
         {placed.length === 0 && (
