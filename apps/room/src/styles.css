@@ -48,7 +48,6 @@
   --topbar-stacked-h: 100px;
   --topbar-phone-h: 112px;
   /* 쪽 이동 한 칸. 고른 칸이 굵어져도 옆 칸이 밀리지 않게 폭을 정해 둡니다. */
-  --nav-cell-w: 76px;
   /* 집 화면 머리: 로고·머리글·버튼이 한 줄(y)에 서고 양옆 여백이 같습니다. */
   --chrome-y: 42px;
   --chrome-x: 40px;
@@ -147,12 +146,9 @@
   --paper-dim: 0.18;
   --room-label-max: max(22vw, 144px);
 
-  /* 손댈 것 */
-  --nb-sheet-w: min(55vw, 760px);
-  --nb-top: max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh));
-  --nb-shadow: 0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06);
-
-  /* 방 표 */
+  /* 주간 정리 */
+  --weekly-w: min(55vw, 760px);
+  --weekly-shadow: 0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06);
 
   /* 어느 배율에서도 기기 픽셀 한 줄 */
   --hairline: 0.5px;
@@ -167,25 +163,9 @@
   --face-7: #8a4b2a;
   --face-8: #3f3f46;
 
-  /* 형식별 종이 더미 */
-  --pile-h: min(76dvh, 620px);
-  --pile-w: 132px;
-  --pile-sheet: 72px;
-  --pile-step: 10px;
-  --pile-list: 420px;
-  --pile-gap: var(--space-6);
 
   /* 마무리·메뉴·패널 */
-  /* 판 아래 바닥보다 한 단 어두운 큰 화병과 세로 선. */
-  --ground-mark: #e2e2da;
   --line-ground: #d8d8d2;
-  /* 맨 아래 글자와 칸은 창 크기를 따라 자랍니다. 글자는 --text-xs 밑으로 줄지 않아요. */
-  --footer-text: max(var(--text-xs), 0.85vw, 1.25vh);
-  --footer-inset: 7vw;
-  --footer-gap: max(1vw, 1.4vh);
-  --footer-pad: max(1.5vw, 2vh);
-  --footer-rows: max(0.3vw, 0.4vh);
-  --giants-w: min(93vw, 150dvh);
   /* 빈 화면의 한 문장. 첫 화면 큰 글과 같은 크기예요. */
   --empty-text: max(var(--text-md), var(--hero-type));
   /* 작게 벌려 쓴 이름표의 자간. 공책 이름표와 같습니다. */
@@ -371,19 +351,10 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .topnav > .row { margin-left: auto; }
 /* ── 집: 무대 한 칸. 판 한 장이 모든 장면을 싣고, 머리는 그 위에 고정됩니다. 포커스가 옮겨 가도 스크롤되지 않게 clip입니다. ── */
 .home-stage { position: relative; height: 100dvh; overflow: clip; background: var(--ground); touch-action: pinch-zoom; }
-.home-sheet { position: absolute; inset: 0; z-index: 2; background-color: var(--bg); will-change: transform; }
-/* 들린 판 아래로 입술이 남아, 맨 아래 장면이 판 밑에 있었다는 걸 보여 줍니다. */
-.home-sheet::after { content: ""; position: absolute; top: 100%; left: 0; right: 0; height: max(25dvh, calc(16dvh + var(--chrome-y) * 1.6)); background: inherit; border-radius: 0 0 var(--radius-sheet) var(--radius-sheet); }
+.home-sheet { position: absolute; inset: 0; z-index: 2; background-color: var(--bg); }
 .scene { position: absolute; inset: 0; }
-/* 키로 옮겨 오면 장면이 잠깐 포커스를 맡습니다(엔진의 rehome). 다음 탭이 안쪽 조작으로 들어가니 테두리는 그리지 않아요. */
-[data-scene]:focus { outline: none; }
-/* 안 보이는 장면은 그리지도, 화병을 띄우지도 않습니다. */
-.scene[data-show="false"] { visibility: hidden; }
-.scene[data-show="false"] * { animation-play-state: paused; }
-.scene[inert] { pointer-events: none; }
 .scene.page-status, .scene.loading { align-content: center; }
 .scene-hero { display: flex; flex-direction: column; padding-top: var(--topbar-h); }
-.scene-footer { z-index: 1; background: var(--ground); }
 
 /* 머리: 높이 없는 줄에 셋이 떠 있어, 머리 위에서도 휠이 그대로 장면으로 갑니다. */
 .home-header { position: absolute; inset: 0 0 auto; z-index: 80; height: 0; -webkit-user-select: none; user-select: none; }
@@ -396,24 +367,15 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .home-actions b { font-weight: 700; color: var(--ink); }
 .home-actions b::before { content: "· "; }
 /* 나타날 때는 장면이 자리 잡은 뒤 늦게, 사라질 때는 바로. */
-.home-caption { position: absolute; top: var(--chrome-y); left: 0; right: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease-out; will-change: transform, opacity; }
+.home-caption { position: absolute; top: var(--chrome-y); left: 0; right: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease-out; }
 .home-caption.visible { opacity: 1; }
-.caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8)); top: 0; translate: 0 -50%; display: flex; align-items: baseline; gap: var(--space-3); white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-caption); line-height: var(--lh-caption); letter-spacing: -0.01em; opacity: 0; will-change: transform, opacity; }
+.caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8)); top: 0; translate: 0 -50%; display: flex; align-items: baseline; gap: var(--space-3); white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-caption); line-height: var(--lh-caption); letter-spacing: -0.01em; }
 .caption-layer strong { font-weight: 500; color: var(--ink-caption); }
-/* 어느 장면에서나 보이는 쪽 이동. 넓으면 머리 줄 가운데, 좁으면 그 아래 둘째 줄에 섭니다. 지금 자리는 잉크, 굵기, 밑줄로 말해요. */
-.scene-nav { position: absolute; top: var(--chrome-y); left: 50%; translate: -50% -50%; display: grid; grid-auto-flow: column; grid-auto-columns: var(--nav-cell-w); }
-.scene-nav button { padding-inline: 0; white-space: nowrap; font-weight: 500; color: var(--ink-caption); }
-.scene-nav button:hover:not(:disabled) { background: none; color: var(--ink); }
-.scene-nav button[aria-current] { font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: var(--space-1); }
 @media (max-width: 1199.98px) {
   :root { --topbar-h: var(--topbar-stacked-h); }
-  .scene-nav { top: calc(var(--topbar-h) - var(--control-md)); translate: -50% 0; }
 }
 @media (max-width: 719.98px) {
   :root { --topbar-h: var(--topbar-phone-h); }
-  /* 폰에서는 줄을 꽉 채워 네 칸을 고르게 나눕니다. 손가락이 닿도록 칸을 키워요. */
-  .scene-nav { top: calc(var(--topbar-h) - var(--control-lg)); left: var(--space-2); right: var(--space-2); translate: none; grid-auto-columns: minmax(0, 1fr); }
-  .scene-nav button { min-height: var(--control-lg); }
 }
 
 /* 집 화면에는 그림자가 없습니다. 창은 바탕 어둡기와 선으로 뜹니다. */
@@ -688,7 +650,7 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .home-brand { left: var(--gutter); }
   .home-actions { right: var(--space-2); gap: 0; }
   .home-actions button { padding-inline: var(--space-2); font-size: var(--text-sm); }
-  /* 아래는 쪽 이동 자리라, 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
+  /* 좁아서 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
   .home-actions b { display: inline-block; width: var(--space-2); height: var(--space-2); margin-left: var(--space-1); overflow: hidden; border-radius: var(--radius-pill); background: var(--ink); font-size: 0; }
   .home-actions b::before { content: none; }
   .caption-layer { left: calc(var(--gutter) + var(--space-6)); right: calc(var(--space-12) * 2 + var(--space-6)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -737,7 +699,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 /* 파일 종이. 첫 스크롤에 한 줄로 모여요(heroMotion). */
 .papers { position: absolute; inset: 0; pointer-events: none; isolation: isolate; }
 .paper { position: absolute; visibility: visible; transform-origin: center; }
-.papers[data-gone="true"] .paper { visibility: hidden; }
 .sky-canvas.away .paper { will-change: transform, opacity; }
 .sky-canvas.entering .paper { will-change: transform, opacity; }
 .paper-art { display: block; width: 100%; height: 100%; pointer-events: auto; cursor: pointer; transition: scale var(--dur-2) var(--ease-standard), translate var(--dur-2) var(--ease-standard), opacity var(--dur-3) var(--ease-standard); }
@@ -759,13 +720,9 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 
 /* 줄 쉼터까지 화병과 이름표는 그대로입니다. 그 뒤로 이름표가 먼저 지워지고, 화병은 pos를 따라 비켜납니다(heroMotion). 손가락을 그대로 따라가게 투명도 전환은 끕니다. */
 .sky-canvas.away .links line { opacity: 0; }
-.sky-canvas.flown .room-node { pointer-events: none; }
-.sky-canvas.away .vase-lift { will-change: translate, scale, opacity; transition: transform 750ms var(--ease-spring); }
 /* 잠긴 동안 머리 줄이 공책을 가리지 않게 먼저 비켜 줍니다. */
 .doorstep { transition: opacity var(--dur-2) var(--ease-standard); }
-.scene-hero[inert] .doorstep { opacity: 0; }
 .scene-hero .vase-tag { transition: opacity var(--dur-3) ease-out, transform 750ms var(--ease-standard); }
-.scene-hero .sky-canvas.flown .vase-tag { opacity: 0; transition: opacity var(--dur-1) ease-out; }
 .sky-canvas.entering .room-node { pointer-events: none; }
 
 .scene-hero .room-label { max-width: var(--room-label-max); }
@@ -779,156 +736,9 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .scene-hero .sky-layout.has-panel .sky-stage { transform: translateY(-29dvh); }
 }
 
-/* ══ 손댈 것 ══ */
-@media (max-width: 1024px) {
-  :root { --nb-sheet-w: 82vw; --nb-top: calc(var(--topbar-h) + var(--space-3)); }
-}
-@media (max-width: 600px) {
-  :root { --nb-sheet-w: 92vw; --nb-top: calc(var(--topbar-h) + var(--space-6)); }
-}
-
-.nb-stack { position: absolute; top: var(--nb-top); left: 0; right: 0; width: var(--nb-sheet-w); margin-inline: auto; overflow: hidden; background: var(--surface); box-shadow: var(--nb-shadow); will-change: transform, opacity; }
-.nb-entries { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
-.nb-section { min-width: 0; }
-.nb-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); margin-bottom: var(--space-1); }
-.nb-label { margin: 0; color: var(--ink); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; letter-spacing: 0; }
-.scene-notebook .nb-sweep { min-height: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); line-height: var(--lh-sm); white-space: nowrap; }
-.nb-rows, .nb-counters { margin: 0; padding: 0; list-style: none; }
-.nb-row { min-width: 0; border-bottom: var(--hairline) solid var(--line); }
-.nb-rows > .nb-row:last-child { border-bottom: 0; }
-.nb-room { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-bottom: 0; }
-.nb-room:first-child { padding-top: 0; }
-
-:is(.scene-notebook, .weekly) .nb-room-main, :is(.scene-notebook, .weekly) .nb-file, :is(.scene-notebook, .weekly) .nb-go, :is(.scene-notebook, .weekly) .nb-more, :is(.scene-notebook, .weekly) .nb-counter { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-:is(.scene-notebook, .weekly) .nb-room-main:active, :is(.scene-notebook, .weekly) .nb-file:active, :is(.scene-notebook, .weekly) .nb-go:active, :is(.scene-notebook, .weekly) .nb-more:active, :is(.scene-notebook, .weekly) .nb-counter:active { background: none; transform: none; }
-.nb-room-main { display: flex; flex: 1 1 auto; align-items: center; justify-content: flex-start; gap: var(--space-2); min-width: 0; }
-.nb-vase { flex: none; width: var(--space-5); height: var(--space-5); overflow: visible; }
-.nb-vase path { fill: none; stroke: var(--ink); stroke-width: 9; stroke-linejoin: round; }
-.nb-room-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 500; }
-:is(.scene-notebook, .weekly) .nb-go { flex: none; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); text-decoration: underline; text-underline-offset: 0.2em; }
-:is(.scene-notebook, .weekly) .nb-go:hover { background: none; color: var(--ink); }
-
-.nb-file { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-3); width: 100%; font-size: var(--text-sm); line-height: var(--lh-sm); }
-:is(.scene-notebook, .weekly) .nb-file:hover { background: none; }
-.nb-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: translate var(--dur-2) var(--ease-settle); }
-.nb-file:hover .nb-file-name { translate: var(--space-1) 0; }
-.nb-file-state { font-weight: 700; white-space: nowrap; }
-.nb-file-size { min-width: var(--space-12); color: var(--ink-soft); font-size: var(--text-xs); font-variant-numeric: tabular-nums; text-align: right; }
-
-:is(.scene-notebook, .weekly) .nb-more { padding-block: var(--space-1); color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-:is(.scene-notebook, .weekly) .nb-more:hover { background: none; color: var(--ink); }
-.nb-note { color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.nb-rows > .nb-note { padding-block: var(--space-1); }
-.nb-empty { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.nb-counters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); margin-top: var(--space-1); }
-:is(.scene-notebook, .weekly) .nb-counter { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); line-height: var(--lh-sm); }
-:is(.scene-notebook, .weekly) .nb-counter:hover { background: none; color: var(--ink-hover); }
-
-/* 주간 공책: 손댈 것과 같은 종이가 아래에서 떠오르고 줄이 차례로 적힙니다. */
-.weekly .nb-row { animation: weekly-row var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-3) + var(--dur-1) / 3 * var(--i)); }
-@keyframes weekly-rise { from { transform: translate3d(0, 100dvh, 0); } }
-@keyframes weekly-row { from { opacity: 0; transform: translate3d(0, var(--space-2), 0); } }
-
-@media (max-width: 600px) {
-  .nb-entries { padding: var(--space-4); gap: var(--space-4); }
-  .nb-file { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .nb-file-size { display: none; }
-  .scene-notebook .nb-sweep { padding-inline: var(--space-2); font-size: var(--text-xs); }
-  :is(.scene-notebook, .weekly) .nb-room-main, :is(.scene-notebook, .weekly) .nb-file, :is(.scene-notebook, .weekly) .nb-go, :is(.scene-notebook, .weekly) .nb-more, :is(.scene-notebook, .weekly) .nb-counter { min-height: var(--space-8); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .nb-file:hover .nb-file-name { translate: none; }
-}
-
-/* ══ 한 병 ══ */
-.pile-stage { position: absolute; inset: var(--topbar-h) var(--space-5) var(--space-5); display: flex; justify-content: center; align-items: center; gap: var(--pile-gap); will-change: transform; }
-/* 더미가 많으면 여러 줄로 놓고, 낮은 창에서는 이 칸 안에서 스크롤합니다. */
-.pile-row { flex: 0 1 calc(var(--pile-w) * 5 + var(--space-2) * 4); display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--pile-w), 1fr)); gap: var(--space-4) var(--space-2); align-content: safe center; min-width: 0; max-height: var(--pile-h); overflow: clip auto; overscroll-behavior: contain; }
-.scene-pile .pile { display: grid; justify-items: center; gap: var(--space-1); min-height: 0; padding: var(--space-1); border: 0; border-radius: 0; background: none; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); text-align: center; transform: none; }
-.scene-pile .pile:hover:not(:disabled), .scene-pile .pile:active:not(:disabled) { background: none; color: var(--ink-soft); transform: none; }
-/* 고른 표시는 굵은 이름과 밑줄이 합니다. 버튼 공통 체크 표시는 쓰지 않아요. */
-.scene-pile .pile[aria-pressed="true"]::before { content: none; }
-.pile-stack { position: relative; display: block; width: 100%; height: calc(var(--pile-sheet) * 1.25 + var(--pile-step) * 7); transition: opacity var(--dur-3); }
-.pile.is-dim .pile-stack { opacity: 0.55; }
-.pile.is-dim:hover .pile-stack { opacity: 0.8; }
-.pile-sheet { position: absolute; left: 50%; bottom: calc(var(--level) * var(--pile-step)); width: var(--pile-sheet); translate: calc(-50% + var(--dx) * var(--pile-step) * 2) 0; rotate: calc(var(--rot) * 1deg); }
-.pile-sheet .object { width: 100%; height: auto; }
-/* 도착하면 아래 더미부터 한 장씩 내려앉습니다. */
-.pile-row:not([data-filled="true"]) .pile-sheet { opacity: 0; transform: translateY(calc(var(--space-4) * -1)); }
-.pile-row[data-filled="true"] .pile-sheet { transition: opacity var(--dur-3), transform 520ms var(--ease-settle); transition-delay: calc(var(--turn) * 24ms); }
-.pile-name { color: var(--ink); font-size: var(--text-sm); font-weight: 500; line-height: var(--lh-sm); overflow-wrap: anywhere; border-bottom: var(--hairline) solid transparent; }
-.pile[aria-pressed="true"] .pile-name { font-weight: 800; border-bottom-color: var(--ink); }
-.pile-size { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.pile-box-art { position: absolute; left: 50%; bottom: 0; width: calc(var(--pile-sheet) * 1.15); height: calc(var(--pile-sheet) * 1.15); translate: -50% 0; }
-
-
-
-/* 층을 바꿔도 제목이 제자리에 있게 위를 맞춥니다. */
-.pile-list { flex: 0 1 var(--pile-list); align-self: center; min-width: 0; height: var(--pile-h); overflow: clip auto; overscroll-behavior: contain; }
-.pile-list-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); background: var(--bg); color: var(--ink-soft); font-size: var(--text-sm); }
-.pile-list-head strong { color: var(--ink); font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 500; letter-spacing: -0.01em; }
-.pile-note { margin: 0; padding: var(--space-2) 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.pile-files { margin: 0; padding: 0; list-style: none; }
-.pile-files li { animation: pile-file-in 420ms var(--ease-settle) backwards; animation-delay: calc(var(--at) * 28ms); }
-@keyframes pile-file-in { from { opacity: 0; transform: translateX(var(--space-3)); } }
-.pile-files button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "art name size" "art room size"; column-gap: var(--space-2); align-items: center; width: 100%; min-height: 0; padding: var(--space-2) 0; border: 0; border-bottom: var(--hairline) solid var(--line); border-radius: 0; background: none; color: var(--ink); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: left; cursor: pointer; }
-.pile-files button:hover, .pile-files button:active { background: none; transform: none; }
-.pile-files .object { grid-area: art; }
-.pile-file-name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; transition: translate var(--dur-2) var(--ease-settle); }
-.pile-files button:hover .pile-file-name { translate: var(--space-1) 0; }
-.pile-file-room { grid-area: room; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
-.pile-file-size { grid-area: size; color: var(--ink-soft); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
-.scene-pile .pile-sweep { margin-top: var(--space-3); }
-
-@media (max-width: 760px) {
-  :root { --pile-gap: var(--space-4); --pile-w: 104px; --pile-list: 260px; }
-  .pile-stage { inset-inline: var(--space-3); }
-}
-/* 좁은 화면에서는 더미를 한 줄로 두고 옆으로 밀어 봅니다. 파일 목록 자리를 지키려고요. */
-@media (max-width: 600px) {
-  :root { --pile-sheet: 48px; --pile-step: 6px; }
-  .pile-stage { flex-direction: column; justify-content: flex-start; align-items: stretch; inset: calc(var(--topbar-h) + var(--space-4)) var(--space-4) var(--space-3); gap: var(--space-3); }
-  .pile-row { flex: none; display: flex; align-content: normal; overflow: auto clip; scrollbar-width: thin; padding-bottom: var(--space-1); }
-  .scene-pile .pile { flex: none; width: var(--pile-w); }
-  .pile-list { flex: 1 1 0; align-self: stretch; height: auto; min-height: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pile-row .pile-sheet, .pile-row[data-filled="true"] .pile-sheet, .pile-row:not([data-filled="true"]) .pile-sheet { opacity: 1; transform: none; transition: none; }
-  .pile-files li { animation: none; }
-  .pile-files button:hover .pile-file-name { translate: none; }
-}
-
 /* ══ 마무리·메뉴·패널 ══ */
-/* 맨 아래·메뉴·고른 방 패널·빈 화면. 모두 같은 종이말을 씁니다: 밝은 판, 점 격자, 작게 벌려 쓴 이름표, 머리카락 선. */
+/* 메뉴·고른 방 패널·빈 화면. 모두 같은 종이말을 씁니다: 밝은 판, 점 격자, 작게 벌려 쓴 이름표, 머리카락 선. */
 
-/* ── 맨 아래 ── */
-.footer-columns { position: absolute; top: max(18%, calc(var(--topbar-h) + var(--space-3))); left: var(--footer-inset); right: var(--footer-inset); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); font-size: var(--footer-text); line-height: var(--lh-xs); }
-.footer-group { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-content: start; gap: var(--footer-gap); padding-inline: var(--footer-pad); border-left: 1px solid var(--line-ground); }
-.footer-group:first-child { padding-left: 0; border-left: 0; }
-.home .footer-head { color: var(--ink-soft); font-size: inherit; line-height: inherit; font-weight: 400; letter-spacing: 0.01em; }
-.footer-links { display: flex; flex-direction: column; gap: var(--footer-rows); margin: 0; padding: 0; list-style: none; }
-.home .footer-links button { display: block; min-height: 0; padding: 0; border: 0; background: none; color: var(--ink-hover); font-size: inherit; line-height: inherit; font-weight: 400; text-align: left; transform: none; transition: color var(--dur-2); }
-.home .footer-links button:hover { color: var(--ink-pressed); }
-.footer-version { color: var(--ink-soft); }
-/* 마지막 칸: 작은 글자 아래 화병 로고. 머리글과 첫 줄을 맞춥니다. */
-.home .footer-top { display: grid; justify-content: start; justify-items: start; gap: var(--space-2); min-height: 0; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
-.home .footer-top:hover { background: none; color: var(--ink); transform: none; }
-.footer-last { grid-template-columns: minmax(0, 1fr); }
-.footer-top .mark { transition: translate var(--dur-3) var(--ease-settle); }
-.home .footer-top:hover .mark { translate: 0 calc(var(--space-1) * -1); }
-/* 판 아래 바탕 무늬. 잘린 밑동이 창 아래로 이어지는 듯 보입니다. */
-.footer-giants { position: absolute; left: 50%; bottom: 0; translate: -50% 0; display: block; width: var(--giants-w); height: auto; fill: var(--ground-mark); pointer-events: none; }
-@media (max-width: 1024px) {
-  .footer-group { grid-template-columns: minmax(0, 1fr); }
-}
-/* 폰에서는 네 칸을 둘씩 두 줄로. 글자가 줄어들거나 꺾이지 않게요. */
-@media (max-width: 559.98px) {
-  .footer-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-6); }
-  .footer-group:nth-child(odd) { padding-left: 0; border-left: 0; }
-}
-@media (pointer: coarse) {
-  .footer-links { gap: var(--space-2); }
-}
 
 /* ── 빈 화면: 점 격자 위에 뜬 화병, 한 문장, 검은 버튼 하나 ── */
 .home .home-empty { gap: var(--space-6); padding-bottom: var(--topbar-h); }
@@ -1221,10 +1031,18 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage audio) { height: auto; }
 .sweep .sheet-body > .row.end:last-child, .sheet-body:has(> .sweep-room) > .row.end:last-child { background: var(--ground); }
 /* 결과 창은 짧아서 버튼 줄을 나누는 선이 필요 없습니다. 마지막 줄 밑선도요. */
 .sheet-body:has(> .sweep-results) > .row.end:last-child { border-top: 0; padding-top: 0; }
-/* 주간 공책은 폴더 모양 창 대신 손댈 것과 같은 종이를 씁니다. 위 대화상자 규칙보다 뒤에 있어야 해요. */
-dialog.sheet.weekly { width: var(--nb-sheet-w); max-width: calc(100vw - var(--space-8)); padding-top: 0; animation: weekly-rise calc(var(--dur-3) * 2) var(--ease-settle); }
+/* 주간 정리는 폴더 모양 창 대신 종이를 씁니다. 위 대화상자 규칙보다 뒤에 있어야 해요. */
+dialog.sheet.weekly { width: var(--weekly-w); max-width: calc(100vw - var(--space-8)); padding-top: 0; animation: weekly-rise calc(var(--dur-3) * 2) var(--ease-settle); }
 dialog.sheet.weekly::before, dialog.sheet.weekly::after { content: none; }
-dialog.sheet.weekly .sheet-body { max-height: calc(100dvh - var(--space-12)); border-radius: 0; background: var(--surface); box-shadow: var(--nb-shadow); }
+dialog.sheet.weekly .sheet-body { max-height: calc(100dvh - var(--space-12)); border-radius: 0; background: var(--surface); box-shadow: var(--weekly-shadow); }
+dialog.sheet.weekly .sheet-body > .row.end:last-child { background: var(--surface); }
+@media (max-width: 1024px) {
+  :root { --weekly-w: 82vw; }
+}
+@media (max-width: 600px) {
+  :root { --weekly-w: 92vw; }
+}
+@keyframes weekly-rise { from { transform: translate3d(0, 100dvh, 0); } }
 .sweep-results > li:last-child { border-bottom: 0; }
 .sheet-body .path { padding: 0 var(--space-1); border-radius: 0; background: var(--bg); white-space: nowrap; }
 @keyframes room-sheet-in { from { opacity: 0; transform: translateY(var(--space-2)); } }

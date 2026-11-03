@@ -42,8 +42,8 @@ function reach(w: number, h: number, degrees: number) {
 
 const headerBottom = (view: View) => (view.w < 720 ? 112 : view.w < 1200 ? 100 : 74);
 
-// 파일이 피할 자리: 머리의 로고·숫자·쪽 이동·버튼, 화병과 이름표.
-// 좁은 창은 쪽 이동이 둘째 줄이라 머리 띠 전체를 비웁니다. 높이는 styles.css의 --topbar-stacked-h, --topbar-phone-h예요.
+// 파일이 피할 자리: 머리의 로고·숫자·버튼, 화병과 이름표.
+// 좁은 창은 머리 띠 전체를 비웁니다. 높이는 styles.css의 --topbar-stacked-h, --topbar-phone-h예요.
 export function keepOut(nodes: HeroNode[], view: View): Box[] {
   const unit = stageUnit(view);
   const crowded = nodes.length >= labelsHideFrom;

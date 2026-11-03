@@ -7,7 +7,7 @@ import { answerDoneOffer, runSweep, type SweepOutcome, type SweepPlan } from "..
 import { setLastSweepAt } from "../storage/db";
 import { useModal } from "./useModal";
 
-// 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
+// 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
 export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -84,7 +84,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
   return (
     <dialog
       ref={dialog}
-      className="sheet sweep"
+      className="sheet sweep weekly"
       aria-labelledby="sweep-title"
       onCancel={(event) => {
         event.preventDefault();

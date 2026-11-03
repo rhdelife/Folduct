@@ -54,7 +54,6 @@
 | `color/neutral/face-6` | `#1f5f6b` |  |
 | `color/neutral/face-7` | `#8a4b2a` |  |
 | `color/neutral/face-8` | `#3f3f46` |  |
-| `color/neutral/ground-mark` | `#e2e2da` |  |
 | `color/neutral/line-ground` | `#d8d8d2` |  |
 
 ## 색 · 라이트박스
@@ -189,7 +188,6 @@
 | --- | --- | --- |
 | `scene/topbar-stacked-h` | `100px` |  |
 | `scene/topbar-phone-h` | `112px` |  |
-| `scene/nav-cell-w` | `76px` |  |
 | `scene/z-intro` | `8000` |  |
 | `scene/intro-vase` | `min(40dvh, 56vw)` |  |
 | `scene/intro-foot` | `112px` |  |
@@ -205,22 +203,9 @@
 | `scene/hero-tip-z` | `50` |  |
 | `scene/paper-dim` | `0.18` |  |
 | `scene/room-label-max` | `max(22vw, 144px)` |  |
-| `scene/nb-sheet-w` | `min(55vw, 760px)` |  |
-| `scene/nb-top` | `max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh))` |  |
-| `scene/nb-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
+| `scene/weekly-w` | `min(55vw, 760px)` |  |
+| `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |
-| `scene/pile-h` | `min(76dvh, 620px)` |  |
-| `scene/pile-w` | `132px` |  |
-| `scene/pile-sheet` | `72px` |  |
-| `scene/pile-step` | `10px` |  |
-| `scene/pile-list` | `420px` |  |
-| `scene/pile-gap` | `var(--space-6)` |  |
-| `scene/footer-text` | `max(var(--text-xs), 0.85vw, 1.25vh)` |  |
-| `scene/footer-inset` | `7vw` |  |
-| `scene/footer-gap` | `max(1vw, 1.4vh)` |  |
-| `scene/footer-pad` | `max(1.5vw, 2vh)` |  |
-| `scene/footer-rows` | `max(0.3vw, 0.4vh)` |  |
-| `scene/giants-w` | `min(93vw, 150dvh)` |  |
 | `scene/empty-text` | `max(var(--text-md), var(--hero-type))` |  |
 | `scene/label-track` | `0.158em` |  |
 | `scene/punch-col` | `30px` |  |

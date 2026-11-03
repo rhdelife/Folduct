@@ -113,10 +113,6 @@
         "$type": "color",
         "$value": "#3f3f46"
       },
-      "ground-mark": {
-        "$type": "color",
-        "$value": "#e2e2da"
-      },
       "line-ground": {
         "$type": "color",
         "$value": "#d8d8d2"
@@ -743,10 +739,6 @@
       "$type": "other",
       "$value": "112px"
     },
-    "nav-cell-w": {
-      "$type": "other",
-      "$value": "76px"
-    },
     "z-intro": {
       "$type": "other",
       "$value": "8000"
@@ -807,69 +799,17 @@
       "$type": "other",
       "$value": "max(22vw, 144px)"
     },
-    "nb-sheet-w": {
+    "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"
     },
-    "nb-top": {
-      "$type": "other",
-      "$value": "max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh))"
-    },
-    "nb-shadow": {
+    "weekly-shadow": {
       "$type": "other",
       "$value": "0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)"
     },
     "hairline": {
       "$type": "other",
       "$value": "0.5px"
-    },
-    "pile-h": {
-      "$type": "other",
-      "$value": "min(76dvh, 620px)"
-    },
-    "pile-w": {
-      "$type": "other",
-      "$value": "132px"
-    },
-    "pile-sheet": {
-      "$type": "other",
-      "$value": "72px"
-    },
-    "pile-step": {
-      "$type": "other",
-      "$value": "10px"
-    },
-    "pile-list": {
-      "$type": "other",
-      "$value": "420px"
-    },
-    "pile-gap": {
-      "$type": "other",
-      "$value": "var(--space-6)"
-    },
-    "footer-text": {
-      "$type": "other",
-      "$value": "max(var(--text-xs), 0.85vw, 1.25vh)"
-    },
-    "footer-inset": {
-      "$type": "other",
-      "$value": "7vw"
-    },
-    "footer-gap": {
-      "$type": "other",
-      "$value": "max(1vw, 1.4vh)"
-    },
-    "footer-pad": {
-      "$type": "other",
-      "$value": "max(1.5vw, 2vh)"
-    },
-    "footer-rows": {
-      "$type": "other",
-      "$value": "max(0.3vw, 0.4vh)"
-    },
-    "giants-w": {
-      "$type": "other",
-      "$value": "min(93vw, 150dvh)"
     },
     "empty-text": {
       "$type": "other",

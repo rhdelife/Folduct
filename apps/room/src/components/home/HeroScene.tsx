@@ -5,7 +5,7 @@ import { DoorstepRow } from "../Doorstep";
 import { BrandMark } from "../Icon";
 import { SkyMap } from "../SkyMap";
 import { SkyPanel } from "../SkyPanel";
-import { useBetween, useSceneGate, type SceneProps } from "./engine";
+import { useBetween, type SceneProps } from "./engine";
 
 type HeroProps = SceneProps & {
   selectedId: string | null;
@@ -18,25 +18,17 @@ type HeroProps = SceneProps & {
 
 // 첫 화면: 방 지도와 고른 방 패널.
 export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef, doorItems, onDoorMenu }: HeroProps) {
-  const gate = useSceneGate(0);
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
   const panelRoom = rooms.find((room) => room.id === panelId) ?? null;
 
-  // 첫 화면을 떠나면 고른 방을 닫습니다.
+  // 스크롤해 줄로 가면 고른 방을 닫습니다.
   const atRest = useBetween(0, 5);
   useEffect(() => {
     if (!atRest && selected) actions.selectRoom(null);
   }, [atRest]);
 
-  // 다른 장면에서 방을 골라 돌아오면 그때는 첫 화면이 아직 잠겨 있으니, 풀리는 순간 패널로 포커스를 옮깁니다. 파일을 골랐으면 그 줄로요. 스크롤은 패널이 맞춰 뒀으니 건드리지 않아요.
-  useEffect(() => {
-    if (gate.inert || !selected) return;
-    const panel = panelRef.current;
-    (panel?.querySelector<HTMLElement>("li.focused button") ?? panel?.querySelector<HTMLElement>("h2"))?.focus({ preventScroll: true });
-  }, [gate.inert]);
-
   return (
-    <section className="scene scene-hero" aria-label="첫 화면" {...gate}>
+    <section className="scene scene-hero" aria-label="첫 화면">
       {rooms.length === 0 ? (
         <div className="home-empty">
           <BrandMark size={120} />

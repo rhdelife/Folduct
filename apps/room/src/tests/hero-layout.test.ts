@@ -4,7 +4,7 @@ import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLay
 import type { Room, Thing } from "../domain/model";
 import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { rowRest } from "../components/home/engine";
-import { rowOnlyPose, arrivalFrames, spillFrames, cardPose, cardsGone, vaseLeave } from "../components/home/heroMotion";
+import { rowOnlyPose, arrivalFrames, spillFrames, cardPose } from "../components/home/heroMotion";
 
 const start = Date.UTC(2026, 0, 5, 12);
 // 종이가 다 내려앉았고 아직 사라지기 전인 자리.
@@ -179,18 +179,6 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     }
   });
 
-  it("쉼터를 지나면 줄은 위로 비켜 사라지고, 화병도 그때 비켜난다", () => {
-    for (const flight of flights.values()) {
-      const gone = cardPose(cardsGone, flight);
-      expect(gone.opacity).toBe(0);
-      expect(flight.rest.y + gone.y).toBeLessThan(flight.to.y);
-      expect(flight.rest.x + gone.x).toBeCloseTo(flight.to.x, 5);
-    }
-    expect(vaseLeave(0, 0.5)).toBe(0);
-    expect(vaseLeave(rowRest, 1)).toBe(0);
-    expect(vaseLeave(rowRest + 300, 1)).toBe(1);
-  });
-
   it("어느 창에서든 줄은 폭 안에 들고, 왼쪽부터 차례이며, 머리와 현관 줄과 창 아래를 넘지 않는다", () => {
     const cases: [View, number, number, number][] = [
       [{ w: 375, h: 812 }, 8, 14, 112],
@@ -231,14 +219,13 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     expect(Math.min(...[...row.values()].map((flight) => flight.to.x - flight.half))).toBeGreaterThanOrEqual(0);
   });
 
-  it("줄에만 있는 종이는 쉼터에서 보이고, 지나면 줄과 함께 사라진다", () => {
+  it("줄에만 있는 종이는 쉼터에서 보인다", () => {
     const view = { w: 1280, h: 800 };
     const laid = heroLayout(many(2, 40), start, view, aspect);
     const only = rowOnlyCards(laid.cards, laid.nodes, start, view, aspect);
     const flight = flightsFor([...laid.cards, ...only], laid.nodes, view).get(only[0].thing.id)!;
     expect(rowOnlyPose(0, flight).opacity).toBe(0);
     expect(rowOnlyPose(rowRest, flight).opacity).toBe(1);
-    expect(rowOnlyPose(cardsGone, flight).opacity).toBe(0);
   });
 
   it("최근에 작업한 파일이 왼쪽부터 놓인다", () => {

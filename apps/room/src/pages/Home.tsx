@@ -1,20 +1,15 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
-import { PileScene } from "../components/home/PileScene";
-import { createEngine, EngineContext, liveScene, nearestStop, sheetLift, useScene, type HomeActions } from "../components/home/engine";
-import { FooterScene } from "../components/home/FooterScene";
+import { createEngine, EngineContext, type HomeActions } from "../components/home/engine";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
-import { NotebookScene } from "../components/home/NotebookScene";
 import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
 import { HomeMenu } from "../components/HomeMenu";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
-import { WeeklyNote } from "../components/WeeklyNote";
 import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
-import { weeklyHasWork } from "../domain/home";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
@@ -28,12 +23,10 @@ import { sampleRooms } from "../storage/sample";
 // 파일 보기는 방 화면과 같은 묶음이라 첫 화면에 싣지 않습니다.
 const QuickViewer = lazy(() => import("../components/QuickViewer").then((m) => ({ default: m.QuickViewer })));
 
-// 주간 공책은 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 주간 정리 버튼 글자로 알립니다.
+// 주간 정리는 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 주간 정리 버튼 글자로 알립니다.
 let sweepChecked = false;
 // 현관 폴더도 앱을 켤 때 한 번만 읽습니다. 방에서 돌아오면 저장된 줄을 그대로 보여 줘요.
 let doorChecked = false;
-// 방에 들어갔다 나오면 보던 장면으로 돌아옵니다.
-let lastStop = 0;
 
 const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms.json 폴더1 폴더2…";
 
@@ -42,17 +35,8 @@ function landFocus(id: string) {
   (document.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('.room-node[tabindex="0"], .sky-empty button'))?.focus();
 }
 
-// 모든 장면을 태운 판 한 장. 맨 끝에서 판째로 들려 아래 장면이 드러납니다.
-function Sheet({ children }: { children: ReactNode }) {
-  const sheet = useRef<HTMLDivElement>(null);
-  useScene((pos) => {
-    sheet.current!.style.transform = `translate3d(0, ${sheetLift(pos)}dvh, 0)`;
-  });
-  return <div className="home-sheet" ref={sheet}>{children}</div>;
-}
-
 export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; entered: boolean; onOpen: (id: string) => void }) {
-  const [engine] = useState(() => createEngine(lastStop));
+  const [engine] = useState(() => createEngine());
   const [rooms, setRooms] = useState<Room[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -61,7 +45,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
@@ -90,6 +73,17 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     }
   }, []);
 
+  // 폴더를 다시 읽고 정리할 게 있으면 정리 창을 띄웁니다. 없으면 false예요.
+  const findSweep = useCallback(async (list?: Room[]) => {
+    const due = await planSweep(list);
+    const fresh = (await load()) ?? [];
+    const asks = fresh.filter((room) => doneOfferDue(room, Date.now()));
+    if (due.length === 0 && asks.length === 0) return false;
+    setOffers(asks);
+    setPlans(due);
+    return true;
+  }, [load]);
+
   const start = useCallback(async () => {
     const list = await load();
     if (!list) return;
@@ -105,15 +99,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       if (sweepChecked) return;
       sweepChecked = true;
       if (!sweepDue(last, Date.now())) return;
-      await planSweep(list);
-      // 정리 계획이 폴더를 다시 읽었으니 지도도 맞춥니다.
-      const fresh = (await load()) ?? list;
-      if (weeklyHasWork(fresh, Date.now())) setWeeklyOpen(true);
+      await findSweep(list);
     } catch (error) {
       // 정리 확인이 안 돼도 방은 그대로 씁니다.
       console.error(error);
     }
-  }, [load]);
+  }, [load, findSweep]);
 
   useEffect(() => {
     document.title = "Folduct · 내 방들";
@@ -161,13 +152,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       if (!focusId) panel.current?.scrollTo(0, 0);
       return;
     }
-    // 다른 장면으로 떠나며 닫혔다면 첫 화면으로 포커스를 끌어오지 않습니다.
     if (!panelId || engine.target !== 0) return;
     const active = document.activeElement;
     if (!active || active === document.body || panel.current?.contains(active)) landFocus(panelId);
   }, [selected?.id]);
 
-  // 방은 첫 화면의 지도와 패널에서 열립니다. 다른 장면에서 고르면 첫 화면으로 돌아옵니다.
+  // 줄에서 고르면 맨 위로 돌아옵니다.
   const selectRoom = useCallback((id: string | null) => {
     setSelectedId(id);
     setFocusId(null);
@@ -190,26 +180,21 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     engine.goTo(0);
   }, [engine]);
 
-  // 불러오는 중이거나 실패하면 움직일 장면이 없습니다.
+  // 불러오는 중이거나 실패하면 움직일 게 없습니다.
   const ready = rooms !== null && !loadFailed;
   // 방에서 돌아오면 들어갔던 화병으로 포커스를 돌려줍니다.
   useEffect(() => {
-    if (ready && returnTo && lastStop === 0) landFocus(returnTo);
+    if (ready && returnTo) landFocus(returnTo);
   }, [ready]);
   useEffect(() => {
-    if (!ready) return;
-    const detach = engine.attach();
-    return () => {
-      detach();
-      lastStop = nearestStop(engine.pos);
-    };
+    if (ready) return engine.attach();
   }, [engine, ready]);
 
-  // 방이 하나도 없으면 집 화면은 빈 첫 화면 하나뿐입니다.
+  // 방이 하나도 없으면 움직일 게 없습니다.
   const noRooms = rooms?.length === 0;
   useEffect(() => engine.lock(noRooms), [engine, noRooms]);
 
-  // 첫 화면 말고 다른 자리로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
+  // 줄로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
   useEffect(() => {
     if (!selected) return;
     return engine.subscribe(() => {
@@ -217,20 +202,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     });
   }, [engine, !selected, selectRoom]);
 
-  // 떠나는 장면의 화병에는 메뉴를 열지 않습니다. 메뉴만 다음 장면 위에 남아요. 돌아오는 중이면 마저 도착해서 엽니다. 창 안의 목록은 장면과 상관없어요.
-  const menuAllowed = useCallback((opener: HTMLElement) => {
-    if (!opener.closest("dialog") && engine.moving) {
-      if (liveScene(engine.target) !== Number(opener.closest<HTMLElement>("[data-scene]")?.dataset.scene)) return false;
-      engine.arrive();
-    }
-    return true;
-  }, [engine]);
-  const openRoomMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => {
-    if (menuAllowed(opener)) setRoomMenu({ id, opener, x, y });
-  }, [menuAllowed]);
-  const openDoorMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => {
-    if (menuAllowed(opener)) setDoorMenu({ id, opener, x, y });
-  }, [menuAllowed]);
+  const openRoomMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => setRoomMenu({ id, opener, x, y }), []);
+  const openDoorMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => setDoorMenu({ id, opener, x, y }), []);
   useEffect(() => {
     if (!roomMenu || roomMenu.opener.closest("dialog")) return;
     return engine.subscribe(() => setRoomMenu(null));
@@ -253,24 +226,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
 
   async function openSweep() {
     toast("폴더를 다시 보는 중…");
-    const due = await planSweep(rooms ?? undefined);
-    const fresh = (await load()) ?? [];
-    const asks = fresh.filter((room) => doneOfferDue(room, Date.now()));
-    if (due.length === 0 && asks.length === 0) {
-      toast("지금은 정리할 파일이 없어요.");
-      return;
-    }
-    setOffers(asks);
-    setPlans(due);
-  }
-
-  // 닫으면 이번 주는 다시 저절로 뜨지 않아요. 저장에 실패해도 닫기는 막지 않습니다. 주기가 안 됐을 때 다시 본 것은 주기를 밀지 않아요.
-  function closeWeekly() {
-    setWeeklyOpen(false);
-    const at = Date.now();
-    if (!sweepDue(lastSweepAt, at)) return;
-    setLastSweep(at);
-    setLastSweepAt(at).catch((error: unknown) => console.error(error));
+    if (!(await findSweep(rooms ?? undefined))) toast("지금은 정리할 파일이 없어요.");
   }
 
   async function addSample() {
@@ -410,7 +366,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     focusThing,
     openRoom: onOpen,
     openSweep: () => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요.")),
-    openWeekly: () => setWeeklyOpen(true),
     openFile: (roomId, thingId) => setViewing({ roomId, thingId }),
     openNew: () => setCreating(true),
     openMenu: () => setMenuOpen(true),
@@ -420,14 +375,14 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     roomMenu: openRoomMenu,
     toggleDone: (id, done) => void moveRoom(id, done).catch(fail(saveFailed)),
   };
-  const scene = rooms && { rooms, stats, now, lastSweepAt, returnTo, actions };
+  const scene = rooms && { rooms, stats, now, actions };
   return (
     <main className="home">
       <EngineContext.Provider value={engine}>
         <div className="home-stage">
           {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-          <HomeHeader rooms={rooms ?? []} now={now} ready={ready} canTravel={ready && !noRooms} overdue={overdue} onWeekly={actions.openWeekly} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
-          <Sheet>
+          <HomeHeader rooms={rooms ?? []} ready={ready} overdue={overdue} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+          <div className="home-sheet">
             {loadFailed ? (
               <div className="scene page-status" role="alert">
                 <p>저장소를 열지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.</p>
@@ -436,18 +391,9 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <>
-                <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} doorItems={door.items} onDoorMenu={openDoorMenu} />
-                {!noRooms && (
-                  <>
-                    <NotebookScene {...scene} />
-                    <PileScene {...scene} />
-                  </>
-                )}
-              </>
+              <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} doorItems={door.items} onDoorMenu={openDoorMenu} />
             )}
-          </Sheet>
-          {scene && !loadFailed && !noRooms && <FooterScene {...scene} />}
+          </div>
         </div>
       </EngineContext.Provider>
       {!isNative() && (
@@ -529,20 +475,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           />
         </Suspense>
       )}
-      {weeklyOpen && entered && rooms && (
-        <WeeklyNote
-          rooms={rooms}
-          now={now}
-          actions={actions}
-          onClose={closeWeekly}
-          onSweep={() => {
-            // 정리 창의 답이 이번 주 정리 시각을 정합니다.
-            setWeeklyOpen(false);
-            actions.openSweep();
-          }}
-        />
-      )}
-      {plans && (
+      {plans && entered && (
         <SweepDialog
           plans={plans}
           offers={offers}

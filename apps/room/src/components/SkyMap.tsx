@@ -127,7 +127,7 @@ export function SkyMap({
   // 줄에만 있는 종이는 줄로 모일 때만 그립니다.
   const gathering = !useBetween(0, 5);
   const rowOnly = useMemo(() => (gathering ? rowOnlyCards(cards.filter((card) => !card.extra), ordered, now, view, paperAspect) : []), [gathering, cards, ordered, now, view]);
-  const { atRest, vasesHome, atRow, track, row, scrollRow } = useHeroMotion(canvas, cards, rowOnly, ordered, view, selectedId);
+  const { atRest, atRow, track, row, scrollRow } = useHeroMotion(canvas, cards, rowOnly, ordered, view, selectedId);
   const slider = useRef<HTMLInputElement>(null);
   const moveRow = (by: (offset: number) => number) => {
     const at = scrollRow(by);
@@ -169,7 +169,7 @@ export function SkyMap({
   const tipY = tip ? tip.star.y * (camera?.zoom ?? 1) + (camera?.y ?? 0) : 0;
 
   return (
-      <div className={`sky-canvas${selectedId ? " has-selection" : ""}${atRest ? "" : " away"}${vasesHome ? "" : " flown"}${atRow ? " at-row" : ""}`} ref={canvas}>
+      <div className={`sky-canvas${selectedId ? " has-selection" : ""}${atRest ? "" : " away"}${atRow ? " at-row" : ""}`} ref={canvas}>
         <div
           className="sky-backdrop"
           onClick={() => {

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { version } from "../../package.json";
 import type { Kind, Room } from "../domain/model";
 import type { RoomStat } from "../domain/sky";
 import type { OpenRoomMenu } from "./ContextMenu";
@@ -6,7 +7,7 @@ import { KindLegend, SizeKey } from "./KindLegend";
 import { HomeSummary, RoomRanking } from "./SkyPanel";
 import { useModal } from "./useModal";
 
-// 왼쪽에서 열리는 메뉴. 도구와 방으로 바로 갑니다. 쪽 이동은 머리에 늘 있어요. 요약과 범례는 접어서 맨 아래에 둡니다.
+// 왼쪽에서 열리는 메뉴. 도구와 방으로 바로 갑니다. 요약과 범례는 접어서 맨 아래에 둡니다.
 export function HomeMenu({
   rooms,
   stats,
@@ -27,10 +28,6 @@ export function HomeMenu({
   onRoomMenu: OpenRoomMenu;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  // 장면 안 버튼으로 열면 닫힐 때 포커스가 그 장면으로 돌아가, 엔진이 고른 방으로 가던 길을 되돌립니다. 돌아올 자리를 어디서나 살아 있는 머리 버튼으로 옮겨요.
-  useLayoutEffect(() => {
-    if (document.activeElement?.closest("[data-scene]")) document.querySelector<HTMLElement>(".home-actions button")?.focus();
-  }, []);
   useModal(dialog);
   // 메뉴 안에서 끌다가 바깥에서 놓아도 닫히지 않게, 누른 자리까지 바깥일 때만 닫습니다.
   const pressedOutside = useRef(false);
@@ -72,6 +69,7 @@ export function HomeMenu({
             </details>
           </>
         )}
+        <p className="soft">버전 {version}</p>
       </div>
     </dialog>
   );
