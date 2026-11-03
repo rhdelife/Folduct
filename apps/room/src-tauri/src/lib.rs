@@ -48,6 +48,18 @@ fn set_pet_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), S
   Ok(())
 }
 
+// 켤 때는 화면 우상단에 둡니다. 가운데에 뜨면 메인 창의 인트로와 겹쳐요. 메뉴 막대 아래로 내려 둡니다.
+fn place_pet_top_right<R: Runtime>(pet: &tauri::WebviewWindow<R>) {
+  const WIDTH: f64 = 216.0;
+  const RIGHT_GAP: f64 = 16.0;
+  const TOP_GAP: f64 = 44.0;
+  let Ok(Some(monitor)) = pet.primary_monitor() else { return };
+  let scale = monitor.scale_factor();
+  let x = monitor.position().x as f64 + monitor.size().width as f64 - (WIDTH + RIGHT_GAP) * scale;
+  let y = monitor.position().y as f64 + TOP_GAP * scale;
+  let _ = pet.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
 // 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 화병이 따라옵니다. 설정 파일로는 전체 화면 동작을 정할 수 없어 창에 직접 알려요.
 #[cfg(target_os = "macos")]
 fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
@@ -167,8 +179,9 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates])
     .setup(|_app| {
-      #[cfg(target_os = "macos")]
       if let Some(pet) = _app.get_webview_window("pet") {
+        place_pet_top_right(&pet);
+        #[cfg(target_os = "macos")]
         float_everywhere(&pet);
       }
       Ok(())
