@@ -58,17 +58,39 @@ fn place_pet_top_right<R: Runtime>(pet: &tauri::WebviewWindow<R>) {
   let x = monitor.position().x as f64 + monitor.size().width as f64 - (WIDTH + RIGHT_GAP) * scale;
   let y = monitor.position().y as f64 + TOP_GAP * scale;
   let _ = pet.set_position(tauri::PhysicalPosition::new(x, y));
+  // 메인 창이 화병 자리까지 오면 건너뛰기와 머리 버튼이 가려져요. 왼쪽으로 비켜 둡니다.
+  if let Some(main) = pet.app_handle().get_webview_window("main") {
+    if let (Ok(at), Ok(size)) = (main.outer_position(), main.outer_size()) {
+      let overlap = at.x as f64 + size.width as f64 - x;
+      if overlap > 0.0 {
+        let _ = main.set_position(tauri::PhysicalPosition::new((at.x as f64 - overlap).max(monitor.position().x as f64), at.y as f64));
+      }
+    }
+  }
 }
 
-// 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 화병이 따라옵니다. 설정 파일로는 전체 화면 동작을 정할 수 없어 창에 직접 알려요.
+// 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 화병이 따라옵니다.
+// 일반 창은 다른 앱의 전체 화면 위에 뜨지 못해 패널로 바꿉니다. 눌러도 앱이 앞으로 나오지 않아 쓰던 전체 화면을 떠나지 않아요.
 #[cfg(target_os = "macos")]
 fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
   use std::ffi::{c_char, c_void};
+  type Id = *mut c_void;
+  type Sel = *const c_void;
   #[link(name = "objc")]
   unsafe extern "C" {
-    fn sel_registerName(name: *const c_char) -> *const c_void;
+    fn sel_registerName(name: *const c_char) -> Sel;
+    fn objc_getClass(name: *const c_char) -> Id;
+    fn objc_allocateClassPair(superclass: Id, name: *const c_char, extra: usize) -> Id;
+    fn objc_registerClassPair(class: Id);
+    fn class_addMethod(class: Id, name: Sel, imp: *const c_void, types: *const c_char) -> i8;
+    fn object_setClass(object: Id, class: Id) -> Id;
     fn objc_msgSend();
   }
+  // 테두리 없는 패널은 기본으로 포커스를 받지 못해, 메뉴를 닫는 신호(blur)가 오지 않습니다.
+  extern "C" fn yes(_: Id, _: Sel) -> i8 {
+    1
+  }
+  const NONACTIVATING_PANEL: usize = 1 << 7;
   const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
   const STATIONARY: usize = 1 << 4;
   const IGNORES_CYCLE: usize = 1 << 6;
@@ -76,10 +98,22 @@ fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
   const STATUS_WINDOW_LEVEL: isize = 25;
   let Ok(ns_window) = window.ns_window() else { return };
   unsafe {
-    let set_behavior: extern "C" fn(*mut c_void, *const c_void, usize) = std::mem::transmute(objc_msgSend as *const ());
-    let set_level: extern "C" fn(*mut c_void, *const c_void, isize) = std::mem::transmute(objc_msgSend as *const ());
-    set_behavior(ns_window, sel_registerName(c"setCollectionBehavior:".as_ptr()), CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE | FULL_SCREEN_AUXILIARY);
-    set_level(ns_window, sel_registerName(c"setLevel:".as_ptr()), STATUS_WINDOW_LEVEL);
+    let get_usize: extern "C" fn(Id, Sel) -> usize = std::mem::transmute(objc_msgSend as *const ());
+    let set_usize: extern "C" fn(Id, Sel, usize) = std::mem::transmute(objc_msgSend as *const ());
+    let set_isize: extern "C" fn(Id, Sel, isize) = std::mem::transmute(objc_msgSend as *const ());
+    let set_bool: extern "C" fn(Id, Sel, i8) = std::mem::transmute(objc_msgSend as *const ());
+    let panel = objc_allocateClassPair(objc_getClass(c"NSPanel".as_ptr()), c"FolductPetPanel".as_ptr(), 0);
+    if panel.is_null() {
+      return;
+    }
+    class_addMethod(panel, sel_registerName(c"canBecomeKeyWindow".as_ptr()), yes as *const c_void, c"c@:".as_ptr());
+    objc_registerClassPair(panel);
+    object_setClass(ns_window, panel);
+    let mask = get_usize(ns_window, sel_registerName(c"styleMask".as_ptr()));
+    set_usize(ns_window, sel_registerName(c"setStyleMask:".as_ptr()), mask | NONACTIVATING_PANEL);
+    set_bool(ns_window, sel_registerName(c"setHidesOnDeactivate:".as_ptr()), 0);
+    set_usize(ns_window, sel_registerName(c"setCollectionBehavior:".as_ptr()), CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE | FULL_SCREEN_AUXILIARY);
+    set_isize(ns_window, sel_registerName(c"setLevel:".as_ptr()), STATUS_WINDOW_LEVEL);
   }
 }
 
