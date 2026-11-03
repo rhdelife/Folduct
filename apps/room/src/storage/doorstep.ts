@@ -69,7 +69,8 @@ export async function bringIntoRoom(item: DoorItem, room: Room): Promise<{ state
 
 export async function undoBring(item: DoorItem, moved: DoorMove, room: Room): Promise<{ state: Doorstep; error: string | null }> {
   const result = await undoDoorMove(item, moved);
-  if (!result.error) await syncRoom(room);
+  // 방에 있던 적 없는 것처럼 뺍니다. 폴더를 다시 읽어 맞추면 '파일 없음' 줄이 남아요.
+  if (!result.error) await patchRoom(room.id, (latest) => ({ ...latest, things: latest.things.filter((thing) => thing.path !== moved.name) })).catch((error: unknown) => console.error(error));
   return result;
 }
 

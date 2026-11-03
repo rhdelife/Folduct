@@ -378,14 +378,14 @@ describe("작업 중인 방으로 가져오기", () => {
     expect(room.files.has("보고서.pdf")).toBe(true);
   });
 
-  it("되돌리면 원래 폴더로 돌아가고 방 목록에서는 없는 파일이 돼요", async () => {
+  it("되돌리면 원래 폴더로 돌아가고 방 목록에서도 빠져요", async () => {
     const { moved } = await bringIntoRoom(item, target);
     const { state, error } = await undoBring(item, moved!, target);
     expect(error).toBeNull();
     expect(downloads.files.get("보고서.pdf")).toBe("내 문서");
     expect(room.files.has("보고서.pdf")).toBe(false);
     expect(state.items.map((entry) => entry.id)).toEqual([item.id]);
-    expect(disk.patched!.things.every((thing) => thing.missing)).toBe(true);
+    expect(disk.patched!.things).toEqual([]);
   });
 });
 

@@ -127,12 +127,20 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     };
   }, [roomId, attempt]);
 
-  // 방을 열어 둔 채 플로팅 화병으로 파일을 넣거나 되돌리면 목록을 바로 맞춥니다.
+  // 방을 열어 둔 채 플로팅 화병으로 파일을 넣거나 되돌리면 저장된 목록을 바로 가져옵니다. 들고 있는 고침부터 저장해 덮어쓰지 않아요.
   useEffect(() => {
-    if (!isNative() || !handle || access !== "granted") return;
+    if (!isNative()) return;
     let left = false;
     let stop: (() => void) | undefined;
-    void listen(doorChanged, () => void syncFolder(handle, true, () => left)).then((unlisten) => {
+    void listen(doorChanged, () => {
+      flush();
+      getRoom(roomId).then(
+        (saved) => {
+          if (saved && !left) update((current) => ({ ...current, things: saved.things, scan: saved.scan }));
+        },
+        (error: unknown) => console.error(error),
+      );
+    }).then((unlisten) => {
       if (left) unlisten();
       else stop = unlisten;
     });
@@ -140,7 +148,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       left = true;
       stop?.();
     };
-  }, [handle, access]);
+  }, [roomId]);
 
   // 방에 들어오면 제목으로 포커스를 옮겨, 화면 읽기 프로그램이 어느 방인지 읽게 합니다.
   useEffect(() => {

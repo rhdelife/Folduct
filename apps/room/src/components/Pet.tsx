@@ -139,6 +139,15 @@ export function Pet() {
     };
   }, [working]);
 
+  // 앱에서 방을 고치거나 지울 수 있어 틈틈이 다시 읽습니다. 작업하던 방을 지웠으면 작업도 끝나요.
+  useEffect(() => {
+    const timer = window.setInterval(() => void loadRooms().catch((error: unknown) => console.error(error)), watchEveryMs);
+    return () => window.clearInterval(timer);
+  }, [loadRooms]);
+  useEffect(() => {
+    if (session && !rooms.some((item) => item.id === session.roomId)) change(null);
+  }, [rooms, session, change]);
+
   useEffect(() => {
     if (!done) return;
     const timer = window.setTimeout(() => setDone(null), doneShownMs);
