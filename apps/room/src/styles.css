@@ -463,7 +463,9 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .sky-tip { position: absolute; z-index: 20; transform: translate(-50%, calc(-100% - 18px)); display: grid; gap: 2px; min-width: 140px; max-width: 240px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); pointer-events: auto; animation: fade-in var(--dur-1) var(--ease-standard); }
 .sky-tip.below { transform: translate(-50%, 18px); }
 .sky-tip.row { transform: translate(-50%, var(--space-3)); }
-.row-scroll { position: absolute; z-index: calc(var(--hero-tip-z) - 1); left: 50%; width: min(50%, calc(var(--space-12) * 6)); margin: 0; padding: 0; translate: -50% var(--space-3); accent-color: var(--ink); pointer-events: auto; }
+.row-scroll { position: absolute; z-index: calc(var(--hero-tip-z) - 1); left: 50%; width: min(50%, calc(var(--space-12) * 6)); margin: 0; padding: 0; translate: -50% var(--space-3); accent-color: var(--ink); opacity: 0; pointer-events: none; }
+/* 평소에는 트랙패드와 Shift 휠로 밉니다. 막대는 키보드로 왔을 때만 보여요. */
+.row-scroll:focus-visible { opacity: 1; }
 .sky-tip button { justify-self: start; margin-top: var(--space-1); min-height: 0; padding: var(--space-1) var(--space-2); font-size: var(--text-xs); }
 .sky-tip strong { overflow-wrap: anywhere; }
 .sky-tip span { color: var(--ink-soft); }
