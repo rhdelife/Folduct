@@ -5,44 +5,43 @@ import type { RoomStat } from "../../domain/sky";
 import type { OpenRoomMenu } from "../ContextMenu";
 
 // 집 화면은 문서 스크롤이 없습니다. 숫자 하나(pos)가 모든 장면을 움직여요.
-// 문턱을 넘은 휠과 손가락은 pos에 그대로 더하고, 입력이 140ms 멈추면 마지막 방향의 다음 자리까지 cubic-out으로 흘러갑니다.
-export const stops: readonly number[] = [0, 1350, 3350, 4900, 5600, 6500];
-// stops[i]에서 stops[i+1]까지의 시간(ms). 거리와 상관없이 구간마다 정해져 있습니다.
-export const segmentMs: readonly number[] = [1400, 2005, 2400, 1805, 1500];
+// 문턱을 넘은 휠과 손가락은 pos에 그대로 더하고, 입력이 140ms 멈추면 마지막 방향의 다음 쉼터까지 cubic-out으로 흘러갑니다.
+// stops는 장면의 자리라 번호가 곧 장면 번호입니다(쪽 이동, data-scene).
+export const stops: readonly number[] = [0, 1350, 3350, 4300, 5200];
+// 종이가 한 줄로 모여 쉬는 자리. 첫 화면 안의 쉼터라 장면 번호를 받지 않습니다.
+export const rowRest = 640;
+// 휠, 키, 자동 진행이 멈추는 자리: 장면의 자리와 줄 쉼터. 쪽 이동은 쉼터를 그냥 지나갑니다.
+export const rests: readonly number[] = [0, rowRest, ...stops.slice(1)];
+// rests[i]에서 rests[i+1]까지의 시간(ms). 거리와 상관없이 구간마다 정해져 있습니다.
+export const segmentMs: readonly number[] = [1000, 1100, 2005, 1805, 1500];
 export const idleMs = 140;
 // 메뉴나 Home/End처럼 여러 구간을 건너뛸 때의 시간.
 const jumpMs = 1800;
 const lastStop = stops.length - 1;
+const lastRest = rests.length - 1;
 const touchSlop = 12;
 
 // 장면 표. show 밖에서는 숨기고(그리지 않음), live 안에서만 조작할 수 있습니다. live는 빈틈없이 이어져 늘 한 장면만 살아 있어요.
 export const scenes = [
-  { name: "hero", label: "첫 화면", show: [0, 880], live: [0, 390] },
-  { name: "notebook", label: "손댈 것", show: [380, 1800], live: [390, 1455] },
-  { name: "table", label: "방", show: [1450, 4130], live: [1455, 4130] },
-  { name: "dial", label: "방 모음", show: [4130, 5430], live: [4130, 5425] },
+  { name: "hero", label: "내 방", show: [0, 1000], live: [0, 700] },
+  { name: "notebook", label: "손댈 것", show: [650, 1800], live: [700, 1455] },
+  { name: "table", label: "방 목록", show: [1450, 4130], live: [1455, 4125] },
   // 판이 가장 빠른 한가운데를 피해, 막 들릴 때 조작을 넘깁니다.
-  { name: "pile", label: "형식별", show: [5425, 6500], live: [5425, 5620] },
-  { name: "footer", label: "맨 아래", show: [5600, 6500], live: [5620, 6500] },
+  { name: "pile", label: "형식별", show: [4125, 5200], live: [4125, 4320] },
+  { name: "footer", label: "맨 아래", show: [4300, 5200], live: [4320, 5200] },
 ] as const;
 
 export const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 export const range = (pos: number, a: number, b: number) => clamp01((pos - a) / (b - a));
-export const lin = (u: number) => u;
 export const cubicOut = (u: number) => 1 - (1 - u) ** 3;
 export const smooth = (u: number) => u * u * (3 - 2 * u);
 
 export const clampPos = (pos: number) => Math.min(stops[lastStop], Math.max(0, pos));
 
-// 방향으로 pos를 넘어선 첫 자리. 가까운 자리로 되돌아가는 일은 없습니다.
-export function nextStop(pos: number, dir: number): number | null {
-  if (dir > 0) {
-    const index = stops.findIndex((stop) => stop > pos);
-    return index < 0 ? null : index;
-  }
-  if (dir < 0) {
-    for (let index = lastStop; index >= 0; index -= 1) if (stops[index] < pos) return index;
-  }
+// 방향으로 pos를 넘어선 첫 쉼터. 가까운 쉼터로 되돌아가는 일은 없습니다.
+export function nextRest(pos: number, dir: number): number | null {
+  if (dir > 0) return rests.find((rest) => rest > pos) ?? null;
+  if (dir < 0) return rests.filter((rest) => rest < pos).at(-1) ?? null;
   return null;
 }
 
@@ -50,15 +49,16 @@ export function nearestStop(pos: number): number {
   return stops.reduce((best, stop, index) => (Math.abs(stop - pos) < Math.abs(stops[best] - pos) ? index : best), 0);
 }
 
-// 맞닿은 구간이면 그 구간의 시간, 여러 구간을 건너뛰면 jumpMs.
-export function legMs(pos: number, target: number): number {
-  if (pos < stops[target]) return target > 0 && pos >= stops[target - 1] ? segmentMs[target - 1] : jumpMs;
-  return target < lastStop && pos <= stops[target + 1] ? segmentMs[target] : jumpMs;
+// 맞닿은 구간이면 그 구간의 시간, 쉼터를 건너뛰면 jumpMs.
+export function legMs(pos: number, to: number): number {
+  const index = rests.indexOf(to);
+  if (pos < to) return index > 0 && pos >= rests[index - 1] ? segmentMs[index - 1] : jumpMs;
+  return index < lastRest && pos <= rests[index + 1] ? segmentMs[index] : jumpMs;
 }
 
-export function tweenTarget(pos: number, dir: number): { stop: number; to: number; ms: number } | null {
-  const stop = nextStop(pos, dir);
-  return stop === null ? null : { stop, to: stops[stop], ms: legMs(pos, stop) };
+export function tweenTarget(pos: number, dir: number): { to: number; ms: number } | null {
+  const to = nextRest(pos, dir);
+  return to === null ? null : { to, ms: legMs(pos, to) };
 }
 
 export function tweenPos(from: number, to: number, elapsed: number, ms: number): number {
@@ -67,7 +67,7 @@ export function tweenPos(from: number, to: number, elapsed: number, ms: number):
 
 // 휠 흐름 하나를 지켜봅니다. 트랙패드는 손을 뗀 뒤에도 관성 꼬리가 1~2초 흘러 그대로 더하면 장면을 건너뛰어요.
 // 한 번 튕기면 한 장면만: 흐름은 다음 자리(wall)에서 멈추고 남은 꼬리는 버립니다. 쌓아 두지도 않아요.
-// 속도가 줄지 않고 오래 이어지는 입력(휠을 계속 굴리기)은 일부러 미는 것이라 자리를 그냥 지나갑니다.
+// 속도가 줄지 않고 오래 이어지는 입력(휠을 계속 굴리기)은 일부러 미는 것이라 자리를 그냥 지나갑니다. 줄 쉼터만은 지나가지 않아요.
 export type WheelStream = {
   at: number; // 마지막 입력 시각
   start: number; // 이 흐름이 시작한 시각
@@ -84,10 +84,12 @@ const sustainMs = 1000; // 줄지 않고 이만큼 이어지면 일부러 미는
 const tailMs = 500; // 꼬리는 드문드문 와도 이 안이면 같은 흐름이에요.
 const arrivedPx = 60; // cubic-out의 끝자락은 이미 멈춘 것처럼 보입니다. 이 안에서 새로 밀면 그다음 자리로 갑니다.
 
+const rowArrivedPx = 8; // 줄 쉼터는 정말 닿았을 때만 넘깁니다. 안 그러면 천천히 굴리는 휠이 쉼터 앞에서 그대로 지나쳐요.
+
 const wallFrom = (pos: number, dir: number) => {
   const ahead = clampPos(pos + arrivedPx * dir);
-  const stop = nextStop(ahead, dir);
-  return stop === null ? ahead : stops[stop];
+  if ((pos - rowRest) * dir < -rowArrivedPx && (ahead - rowRest) * dir >= 0) return rowRest;
+  return nextRest(ahead, dir) ?? ahead;
 };
 
 export function gateWheel(prev: WheelStream | null, pos: number, delta: number, now: number): { stream: WheelStream; delta: number } {
@@ -108,7 +110,7 @@ export function gateWheel(prev: WheelStream | null, pos: number, delta: number, 
     const low = faded ? Math.min(prev.low, rate) : Infinity;
     // 줄어들던 속도가 다시 뛰면 꼬리 위에 새로 튕긴 손가락입니다. 다음 자리까지 한 번 더 갑니다.
     if (faded && rate > low * 2 + 0.3) stream = fresh(rate);
-    else stream = { ...prev, at: now, rate, peak, low, wall: !faded && now - prev.start >= sustainMs ? wallFrom(pos, dir) : prev.wall };
+    else stream = { ...prev, at: now, rate, peak, low, wall: !faded && now - prev.start >= sustainMs && prev.wall !== rowRest ? wallFrom(pos, dir) : prev.wall };
   }
   return { stream, delta: Math.max(0, Math.min(size, (stream.wall - pos) * dir)) * dir };
 }
@@ -204,7 +206,7 @@ export function createEngine(startStop = 0): Engine {
     waiting = false;
     settling = false;
     // 벽에 닿아 자리에 멈췄으면 그 장면에 머뭅니다.
-    if (reduced() || stops.includes(pos)) return;
+    if (reduced() || rests.includes(pos)) return;
     const target = tweenTarget(pos, dir);
     if (target) play(target.to, target.ms);
   }
@@ -260,15 +262,17 @@ export function createEngine(startStop = 0): Engine {
     input(gated.delta);
   }
 
+  function travel(to: number) {
+    if (!locked && (tween?.to ?? pos) !== to) play(to, legMs(pos, to));
+  }
+
   function goTo(stop: number) {
-    if (locked) return;
-    const index = Math.min(lastStop, Math.max(0, stop));
-    if ((tween?.to ?? pos) !== stops[index]) play(stops[index], legMs(pos, index));
+    travel(stops[Math.min(lastStop, Math.max(0, stop))]);
   }
 
   function step(direction: number) {
-    const stop = nextStop(tween?.to ?? pos, direction);
-    if (stop !== null) goTo(stop);
+    const to = nextRest(tween?.to ?? pos, direction);
+    if (to !== null) travel(to);
   }
 
   function land(at: number) {
@@ -290,7 +294,8 @@ export function createEngine(startStop = 0): Engine {
 
     const onWheel = (event: WheelEvent) => {
       // 옆으로 미는 트랙패드에 섞여 오는 작은 세로 값은 장면을 넘기지 않습니다.
-      if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY) || blocked() || ownsScroll(event.target)) return;
+      // Shift를 누른 휠은 줄을 옆으로 밉니다.
+      if (event.ctrlKey || event.shiftKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY) || blocked() || ownsScroll(event.target)) return;
       event.preventDefault();
       wheel(event.deltaY * (event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? innerHeight : 1), event.timeStamp);
     };
@@ -346,8 +351,8 @@ export function createEngine(startStop = 0): Engine {
     const onFocus = (event: FocusEvent) => {
       if (!(event.target instanceof Element)) return;
       const scene = event.target.closest<HTMLElement>("[data-scene]");
-      // 흐르는 동안 들어온 포커스는 가던 길을 되돌리지 않습니다. 도착한 뒤 자리는 rehome이 잡아요.
-      if (scene && !tween) goTo(Number(scene.dataset.scene));
+      // 흐르는 동안 들어온 포커스는 가던 길을 되돌리지 않습니다. 도착한 뒤 자리는 rehome이 잡아요. 살아 있는 장면 안이면 쉼터에 그대로 둡니다.
+      if (scene && !tween && Number(scene.dataset.scene) !== liveScene(pos)) goTo(Number(scene.dataset.scene));
     };
 
     // Chrome은 방금 잠긴 요소에서 다음 프레임까지도 포커스를 안 거둘 때가 있어 잠겼는지까지 봅니다.
@@ -366,7 +371,7 @@ export function createEngine(startStop = 0): Engine {
       scene.addEventListener("pointerdown", () => scene.blur(), { once: true });
     };
     const onArrive = () => {
-      if (!keyed || tween || !stops.includes(pos)) return;
+      if (!keyed || tween || !rests.includes(pos)) return;
       keyed = false;
       requestAnimationFrame(rehome);
     };
@@ -409,7 +414,7 @@ export function createEngine(startStop = 0): Engine {
     },
     get target() {
       if (tween) return tween.to;
-      return stops.includes(pos) ? pos : (tweenTarget(pos, dir)?.to ?? pos);
+      return rests.includes(pos) ? pos : (tweenTarget(pos, dir)?.to ?? pos);
     },
     get moving() {
       return tween !== null || waiting;
@@ -479,6 +484,9 @@ export type HomeActions = {
   focusThing: (roomId: string, thingId: string) => void;
   openRoom: (id: string) => void;
   openSweep: () => void;
+  openWeekly: () => void;
+  // 방에 들어가지 않고 파일을 봅니다.
+  openFile: (roomId: string, thingId: string) => void;
   openNew: () => void;
   openMenu: () => void;
   // 데스크톱 앱에는 목록 파일 가져오기가 없어 null입니다.

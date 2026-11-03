@@ -735,6 +735,18 @@
     }
   },
   "scene": {
+    "topbar-stacked-h": {
+      "$type": "other",
+      "$value": "100px"
+    },
+    "topbar-phone-h": {
+      "$type": "other",
+      "$value": "112px"
+    },
+    "nav-cell-w": {
+      "$type": "other",
+      "$value": "76px"
+    },
     "z-intro": {
       "$type": "other",
       "$value": "8000"
@@ -801,7 +813,7 @@
     },
     "nb-top": {
       "$type": "other",
-      "$value": "calc(3vh + clamp(36px, 7vw, 90px) + 2vh)"
+      "$value": "max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh))"
     },
     "nb-shadow": {
       "$type": "other",
@@ -851,22 +863,6 @@
       "$type": "other",
       "$value": "0.5px"
     },
-    "dial-card-w": {
-      "$type": "other",
-      "$value": "260px"
-    },
-    "dial-info-w": {
-      "$type": "other",
-      "$value": "360px"
-    },
-    "dial-clear": {
-      "$type": "other",
-      "$value": "88px"
-    },
-    "dial-wait-blur": {
-      "$type": "other",
-      "$value": "80px"
-    },
     "pile-h": {
       "$type": "other",
       "$value": "min(76dvh, 620px)"
@@ -910,18 +906,6 @@
     "footer-rows": {
       "$type": "other",
       "$value": "max(0.3vw, 0.4vh)"
-    },
-    "dial-gap": {
-      "$type": "other",
-      "$value": "max(1.2vw, 1.8vh)"
-    },
-    "dial-w": {
-      "$type": "other",
-      "$value": "max(5vw, 7vh)"
-    },
-    "dial-h": {
-      "$type": "other",
-      "$value": "max(6.25vw, 8.75vh)"
     },
     "giants-w": {
       "$type": "other",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { colorGroups } from "../art/palette";
 import { dayMs, defaultCare, GB, localDay } from "../domain/care";
-import { captionWords, kindGroups, notebookSections, recentFiles, shelfFiles, dialRooms, tableRows } from "../domain/home";
+import { captionWords, kindGroups, notebookSections, recentFiles, shelfFiles, tableRows, weeklyHasWork } from "../domain/home";
 import type { BoxEntry, Room, Thing } from "../domain/model";
 
 const now = new Date(2026, 9, 20, 12).getTime();
@@ -88,27 +88,17 @@ describe("수첩에 꺼낼 파일", () => {
   });
 });
 
-describe("방 모음", () => {
-  it("진행 중인 방 뒤에 완료한 방까지 모아요", () => {
-    const stamps = dialRooms(rooms);
-    expect(stamps.map((stamp) => [stamp.room.id, stamp.done])).toEqual([["main", false], ["calm", false], ["done", true]]);
-    expect(stamps[1].files).toBe(1);
-    expect(stamps[2].bytes).toBe(5 * GB);
-  });
-});
-
 describe("머리글 숫자", () => {
   it("장면 순서대로 지금 상태를 적어요", () => {
     const words = captionWords(rooms, now);
-    expect(words).toHaveLength(5);
+    expect(words).toHaveLength(4);
     expect(words[0]).toMatch(/^2개 · /);
     expect(words[2]).toMatch(/^3개 · 파일 \d+개$/);
-    expect(words[3]).toBe("진행 중 2개 · 완료 1개");
-    expect(words[4]).toMatch(/^파일 \d+개 · /);
+    expect(words[3]).toMatch(/^파일 \d+개 · /);
   });
 
   it("방이 없고 급한 게 없으면 그렇다고 적어요", () => {
-    expect(captionWords([], now)).toEqual(["0개 · 0B", "급한 건 없어요", "0개 · 파일 0개", "진행 중 0개", "파일 0개 · 0B"]);
+    expect(captionWords([], now)).toEqual(["0개 · 0B", "급한 건 없어요", "0개 · 파일 0개", "파일 0개 · 0B"]);
   });
 });
 
@@ -128,5 +118,17 @@ describe("형식별 묶음", () => {
     expect(drawers.find((drawer) => drawer.label === "소리")).toMatchObject({ count: 0, bytes: 0, top: [] });
     expect(drawers.find((drawer) => drawer.label === "PDF·문서·발표")!.count).toBe(0);
     expect(kindGroups(rooms, now, 1).find((drawer) => drawer.label === "이미지")!.top).toHaveLength(1);
+  });
+});
+
+describe("주간 공책", () => {
+  const fresh = thing("fresh", { touchedAt: ago(1), lastModified: ago(1) });
+  it("손댈 게 없으면 저절로 띄우지 않아요", () => {
+    expect(weeklyHasWork([room("a", [fresh], { workDays: [localDay(ago(1))] })], now)).toBe(false);
+    expect(weeklyHasWork([], now)).toBe(false);
+  });
+  it("오래된 파일이나 한도 넘은 방이 있으면 띄워요", () => {
+    expect(weeklyHasWork([room("a", [fallen])], now)).toBe(true);
+    expect(weeklyHasWork([room("a", [fresh], { budgetBytes: 1 })], now)).toBe(true);
   });
 });

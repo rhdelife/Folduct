@@ -65,7 +65,7 @@ export default function App() {
           <Suspense fallback={null}>
             <RoomPage key={roomId} roomId={roomId} onBack={back} />
           </Suspense>
-        ) : homeReady && <Home returnTo={lastRoomId} onOpen={open} />}
+        ) : homeReady && <Home returnTo={lastRoomId} entered={intro === "off"} onOpen={open} />}
       </ErrorBoundary>
       {!roomId && (intro === "playing" || intro === "leaving") && (
         <ErrorBoundary onFail={endIntro}>

@@ -1,5 +1,5 @@
 import { boxColor, colorGroups } from "../art/palette";
-import { budgetLevel, dayMs, lastActivity, roomUsage, sweepDue, thingAge, withinWeek, type RoomUsage } from "./care";
+import { budgetLevel, dayMs, doneOfferDue, lastActivity, roomUsage, sweepDue, thingAge, withinWeek, type RoomUsage } from "./care";
 import { formatBytes, kindLabels, type Kind, type Room, type Thing } from "./model";
 
 // 집 화면 장면들이 보여 줄 내용을 고릅니다. 화면과 무관한 순수 함수만 둡니다.
@@ -24,6 +24,12 @@ export type NotebookSections = {
   info: { recent: { label: string; color: string; kinds: Kind[]; count: number }[] };
   later: { doneRooms: number; shelfFiles: number };
 };
+
+// 주간 공책을 저절로 띄울 만한 일이 있는지. 손댈 게 없는 주에는 띄우지 않아요.
+export function weeklyHasWork(rooms: Room[], now: number): boolean {
+  const { first } = notebookSections(rooms, now);
+  return first.stale.length > 0 || first.overBudget.length > 0 || rooms.some((room) => doneOfferDue(room, now));
+}
 
 // 손댈 것: 먼저(오래된 파일, 한도 넘은 방, 밀린 정리), 참고(최근 7일에 쓴 형식), 나중에(완료한 방, 선반 위 파일).
 export function notebookSections(rooms: Room[], now: number, lastSweepAt: number | null = null): NotebookSections {
@@ -71,14 +77,6 @@ export const recentFiles = (rooms: Room[], now: number): FileRef[] => refsOf(roo
 // 선반 위 파일. 큰 것부터.
 export const shelfFiles = (rooms: Room[], now: number): FileRef[] => refsOf(rooms, now, (thing) => !thing.spot).sort((a, b) => b.thing.size - a.thing.size);
 
-export type DialRoom = { room: Room; done: boolean; files: number; bytes: number };
-
-// 방 모음: 진행 중인 방 뒤에 완료한 방까지 모두.
-export function dialRooms(rooms: Room[]): DialRoom[] {
-  const entry = (room: Room): DialRoom => ({ room, done: room.care.done, files: present(room).length, bytes: roomUsage(room).totalBytes });
-  return [...rooms.filter((room) => !room.care.done), ...rooms.filter((room) => room.care.done)].map(entry);
-}
-
 export type KindGroup = { label: string; color: string; kinds: Kind[]; box: boolean; count: number; bytes: number; top: FileRef[] };
 
 // 형식별 묶음: colorGroups 하나에 하나씩, 맨 끝에 정리 상자. 비어 있어도 묶음은 있습니다.
@@ -91,7 +89,7 @@ export function kindGroups(rooms: Room[], now: number, topCount = 5): KindGroup[
   return [...colorGroups.map(({ label, color, kinds }) => collect(label, color, kinds, false)), collect("정리 상자", boxColor, [], true)];
 }
 
-// 머리글의 숫자. 장면 순서대로 내 방, 손댈 것, 방, 방 모음, 형식별입니다. 소개 문장 대신 지금 내 상태를 적어요.
+// 머리글의 숫자. 장면 순서대로 내 방, 손댈 것, 방 목록, 형식별입니다. 소개 문장 대신 지금 내 상태를 적어요.
 export function captionWords(rooms: Room[], now: number): string[] {
   const active = rooms.filter((room) => !room.care.done);
   const { first } = notebookSections(rooms, now);
@@ -99,13 +97,11 @@ export function captionWords(rooms: Room[], now: number): string[] {
   const urgent = [stale > 0 && `오래된 파일 ${stale}개`, first.overBudget.length > 0 && `한도 넘은 방 ${first.overBudget.length}개`].filter(Boolean);
   // 표 장면에는 완료한 방의 탭도 있어서, 방과 파일은 완료까지 함께 셉니다.
   const files = rooms.reduce((sum, room) => sum + present(room).length, 0);
-  const done = rooms.length - active.length;
   const kinds = kindGroups(rooms, now, 0).filter((group) => !group.box);
   return [
     `${active.length}개 · ${formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}`,
     urgent.join(" · ") || "급한 건 없어요",
     `${rooms.length}개 · 파일 ${files}개`,
-    done > 0 ? `진행 중 ${active.length}개 · 완료 ${done}개` : `진행 중 ${active.length}개`,
     `파일 ${kinds.reduce((sum, group) => sum + group.count, 0)}개 · ${formatBytes(kinds.reduce((sum, group) => sum + group.bytes, 0))}`,
   ];
 }

@@ -3,42 +3,25 @@ import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { kindColors } from "../art/palette";
 import { kindParts, kindSummary, vaseBands } from "../art/vases";
 import { RoomFaceArt } from "./RoomFace";
-import { budgetLevel } from "../domain/care";
-import { heroLayout, namedPaper, type Card, type HeroNode, type RowSpot } from "../domain/heroLayout";
+import { budgetLevel, lastActivity, relativeDay } from "../domain/care";
+import { heroLayout, namedPaper, rowOnlyCards, type Card, type HeroNode } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { hash, labelsHideFrom, sky, stageUnit, stepRoom, toPx, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
-import { vaseFill } from "../domain/dial";
+import { hash, labelsHideFrom, sky, stageUnit, stepRoom, toPx, vaseFill, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
-import { useEngine } from "./home/engine";
+import { useBetween, useEngine } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
 
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
 
-type Tip = { star: Card; room: Room };
+// at이 있으면 줄 위의 종이입니다. 지도 좌표 대신 그 종이 바로 아래에 띄워요.
+type Tip = { star: Card; room: Room; at?: { x: number; top: number; bottom: number } };
 type Camera = { zoom: number; x: number; y: number } | null;
 
 const paperAspect = (thing: Thing) => {
   const art = pickArt(thing.kind, thing.id);
   return art.h / art.w;
 };
-
-// 공책 줄 아이콘의 자리를 위에서 아래 순서로 잽니다. 올라오는 중이라 transform이 먹지 않는 offset 값을 무대까지 더해요.
-function measureRows(root: HTMLElement): Map<string, RowSpot> {
-  const spots = new Map<string, RowSpot>();
-  const scene = root.closest(".home-sheet")?.querySelector<HTMLElement>(".scene-notebook");
-  if (!scene) return spots;
-  for (const row of scene.querySelectorAll<HTMLElement>(".nb-file[data-thing]")) {
-    const size = row.querySelector(".object")?.getBoundingClientRect().width ?? 0;
-    let [x, y] = [size / 2, row.offsetHeight / 2];
-    for (let el: HTMLElement | null = row; el && el !== scene; el = el.offsetParent as HTMLElement | null) {
-      x += el.offsetLeft;
-      y += el.offsetTop;
-    }
-    spots.set(row.dataset.thing!, { x, y, size });
-  }
-  return spots;
-}
 
 // 집: 빛을 받는 하얀 판 위의 방 지도. 파일은 형식별 색(이미지 노랑·글 초록·영상 파랑·PDF/문서 빨강…)의 종이 오브제로 떠 있습니다.
 // 완료한 방은 지도에 놓지 않고, 메뉴의 완료된 프로젝트 목록에 둡니다.
@@ -51,6 +34,7 @@ export function SkyMap({
   onSelectRoom,
   onOpenRoom,
   onFocusThing,
+  onOpenThing,
   onRoomMenu,
 }: {
   rooms: Room[];
@@ -61,6 +45,7 @@ export function SkyMap({
   onSelectRoom: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
+  onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
@@ -80,7 +65,9 @@ export function SkyMap({
     const open = document.querySelector(".sky-panel.open")?.getBoundingClientRect();
     // 폰의 아래 패널은 폭 전체를 쓰니 옆 패널만 오른쪽 끝을 줄입니다.
     const right = open && open.left > area.left ? open.left : area.right;
-    el.style.translate = `${Math.max(area.left - box.left, Math.min(0, right - box.right))}px`;
+    // 줄 아래 자리가 모자라면 종이 위로 올립니다.
+    const flip = tip?.at && box.bottom > area.bottom ? tip.at.top - tip.at.bottom - box.height - 24 : 0;
+    el.style.translate = `${Math.max(area.left - box.left, Math.min(0, right - box.right))}px ${flip}px`;
   }, [tip]);
 
   const showTip = useCallback((next: Tip) => {
@@ -137,7 +124,29 @@ export function SkyMap({
     return { ordered: nodes, cards, ids: nodes.map((item) => item.room.id), camera };
   }, [rooms, selectedId, now, view]);
 
-  const { atRest, vasesHome } = useHeroMotion(canvas, cards, ordered, view, selectedId, () => measureRows(canvas.current!));
+  // 줄에만 있는 종이는 줄로 모일 때만 그립니다.
+  const gathering = !useBetween(0, 5);
+  const rowOnly = useMemo(() => (gathering ? rowOnlyCards(cards.filter((card) => !card.extra), ordered, now, view, paperAspect) : []), [gathering, cards, ordered, now, view]);
+  const { atRest, vasesHome, atRow, track, row, scrollRow } = useHeroMotion(canvas, cards, rowOnly, ordered, view, selectedId);
+  const slider = useRef<HTMLInputElement>(null);
+  const moveRow = (by: (offset: number) => number) => {
+    const at = scrollRow(by);
+    if (slider.current) slider.current.value = String(at);
+    closeTip();
+  };
+
+  // 줄이 창보다 길면 트랙패드를 옆으로 밀거나 Shift와 휠로 옮깁니다. 세로 휠은 그대로 다음 화면으로 가요.
+  useEffect(() => {
+    if (!atRow || !track) return;
+    const onWheel = (event: WheelEvent) => {
+      const by = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.shiftKey ? event.deltaY : 0;
+      if (!by || document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      moveRow((offset) => offset + by);
+    };
+    addEventListener("wheel", onWheel, { passive: false });
+    return () => removeEventListener("wheel", onWheel);
+  }, [atRow, track]);
 
   // 스와이프로 판을 떠나면 말풍선과 강조를 닫습니다.
   useEffect(() => {
@@ -145,6 +154,11 @@ export function SkyMap({
     closeTip();
     setHoverRoom(null);
   }, [atRest, closeTip]);
+
+  // 줄을 떠나면 줄 위의 말풍선도 닫습니다.
+  useEffect(() => {
+    if (!atRow) setTip((current) => (current?.at ? null : current));
+  }, [atRow]);
 
   // 화병이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
   if (hoverRoom && !ids.includes(hoverRoom)) setHoverRoom(null);
@@ -155,7 +169,7 @@ export function SkyMap({
   const tipY = tip ? tip.star.y * (camera?.zoom ?? 1) + (camera?.y ?? 0) : 0;
 
   return (
-      <div className={`sky-canvas${selectedId ? " has-selection" : ""}${atRest ? "" : " away"}${vasesHome ? "" : " flown"}`} ref={canvas}>
+      <div className={`sky-canvas${selectedId ? " has-selection" : ""}${atRest ? "" : " away"}${vasesHome ? "" : " flown"}${atRow ? " at-row" : ""}`} ref={canvas}>
         <div
           className="sky-backdrop"
           onClick={() => {
@@ -166,6 +180,7 @@ export function SkyMap({
         <MapLayers
           ordered={ordered}
           cards={cards}
+          rowOnly={rowOnly}
           unit={stageUnit(view)}
           ids={ids}
           camera={camera}
@@ -176,26 +191,55 @@ export function SkyMap({
           onSelectRoom={onSelectRoom}
           onOpenRoom={onOpenRoom}
           onFocusThing={onFocusThing}
+          onOpenThing={onOpenThing}
           onRoomMenu={onRoomMenu}
           onHoverRoom={setHoverRoom}
           onShowTip={showTip}
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
+        {atRow && track && (
+          <input
+            ref={slider}
+            className="row-scroll"
+            type="range"
+            aria-label="파일 줄 옆으로 옮기기"
+            min={0}
+            max={track.max}
+            defaultValue={row.current.offset}
+            style={{ top: track.y }}
+            onChange={(event) => {
+              const to = Number(event.target.value);
+              moveRow(() => to);
+            }}
+          />
+        )}
         <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방으로 들어가요. 메뉴 키로는 완료된 프로젝트로 옮길 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
-            className={`sky-tip${tipY < 140 ? " below" : ""}`}
-            aria-hidden="true"
-            style={{ left: `${(Math.min(880, Math.max(120, tipX)) / sky.width) * 100}%`, top: `${(tipY / sky.height) * 100}%` }}
+            className={`sky-tip${tip.at ? " row" : tipY < 140 ? " below" : ""}`}
+            aria-hidden={tip.at ? undefined : "true"}
+            style={tip.at ? { left: tip.at.x, top: tip.at.bottom } : { left: `${(Math.min(880, Math.max(120, tipX)) / sky.width) * 100}%`, top: `${(tipY / sky.height) * 100}%` }}
             onMouseEnter={() => clearTimeout(closeTimer.current)}
             onMouseLeave={hideTip}
           >
             <strong>{tip.star.thing.name}</strong>
             <span>{tip.room.name} · {kindLabels[tip.star.thing.kind]} · {formatBytes(tip.star.thing.size)}</span>
+            {tip.at && <span>{relativeDay(lastActivity(tip.star.thing), now)} 작업</span>}
             {tip.star.stale && <em>{tip.star.days}일째 그대로</em>}
             {!tip.star.thing.spot && <em className="calm">아직 선반 위</em>}
+            {tip.at && (
+              <button
+                type="button"
+                onClick={() => {
+                  closeTip();
+                  onOpenThing(tip.room.id, tip.star.thing.id);
+                }}
+              >
+                열어 보기
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -207,6 +251,7 @@ export function SkyMap({
 const MapLayers = memo(function MapLayers({
   ordered,
   cards,
+  rowOnly,
   unit,
   ids,
   camera,
@@ -217,6 +262,7 @@ const MapLayers = memo(function MapLayers({
   onSelectRoom,
   onOpenRoom,
   onFocusThing,
+  onOpenThing,
   onRoomMenu,
   onHoverRoom,
   onShowTip,
@@ -225,6 +271,7 @@ const MapLayers = memo(function MapLayers({
 }: {
   ordered: HeroNode[];
   cards: Card[];
+  rowOnly: Card[];
   unit: number;
   ids: string[];
   camera: Camera;
@@ -235,6 +282,7 @@ const MapLayers = memo(function MapLayers({
   onSelectRoom: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
+  onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
   onHoverRoom: (id: string | null) => void;
   onShowTip: (tip: Tip) => void;
@@ -287,7 +335,7 @@ const MapLayers = memo(function MapLayers({
       </svg>
       {/* 종이는 마우스로만 고릅니다. 키보드와 화면 읽기 프로그램은 같은 파일을 오른쪽 목록에서 만납니다. */}
       <div className={`papers${selectedId ? " faded" : ""}`} aria-hidden="true">
-        {cards.map((card, index) => {
+        {[...cards, ...rowOnly].map((card, index) => {
           const own = card.room.id === selectedId;
           const focused = card.thing.id === focusId;
           return (
@@ -295,15 +343,20 @@ const MapLayers = memo(function MapLayers({
               key={card.thing.id}
               className={`paper${own ? " lifted" : ""}${card.extra ? " extra" : ""}${focused ? " focused" : ""}`}
               data-card={card.thing.id}
-              style={{ left: `${(card.x / sky.width) * 100}%`, top: `${(card.y / sky.height) * 100}%`, width: card.size, height: card.height, marginLeft: -card.size / 2, marginTop: -card.height / 2, "--i": index % 12 } as CSSProperties}
+              style={{ left: `${(card.x / sky.width) * 100}%`, top: `${(card.y / sky.height) * 100}%`, width: card.size, height: card.height, marginLeft: -card.size / 2, marginTop: -card.height / 2, "--i": index % 12, ...(card.rowOnly ? { opacity: 0 } : {}) } as CSSProperties}
             >
               <div
                 className="paper-art"
                 style={{ rotate: `${card.rot}deg` }}
-                onClick={() => onFocusThing(card.room.id, card.thing.id)}
+                onClick={() => (engine.pos > 5 ? onOpenThing : onFocusThing)(card.room.id, card.thing.id)}
                 onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
                 onPointerUp={(event) => onPaperUp(event, card)}
-                onMouseEnter={() => onShowTip({ star: card, room: card.room })}
+                onMouseEnter={(event) => {
+                  if (engine.pos <= 5) return onShowTip({ star: card, room: card.room });
+                  const box = event.currentTarget.parentElement!.getBoundingClientRect();
+                  const origin = event.currentTarget.closest(".sky-canvas")!.getBoundingClientRect();
+                  onShowTip({ star: card, room: card.room, at: { x: box.left + box.width / 2 - origin.left, top: box.top - origin.top, bottom: box.bottom - origin.top } });
+                }}
                 onMouseLeave={onHideTip}
               >
                 {focused && <span className="paper-pulse pulse" style={{ borderColor: kindColors[card.thing.kind] }} />}

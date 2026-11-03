@@ -2,28 +2,27 @@ import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { captionWords } from "../../domain/home";
 import type { Room } from "../../domain/model";
 import { BrandMark, Icon } from "../Icon";
-import { clamp01, liveScene, range, reduced, scenes, sheetLift, stops, useEngine, useLiveScene, useScene } from "./engine";
+import { clamp01, liveScene, range, reduced, rowRest, scenes, sheetLift, stops, useEngine, useLiveScene, useScene } from "./engine";
 
 // 머리글. in은 앞으로 갈 때 나타나기 시작하는 자리, out은 다음 구간에서 위로 다 빠지는 자리,
-// backIn·backOut은 뒤로 갈 때 나타나기 시작하고 사라지는 자리입니다(자리는 모두 pos, null이면 그쪽 움직임이 없어요).
-export type Caption = { stop: number; in: number; out: number | null; backIn: number | null; backOut: number | null };
+// backIn·backOut은 뒤로 갈 때 나타나기 시작하고 사라지는 자리입니다(자리는 모두 pos, null이면 그쪽 움직임이 없어요). hold까지는 멈춘 자리와 같아요.
+export type Caption = { stop: number; hold?: number; in: number; out: number | null; backIn: number | null; backOut: number | null };
 export const captions: (Caption & { title: string })[] = [
-  { stop: stops[0], in: -1, out: 300, backIn: 300, backOut: null, title: "내 방" },
+  { stop: stops[0], hold: rowRest, in: -1, out: rowRest + 300, backIn: rowRest + 300, backOut: null, title: "내 방" },
   { stop: stops[1], in: 1100, out: 1950, backIn: 2350, backOut: 750, title: "손댈 것" },
-  { stop: stops[2], in: 2350, out: 3575, backIn: 3725, backOut: 2750, title: "방" },
-  { stop: stops[3], in: 4300, out: 5110, backIn: 5250, backOut: 4660, title: "방 모음" },
-  { stop: stops[4], in: 5250, out: null, backIn: null, backOut: 5390, title: "형식별" },
+  { stop: stops[2], in: 2350, out: 3575, backIn: 3725, backOut: 2750, title: "방 목록" },
+  { stop: stops[3], in: 3950, out: null, backIn: null, backOut: 4090, title: "형식별" },
 ];
 
 // 앞으로 갈 때는 멈출 자리에서 다 나타났다가 다음 구간 첫머리에 위로 빠지고, 뒤로 갈 때는 제자리에서 옅어졌다 나타납니다.
 export type Pose = { opacity: number; rise: number };
-export function captionPose({ stop, in: fadeIn, out, backIn, backOut }: Caption, pos: number, dir: number): Pose {
+export function captionPose({ stop, hold = stop, in: fadeIn, out, backIn, backOut }: Caption, pos: number, dir: number): Pose {
   if (dir < 0) {
-    if (pos >= stop) return { opacity: backIn === null ? 1 : 1 - range(pos, stop, backIn), rise: 0 };
+    if (pos >= stop) return { opacity: backIn === null ? 1 : 1 - range(pos, hold, backIn), rise: 0 };
     return { opacity: backOut === null ? 1 : range(pos, backOut, stop), rise: 0 };
   }
   if (pos <= stop) return { opacity: range(pos, fadeIn, stop), rise: 0 };
-  return { opacity: 1, rise: out === null ? 0 : range(pos, stop, out) };
+  return { opacity: 1, rise: out === null ? 0 : range(pos, hold, out) };
 }
 
 // 이만큼 올라가면 화면 밖이라 보이지 않습니다.
@@ -53,7 +52,7 @@ export function captionStepper(list: Caption[]) {
   };
 }
 
-export function HomeHeader({ rooms, now, ready, canTravel, overdue, onMenu, onNew, onSettings }: { rooms: Room[]; now: number; ready: boolean; canTravel: boolean; overdue: boolean; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+export function HomeHeader({ rooms, now, ready, canTravel, overdue, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; now: number; ready: boolean; canTravel: boolean; overdue: boolean; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const engine = useEngine();
   const words = useMemo(() => captionWords(rooms, now), [rooms, now]);
   const [stepCaptions] = useState(() => captionStepper(captions));
@@ -98,23 +97,26 @@ export function HomeHeader({ rooms, now, ready, canTravel, overdue, onMenu, onNe
           </div>
         ))}
       </div>
+      {/* 어느 장면에서나 보이는 쪽 이동. 머리글과 달리 판이 들려도 제자리에 남습니다. 맨 아래 장면은 스크롤로만 가서 표시되는 칸이 없어요. */}
+      {canTravel && (
+        <nav className="scene-nav" aria-label="화면 옮기기">
+          {scenes.filter((scene) => scene.name !== "footer").map((scene, index) => (
+            <button key={scene.name} type="button" className="quiet" aria-current={live === index ? "true" : undefined} onClick={() => engine.goTo(index)}>{scene.label}</button>
+          ))}
+        </nav>
+      )}
       <div className="home-actions">
-        <button type="button" className="quiet" aria-haspopup="dialog" disabled={!ready} onClick={onMenu}>
-          메뉴{overdue && <b> 정리할 때예요</b>}
-        </button>
+        {canTravel && (
+          <button type="button" className="quiet" aria-haspopup="dialog" onClick={onWeekly}>
+            주간 정리{overdue && <b> 할 때예요</b>}
+          </button>
+        )}
+        <button type="button" className="quiet" aria-haspopup="dialog" disabled={!ready} onClick={onMenu}>메뉴</button>
         <button type="button" className="quiet" onClick={onNew}>+ 새 방</button>
         <button type="button" className="quiet settings-button" aria-label="환경설정" title="환경설정" aria-haspopup="dialog" onClick={onSettings}>
           <Icon name="settings" size={20} />
         </button>
       </div>
-      {/* 키보드와 화면 읽기 프로그램의 지름길. 포커스가 들어올 때만 보입니다. 잠긴 장면은 읽히지 않으니 여기서 옮겨 갑니다. */}
-      {canTravel && (
-        <nav className="scene-nav" aria-label="화면 옮기기">
-          {scenes.map((scene, index) => (
-            <button key={scene.name} type="button" className="quiet" aria-current={live === index ? "true" : undefined} onClick={() => engine.goTo(index)}>{scene.label}</button>
-          ))}
-        </nav>
-      )}
       <p className="sr-only" role="status">{scenes[heading].label}</p>
     </header>
   );

@@ -7,6 +7,9 @@ export const sky = { width: 1000, height: 680, centerX: 500, centerY: 340 } as c
 export type Point = { x: number; y: number };
 export type Star = { thing: Thing; x: number; y: number; r: number; stale: boolean; days: number };
 
+// 화병이 찬 높이. 한도가 있으면 한도 대비 용량이고, 없으면 한도처럼 보이지 않게 조금 덜 채웁니다.
+export const vaseFill = (room: Room, bytes: number) => (room.budgetBytes ? bytes / room.budgetBytes : 0.8);
+
 // 같은 글자는 늘 같은 0~1 값을 돌려줍니다(FNV-1a). 새로고침해도 별자리가 그대로입니다.
 export function hash(text: string, salt = 0): number {
   let h = 2166136261 ^ salt;

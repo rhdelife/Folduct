@@ -8,8 +8,8 @@ import { hash } from "../../domain/sky";
 import { CardboardBox } from "../RoomScene";
 import { range, scenes, smooth, stops, useEngine, useScene, useSceneGate, type SceneProps } from "./engine";
 
-const home = stops[4];
-const scene = scenes[4];
+const home = stops[3];
+const scene = scenes[3];
 const listed = 40;
 const rowIcon = 20;
 const sheetSize = 72;
@@ -48,14 +48,14 @@ function FileList({ group, actions }: { group: KindGroup; actions: SceneProps["a
         </ul>
       )}
       {rest > 0 && <p className="pile-note">그 밖에 {rest}개 더 있어요.</p>}
-      {group.box && <button type="button" className="pile-sweep" onClick={actions.openSweep}>주간 정리</button>}
+      {group.box && <button type="button" className="pile-sweep" onClick={actions.openWeekly}>주간 정리</button>}
     </div>
   );
 }
 
 // 형식마다 파일 종이가 한 더미씩 쌓입니다. 화병은 방 하나만 뜻해서 여기에는 쓰지 않아요. 더미를 고르면 옆에 그 파일들이 놓입니다.
 export function PileScene({ rooms, now, actions }: SceneProps) {
-  const gate = useSceneGate(4);
+  const gate = useSceneGate(3);
   const engine = useEngine();
   const groups = useMemo(() => kindGroups(rooms, now, listed), [rooms, now]);
   const kinds = groups.filter((group) => !group.box);

@@ -3,7 +3,7 @@ import { ObjectShape } from "../art/ObjectShape";
 import { BudgetBanner, BudgetPicker, CapacityBar } from "../components/Capacity";
 import { kindParts, vaseBands } from "../art/vases";
 import { FacePicker } from "../components/RoomFace";
-import { FileViewer, previewMode, type ViewerState } from "../components/FileViewer";
+import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
 import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
@@ -22,7 +22,6 @@ const panels = ["thing", "shelf", "box", "settings"] as const;
 type Panel = (typeof panels)[number];
 
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
-const previewLimit = 300 * 1024 ** 2;
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
 const folderIssues = {
@@ -38,16 +37,6 @@ function focusSoon(selector: string) {
   requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
 }
 const thingSelector = (id: string) => `[data-thing-id="${id}"]`;
-
-// 대화상자 안에서는 페이지 토스트가 가려지므로 결과만 돌려주고, 보여 주기는 부른 쪽이 합니다.
-async function writeClipboard(path: string) {
-  try {
-    await navigator.clipboard.writeText(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => void }) {
   const [room, setRoom] = useState<Room | null>(null);

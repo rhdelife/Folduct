@@ -1,18 +1,18 @@
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ObjectShape } from "../../art/ObjectShape";
 import { vasePaths } from "../../art/vases";
 import { RoomFaceArt } from "../RoomFace";
 import { notebookSections, recentFiles as listRecent, shelfFiles, type FileRef } from "../../domain/home";
 import { formatBytes } from "../../domain/model";
 import { fitLadder, rowWindow, taskRows, type TaskRow } from "../../domain/notebook";
-import { cubicOut, range, smooth, useSceneGate, useScene, type HomeActions, type SceneProps } from "./engine";
+import { cubicOut, range, rowRest, smooth, useSceneGate, useScene, type HomeActions, type SceneProps } from "./engine";
 
 const rowIcon = 24;
 const bottomGap = 24;
 
 function FileLine({ file, actions }: { file: FileRef; actions: HomeActions }) {
   return (
-    <button type="button" className="nb-file" data-thing={file.thing.id} title={file.thing.path} onClick={() => actions.focusThing(file.room.id, file.thing.id)}>
+    <button type="button" className="nb-file" title={file.thing.path} onClick={() => actions.focusThing(file.room.id, file.thing.id)}>
       <ObjectShape kind={file.thing.kind} size={rowIcon} seed={file.thing.id} />
       <span className="nb-file-name">{file.thing.name}</span>
       <span className="nb-file-state">{file.days ?? 0}일째 그대로</span>
@@ -21,10 +21,10 @@ function FileLine({ file, actions }: { file: FileRef; actions: HomeActions }) {
   );
 }
 
-function Task({ row, actions }: { row: TaskRow; actions: HomeActions }) {
-  if (row.type === "file") return <li className="nb-row" data-nb="row"><FileLine file={row.file} actions={actions} /></li>;
+export function Task({ row, actions, style }: { row: TaskRow; actions: HomeActions; style?: CSSProperties }) {
+  if (row.type === "file") return <li className="nb-row" data-nb="row" style={style}><FileLine file={row.file} actions={actions} /></li>;
   return (
-    <li className="nb-row nb-room" data-nb="row">
+    <li className="nb-row nb-room" data-nb="row" style={style}>
       <button type="button" className="nb-room-main" onClick={() => actions.selectRoom(row.room.id)}>
         <RoomFaceArt face={row.room.face} roomId={row.room.id} compact className="nb-vase" />
         <span className="nb-room-name">{row.room.name}</span>
@@ -103,8 +103,8 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
   });
 
   useScene((pos) => {
-    // 남은 종이 밑으로 공책이 미끄러져 올라옵니다. 종이가 내려앉기 전에 대부분 자리를 잡아요.
-    const rise = smooth(range(pos, 420, 1060));
+    // 줄이 비켜나는 동안 공책이 올라옵니다.
+    const rise = smooth(range(pos, rowRest, 1100));
     const leave = cubicOut(range(pos, 1350, 1745));
     stack.current!.style.transform = `translate3d(0, ${100 * (1 - rise) - 110 * leave}dvh, 0)`;
     stack.current!.style.opacity = String(1 - leave);
@@ -116,7 +116,7 @@ export function NotebookScene({ rooms, now, lastSweepAt, actions }: SceneProps) 
       style.opacity = p === 1 ? "" : String(p);
       style.pointerEvents = p === 1 ? "" : "none";
       style.willChange = p > 0 && p < 1 ? "transform, opacity" : "";
-      // 글자는 제자리에서 번지듯 나타납니다. 옆으로 움직이면 내려앉는 종이와 줄이 어긋나요.
+      // 글자는 제자리에서 번지듯 나타납니다.
       style.transform = p === 1 ? "" : `translate3d(0, ${6 * (1 - cubicOut(p))}px, 0)`;
     }
   });

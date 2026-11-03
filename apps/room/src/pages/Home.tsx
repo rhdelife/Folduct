@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ContextMenu } from "../components/ContextMenu";
 import { PileScene } from "../components/home/PileScene";
-import { createEngine, EngineContext, liveScene, nearestStop, sheetLift, stops, useScene, type HomeActions } from "../components/home/engine";
+import { createEngine, EngineContext, liveScene, nearestStop, sheetLift, useScene, type HomeActions } from "../components/home/engine";
 import { FooterScene } from "../components/home/FooterScene";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
 import { NotebookScene } from "../components/home/NotebookScene";
-import { DialScene } from "../components/home/DialScene";
 import { TableScene } from "../components/home/TableScene";
 import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
@@ -14,7 +13,9 @@ import { HomeMenu } from "../components/HomeMenu";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
+import { WeeklyNote } from "../components/WeeklyNote";
 import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
+import { weeklyHasWork } from "../domain/home";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
@@ -25,7 +26,10 @@ import { forgetRoom, getDoorstep, getLastSweepAt, listRooms, patchDoorstep, patc
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
 
-// 주간 정리 창은 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 메뉴 버튼 글자로 알립니다.
+// 파일 보기는 방 화면과 같은 묶음이라 첫 화면에 싣지 않습니다.
+const QuickViewer = lazy(() => import("../components/QuickViewer").then((m) => ({ default: m.QuickViewer })));
+
+// 주간 공책은 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 주간 정리 버튼 글자로 알립니다.
 let sweepChecked = false;
 // 현관 폴더도 앱을 켤 때 한 번만 읽습니다. 방에서 돌아오면 저장된 줄을 그대로 보여 줘요.
 let doorChecked = false;
@@ -48,7 +52,7 @@ function Sheet({ children }: { children: ReactNode }) {
   return <div className="home-sheet" ref={sheet}>{children}</div>;
 }
 
-export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (id: string) => void }) {
+export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; entered: boolean; onOpen: (id: string) => void }) {
   const [engine] = useState(() => createEngine(lastStop));
   const [rooms, setRooms] = useState<Room[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -58,6 +62,8 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
   // 방에서 돌아오면 패널 없이 화병을 고르는 첫 화면으로 옵니다.
@@ -100,14 +106,10 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
       if (sweepChecked) return;
       sweepChecked = true;
       if (!sweepDue(last, Date.now())) return;
-      const due = await planSweep(list);
+      await planSweep(list);
       // 정리 계획이 폴더를 다시 읽었으니 지도도 맞춥니다.
       const fresh = (await load()) ?? list;
-      const asks = fresh.filter((room) => doneOfferDue(room, Date.now()));
-      if (due.length > 0 || asks.length > 0) {
-        setOffers(asks);
-        setPlans(due);
-      }
+      if (weeklyHasWork(fresh, Date.now())) setWeeklyOpen(true);
     } catch (error) {
       // 정리 확인이 안 돼도 방은 그대로 씁니다.
       console.error(error);
@@ -219,7 +221,7 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   // 떠나는 장면의 화병에는 메뉴를 열지 않습니다. 메뉴만 다음 장면 위에 남아요. 돌아오는 중이면 마저 도착해서 엽니다. 창 안의 목록은 장면과 상관없어요.
   const menuAllowed = useCallback((opener: HTMLElement) => {
     if (!opener.closest("dialog") && engine.moving) {
-      if (engine.target !== stops[Number(opener.closest<HTMLElement>("[data-scene]")?.dataset.scene)]) return false;
+      if (liveScene(engine.target) !== Number(opener.closest<HTMLElement>("[data-scene]")?.dataset.scene)) return false;
       engine.arrive();
     }
     return true;
@@ -261,6 +263,15 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
     }
     setOffers(asks);
     setPlans(due);
+  }
+
+  // 닫으면 이번 주는 다시 저절로 뜨지 않아요. 저장에 실패해도 닫기는 막지 않습니다. 주기가 안 됐을 때 다시 본 것은 주기를 밀지 않아요.
+  function closeWeekly() {
+    setWeeklyOpen(false);
+    const at = Date.now();
+    if (!sweepDue(lastSweepAt, at)) return;
+    setLastSweep(at);
+    setLastSweepAt(at).catch((error: unknown) => console.error(error));
   }
 
   async function addSample() {
@@ -393,11 +404,15 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
   const hasSample = rooms?.some((room) => room.source === "sample");
   const menuRoom = rooms?.find((room) => room.id === roomMenu?.id);
   const menuDoor = door.items.find((item) => item.id === doorMenu?.id);
+  const viewingRoom = rooms?.find((room) => room.id === viewing?.roomId);
+  const viewingThing = viewingRoom?.things.find((thing) => thing.id === viewing?.thingId);
   const actions: HomeActions = {
     selectRoom,
     focusThing,
     openRoom: onOpen,
     openSweep: () => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요.")),
+    openWeekly: () => setWeeklyOpen(true),
+    openFile: (roomId, thingId) => setViewing({ roomId, thingId }),
     openNew: () => setCreating(true),
     openMenu: () => setMenuOpen(true),
     importList: isNative() ? null : () => importInput.current?.click(),
@@ -412,7 +427,7 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
       <EngineContext.Provider value={engine}>
         <div className="home-stage">
           {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-          <HomeHeader rooms={rooms ?? []} now={now} ready={ready} canTravel={ready && !noRooms} overdue={overdue} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+          <HomeHeader rooms={rooms ?? []} now={now} ready={ready} canTravel={ready && !noRooms} overdue={overdue} onWeekly={actions.openWeekly} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
           <Sheet>
             {loadFailed ? (
               <div className="scene page-status" role="alert">
@@ -428,7 +443,6 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
                   <>
                     <NotebookScene {...scene} />
                     <TableScene {...scene} />
-                    <DialScene {...scene} />
                     <PileScene {...scene} />
                   </>
                 )}
@@ -463,11 +477,6 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
           now={now}
           kinds={kinds}
           onClose={() => setMenuOpen(false)}
-          current={liveScene(engine.target)}
-          onGo={(scene) => {
-            setMenuOpen(false);
-            engine.goTo(scene);
-          }}
           onOpenRoom={(id) => {
             setMenuOpen(false);
             onOpen(id);
@@ -475,10 +484,6 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
           onRoomMenu={openRoomMenu}
           actions={
             <>
-              <button type="button" className="quiet" onClick={fromMenu(actions.openSweep)}>
-                <Icon name="sweep" />
-                주간 정리{overdue && <b> · 할 때예요</b>}
-              </button>
               {actions.importList && (
                 <button type="button" className="quiet" disabled={importing} onClick={fromMenu(actions.importList)}>
                   <Icon name="import" />
@@ -504,6 +509,38 @@ export function Home({ returnTo, onOpen }: { returnTo: string | null; onOpen: (i
             setCreating(false);
             toast(message);
             void load();
+          }}
+        />
+      )}
+      {viewingRoom && viewingThing && (
+        <Suspense fallback={null}>
+          <QuickViewer
+            key={viewingThing.id}
+            room={viewingRoom}
+            thing={viewingThing}
+            onClose={() => {
+              setViewing(null);
+              // 연 파일이 최근 작업이 됐으니 더미 순서도 맞춥니다.
+              void load();
+            }}
+            onToRoom={() => {
+              setViewing(null);
+              onOpen(viewingRoom.id);
+            }}
+            onError={toast}
+          />
+        </Suspense>
+      )}
+      {weeklyOpen && entered && rooms && (
+        <WeeklyNote
+          rooms={rooms}
+          now={now}
+          actions={actions}
+          onClose={closeWeekly}
+          onSweep={() => {
+            // 정리 창의 답이 이번 주 정리 시각을 정합니다.
+            setWeeklyOpen(false);
+            actions.openSweep();
           }}
         />
       )}

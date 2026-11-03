@@ -34,7 +34,7 @@ function Link({ onClick, children }: { onClick: () => void; children: ReactNode 
 
 // 판이 들리면 그 아래에서 드러납니다. 판 밖 층이라 스스로는 움직이지 않아요.
 export function FooterScene({ rooms, actions }: SceneProps) {
-  const gate = useSceneGate(5);
+  const gate = useSceneGate(4);
   const engine = useEngine();
   const toTop = () => {
     engine.goTo(0);
@@ -45,7 +45,7 @@ export function FooterScene({ rooms, actions }: SceneProps) {
     <section className="scene scene-footer" aria-label="맨 아래" {...gate}>
       <div className="footer-columns">
         <Group title="정리">
-          <Link onClick={actions.openSweep}>주간 정리</Link>
+          <Link onClick={actions.openWeekly}>주간 정리</Link>
           {actions.importList && <Link onClick={actions.importList}>목록 파일 가져오기</Link>}
           {rooms.some((room) => room.source === "sample") ? <Link onClick={actions.clearSamples}>샘플 방 치우기</Link> : <Link onClick={actions.addSample}>샘플 방 구경하기</Link>}
         </Group>

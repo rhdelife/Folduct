@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { hash, stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
-import { flightsFor, type Card, type Flight, type HeroNode, type RowSpot } from "../../domain/heroLayout";
-import { range, useBetween, useEngine, useScene } from "./engine";
+import { flightsFor, rowMetrics, type Card, type Flight, type HeroNode } from "../../domain/heroLayout";
+import { range, rowRest, useBetween, useEngine, useScene } from "./engine";
 
 // 첫 화면의 움직임. 처음 켤 때의 등장은 시계로, 첫 스크롤은 pos로 그립니다(되감아도 그대로 돌아와요).
 
@@ -9,42 +9,31 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// 첫 스크롤의 pos 구간: 거르기. 등장의 거꾸로예요.
-// 지금 볼 게 아닌 종이는 자기 화병 뒤로 돌아가고, 남은 종이는 똑바로 서서 기다립니다. 화병이 가라앉는 사이 공책이 그 밑으로 올라오면, 남은 종이가 자기 줄의 아이콘이 됩니다.
-// 엔진의 cubic-out 때문에 pos 900이 약 430ms, 1200이 약 730ms예요.
-const homeFrom = 40;
-const homeSpread = 120;
-const homeSpan = 420;
-const standTo = 360;
-const landFrom = 620;
-const landSpread = 220;
-const landSpan = 300;
-const handoffFrom = 1170;
-export const cardsGone = 1210;
-// 종이가 다 들어간 뒤에 흐려집니다. 먼저 흐려지면 뒤로 들어가는 종이가 비쳐요.
-const vaseLeaveFrom = 560;
-const vaseSpread = 60;
-const vaseSpan = 240;
-const standScale = 1.08;
-// 되감을 때 화병이 다 돌아오는 자리입니다. 이름표도 이때 돌아와요.
-const vasesBackAt = vaseLeaveFrom;
+// 첫 스크롤: 0에서 rowRest까지 종이가 한 줄로 모여 쉽니다. 그다음 스크롤에 줄과 화병이 위로 비켜나며 공책이 올라와요.
+const gatherSpread = 180;
+const clearLiftPx = 48;
+export const cardsGone = rowRest + 260;
+const vaseClearSpread = 60;
+const vaseClearSpan = 240;
 
 export type Pose = { x: number; y: number; rot: number; scale: number; opacity: number };
 
 // 쉬는 자리에서의 거리로 돌려줍니다. rot은 종이가 쉴 때의 기울기에 더하는 값이에요.
-export function cardPose(pos: number, { rest, to, toRow, stagger }: Flight): Pose {
-  if (!toRow) {
-    const u = easeInOut(range(pos, homeFrom + stagger * homeSpread, homeFrom + stagger * homeSpread + homeSpan));
-    return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u, rot: to.rot * u, scale: lerp(1, to.scale, u), opacity: 1 - range(u, 0.7, 1) };
-  }
-  const stand = easeInOut(range(pos, homeFrom, standTo));
-  const start = landFrom + stagger * landSpread;
-  const u = easeInOut(range(pos, start, start + landSpan));
-  return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u, rot: to.rot * stand, scale: lerp(lerp(1, standScale, stand), to.scale, u), opacity: 1 - range(pos, handoffFrom, cardsGone) };
+// 줄에만 있는 종이는 제자리에서 나타나, 줄과 함께 비켜납니다.
+export function rowOnlyPose(pos: number, { to }: Flight): Pose {
+  const clear = easeInOut(range(pos, rowRest, cardsGone));
+  return { x: to.x, y: to.y - clearLiftPx * clear, rot: to.rot, scale: to.scale, opacity: range(pos, rowRest * 0.6, rowRest) * (1 - clear) };
 }
 
-// 화병이 가라앉아 사라지는 정도(0~1).
-export const vaseLeave = (pos: number, seed: number) => easeInOut(range(pos, vaseLeaveFrom + seed * vaseSpread, vaseLeaveFrom + seed * vaseSpread + vaseSpan));
+export function cardPose(pos: number, { rest, to, stagger }: Flight): Pose {
+  const start = stagger * gatherSpread;
+  const u = easeInOut(range(pos, start, start + rowRest - gatherSpread));
+  const clear = easeInOut(range(pos, rowRest, cardsGone));
+  return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u - clearLiftPx * clear, rot: to.rot * u, scale: lerp(1, to.scale, u), opacity: 1 - clear };
+}
+
+// 화병이 비켜나 사라지는 정도(0~1). 줄 쉼터까지는 제자리예요.
+export const vaseLeave = (pos: number, seed: number) => easeInOut(range(pos, rowRest + seed * vaseClearSpread, rowRest + seed * vaseClearSpread + vaseClearSpan));
 
 // 2차 베지어 위의 점들을 키프레임으로 씁니다. 합성 스레드에서 도니 비행 중에 JS가 돌지 않아요.
 type Pt = { x: number; y: number };
@@ -124,12 +113,15 @@ function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
 let entrancePlayed = false;
 
-export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null, measureRows: () => ReadonlyMap<string, RowSpot>) {
+export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], rowOnly: Card[], nodes: HeroNode[], view: View, selectedId: string | null) {
   const engine = useEngine();
   const atRest = useBetween(0, 5);
-  const vasesHome = useSyncExternalStore(engine.subscribe, () => engine.pos <= (engine.dir < 0 ? vasesBackAt : 5));
+  const vasesHome = useBetween(0, rowRest);
+  const atRow = useBetween(rowRest - 5, rowRest + 5);
   const shown = useMemo(() => cards.filter((card) => !card.extra), [cards]);
   const flown = useRef<Map<string, Flight>>(new Map());
+  const row = useRef({ offset: 0, max: 0 });
+  const [track, setTrack] = useState<{ max: number; y: number } | null>(null);
 
   const els = useRef<HTMLElement[]>([]);
   const lifts = useRef<{ el: HTMLElement; seed: number }[]>([]);
@@ -148,9 +140,12 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     if (papers.current) papers.current.dataset.gone = String(done);
     if (done && last.current >= cardsGone) return;
     last.current = pos;
+    if (pos <= 0) row.current.offset = 0;
+    // 밀어 둔 줄은 제자리로 돌아가는 동안 함께 풀립니다.
+    if (papers.current) papers.current.style.translate = row.current.offset ? `${-row.current.offset * easeInOut(range(pos, 0, rowRest))}px 0` : "";
     for (const { el, seed } of lifts.current) {
       const leave = pos <= 0 ? 0 : vaseLeave(pos, seed);
-      el.style.translate = leave > 0 ? `0 ${3 * leave}dvh` : "";
+      el.style.translate = leave > 0 ? `0 ${-3 * leave}dvh` : "";
       el.style.scale = leave > 0 ? String(1 - 0.06 * leave) : "";
       el.style.opacity = leave > 0 ? String(1 - leave) : "";
     }
@@ -159,22 +154,36 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
       if (!flight) continue;
       if (pos <= 0) {
         el.style.transform = "";
-        el.style.opacity = "";
+        el.style.opacity = flight.rowOnly ? "0" : "";
+        el.style.zIndex = "";
         continue;
       }
-      const pose = cardPose(pos, flight);
+      const pose = flight.rowOnly ? rowOnlyPose(pos, flight) : cardPose(pos, flight);
       el.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rot}deg) scale(${pose.scale})`;
       el.style.opacity = pose.opacity < 1 ? String(pose.opacity) : "";
+      // 더미에서는 최근에 작업한 왼쪽 종이가 맨 위에 옵니다.
+      el.style.zIndex = String(flown.current.size - flight.slot);
     }
   };
   useScene(write);
 
-  // 스크롤이 시작될 때 공책 줄의 자리를 재고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
+  // 스크롤이 시작될 때 현관 줄 아래로 줄의 자리를 잡고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
   useEffect(() => {
     if (atRest) return;
-    flown.current = flightsFor(shown, nodes, view, measureRows());
+    const door = canvas.current!.closest(".sky-layout")?.querySelector<HTMLElement>(".doorstep");
+    flown.current = flightsFor([...shown, ...rowOnly], nodes, view, door ? door.offsetTop + door.offsetHeight : 0);
+    const { overflow, bottom } = rowMetrics(flown.current, view);
+    row.current = { max: overflow, offset: Math.min(row.current.offset, overflow) };
+    setTrack(overflow > 0 ? { max: overflow, y: bottom } : null);
     write(engine.pos);
-  }, [atRest, shown, nodes, view]);
+  }, [atRest, shown, rowOnly, nodes, view]);
+
+  // 줄을 옆으로 밉니다. 실제로 간 자리를 돌려줘요.
+  const scrollRow = (by: (offset: number) => number) => {
+    row.current.offset = Math.max(0, Math.min(row.current.max, by(row.current.offset)));
+    write(engine.pos);
+    return row.current.offset;
+  };
 
   // 등장. 휠, 키, 누르기 중 무엇이든 들어오면 바로 끝난 모습으로 갑니다.
   const settle = useRef<(() => void) | null>(null);
@@ -209,8 +218,8 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
 
   // 메뉴처럼 입력 없이 떠나도 등장을 끝냅니다.
   useEffect(() => {
-    if (!vasesHome) settle.current?.();
-  }, [vasesHome]);
+    if (!atRest) settle.current?.();
+  }, [atRest]);
 
-  return { atRest, vasesHome };
+  return { atRest, vasesHome, atRow, track, row, scrollRow };
 }

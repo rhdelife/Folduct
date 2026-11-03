@@ -46,7 +46,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
       ) : (
         <div className={`sky-layout${selected ? " has-panel" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onRoomMenu={actions.roomMenu} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>진행 중인 방이 없어요.</p>

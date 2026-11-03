@@ -22,6 +22,10 @@ function contrast(a: string, b: string) {
 }
 
 describe("종이 오브제", () => {
+  it("글자는 어느 형식 바탕에서도 4.5:1 이상이에요", () => {
+    for (const tone of Object.values(kindTones)) for (const field of [tone.soft, tone.pale]) expect(contrast(tone.ink, field)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("형식마다 그림이 셋 이상이고, 찍힌 이름은 종이 위에서 4.5:1 이상이에요", () => {
     for (const kind of kinds) {
       expect(new Set(paperArts[kind].map((art) => art.id)).size, kind).toBeGreaterThanOrEqual(3);

@@ -17,6 +17,17 @@ export type ViewerState =
 type Mode = "image" | "video" | "audio" | "pdf" | "text" | "none";
 
 const textLimit = 300_000;
+export const previewLimit = 300 * 1024 ** 2;
+
+// 대화상자 안에서는 페이지 토스트가 가려지므로 결과만 돌려주고, 보여 주기는 부른 쪽이 합니다.
+export async function writeClipboard(path: string) {
+  try {
+    await navigator.clipboard.writeText(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 const extensionOf = (name: string) => name.slice(name.lastIndexOf(".") + 1).toLowerCase();
 
 export function previewMode(thing: Pick<Thing, "kind" | "name">): Mode {

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
-import { cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card, type RowSpot } from "../domain/heroLayout";
+import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
-import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
-import { arrivalFrames, spillFrames, cardPose, cardsGone, vaseLeave } from "../components/home/heroMotion";
+import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseFill, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
+import { rowRest } from "../components/home/engine";
+import { rowOnlyPose, arrivalFrames, spillFrames, cardPose, cardsGone, vaseLeave } from "../components/home/heroMotion";
 
 const start = Date.UTC(2026, 0, 5, 12);
 // 종이가 다 내려앉았고 아직 사라지기 전인 자리.
-const handoffAt = 1170;
 const MB = 1024 * 1024;
 
 function thing(id: string, patch: Partial<Thing> = {}): Thing {
@@ -32,6 +32,13 @@ describe("첫 화면 종이 배치", () => {
   it("같은 입력이면 늘 같은 자리다", () => {
     const rooms = many(3, 14);
     expect(heroLayout(rooms, start, baseView, aspect).cards.map((c) => [c.x, c.y])).toEqual(heroLayout(rooms, start, baseView, aspect).cards.map((c) => [c.x, c.y]));
+  });
+
+  it("쪽 이동 자리를 비운다: 넓으면 머리 줄 가운데, 좁으면 머리 띠 전체", () => {
+    const covers = (view: typeof baseView, x: number, y: number) => keepOut([], view).some((box) => Math.abs(box.x - x) <= box.hw && Math.abs(box.y - y) <= box.hh);
+    expect(covers({ ...baseView, w: 1280, h: 800 }, 640, 42)).toBe(true);
+    expect(covers({ ...baseView, w: 720, h: 800 }, 360, 96)).toBe(true);
+    expect(covers({ ...baseView, w: 375, h: 812 }, 187, 110)).toBe(true);
   });
 
   it("종이끼리, 머리글·화병·이름표·머리 버튼과 겹치지 않는다", () => {
@@ -146,63 +153,128 @@ describe("방 자리", () => {
   });
 });
 
-describe("첫 스크롤", () => {
+describe("첫 스크롤: 한 줄로 모으기", () => {
   const { nodes, cards } = heroLayout(many(3, 14), start, baseView, aspect);
-  // 공책에 줄이 있는 파일 셋. 지도에 없는 파일의 줄도 섞여 있어요.
-  const rowIds = cards.slice(0, 3).map((card) => card.thing.id);
-  const rows = new Map<string, RowSpot>([
-    [rowIds[0], { x: 400, y: 200, size: 24 }],
-    ["not-on-map", { x: 400, y: 240, size: 24 }],
-    [rowIds[1], { x: 400, y: 280, size: 24 }],
-    [rowIds[2], { x: 400, y: 320, size: 24 }],
-  ]);
-  const flights = flightsFor(cards, nodes, baseView, rows);
+  const flights = flightsFor(cards, nodes, baseView);
 
   it("맨 위에서는 움직이지 않고, pos만의 함수라 되감으면 그대로 돌아온다", () => {
     for (const flight of flights.values()) {
       const top = cardPose(0, flight);
       expect([top.x + 0, top.y + 0, top.rot + 0, top.scale, top.opacity]).toEqual([0, 0, 0, 1, 1]);
-      expect(cardPose(700, flight)).toEqual(cardPose(700, flight));
+      expect(cardPose(300, flight)).toEqual(cardPose(300, flight));
+      // 모이는 내내 보여요. 흩어지거나 사라지지 않습니다.
+      expect(cardPose(300, flight).opacity).toBe(1);
+    }
+  });
+
+  it("쉼터에서는 모든 종이가 조금만 기울어 같은 높이의 한 줄이 된다", () => {
+    expect(new Set([...flights.values()].map((flight) => flight.to.y)).size).toBe(1);
+    for (const card of cards) {
+      const flight = flights.get(card.thing.id)!;
+      const pose = cardPose(rowRest, flight);
+      expect(flight.rest.x + pose.x).toBeCloseTo(flight.to.x, 5);
+      expect(flight.rest.y + pose.y).toBeCloseTo(flight.to.y, 5);
+      expect(Math.abs(card.rot + pose.rot)).toBeLessThanOrEqual(rowTilt);
+      expect(pose.opacity).toBe(1);
+    }
+  });
+
+  it("쉼터를 지나면 줄은 위로 비켜 사라지고, 화병도 그때 비켜난다", () => {
+    for (const flight of flights.values()) {
+      const gone = cardPose(cardsGone, flight);
+      expect(gone.opacity).toBe(0);
+      expect(flight.rest.y + gone.y).toBeLessThan(flight.to.y);
+      expect(flight.rest.x + gone.x).toBeCloseTo(flight.to.x, 5);
     }
     expect(vaseLeave(0, 0.5)).toBe(0);
-    expect(vaseLeave(cardsGone, 0.5)).toBe(1);
+    expect(vaseLeave(rowRest, 1)).toBe(0);
+    expect(vaseLeave(rowRest + 300, 1)).toBe(1);
   });
 
-  it("줄이 있는 파일은 줄 차례대로 그 줄의 아이콘 자리에 똑바로 앉는다", () => {
-    expect(rowIds.map((id) => flights.get(id)!.stagger)).toEqual([0, 0.5, 1]);
-    for (const id of rowIds) {
-      const flight = flights.get(id)!;
-      const card = cards.find((c) => c.thing.id === id)!;
-      const spot = rows.get(id)!;
-      // 공책이 올라오는 동안에는 제자리에서 똑바로 서 기다립니다.
-      const waiting = cardPose(500, flight);
-      expect([waiting.x + 0, waiting.y + 0, waiting.opacity]).toEqual([0, 0, 1]);
-      expect(card.rot + waiting.rot).toBeCloseTo(0, 5);
-      const landed = cardPose(handoffAt, flight);
-      expect(flight.rest.x + landed.x).toBeCloseTo(spot.x, 3);
-      expect(flight.rest.y + landed.y).toBeCloseTo(spot.y, 3);
-      expect(card.size * landed.scale).toBeCloseTo(24, 3);
-      expect(landed.opacity).toBe(1);
-      expect(cardPose(cardsGone, flight).opacity).toBe(0);
+  it("어느 창에서든 줄은 폭 안에 들고, 왼쪽부터 차례이며, 머리와 현관 줄과 창 아래를 넘지 않는다", () => {
+    const cases: [View, number, number, number][] = [
+      [{ w: 375, h: 812 }, 8, 14, 112],
+      [{ w: 375, h: 667 }, 3, 14, 112],
+      [{ w: 720, h: 900 }, 5, 14, 100],
+      [{ w: 1280, h: 800 }, 3, 14, 74],
+      [{ w: 1280, h: 800 }, 1, 2, 74],
+    ];
+    for (const [view, roomCount, files, header] of cases) {
+      const laid = heroLayout(many(roomCount, files), start, view, aspect);
+      const door = header + 90;
+      const row = flightsFor(laid.cards, laid.nodes, view, door);
+      const placed = laid.cards.map((card) => ({ card, flight: row.get(card.thing.id)! })).sort((a, b) => a.flight.slot - b.flight.slot);
+      placed.forEach(({ card, flight }, index) => {
+        const half = (card.size * flight.to.scale) / 2;
+        const tall = (card.height * flight.to.scale) / 2;
+        expect(flight.to.x - half, `${view.w} 왼쪽`).toBeGreaterThanOrEqual(0);
+        expect(flight.to.x + half - rowMetrics(row, view).overflow, `${view.w} 오른쪽`).toBeLessThanOrEqual(view.w);
+        expect(flight.to.y - tall, `${view.w} 위`).toBeGreaterThanOrEqual(door);
+        expect(flight.to.y + tall, `${view.w} 아래`).toBeLessThanOrEqual(view.h);
+        if (index) expect(flight.to.x).toBeGreaterThan(placed[index - 1].flight.to.x);
+      });
+      expect(placed.every(({ flight }) => flight.to.scale >= 0.6 && flight.to.scale <= 1)).toBe(true);
     }
   });
 
-  it("줄이 없는 파일은 자기 화병 뒤로 돌아가 사라진다", () => {
-    const others = cards.filter((card) => !rows.has(card.thing.id));
-    expect(others.length).toBeGreaterThan(0);
-    for (const card of others) {
-      const flight = flights.get(card.thing.id)!;
-      expect(flight.toRow).toBe(false);
-      const home = toPx(nodes.find((node) => node.room.id === card.room.id)!.at, baseView);
-      const gone = cardPose(handoffAt, flight);
-      expect(flight.rest.x + gone.x).toBeCloseTo(home.x, 3);
-      expect(flight.rest.y + gone.y).toBeCloseTo(home.y, 3);
-      expect(gone.opacity).toBe(0);
-    }
+  it("지도에 못 나온 파일도 줄에 들어오고, 창보다 길면 넘친 만큼을 알려 준다", () => {
+    const view = { w: 1280, h: 800 };
+    const laid = heroLayout(many(2, 40), start, view, aspect);
+    const only = rowOnlyCards(laid.cards, laid.nodes, start, view, aspect);
+    expect(only.length).toBeGreaterThan(0);
+    expect(laid.cards.length + only.length).toBeLessThanOrEqual(rowCap);
+    expect(only.every((card) => card.rowOnly && !laid.cards.some((shown) => shown.thing.id === card.thing.id))).toBe(true);
+    const row = flightsFor([...laid.cards, ...only], laid.nodes, view);
+    expect(row.size).toBe(laid.cards.length + only.length);
+    expect(rowMetrics(row, view).overflow).toBeGreaterThan(0);
+    expect([...row.values()].filter((flight) => flight.rowOnly).length).toBe(only.length);
+    expect(Math.min(...[...row.values()].map((flight) => flight.to.x - flight.half))).toBeGreaterThanOrEqual(0);
   });
 
-  it("줄이 하나도 없으면 모두 화병으로 돌아간다", () => {
-    expect([...flightsFor(cards, nodes, baseView, new Map()).values()].every((flight) => !flight.toRow)).toBe(true);
+  it("줄에만 있는 종이는 쉼터에서 보이고, 지나면 줄과 함께 사라진다", () => {
+    const view = { w: 1280, h: 800 };
+    const laid = heroLayout(many(2, 40), start, view, aspect);
+    const only = rowOnlyCards(laid.cards, laid.nodes, start, view, aspect);
+    const flight = flightsFor([...laid.cards, ...only], laid.nodes, view).get(only[0].thing.id)!;
+    expect(rowOnlyPose(0, flight).opacity).toBe(0);
+    expect(rowOnlyPose(rowRest, flight).opacity).toBe(1);
+    expect(rowOnlyPose(cardsGone, flight).opacity).toBe(0);
+  });
+
+  it("최근에 작업한 파일이 왼쪽부터 놓인다", () => {
+    const days = [9, 1, 5, 3];
+    const files = days.map((day, f) => thing(`f${f}`, { lastModified: start - day * 86400000, touchedAt: null, lastUsedAt: null }));
+    const laid = heroLayout([room("a", files)], start, baseView, aspect);
+    const row = flightsFor(laid.cards, laid.nodes, baseView);
+    expect(laid.cards.map((card) => card.thing.id).sort((a, b) => row.get(a)!.slot - row.get(b)!.slot)).toEqual(["f1", "f3", "f2", "f0"]);
+  });
+
+  it("넉넉한 창에서도 이웃과 살짝 겹쳐 더미처럼 놓인다", () => {
+    const laid = heroLayout(many(2, 3), start, baseView, aspect);
+    const row = flightsFor(laid.cards, laid.nodes, baseView);
+    const placed = laid.cards.map((card) => ({ card, flight: row.get(card.thing.id)! })).sort((a, b) => a.flight.slot - b.flight.slot);
+    placed.slice(1).forEach(({ card, flight }, index) => {
+      const before = placed[index];
+      const lap = before.flight.to.x + (before.card.size * before.flight.to.scale) / 2 - (flight.to.x - (card.size * flight.to.scale) / 2);
+      expect(lap).toBeGreaterThan(0);
+      expect(lap).toBeLessThan(Math.min(card.size, before.card.size) * flight.to.scale);
+    });
+  });
+
+  it("화병과 이름표가 비어 있는 높이를 고른다", () => {
+    const view = { w: 1280, h: 800 };
+    const { nodes: few, cards: papers } = heroLayout(many(1, 4), start, view, aspect);
+    const { y } = [...flightsFor(papers, few, view).values()][0].to;
+    const tall = Math.max(...papers.map((card) => card.height));
+    const vase = keepOut(few, view).slice(3);
+    expect(vase.every((box) => y + tall / 2 <= box.y - box.hh || y - tall / 2 >= box.y + box.hh)).toBe(true);
+  });
+});
+
+describe("화병 채움", () => {
+  it("한도 대비 용량이고, 한도가 없으면 0.8이다", () => {
+    expect(vaseFill({ budgetBytes: 100 } as Room, 50)).toBe(0.5);
+    expect(vaseFill({ budgetBytes: null } as Room, 50)).toBe(0.8);
   });
 });
 

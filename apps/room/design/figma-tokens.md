@@ -187,6 +187,9 @@
 
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
+| `scene/topbar-stacked-h` | `100px` |  |
+| `scene/topbar-phone-h` | `112px` |  |
+| `scene/nav-cell-w` | `76px` |  |
 | `scene/z-intro` | `8000` |  |
 | `scene/intro-vase` | `min(40dvh, 56vw)` |  |
 | `scene/intro-foot` | `112px` |  |
@@ -203,7 +206,7 @@
 | `scene/paper-dim` | `0.18` |  |
 | `scene/room-label-max` | `max(22vw, 144px)` |  |
 | `scene/nb-sheet-w` | `min(55vw, 760px)` |  |
-| `scene/nb-top` | `calc(3vh + clamp(36px, 7vw, 90px) + 2vh)` |  |
+| `scene/nb-top` | `max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh))` |  |
 | `scene/nb-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/folder-paper` | `#f8f4ef` |  |
 | `scene/folder-paper-fold` | `#f2eee9` |  |
@@ -216,10 +219,6 @@
 | `scene/table-col-status` | `150px` |  |
 | `scene/sum-days-w` | `196px` |  |
 | `scene/hairline` | `0.5px` |  |
-| `scene/dial-card-w` | `260px` |  |
-| `scene/dial-info-w` | `360px` |  |
-| `scene/dial-clear` | `88px` |  |
-| `scene/dial-wait-blur` | `80px` |  |
 | `scene/pile-h` | `min(76dvh, 620px)` |  |
 | `scene/pile-w` | `132px` |  |
 | `scene/pile-sheet` | `72px` |  |
@@ -231,9 +230,6 @@
 | `scene/footer-gap` | `max(1vw, 1.4vh)` |  |
 | `scene/footer-pad` | `max(1.5vw, 2vh)` |  |
 | `scene/footer-rows` | `max(0.3vw, 0.4vh)` |  |
-| `scene/dial-gap` | `max(1.2vw, 1.8vh)` |  |
-| `scene/dial-w` | `max(5vw, 7vh)` |  |
-| `scene/dial-h` | `max(6.25vw, 8.75vh)` |  |
 | `scene/giants-w` | `min(93vw, 150dvh)` |  |
 | `scene/empty-text` | `max(var(--text-md), var(--hero-type))` |  |
 | `scene/label-track` | `0.158em` |  |

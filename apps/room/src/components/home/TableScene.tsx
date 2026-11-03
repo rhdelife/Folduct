@@ -151,7 +151,7 @@ export function TableScene({ rooms, now, returnTo, actions }: SceneProps) {
   }
 
   return (
-    <section className="scene scene-table" aria-label="방" {...gate}>
+    <section className="scene scene-table" aria-label="방 목록" {...gate}>
       <div className="table-lift" ref={lift}>
         <div className="table-card" ref={card}>
           <div className="table-paper" aria-hidden="true">
