@@ -89,14 +89,13 @@ describe("수첩에 꺼낼 파일", () => {
 describe("머리글 숫자", () => {
   it("장면 순서대로 지금 상태를 적어요", () => {
     const words = captionWords(rooms, now);
-    expect(words).toHaveLength(4);
+    expect(words).toHaveLength(3);
     expect(words[0]).toMatch(/^2개 · /);
-    expect(words[2]).toMatch(/^3개 · 파일 \d+개$/);
-    expect(words[3]).toMatch(/^파일 \d+개 · /);
+    expect(words[2]).toMatch(/^파일 \d+개 · /);
   });
 
   it("방이 없고 급한 게 없으면 그렇다고 적어요", () => {
-    expect(captionWords([], now)).toEqual(["0개 · 0B", "급한 건 없어요", "0개 · 파일 0개", "파일 0개 · 0B"]);
+    expect(captionWords([], now)).toEqual(["0개 · 0B", "급한 건 없어요", "파일 0개 · 0B"]);
   });
 });
 

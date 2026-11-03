@@ -34,7 +34,7 @@ function Link({ onClick, children }: { onClick: () => void; children: ReactNode 
 
 // 판이 들리면 그 아래에서 드러납니다. 판 밖 층이라 스스로는 움직이지 않아요.
 export function FooterScene({ rooms, actions }: SceneProps) {
-  const gate = useSceneGate(4);
+  const gate = useSceneGate(3);
   const engine = useEngine();
   const toTop = () => {
     engine.goTo(0);

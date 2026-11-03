@@ -208,16 +208,6 @@
 | `scene/nb-sheet-w` | `min(55vw, 760px)` |  |
 | `scene/nb-top` | `max(var(--topbar-h), calc(3vh + clamp(36px, 7vw, 90px) + 2vh))` |  |
 | `scene/nb-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
-| `scene/folder-paper` | `#f8f4ef` |  |
-| `scene/folder-paper-fold` | `#f2eee9` |  |
-| `scene/folder-paper-light` | `#fbf8f4` |  |
-| `scene/table-w` | `min(92vw, 1120px)` |  |
-| `scene/table-rooms` | `240px` |  |
-| `scene/table-room-max` | `180px` |  |
-| `scene/table-col-path` | `150px` |  |
-| `scene/table-col-size` | `72px` |  |
-| `scene/table-col-status` | `150px` |  |
-| `scene/sum-days-w` | `196px` |  |
 | `scene/hairline` | `0.5px` |  |
 | `scene/pile-h` | `min(76dvh, 620px)` |  |
 | `scene/pile-w` | `132px` |  |

@@ -7,13 +7,13 @@ import type { OpenRoomMenu } from "../ContextMenu";
 // 집 화면은 문서 스크롤이 없습니다. 숫자 하나(pos)가 모든 장면을 움직여요.
 // 문턱을 넘은 휠과 손가락은 pos에 그대로 더하고, 입력이 140ms 멈추면 마지막 방향의 다음 쉼터까지 cubic-out으로 흘러갑니다.
 // stops는 장면의 자리라 번호가 곧 장면 번호입니다(쪽 이동, data-scene).
-export const stops: readonly number[] = [0, 1350, 3350, 4300, 5200];
+export const stops: readonly number[] = [0, 1350, 2095, 2995];
 // 종이가 한 줄로 모여 쉬는 자리. 첫 화면 안의 쉼터라 장면 번호를 받지 않습니다.
 export const rowRest = 640;
 // 휠, 키, 자동 진행이 멈추는 자리: 장면의 자리와 줄 쉼터. 쪽 이동은 쉼터를 그냥 지나갑니다.
 export const rests: readonly number[] = [0, rowRest, ...stops.slice(1)];
 // rests[i]에서 rests[i+1]까지의 시간(ms). 거리와 상관없이 구간마다 정해져 있습니다.
-export const segmentMs: readonly number[] = [1000, 1100, 2005, 1805, 1500];
+export const segmentMs: readonly number[] = [1000, 1100, 1805, 1500];
 export const idleMs = 140;
 // 메뉴나 Home/End처럼 여러 구간을 건너뛸 때의 시간.
 const jumpMs = 1800;
@@ -24,11 +24,10 @@ const touchSlop = 12;
 // 장면 표. show 밖에서는 숨기고(그리지 않음), live 안에서만 조작할 수 있습니다. live는 빈틈없이 이어져 늘 한 장면만 살아 있어요.
 export const scenes = [
   { name: "hero", label: "내 방", show: [0, 1000], live: [0, 700] },
-  { name: "notebook", label: "손댈 것", show: [650, 1800], live: [700, 1455] },
-  { name: "table", label: "방 목록", show: [1450, 4130], live: [1455, 4125] },
+  { name: "notebook", label: "손댈 것", show: [650, 1925], live: [700, 1920] },
   // 판이 가장 빠른 한가운데를 피해, 막 들릴 때 조작을 넘깁니다.
-  { name: "pile", label: "형식별", show: [4125, 5200], live: [4125, 4320] },
-  { name: "footer", label: "맨 아래", show: [4300, 5200], live: [4320, 5200] },
+  { name: "pile", label: "형식별", show: [1920, 2995], live: [1920, 2115] },
+  { name: "footer", label: "맨 아래", show: [2095, 2995], live: [2115, 2995] },
 ] as const;
 
 export const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -469,7 +468,7 @@ export function useLiveScene(): number {
 // 흘러가는 동안 닿을 장면이 아니면 잠급니다. 지나치는 장면이 두 번째 클릭이나 포커스를 받으면 엉뚱한 곳으로 가요.
 export const sceneOpen = (engine: Engine, index: number) => liveScene(engine.pos) === index && (!engine.moving || liveScene(engine.target) === index);
 
-// 장면 맨 바깥 요소에 펼칩니다: <section className="scene scene-table" {...useSceneGate(2)}>
+// 장면 맨 바깥 요소에 펼칩니다: <section className="scene scene-pile" {...useSceneGate(2)}>
 export function useSceneGate(index: number) {
   const engine = useEngine();
   const { show } = scenes[index];

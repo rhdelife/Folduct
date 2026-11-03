@@ -85,18 +85,15 @@ export function kindGroups(rooms: Room[], now: number, topCount = 5): KindGroup[
   return [...colorGroups.map(({ label, color, kinds }) => collect(label, color, kinds, false)), collect("정리 상자", boxColor, [], true)];
 }
 
-// 머리글의 숫자. 장면 순서대로 내 방, 손댈 것, 방 목록, 형식별입니다. 소개 문장 대신 지금 내 상태를 적어요.
+// 머리글의 숫자. 장면 순서대로 내 방, 손댈 것, 형식별입니다. 소개 문장 대신 지금 내 상태를 적어요.
 export function captionWords(rooms: Room[], now: number): string[] {
   const active = rooms.filter((room) => !room.care.done);
   const { first } = notebookSections(rooms, now);
   const stale = first.stale.reduce((sum, item) => sum + item.files.length, 0);
-  // 표 장면에는 완료한 방의 탭도 있어서, 방과 파일은 완료까지 함께 셉니다.
-  const files = rooms.reduce((sum, room) => sum + present(room).length, 0);
   const kinds = kindGroups(rooms, now, 0).filter((group) => !group.box);
   return [
     `${active.length}개 · ${formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}`,
     stale > 0 ? `오래된 파일 ${stale}개` : "급한 건 없어요",
-    `${rooms.length}개 · 파일 ${files}개`,
     `파일 ${kinds.reduce((sum, group) => sum + group.count, 0)}개 · ${formatBytes(kinds.reduce((sum, group) => sum + group.bytes, 0))}`,
   ];
 }

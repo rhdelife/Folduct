@@ -6,7 +6,6 @@ import { FooterScene } from "../components/home/FooterScene";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
 import { NotebookScene } from "../components/home/NotebookScene";
-import { TableScene } from "../components/home/TableScene";
 import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
 import { HomeMenu } from "../components/HomeMenu";
@@ -442,7 +441,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                 {!noRooms && (
                   <>
                     <NotebookScene {...scene} />
-                    <TableScene {...scene} />
                     <PileScene {...scene} />
                   </>
                 )}

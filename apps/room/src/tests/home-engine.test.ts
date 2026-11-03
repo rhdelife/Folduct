@@ -7,37 +7,37 @@ describe("집 화면 엔진: 계산", () => {
     expect(nextRest(0, 1)).toBe(rowRest);
     expect(nextRest(1, 1)).toBe(rowRest);
     expect(nextRest(rowRest, 1)).toBe(1350);
-    expect(nextRest(1350, 1)).toBe(3350);
+    expect(nextRest(1350, 1)).toBe(2095);
     expect(nextRest(1349, 1)).toBe(1350);
     expect(nextRest(1350, -1)).toBe(rowRest);
     expect(nextRest(rowRest, -1)).toBe(0);
-    expect(nextRest(3000, -1)).toBe(1350);
-    expect(nextRest(5200, 1)).toBeNull();
+    expect(nextRest(2000, -1)).toBe(1350);
+    expect(nextRest(2995, 1)).toBeNull();
     expect(nextRest(0, -1)).toBeNull();
     expect(nextRest(2000, 0)).toBeNull();
   });
 
   it("양 끝을 넘은 입력은 버려요", () => {
     expect(clampPos(-50)).toBe(0);
-    expect(clampPos(9000)).toBe(5200);
+    expect(clampPos(9000)).toBe(2995);
     expect(clampPos(2000)).toBe(2000);
   });
 
   it("방향이 뒤집히면 같은 자리에서 반대쪽 자리로 가요", () => {
-    expect(tweenTarget(2000, 1)).toEqual({ to: 3350, ms: segmentMs[2] });
+    expect(tweenTarget(2000, 1)).toEqual({ to: 2095, ms: segmentMs[2] });
     expect(tweenTarget(2000, -1)).toEqual({ to: 1350, ms: segmentMs[2] });
-    expect(tweenTarget(5200, 1)).toBeNull();
+    expect(tweenTarget(2995, 1)).toBeNull();
     expect(tweenTarget(0, -1)).toBeNull();
   });
 
   it("시간은 거리가 아니라 구간이 정하고, 여러 구간을 건너뛰면 한 번에 가요", () => {
-    expect(tweenTarget(3349, 1)!.ms).toBe(segmentMs[2]);
+    expect(tweenTarget(2094, 1)!.ms).toBe(segmentMs[2]);
     expect(tweenTarget(1351, 1)!.ms).toBe(segmentMs[2]);
     expect(tweenTarget(100, 1)!.ms).toBe(segmentMs[0]);
     expect(tweenTarget(rowRest, 1)!.ms).toBe(segmentMs[1]);
     expect(segmentMs.length).toBe(rests.length - 1);
-    expect(legMs(5200, 0)).toBe(1800);
-    expect(legMs(0, 5200)).toBe(1800);
+    expect(legMs(2995, 0)).toBe(1800);
+    expect(legMs(0, 2995)).toBe(1800);
     expect(legMs(0, 1350)).toBe(1800);
   });
 
@@ -52,7 +52,7 @@ describe("집 화면 엔진: 계산", () => {
     expect(range(5, 0, 10)).toBe(0.5);
     expect(range(-5, 0, 10)).toBe(0);
     expect(nearestStop(1400)).toBe(1);
-    expect(nearestStop(4800)).toBe(4);
+    expect(nearestStop(2800)).toBe(3);
     expect(nearestStop(rowRest)).toBe(0);
   });
 
@@ -66,22 +66,22 @@ describe("집 화면 엔진: 계산", () => {
       expect(scene.live[0], scene.name).toBe(index === 0 ? 0 : scenes[index - 1].live[1]);
       expect(scene.show[0], scene.name).toBeLessThanOrEqual(scene.live[0]);
     });
-    expect(scenes[scenes.length - 1].live[1]).toBe(5200);
-    for (let pos = 0; pos <= 5200; pos += 10) {
+    expect(scenes[scenes.length - 1].live[1]).toBe(2995);
+    for (let pos = 0; pos <= 2995; pos += 10) {
       const { show } = scenes[liveScene(pos)];
       expect(pos >= show[0] && pos <= show[1], `pos ${pos}`).toBe(true);
     }
   });
 
   it("쪽 이동 칸과 머리글은 맨 아래만 빼고 같은 이름이에요", () => {
-    expect(captions.map((caption) => caption.title)).toEqual(["내 방", "손댈 것", "방 목록", "형식별"]);
+    expect(captions.map((caption) => caption.title)).toEqual(["내 방", "손댈 것", "형식별"]);
     expect(scenes.filter((scene) => scene.name !== "footer").map((scene) => scene.label)).toEqual(captions.map((caption) => caption.title));
   });
 
   it("판은 마지막 구간에서만 들려요", () => {
-    expect(sheetLift(4300) === 0).toBe(true);
-    expect(sheetLift(4750)).toBeCloseTo(-58);
-    expect(sheetLift(5200)).toBeCloseTo(-116);
+    expect(sheetLift(2095) === 0).toBe(true);
+    expect(sheetLift(2545)).toBeCloseTo(-58);
+    expect(sheetLift(2995)).toBeCloseTo(-116);
   });
 });
 
@@ -107,11 +107,11 @@ describe("머리글", () => {
     expect(captionPose({ stop: 5600, in: 5250, out: null, backIn: null, backOut: 5390 }, 6500, -1)).toEqual({ opacity: 1, rise: 0 });
     expect(captionPose({ stop: 1350, in: 1300, out: 1950, backIn: 2350, backOut: null }, 500, -1)).toEqual({ opacity: 1, rise: 0 });
     // 되감아 첫 화면에 돌아오면 첫 줄만 남습니다.
-    expect(captions.map((caption) => captionPose(caption, 0, -1).opacity)).toEqual([1, 0, 0, 0]);
+    expect(captions.map((caption) => captionPose(caption, 0, -1).opacity)).toEqual([1, 0, 0]);
   });
 
   it("줄 쉼터에서는 앞으로 와도 뒤로 와도 내 방 머리글만 또렷해요", () => {
-    for (const dir of [1, -1]) expect(captions.map((caption) => captionPose(caption, rowRest, dir))).toEqual([{ opacity: 1, rise: 0 }, { opacity: 0, rise: 0 }, { opacity: 0, rise: 0 }, { opacity: 0, rise: 0 }]);
+    for (const dir of [1, -1]) expect(captions.map((caption) => captionPose(caption, rowRest, dir))).toEqual([{ opacity: 1, rise: 0 }, { opacity: 0, rise: 0 }, { opacity: 0, rise: 0 }]);
     expect(captionPose(captions[0], 1350, 1).rise).toBe(1);
     expect(captionPose(captions[0], 1350, -1).opacity).toBe(0);
   });
@@ -217,14 +217,14 @@ describe("휠 관문: 한 번 튕기면 한 장면", () => {
   it("긴 관성 꼬리는 다음 자리에서 멈추고 나머지는 버려요", () => {
     for (const keep of [0.94, 0.96, 0.97, 0.98]) {
       expect(run(stops[1], flick(220, keep)), `keep ${keep}`).toBe(stops[2]);
-      expect(run(stops[3], flick(220, keep)), `keep ${keep}`).toBe(stops[4]);
+      expect(run(stops[2], flick(220, keep)), `keep ${keep}`).toBe(stops[3]);
     }
-    expect(run(stops[4], flick(220, 0.96).map((delta) => -delta))).toBe(stops[3]);
+    expect(run(stops[3], flick(220, 0.96).map((delta) => -delta))).toBe(stops[2]);
   });
 
   it("손가락으로 밀다가 놓는 흐름도 한 장면이에요", () => {
     const rise = [8, 20, 40, 70, 110, 150, 180];
-    expect(run(stops[3], [...rise, ...flick(180, 0.96)])).toBe(stops[4]);
+    expect(run(stops[2], [...rise, ...flick(180, 0.96)])).toBe(stops[3]);
   });
 
   it("다음 자리에 못 미치면 그만큼만 가요. 나머지는 자동 진행 몫이에요", () => {
@@ -235,16 +235,16 @@ describe("휠 관문: 한 번 튕기면 한 장면", () => {
   it("아무리 큰 휠 한 번도 다음 자리까지만 가요", () => {
     expect(run(stops[2], [5000])).toBe(stops[3]);
     expect(run(stops[2], [-5000])).toBe(stops[1]);
-    expect(run(stops[4], [5000])).toBe(stops[4]);
+    expect(run(stops[3], [5000])).toBe(stops[3]);
   });
 
   it("꼬리 위에 다시 튕기면 한 장면 더 가요", () => {
-    expect(run(stops[2], [...flick(220, 0.95), ...flick(220, 0.95)])).toBe(stops[4]);
+    expect(run(stops[1], [...flick(220, 0.95), ...flick(220, 0.95)])).toBe(stops[3]);
   });
 
   it("줄지 않고 오래 굴리면 자리를 지나가요", () => {
-    expect(run(stops[2], Array(60).fill(60), 40)).toBeGreaterThan(stops[3]);
-    expect(run(stops[2], Array(10).fill(60), 40)).toBeLessThanOrEqual(stops[3]);
+    expect(run(stops[1], Array(60).fill(60), 40)).toBeGreaterThan(stops[2]);
+    expect(run(stops[1], Array(10).fill(60), 40)).toBeLessThanOrEqual(stops[2]);
   });
 
   it("드문드문 오는 꼬리도 같은 흐름이고, 쉬었다 치는 휠은 새 흐름이에요", () => {
@@ -269,7 +269,7 @@ describe("휠 관문: 한 번 튕기면 한 장면", () => {
     expect(gateWheel(null, stops[2] - 10, 2, 0).stream.wall).toBe(stops[3]);
     expect(gateWheel(null, stops[2] - 200, 2, 0).stream.wall).toBe(stops[2]);
     expect(gateWheel(null, stops[2] + 10, -2, 0).stream.wall).toBe(stops[1]);
-    expect(gateWheel(null, stops[4] - 10, 2, 0).stream.wall).toBe(stops[4]);
+    expect(gateWheel(null, stops[3] - 10, 2, 0).stream.wall).toBe(stops[3]);
     expect(gateWheel(null, 10, -2, 0).stream.wall).toBe(0);
   });
 
@@ -283,7 +283,7 @@ describe("휠 관문: 한 번 튕기면 한 장면", () => {
 
   it("벽을 이미 넘어 있으면 거꾸로 끌지 않아요", () => {
     const stale: WheelStream = { at: 0, start: 0, dir: 1, rate: 1, peak: 1, low: Infinity, wall: 1350 };
-    expect(gateWheel(stale, 3350, 40, 16).delta).toBe(0);
+    expect(gateWheel(stale, 2095, 40, 16).delta).toBe(0);
   });
 });
 
@@ -384,13 +384,13 @@ describe("집 화면 엔진: 움직임", () => {
   });
 
   it("끝을 넘는 입력은 쌓이지 않아요", () => {
-    const engine = createEngine(4);
+    const engine = createEngine(3);
     engine.input(500);
     vi.advanceTimersByTime(idleMs + 50);
-    expect(engine.pos).toBe(5200);
+    expect(engine.pos).toBe(2995);
     engine.input(-1);
     vi.advanceTimersByTime(30);
-    expect(engine.pos).toBe(5199);
+    expect(engine.pos).toBe(2994);
   });
 
   it("step은 가던 자리에서 한 칸 더 가고, goTo는 같은 자리면 다시 시작하지 않아요", () => {
@@ -400,10 +400,10 @@ describe("집 화면 엔진: 움직임", () => {
     expect(engine.target).toBe(1350);
     engine.step(1);
     vi.advanceTimersByTime(4000);
-    expect(engine.pos).toBe(3350);
+    expect(engine.pos).toBe(2095);
     engine.goTo(2);
     vi.advanceTimersByTime(40);
-    expect(engine.pos).toBe(3350);
+    expect(engine.pos).toBe(2095);
   });
 
   it("같은 값으로는 구독자를 부르지 않고, 끝나면 프레임을 멈춰요", () => {
@@ -444,7 +444,7 @@ describe("집 화면 엔진: 움직임", () => {
     expect(engine.pos).toBe(0);
     engine.goTo(6);
     vi.advanceTimersByTime(30);
-    expect(engine.pos).toBe(5200);
+    expect(engine.pos).toBe(2995);
   });
 
   it("손가락이 닿아 있으면 자동 진행을 미루고, 떼면 흘러가요", () => {
@@ -489,9 +489,9 @@ describe("집 화면 엔진: 움직임", () => {
   });
 
   it("움직이는 중인지와 향하는 자리를 알려 줘요", () => {
-    const engine = createEngine(3);
+    const engine = createEngine(2);
     expect(engine.moving).toBe(false);
-    expect(engine.target).toBe(4300);
+    expect(engine.target).toBe(2095);
     engine.goTo(0);
     expect(engine.moving).toBe(true);
     expect(engine.target).toBe(0);
@@ -546,13 +546,13 @@ describe("집 화면 엔진: 움직임", () => {
   });
 
   it("벽에 닿아 자리에 멈추면 다음 장면으로 넘어가지 않아요", () => {
-    const engine = createEngine(2);
+    const engine = createEngine(1);
     engine.wheel(5000, 0);
     vi.advanceTimersByTime(idleMs + 4000);
-    expect(engine.pos).toBe(4300);
+    expect(engine.pos).toBe(2095);
     engine.wheel(wheelSlopPx, 5000);
     vi.advanceTimersByTime(idleMs + 2000);
-    expect(engine.pos).toBe(5200);
+    expect(engine.pos).toBe(2995);
   });
 
   it("첫 화면의 휠은 pos를 그대로 따라가 줄 쉼터에서 멈추고, 새로 밀면 공책에서 멈춰요", () => {
@@ -568,17 +568,17 @@ describe("집 화면 엔진: 움직임", () => {
     expect(engine.pos).toBe(1350);
     engine.wheel(wheelSlopPx, 20000);
     vi.advanceTimersByTime(idleMs + segmentMs[2] + 50);
-    expect(engine.pos).toBe(3350);
+    expect(engine.pos).toBe(2095);
   });
 
   it("끝자락에서 새로 미는 휠은 기다리지 않고 다음 장면으로 가요", () => {
     const engine = createEngine(1);
     engine.goTo(2);
     vi.advanceTimersByTime(segmentMs[2] - 300);
-    expect(engine.pos).toBeLessThan(3350);
+    expect(engine.pos).toBeLessThan(2095);
     engine.wheel(wheelSlopPx, 100000);
     vi.advanceTimersByTime(idleMs + segmentMs[3] + 50);
-    expect(engine.pos).toBe(4300);
+    expect(engine.pos).toBe(2995);
   });
 
   it("뒤로 가는 휠은 공책으로 가는 박자를 바로 멈춰요", () => {
@@ -611,7 +611,7 @@ describe("집 화면 엔진: 움직임", () => {
       engine.wheel(Math.round(delta), at);
       vi.advanceTimersByTime(16);
     }
-    expect(engine.pos).toBe(3350);
+    expect(engine.pos).toBe(2095);
   });
 
   it("가던 자리에 바로 닿고 구독자는 그 자리에서 알아요", () => {

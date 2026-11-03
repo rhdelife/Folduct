@@ -9,9 +9,8 @@ import { clamp01, liveScene, range, reduced, rowRest, scenes, sheetLift, stops, 
 export type Caption = { stop: number; hold?: number; in: number; out: number | null; backIn: number | null; backOut: number | null };
 export const captions: (Caption & { title: string })[] = [
   { stop: stops[0], hold: rowRest, in: -1, out: rowRest + 300, backIn: rowRest + 300, backOut: null, title: "내 방" },
-  { stop: stops[1], in: 1100, out: 1950, backIn: 2350, backOut: 750, title: "손댈 것" },
-  { stop: stops[2], in: 2350, out: 3575, backIn: 3725, backOut: 2750, title: "방 목록" },
-  { stop: stops[3], in: 3950, out: null, backIn: null, backOut: 4090, title: "형식별" },
+  { stop: stops[1], in: 1100, out: 1650, backIn: 1745, backOut: 750, title: "손댈 것" },
+  { stop: stops[2], in: 1745, out: null, backIn: null, backOut: 1885, title: "형식별" },
 ];
 
 // 앞으로 갈 때는 멈출 자리에서 다 나타났다가 다음 구간 첫머리에 위로 빠지고, 뒤로 갈 때는 제자리에서 옅어졌다 나타납니다.
