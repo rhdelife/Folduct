@@ -197,7 +197,8 @@
   --room-tab-1: #ecece8;
   --room-tab-2: #e3e3df;
   --room-tab-3: #dadad6;
-  --room-grid: #e0e0e0;
+  /* 방 화면의 떠 있는 창 그림자. */
+  --float-shade: rgb(23 23 23 / 0.16);
   --room-line: #dcdcda;
   --room-line-strong: #c8c8c6;
   --room-hover: #efefec;
@@ -515,7 +516,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .banners:empty { display: none; }
 
 .room-frame, .mini-frame { position: relative; width: 100%; }
-.room-frame { overflow-x: auto; overscroll-behavior-x: contain; }
+.room-frame { flex: 1 1 auto; min-height: 0; }
 /* 판은 통째로 scale(--s)되므로, 글자·바느질·포커스 같은 테두리 장식만 --s로 거꾸로 나눠 실제 크기를 지킵니다. 물건 크기는 그대로 둡니다. */
 .room-plane { --s: 1; position: absolute; left: 0; top: 0; transform-origin: 0 0; border-width: calc(1px / var(--s)); border-radius: calc(var(--radius-xl) / var(--s)); -webkit-user-select: none; user-select: none; }
 /* 방은 그림 대신 바느질 같은 점선 테두리로만 보여줍니다. */
@@ -680,11 +681,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .sky-layout.has-panel .sky-stage { transform: translateY(calc((100dvh - var(--topbar-h)) * -0.29)); }
   .drawer { max-height: none; }
 }
-/* 방 화면은 판이 0.55배 밑으로 줄기 전에 서랍을 판 아래로 내립니다(가로 스크롤 방지). */
-@media (max-width: 899.98px) {
-  .room-body { grid-template-columns: 1fr; }
-  .side { position: static; max-height: none; }
-}
 @media (forced-colors: active) {
   .object { forced-color-adjust: none; }
   .tabs button[aria-selected="true"] { border-bottom: 2px solid Highlight; }
@@ -735,8 +731,11 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .sky-canvas.at-row .paper-art:hover::after { content: ""; position: absolute; inset: 0 0 calc(var(--space-5) * -1); }
 }
 
-/* 줄 쉼터까지 주름관과 이름표는 그대로입니다. 그 뒤로 이름표가 먼저 지워지고, 주름관은 pos를 따라 비켜납니다(heroMotion). 손가락을 그대로 따라가게 투명도 전환은 끕니다. */
+/* 스크롤하면 주름관이 pos를 따라 위에 나란히 서고 종이가 그 아래로 모입니다(heroMotion). */
 .sky-canvas.away .links line { opacity: 0; }
+/* 프로젝트별로 모이면 왼쪽 아래 칸에 종이가 놓이니 일력은 비켜 줍니다. */
+.work-cal { transition: opacity var(--dur-2) var(--ease-standard); }
+.sky-layout:has(.sky-canvas.away) .work-cal { opacity: 0; pointer-events: none; }
 /* 잠긴 동안 머리 줄이 공책을 가리지 않게 먼저 비켜 줍니다. */
 .doorstep { transition: opacity var(--dur-2) var(--ease-standard); }
 .scene-hero .vase-tag { transition: opacity var(--dur-3) ease-out, transform 750ms var(--ease-standard); }
@@ -887,7 +886,8 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .room-page legend, dialog.sheet:not(.menu) legend { padding: 0 0 var(--space-2); font-weight: 500; font-size: var(--text-xs); color: var(--ink-soft); }
 
 /* ── 맨 줄: 로고 자리와 머리글이 집 화면과 같습니다. ── */
-.room-page { max-width: none; padding: 0 var(--chrome-x) var(--space-12); }
+/* 방 화면은 창 전체가 캔버스입니다. 머리와 안내 글자 아래를 바닥이 채우고, 서랍은 그 위에 떠 있어요. */
+.room-page { max-width: none; height: 100dvh; display: flex; flex-direction: column; padding: 0 var(--chrome-x); overflow: hidden; }
 /* 양옆은 제 폭을 지키고, 긴 제목은 가운데 칸 안에서 말줄임으로 끝납니다. */
 .topnav { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: var(--space-5); min-height: calc(var(--chrome-y) * 2); margin: 0; }
 .topnav > .row { justify-self: end; margin: 0; }
@@ -917,29 +917,22 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .banner.happy-banner { padding: var(--space-2) var(--space-3); }
 .banner.danger { border-left: 0; padding: var(--space-3) var(--space-4); }
 
-/* ── 몸: 왼쪽 모눈종이 판, 오른쪽 폴더. 탭 줄과 용량 줄의 높이가 같아 두 판의 윗선이 맞습니다. ── */
-.room-body { max-width: var(--content-max); margin: 0 auto; }
+/* ── 몸: 바닥 전체와 그 위에 뜬 폴더. 물건은 폴더 왼쪽까지만 놓여 가려지지 않아요. ── */
+.room-body { position: relative; flex: 1 1 auto; display: block; width: 100%; min-height: 0; max-width: none; margin: 0; }
+.room-stage-wrap { position: absolute; inset: 0 calc(var(--rail-w) + var(--space-6)) 0 0; display: flex; flex-direction: column; }
 .room-capacity { display: flex; align-items: center; min-height: var(--room-tab-h); max-width: none; margin: 0; }
 .room-capacity .capacity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
 .room-capacity .capacity p { font-weight: 500; color: var(--ink-soft); }
 
-/* 판: 물건이 놓이는 큰 모눈종이. 틀과 함께 통째로 scale되므로 모서리는 --s로 되돌립니다. */
-.room-plane { border: 0; border-radius: calc(var(--room-radius) / var(--s)); background: var(--ground); box-shadow: none; }
+/* 판: 물건이 놓이는 바닥. 틀도 색도 없이 화면과 이어집니다. 미리보기만 카드로 보여요. */
+.room-plane { border: 0; border-radius: 0; background: none; box-shadow: none; }
+.room-plane.mini { border-radius: calc(var(--room-radius) / var(--s)); background: var(--ground); }
 .room-plane::before { content: none; }
-.grid-paper { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.grid-paper path { fill: none; stroke: var(--room-grid); stroke-width: 1; vector-effect: non-scaling-stroke; shape-rendering: crispEdges; }
-@media (min-resolution: 2dppx) {
-  .grid-paper path { stroke-width: 0.5; }
-}
-/* 작은 미리보기에서는 칸이 촘촘해 결처럼만 보이게 옅게 긋습니다. */
-.mini .grid-paper path { stroke: var(--room-hover); }
 .shelf-chip { left: calc(var(--room-step) * 2); top: calc(var(--room-step) * 2); border-width: calc(var(--room-hair) / var(--s)); border-color: var(--room-line); border-radius: calc(var(--room-chip) / var(--s)); color: var(--ink-soft); }
 .shelf-chip:hover:not(:disabled) { border-color: var(--room-line-strong); background: var(--surface); color: var(--ink); }
-.plane-empty { padding: var(--space-3) var(--space-4); background: var(--ground); }
+.plane-empty { padding: var(--space-3) var(--space-4); }
 .plane-empty strong { font-weight: 500; }
-/* 좁은 폭에서는 판이 최소 배율에 걸려 틀보다 넓어지니, 판 가운데가 아니라 보이는 바닥 가운데에 둡니다. */
 @media (max-width: 600px) {
-  .plane-empty { left: calc((100vw - 2 * var(--gutter)) / 2 / var(--s)); max-width: calc((100vw - 2 * var(--gutter) - 2 * var(--space-4)) / var(--s)); }
   .plane-empty button { min-height: calc(var(--control-lg) / var(--s)); }
 }
 
@@ -949,7 +942,7 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 /* 종이는 처음 놓일 때 위에서 내려앉습니다. 다 떨어지면 조용합니다. */
 .room-plane:not(.mini) .thing .body { animation: room-paper-drop 520ms var(--ease-settle) backwards; animation-delay: calc(var(--i) * 18ms); }
 @keyframes room-paper-drop { from { translate: 0 calc(var(--space-8) * -1); opacity: 0; } }
-.thing .tag, .box-spot .tag { padding: 0 var(--space-1); background: var(--ground); }
+.thing .tag, .box-spot .tag { padding: 0 var(--space-1); background: var(--bg); }
 .thing .tag b, .box-spot .tag b { font-weight: 500; }
 .hand-ring { position: absolute; inset: -20% -16%; width: 132%; height: 140%; overflow: visible; pointer-events: none; }
 .hand-ring path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
@@ -966,12 +959,12 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
   .box-spot:hover .cardboard-peek { translate: 0 calc(var(--space-1) * -1); }
 }
 
-.room-stage-wrap .legend-strip { align-items: flex-end; padding: var(--space-4) 0 0; }
+.room-stage-wrap .legend-strip { flex: none; align-items: flex-end; padding: var(--space-2) 0 var(--space-4); }
 .size-key { margin: 0; }
 
 /* ── 폴더: 탭은 고른 탭이 몸통과 한 면이고, 나머지는 멀수록 어둡게 뒤로 갑니다. 바꿀 때는 곧바로 넘어가요. ── */
-.side { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
-.tabs { display: flex; min-height: var(--room-tab-h); padding-right: calc(var(--room-slope) / 2); border: 0; }
+.side { position: absolute; top: 0; right: 0; z-index: 20; display: flex; flex-direction: column; width: var(--rail-w); max-height: calc(100% - var(--space-5)); background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; filter: drop-shadow(0 var(--space-2) var(--space-6) var(--float-shade)); }
+.tabs { flex: none; display: flex; min-height: var(--room-tab-h); padding-right: calc(var(--room-slope) / 2); border: 0; }
 .tabs button { position: relative; flex: 1 1 auto; min-height: var(--room-tab-h); justify-content: flex-start; padding: 0 calc(var(--room-slope) / 2 + var(--space-1)) 0 var(--space-3); background: none; font-size: var(--text-xs); line-height: var(--lh-caption); font-weight: 500; text-align: left; color: var(--ink-caption); transition: color var(--dur-1) ease; }
 .tabs button::before, .tabs button::after { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; background: var(--room-tab); }
 .tabs button::before { left: 0; right: calc(var(--room-slope) / 2); border-top-left-radius: var(--room-radius); }
@@ -980,16 +973,24 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .tabs button[data-away="1"] { --room-tab: var(--room-tab-1); z-index: 3; }
 .tabs button[data-away="2"] { --room-tab: var(--room-tab-2); z-index: 2; }
 .tabs button[data-away="3"] { z-index: 1; }
-.drawer { position: relative; max-height: calc(100dvh - var(--chrome-y) * 2 - var(--room-tab-h) - var(--space-12)); padding: var(--room-step); background-color: var(--ground); background-image: linear-gradient(var(--room-grid) var(--room-hair), transparent var(--room-hair)), linear-gradient(90deg, var(--room-grid) var(--room-hair), transparent var(--room-hair)); background-size: var(--room-step) var(--room-step); background-position: calc(var(--room-step) - var(--room-hair)) calc(var(--room-step) - var(--room-hair)); background-attachment: local; border-radius: 0 var(--room-radius) var(--room-radius) var(--room-radius); }
-/* 서랍 내용은 모눈 위에 놓은 흰 종이 한 장입니다. 글자가 모눈에 묻히지 않아요. */
+.drawer { position: relative; flex: 0 1 auto; min-height: 0; max-height: none; padding: var(--room-step); background-color: var(--ground); border-radius: 0 var(--room-radius) var(--room-radius) var(--room-radius); }
+/* 서랍 내용은 회색 폴더 위에 놓은 흰 종이 한 장입니다. */
 .drawer > div { gap: var(--space-4); }
 .drawer > .thing-panel, .drawer > .settings { padding: var(--space-4); background: var(--bg); }
-/* 목록 서랍은 표처럼 칸들만 모눈 위에 놓입니다. 머리글도, 맺음말도 칸 하나예요. */
+/* 목록 서랍은 표처럼 칸들만 폴더 위에 놓입니다. 머리글도, 맺음말도 칸 하나예요. */
 .drawer-head, .drawer > div:not(.thing-panel, .settings) > p { padding: var(--space-3); background: var(--bg); }
 .drawer-head { display: grid; gap: var(--space-2); }
 .drawer-head > button { justify-self: start; }
 .drawer code { font-family: var(--font-mono); font-size: var(--text-xs); }
 .drawer h2 { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 500; letter-spacing: -0.01em; }
+/* 좁은 창에서는 띄울 자리가 없어 폴더를 바닥 아래로 내리고, 화면을 위아래로 넘깁니다. */
+@media (max-width: 899.98px) {
+  .room-page { height: auto; min-height: 100dvh; padding-bottom: var(--space-12); overflow: visible; }
+  .room-stage-wrap { position: static; }
+  .room-frame { flex: none; height: 72dvh; }
+  .side { position: static; width: auto; max-height: none; filter: none; }
+  .drawer { overflow: visible; }
+}
 
 .thing-icon { width: auto; height: auto; background: none; border: 0; border-radius: 0; rotate: -2deg; }
 .thing-image { border: var(--room-hair) solid var(--room-line); border-radius: 0; background: var(--bg); }

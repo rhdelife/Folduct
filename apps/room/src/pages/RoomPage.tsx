@@ -32,7 +32,7 @@ const folderIssues = {
   other: "폴더를 읽지 못했어요. 목록은 그대로예요.",
 };
 // 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
-const stacked = "(max-width: 719.98px)";
+const stacked = "(max-width: 899.98px)";
 
 // 누른 버튼이 사라질 때는 다음 그림이 그려진 뒤 이어서 볼 곳으로 포커스를 옮깁니다.
 function focusSoon(selector: string) {

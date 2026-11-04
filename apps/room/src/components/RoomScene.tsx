@@ -3,9 +3,9 @@ import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
 import { objectScale } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
-import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
+import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen, type PlaneSize } from "../domain/plane";
 import { Icon } from "./Icon";
-import { useFitScale } from "./useFitScale";
+import { useFitCanvas } from "./useFitScale";
 
 const keyMoves: Record<string, Spot> = { ArrowRight: { x: 0.25, y: 0 }, ArrowLeft: { x: -0.25, y: 0 }, ArrowUp: { x: 0, y: -0.25 }, ArrowDown: { x: 0, y: 0.25 } };
 
@@ -13,21 +13,6 @@ const keyMoves: Record<string, Spot> = { ArrowRight: { x: 0.25, y: 0 }, ArrowLef
 export function tagPlacement(spot: Spot): string | undefined {
   const parts = [spot.y > 8 && "above", spot.x < 1.2 && "start", spot.x > 8.8 && "end"].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
-}
-
-// 모눈은 판 좌표로 긋고 non-scaling-stroke로 어떤 배율에서도 한 기기 픽셀을 지킵니다. 판 안쪽으로 한 칸(20) 여백을 둡니다.
-const gridStep = 20;
-const gridPath = [
-  ...Array.from({ length: plane.width / gridStep - 1 }, (_, at) => `M${(at + 1) * gridStep} ${gridStep}V${plane.height - gridStep}`),
-  ...Array.from({ length: plane.height / gridStep - 1 }, (_, at) => `M${gridStep} ${(at + 1) * gridStep}H${plane.width - gridStep}`),
-].join("");
-
-export function GridPaper() {
-  return (
-    <svg className="grid-paper" viewBox={`0 0 ${plane.width} ${plane.height}`} aria-hidden="true" focusable="false">
-      <path d={gridPath} />
-    </svg>
-  );
 }
 
 const boxTones = tonesFrom(boxColor);
@@ -57,7 +42,7 @@ export function CardboardBox({ things }: { things: Thing[] }) {
   );
 }
 
-// 방 안: 모눈종이 한 장 위에 파일 종이들이 놓입니다.
+// 방 안: 창 전체가 바닥이고, 그 위에 파일 종이들이 놓입니다.
 export function RoomScene({
   room,
   now,
@@ -79,17 +64,18 @@ export function RoomScene({
   onOpenShelf: () => void;
 }) {
   // 휴대폰 폭에서도 0.55배 밑으로는 줄이지 않습니다(물건 이름이 읽히는 한계). styles.css의 clamp(0.55, …)와 같은 값이에요.
-  const [frame, scale] = useFitScale<HTMLDivElement>(plane.width, 1.3, 0.55);
+  const [frame, { scale, width, height }] = useFitCanvas<HTMLDivElement>(plane, 1.3, 0.55);
+  const size: PlaneSize = { width, height };
   const drag = useRef<{ id: string; x: number; y: number; start: Spot; moved: boolean } | null>(null);
   const justDragged = useRef(false);
   const placed = room.things.filter((thing) => thing.spot && !thing.box);
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxCount = room.things.filter((thing) => thing.box).length;
-  const boxAt = toScreen(boxSpot);
+  const boxAt = toScreen(boxSpot, size);
 
   // 끈 거리(판 좌표)를 벽 안쪽 자리로 바꿉니다.
   const dropSpot = (event: PointerEvent, current: NonNullable<typeof drag.current>) => {
-    const delta = screenDeltaToFloor((event.clientX - current.x) / scale, (event.clientY - current.y) / scale);
+    const delta = screenDeltaToFloor((event.clientX - current.x) / scale, (event.clientY - current.y) / scale, size);
     return clampSpot({ x: current.start.x + delta.x, y: current.start.y + delta.y });
   };
   const cancelDrag = (event: PointerEvent<HTMLButtonElement>) => {
@@ -99,9 +85,8 @@ export function RoomScene({
   };
 
   return (
-    <div className="room-frame" ref={frame} style={{ height: plane.height * scale }}>
-      <div className="room-plane" style={{ width: plane.width, height: plane.height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
-        <GridPaper />
+    <div className="room-frame" ref={frame}>
+      <div className="room-plane" style={{ width, height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
         <p id="plane-hint" className="sr-only">Enter로 고르고, 화살표로 옮겨요. 고른 물건에서 Enter를 한 번 더 누르면 파일을 열어요.</p>
         <button type="button" className="shelf-chip" onClick={onOpenShelf}>선반 · 놓지 않은 물건 {shelfCount}</button>
         {placed.length === 0 && (
@@ -126,6 +111,7 @@ export function RoomScene({
             key={thing.id}
             thing={thing}
             order={order}
+            size={size}
             selected={thing.id === selectedId}
             onPointerDown={(event) => {
               justDragged.current = false;
@@ -139,8 +125,8 @@ export function RoomScene({
               if (!current.moved && Math.hypot(event.clientX - current.x, event.clientY - current.y) / scale < 4) return;
               current.moved = true;
               // 끄는 동안은 React를 다시 그리지 않고 화면에서만 옮깁니다(판 좌표 px, 벽 안쪽으로 잘라서).
-              const from = toScreen(current.start);
-              const to = toScreen(dropSpot(event, current));
+              const from = toScreen(current.start, size);
+              const to = toScreen(dropSpot(event, current), size);
               event.currentTarget.style.translate = `${to.left - from.left}px ${to.top - from.top}px`;
             }}
             onPointerUp={(event) => {
@@ -182,14 +168,16 @@ export function RoomScene({
 function ThingObject({
   thing,
   order,
+  size: planeSize,
   selected,
   ...handlers
 }: {
   thing: Thing;
   order: number;
+  size: PlaneSize;
   selected: boolean;
 } & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
-  const at = toScreen(thing.spot!);
+  const at = toScreen(thing.spot!, planeSize);
   const size = Math.round(60 * objectScale(thing.size));
   // 종이마다 비율이 달라요. 버튼을 종이에 꼭 맞춰야 이름표와 포커스 테두리가 종이에 붙습니다.
   const art = pickArt(thing.kind, thing.id);

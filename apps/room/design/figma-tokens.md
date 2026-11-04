@@ -223,7 +223,7 @@
 | `scene/room-tab-1` | `#ecece8` |  |
 | `scene/room-tab-2` | `#e3e3df` |  |
 | `scene/room-tab-3` | `#dadad6` |  |
-| `scene/room-grid` | `#e0e0e0` |  |
+| `scene/float-shade` | `rgb(23 23 23 / 0.16)` |  |
 | `scene/room-line` | `#dcdcda` |  |
 | `scene/room-line-strong` | `#c8c8c6` |  |
 | `scene/room-hover` | `#efefec` |  |

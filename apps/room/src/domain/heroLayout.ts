@@ -162,31 +162,39 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
 
 type Pt = { x: number; y: number };
 // to.rot은 쉬는 기울기에 더하는 값이고, stagger는 출발하는 차례(0~1), slot은 줄에서 왼쪽부터의 차례입니다.
-// half와 tall은 줄에서의 반쪽 폭과 높이, rowOnly는 지도에 없고 줄에만 있는 종이입니다.
+// half와 tall은 칸에서의 반쪽 폭과 높이, rowOnly는 지도에 없고 프로젝트 칸에만 있는 종이입니다.
 export type Flight = { rest: Pt; to: Pt & { rot: number; scale: number }; stagger: number; slot: number; half: number; tall: number; rowOnly: boolean };
 
-// 줄은 더미처럼 놓입니다. 이웃과 평균 폭의 이만큼 겹치고, 종이마다 이 각도 안에서 조금씩 기울어요.
+// 프로젝트 칸의 종이는 더미처럼 놓입니다. 이웃과 평균 폭의 이만큼 겹치고, 종이마다 이 각도 안에서 조금씩 기울어요.
 const rowOverlap = 0.24;
 export const rowTilt = 4;
 const rowEdge = 16;
-// 이보다 작아지면 무엇인지 안 보입니다. 넘치는 만큼은 옆으로 밀어서 봐요.
-const rowMinScale = 0.8;
-// shortcut: 줄에는 최근 파일 120장까지만 그립니다. 다 그리면 첫 스크롤이 끊겨요. 더 필요해지면 보이는 장만 그리도록 바꿉니다.
+// 칸이 이보다 좁아지면 옆으로 밀어서 봅니다. 프로젝트가 적어도 칸은 이보다 넓어지지 않아요.
+const columnMin = 170;
+const columnMax = 380;
+const columnPad = 8;
+// shortcut: 칸에는 최근 파일을 합쳐 120장까지만 그립니다. 다 그리면 첫 스크롤이 끊겨요. 더 필요해지면 보이는 장만 그리도록 바꿉니다.
 export const rowCap = 120;
-const rowTries = 12;
 
-// 줄의 높이 자리: 머리와 현관 줄(top) 아래에서 주름관과 이름표에 가장 덜 걸리는 곳. 비슷하면 가운데 쪽입니다.
-function rowY(height: number, nodes: HeroNode[], view: View, top: number): number {
-  const min = Math.max(top, headerBottom(view)) + height / 2 + rowEdge;
-  // 아래에 옆으로 미는 막대 자리를 남깁니다.
-  const max = Math.max(min, view.h - height / 2 - rowEdge * 2);
-  const boxes = keepOut(nodes, view);
-  const cost = (y: number) => Math.abs(y - (min + max) / 2) + boxes.reduce((sum, box) => sum + Math.max(0, Math.min(y + height / 2, box.y + box.hh) - Math.max(y - height / 2, box.y - box.hh)) * box.hw, 0);
-  const tries = Array.from({ length: rowTries + 1 }, (_, i) => min + ((max - min) * i) / rowTries);
-  return tries.reduce((best, y) => (cost(y) < cost(best) ? y : best));
+export type RoomColumn = { x: number; y: number; width: number; papersTop: number };
+
+// 첫 스크롤 뒤의 자리: 주름관을 받침 높이를 맞춰 위에 나란히 세웁니다. 파일은 각자의 주름관 아래 칸에 모여요.
+export function columnsFor(nodes: HeroNode[], view: View, top = 0): Map<string, RoomColumn> {
+  const room = view.w - 2 * rowEdge;
+  const count = Math.max(1, nodes.length);
+  const width = Math.min(columnMax, Math.max(Math.min(columnMin, room), room / count));
+  const total = width * count;
+  const left = total > room ? rowEdge : (view.w - total) / 2;
+  const unit = stageUnit(view) * vaseUnit;
+  const tallest = Math.max(0, ...nodes.map((node) => vaseHalf(node.r) * unit));
+  const base = Math.max(top, headerBottom(view)) + rowEdge + tallest * 2;
+  const papersTop = base + Math.max(labelHeight * stageUnit(view), 48);
+  // 원래 왼쪽에 있던 방이 왼쪽 칸으로 가서 서로 엇갈리지 않습니다.
+  const order = [...nodes].sort((a, b) => a.at.x - b.at.x);
+  return new Map(order.map((node, at) => [node.room.id, { x: left + width * (at + 0.5), y: base - vaseHalf(node.r) * unit, width, papersTop }]));
 }
 
-// 지도에 못 나온 파일도 줄에는 놓습니다. 지도 종이와 비슷한 크기로, 최근 파일부터 rowCap까지요. 자리는 flightsFor가 정해요.
+// 지도에 못 나온 파일도 칸에는 놓습니다. 지도 종이와 비슷한 크기로, 최근 파일부터 rowCap까지요. 자리는 flightsFor가 정해요.
 export function rowOnlyCards(cards: Card[], nodes: HeroNode[], now: number, view: View, aspect: (thing: Thing) => number): Card[] {
   const unit = Math.max(stageUnit(view), smallUnit);
   const onMap = new Set(cards.map((card) => card.thing.id));
@@ -201,29 +209,51 @@ export function rowOnlyCards(cards: Card[], nodes: HeroNode[], now: number, view
     });
 }
 
-// 줄이 창보다 얼마나 긴지와 줄의 아래 끝.
+// 칸들이 창보다 얼마나 넓은지와 종이의 아래 끝.
 export function rowMetrics(flights: ReadonlyMap<string, Flight>, view: View): { overflow: number; bottom: number } {
   const all = [...flights.values()];
   return { overflow: Math.max(0, Math.max(0, ...all.map((flight) => flight.to.x + flight.half)) + rowEdge - view.w), bottom: Math.max(0, ...all.map((flight) => flight.to.y + flight.tall)) };
 }
 
-// 종이를 최근에 작업한 순서로 왼쪽부터 살짝 겹쳐 한 줄로 모읍니다. 크기 비율은 그대로이고, 창에 안 들어가면 조금 줄인 뒤 옆으로 넘어가요.
+// 파일을 자기 프로젝트의 칸에 모읍니다. 칸 안에서는 최근에 작업한 순서로 왼쪽부터 살짝 겹쳐 놓고, 폭을 넘으면 다음 줄로 내려요. 창 아래를 넘을 만큼 많으면 줄을 더 겹칩니다.
 export function flightsFor(cards: Card[], nodes: HeroNode[], view: View, top = 0): Map<string, Flight> {
-  const order = [...cards].sort((a, b) => lastActivity(b.thing) - lastActivity(a.thing) || a.x - b.x);
-  const room = view.w - 2 * rowEdge;
-  const gaps = Math.max(0, order.length - 1);
-  const widths = order.reduce((sum, card) => sum + card.size, 0);
-  const lap = (widths / Math.max(1, order.length)) * rowOverlap;
-  const scale = Math.max(rowMinScale, Math.min(1, room / Math.max(1, widths - lap * gaps)));
-  const gap = -lap * scale;
-  const y = rowY(Math.max(0, ...order.map((card) => card.height)) * scale, nodes, view, top);
+  const columns = columnsFor(nodes, view, top);
   const flights = new Map<string, Flight>();
-  const total = widths * scale + gap * gaps;
-  let x = total > room ? rowEdge : (view.w - total) / 2;
-  order.forEach((card, slot) => {
-    const size = card.size * scale;
-    flights.set(card.thing.id, { rest: toPx(card, view), stagger: hash(card.thing.id, 31), slot, half: size / 2, tall: (card.height * scale) / 2, rowOnly: card.rowOnly === true, to: { x: x + size / 2, y, rot: (hash(card.thing.id, 37) * 2 - 1) * rowTilt - card.rot, scale } });
-    x += size + gap;
-  });
+  let slot = 0;
+  for (const [roomId, column] of columns) {
+    const own = cards.filter((card) => card.room.id === roomId).sort((a, b) => lastActivity(b.thing) - lastActivity(a.thing) || a.x - b.x);
+    if (own.length === 0) continue;
+    const inner = column.width - 2 * columnPad;
+    // 아래에 옆으로 미는 막대 자리를 남깁니다.
+    const floor = Math.max(column.papersTop + 1, view.h - rowEdge * 2);
+    const scale = Math.min(1, inner / Math.max(...own.map((card) => card.size)), (floor - column.papersTop) / Math.max(...own.map((card) => card.height)));
+    const lap = (own.reduce((sum, card) => sum + card.size, 0) / own.length) * rowOverlap * scale;
+    const lines: { cards: Card[]; width: number; height: number }[] = [];
+    for (const card of own) {
+      const size = card.size * scale;
+      const line = lines[lines.length - 1];
+      if (line && line.width + size - lap <= inner) {
+        line.cards.push(card);
+        line.width += size - lap;
+        line.height = Math.max(line.height, card.height * scale);
+      } else {
+        lines.push({ cards: [card], width: size, height: card.height * scale });
+      }
+    }
+    const last = lines[lines.length - 1].height;
+    const stacked = lines.reduce((sum, line) => sum + line.height, 0) - last;
+    const squeeze = stacked > 0 ? Math.min(1, Math.max(0, floor - column.papersTop - last) / stacked) : 1;
+    let y = column.papersTop;
+    for (const line of lines) {
+      let x = column.x - line.width / 2;
+      for (const card of line.cards) {
+        const size = card.size * scale;
+        flights.set(card.thing.id, { rest: toPx(card, view), stagger: hash(card.thing.id, 31), slot, half: size / 2, tall: (card.height * scale) / 2, rowOnly: card.rowOnly === true, to: { x: x + size / 2, y: y + line.height / 2, rot: (hash(card.thing.id, 37) * 2 - 1) * rowTilt - card.rot, scale } });
+        x += size - lap;
+        slot += 1;
+      }
+      y += line.height * squeeze;
+    }
+  }
   return flights;
 }
