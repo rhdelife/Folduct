@@ -8,9 +8,9 @@ import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
-import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
+import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, type CareSettings, type Room, type Spot, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, type CareSettings, type Room, type ScannedFile, type Spot, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
@@ -54,6 +54,9 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [now, setNow] = useState(() => Date.now());
   const { toast, toastRegion } = useToast();
   const latest = useRef<Room | null>(null);
+  const reading = useRef(false);
+  const busyNow = useRef(busy);
+  busyNow.current = busy;
   const dirty = useRef(false);
   // 방을 지우는 중이거나 지운 뒤에는 저장하지 않습니다. 늦게 끝난 동기화가 지운 방을 되살리지 않게요.
   const forgetting = useRef(false);
@@ -150,6 +153,44 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     };
   }, [roomId]);
 
+  // 다른 앱에서 파일을 넣고 돌아오면 폴더를 조용히 다시 읽습니다. 버튼이 잠기지 않게 busy는 건드리지 않고, 다른 일을 하는 중이면 건너뛰어요.
+  useEffect(() => {
+    if (!handle || access !== "granted") return;
+    let left = false;
+    const back = () => {
+      if (document.visibilityState !== "visible" || reading.current || busyNow.current) return;
+      reading.current = true;
+      scanRoomFolder(handle)
+        .then(
+          (scan) => {
+            if (left || busyNow.current) return;
+            announceNew(scan.files);
+            update((current) => mergeScan(current, scan.files, scan, Date.now()));
+            setFolderIssue(null);
+          },
+          (error: unknown) => {
+            if (!left) setFolderIssue(folderProblem(error));
+          },
+        )
+        .finally(() => {
+          reading.current = false;
+        });
+    };
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      left = true;
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [handle, access]);
+
+  // 새 파일은 선반으로 들어가서 판만 보면 놓치기 쉬우니 알려 줍니다.
+  function announceNew(files: ScannedFile[]) {
+    const count = latest.current ? newFileCount(latest.current, files) : 0;
+    if (count > 0) toast(`새 파일 ${count.toLocaleString("ko-KR")}개가 들어왔어요. 선반에 있어요.`, { label: "선반 보기", run: () => setPanel("shelf") });
+  }
+
   // 방에 들어오면 제목으로 포커스를 옮겨, 화면 읽기 프로그램이 어느 방인지 읽게 합니다.
   useEffect(() => {
     heading.current?.focus();
@@ -215,9 +256,10 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       }
       const scan = await scanRoomFolder(folder);
       if (left()) return;
+      if (!silent) toast(`폴더를 다시 봤어요. 파일 ${scan.files.length.toLocaleString("ko-KR")}개.`);
+      announceNew(scan.files);
       update((current) => mergeScan(current, scan.files, scan, Date.now()));
       setFolderIssue(null);
-      if (!silent) toast(`폴더를 다시 봤어요. 파일 ${scan.files.length.toLocaleString("ko-KR")}개.`);
     } catch (error) {
       if (left()) return;
       const problem = folderProblem(error);

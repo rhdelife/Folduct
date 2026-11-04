@@ -19,7 +19,7 @@ import type { Room } from "../domain/model";
 import type { WorkLog } from "../domain/worklog";
 import { homeLimit, roomStats } from "../domain/sky";
 import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
-import { planSweep, type SweepPlan } from "../storage/box";
+import { planSweep, refreshRooms, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
@@ -62,6 +62,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [workLog, setWorkLog] = useState<WorkLog>({});
   const [doorMenu, setDoorMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
+  const rereading = useRef(false);
   // 방금 홈에 올린 방. 자리가 모자라도 그 방을 먼저 골라 둡니다.
   const raised = useRef<string | null>(null);
   const panel = useRef<HTMLElement>(null);
@@ -164,18 +165,32 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     };
   }, [load, findSweep]);
 
-  // 오래 켜 둔 창으로 돌아오면 시각만 새로 고칩니다. 밀린 정리 표시가 따라옵니다.
+  // 켤 때와 창으로 돌아올 때 폴더를 다시 읽어 밖에서 넣은 파일을 보여 줍니다. 권한이 풀린 방은 건너뛰어요(묻는 건 그 방에 들어갔을 때).
   useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible") setNow(Date.now());
+    const reread = async () => {
+      if (rereading.current) return;
+      rereading.current = true;
+      try {
+        if ((await refreshRooms(await listRooms())) > 0) await load();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        rereading.current = false;
+      }
     };
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      setNow(Date.now());
+      void reread();
+    };
+    void reread();
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, []);
+  }, [load]);
 
   // 지운 방이 골라져 있으면 고르지 않은 것으로 봅니다.
   const selected = rooms?.find((room) => room.id === selectedId) ?? null;

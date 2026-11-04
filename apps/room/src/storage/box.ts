@@ -43,24 +43,44 @@ export async function roomFolder(room: Room): Promise<Folder | null> {
   return isNative() ? (room.origin ?? null) : getHandle(room.id);
 }
 
+// 권한을 묻지 않고 읽을 수 있을 때만 폴더를 다시 읽어 저장합니다. 못 읽으면 기록을 그대로 두고 seen은 null이에요.
+async function rereadRoom(room: Room, handle: Folder, now: number): Promise<{ current: Room; seen: Set<string> | null }> {
+  if ((await folderAccess(handle)) !== "granted") return { current: room, seen: null };
+  const current = await reconcileBox(room, handle);
+  try {
+    const scan = await scanRoomFolder(handle);
+    return { current: await patchRoom(room.id, (latest) => mergeScan(latest, scan.files, scan, now)), seen: new Set(scan.files.map((file) => file.path)) };
+  } catch (error) {
+    console.error(error);
+    return { current, seen: null };
+  }
+}
+
+// 집 화면이 밖에서 바뀐 파일을 따라잡습니다. 폴더를 실제로 읽은 방의 수를 돌려줘요.
+export async function refreshRooms(rooms: Room[], now = Date.now()): Promise<number> {
+  const reads = await Promise.all(
+    rooms
+      .filter((room) => !room.care.done)
+      .map(async (room) => {
+        try {
+          const handle = await roomFolder(room);
+          return handle ? (await rereadRoom(room, handle, now)).seen !== null : false;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      }),
+  );
+  return reads.filter(Boolean).length;
+}
+
 // rooms를 주면 다시 읽지 않습니다. 방마다 권한 확인과 폴더 읽기는 동시에 합니다.
 export async function planSweep(rooms?: Room[], now = Date.now()): Promise<SweepPlan[]> {
   const plans = await Promise.all(
     (rooms ?? (await listRooms())).map(async (room): Promise<SweepPlan | null> => {
       const handle = await roomFolder(room);
-      let current = room;
-      let seen: Set<string> | null = null;
-      if (handle && (await folderAccess(handle)) === "granted") {
-        current = await reconcileBox(room, handle);
-        // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 오래된 것으로 잡히지 않게 폴더를 먼저 다시 읽습니다.
-        try {
-          const scan = await scanRoomFolder(handle);
-          current = await patchRoom(room.id, (latest) => mergeScan(latest, scan.files, scan, now));
-          seen = new Set(scan.files.map((file) => file.path));
-        } catch (error) {
-          console.error(error);
-        }
-      }
+      // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 오래된 것으로 잡히지 않게 폴더를 먼저 다시 읽습니다.
+      const { current, seen } = handle ? await rereadRoom(room, handle, now) : { current: room, seen: null };
       const real = handle !== null && canMoveIn(handle);
       // 실제 파일을 옮기는 방은 이번에 폴더에서 확인한 파일만 제안합니다. 옛 기록만 보고 옮기지 않아요.
       const candidates = sweepCandidates(current, now).filter((thing) => !real || seen?.has(thing.path));

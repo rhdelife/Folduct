@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -271,6 +271,15 @@ describe("다시 보기", () => {
   it("폴더 겹침은 지금 있는(없어지지도 상자에 들지도 않은) 물건만 센다", () => {
     const things = [thing({ path: "a.png" }), thing({ path: "b.png" }), thing({ path: "c.png", missing: true }), thing({ path: "d.png", box: { state: "virtual", fromPath: "d.png", boxPath: "d.png", at: start } })];
     expect(scanOverlap(room(things), [file("a.png"), file("c.png"), file("d.png"), file("new.png")])).toEqual({ kept: 1, total: 2 });
+  });
+});
+
+describe("새 파일 알림", () => {
+  it("방이 모르는 파일만 세고, 상자로 옮긴 파일의 두 자리는 세지 않는다", () => {
+    const boxed = thing({ path: "_Folduct 정리상자/b", box: { state: "boxed", fromPath: "b", boxPath: "_Folduct 정리상자/b", at: 0 } as Thing["box"] });
+    const known = room([thing({ path: "a" }), boxed]);
+    expect(newFileCount(known, [{ path: "a" }, { path: "b" }, { path: "_Folduct 정리상자/b" }])).toBe(0);
+    expect(newFileCount(known, [{ path: "a" }, { path: "새 파일" }, { path: "새 폴더/또 하나" }])).toBe(2);
   });
 });
 

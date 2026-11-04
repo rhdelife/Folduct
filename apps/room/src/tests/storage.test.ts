@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultCare, localDay, dayMs, sweepCandidates } from "../domain/care";
 import type { Room, ScannedFile, Thing } from "../domain/model";
 import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
-import { answerDoneOffer, planSweep, reconcileBox, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
+import { answerDoneOffer, planSweep, reconcileBox, refreshRooms, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
 import { sampleRooms } from "../storage/sample";
 import { ductIndex } from "../art/duct";
 import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
@@ -283,6 +283,39 @@ describe("주간 정리 기록", () => {
       expect(await planSweep([item], now)).toEqual([]);
       expect(scanRoomFolder).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("집 화면에서 폴더 다시 읽기", () => {
+  const files = (...paths: string[]) => ({ files: paths.map((path): ScannedFile => ({ path, name: path, kind: "design", size: 100, lastModified: 0 })), failed: 0, complete: true, note: null });
+
+  it("밖에서 넣은 파일은 저장되고, 권한이 풀린 방은 묻지 않고 건너뛰며, 홈에서 뺀 방과 폴더 없는 방은 읽지 않는다", async () => {
+    const live = room([thing("a.psd")], { id: "live" });
+    const done = room([thing("b.psd")], { id: "done", care: { ...defaultCare, done: true } });
+    const sample = room([], { id: "sample", source: "sample" });
+    store(live, done, sample);
+    vi.mocked(getHandle).mockResolvedValue(folder(seed()) as FileSystemDirectoryHandle);
+    vi.mocked(scanRoomFolder).mockResolvedValue(files("a.psd", "새 파일.png"));
+
+    expect(await refreshRooms([live, done, sample], now)).toBe(1);
+    expect(stored("live").things.map((item) => item.path)).toEqual(["a.psd", "새 파일.png"]);
+    expect(scanRoomFolder).toHaveBeenCalledTimes(1);
+
+    vi.mocked(scanRoomFolder).mockClear();
+    vi.mocked(folderAccess).mockResolvedValue("prompt");
+    expect(await refreshRooms([live], now)).toBe(0);
+    expect(scanRoomFolder).not.toHaveBeenCalled();
+    expect(askFolder).not.toHaveBeenCalled();
+  });
+
+  it("폴더를 못 읽은 방이 있어도 멈추지 않고 기록을 그대로 둔다", async () => {
+    const item = room([thing("a.psd")]);
+    store(item);
+    vi.mocked(getHandle).mockResolvedValue(folder(seed()) as FileSystemDirectoryHandle);
+    vi.mocked(scanRoomFolder).mockRejectedValue(new DOMException("없음", "NotFoundError"));
+    const before = structuredClone(stored());
+    expect(await refreshRooms([item], now)).toBe(0);
+    expect(stored()).toEqual(before);
   });
 });
 

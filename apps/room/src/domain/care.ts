@@ -183,6 +183,12 @@ export function scanOverlap(room: Room, files: ScannedFile[]): { kept: number; t
   return { kept: present.filter((thing) => paths.has(thing.path)).length, total: present.length };
 }
 
+// 이 방이 아직 모르는 파일의 수. 상자로 옮긴 파일은 원래 자리와 상자 자리 모두 아는 파일로 칩니다.
+export function newFileCount(room: Room, files: Pick<ScannedFile, "path">[]): number {
+  const known = new Set(room.things.flatMap((thing) => [thing.path, ...(thing.box ? [thing.box.fromPath, thing.box.boxPath] : [])]));
+  return files.filter((file) => !known.has(file.path)).length;
+}
+
 export function newThing(file: ScannedFile): Thing {
   return { id: newId(), path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: file.lastUsedAt ?? null, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null };
 }
