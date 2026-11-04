@@ -1,39 +1,58 @@
 # Folduct · 방 (apps/room)
 
-작업 폴더마다 방 하나. 파일은 이름이 적힌 종이 오브제가 되고, 색은 파일 형식(이미지 노랑 · 글·코드 초록 · 영상 파랑 · PDF·문서·발표 빨강 · 표 주황 · 소리 보라 · 디자인 자홍 · 압축 갈색 · 기타 회색)을, 크기는 파일 용량(1KB 0.7배 → 1GB 2배, 로그 눈금)을 따릅니다. 색 규칙은 `src/art/palette.ts`에서 바꿉니다. 방은 그림이 아니라 개념으로만 남습니다(빛을 받는 하얀 판 + 점선 테두리).
-손대지 않은 물건은 기울고 쓰러지며, 일주일에 한 번 `_Folduct 정리상자` 폴더로 같이 치웁니다. 지우지는 않습니다.
+새 파일은 제자리로, 안 쓰는 파일은 상자로. 작업 폴더마다 방이 하나 있고, 방은 떠 있는 화병으로 보여요. 파일을 지우거나 덮어쓰지 않아요.
+
+제품 범위와 기능 규칙은 [Folduct PRD · 기능 명세서](https://claude.ai/artifact/JtmFE8ZHreUfffXoXurjpT)에 있어요. 변경 기록은 [CHANGELOG.md](CHANGELOG.md), 배포 절차와 확인 상태는 [docs/release-checklist.md](../../docs/release-checklist.md)에 있어요.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm test         # vitest
-npm run build
-npm run tauri dev    # 데스크톱 앱으로 띄우기
-npm run tauri build  # 배포용 빌드
+npm run dev -- --port 5174   # 브라우저로 화면 확인
+npm test                     # vitest
+npm run build                # 타입 검사와 빌드
+npm run tauri dev            # 데스크톱 앱으로 띄우기
+npx tauri build --bundles app  # src-tauri/target/release/bundle/macos/Folduct.app
+(cd src-tauri && cargo test)   # 폴더 권한 테스트
 ```
 
-배포 절차와 확인 상태는 [docs/release-checklist.md](../../docs/release-checklist.md), 변경 기록은 [CHANGELOG.md](CHANGELOG.md)에 있어요. 의존성을 바꾸면 `node scripts/gen-licenses.mjs`로 라이선스 고지(`src-tauri/THIRD-PARTY-LICENSES.txt`)를 다시 만듭니다.
+의존성을 바꾸면 `node scripts/gen-licenses.mjs`로 라이선스 고지(`src-tauri/THIRD-PARTY-LICENSES.txt`)를 다시 만들어요. `styles.css`의 `:root` 토큰을 바꾸면 `node scripts/export-figma-tokens.mjs`로 `design/`을 다시 만들어요.
 
-- 데스크톱 앱은 인터넷에 접속하지 않습니다(CSP로 막아 둠). 기록은 앱의 WebView IndexedDB에 남습니다.
-- 운영체제마다 다른 경로·오류 번호·화면 말은 `src/domain/platform.ts` 한곳에 있습니다. 파일의 마지막 사용 시각은 macOS Spotlight에서만 읽고, 다른 OS에서는 ‘모름’으로 둡니다.
+## 기능
 
-- 저장: 이 브라우저의 IndexedDB(`folduct-room`)에만. 파일 내용은 저장하지 않습니다.
-- 여러 폴더를 한 번에: 아래 명령으로 목록 파일을 만든 뒤, 집 화면의 **📦 가져오기**로 고릅니다. 같은 폴더를 다시 가져오면 새 방 대신 그 방을 다시 봅니다(메모·자리 유지). 60일 넘게 고친 파일이 없는 폴더는 ‘완료된 프로젝트’로 들어옵니다.
+- **현관**: 환경설정이나 플로팅 화병에서 등록한 폴더에 새로 생긴 파일을 첫 화면 위쪽에 모아요. 고른 방 폴더로 옮기고 되돌릴 수 있어요.
+- **주간 정리**: 오래 안 쓴 파일을 일주일에 한 번 보여 주고, 고른 파일만 방 폴더 안 `_Folduct 정리상자`로 옮겨요. 방의 정리 상자 탭에서 제자리로 돌릴 수 있어요.
+- **플로팅 화병**: 어느 창 위에나 떠서 작업의 시작, 멈춤, 끝을 정해요. 작업 중 들어온 새 파일을 물어보고, 끝내면 그 방의 정리를 제안해요.
+- **작업 일력**: 올해 작업 시간을 첫 화면 구석에 보여 줘요.
+- **방 화면**: 물건을 판에 놓고, 선반, 정리 상자, 방 설정을 서랍 탭에서 다뤄요. 파일은 앱 안에서 보거나 기본 앱으로 열어요.
+
+그림의 뜻은 고정이에요. 색은 파일 형식(`src/art/palette.ts`), 물건 크기는 파일 용량(로그 눈금, 1KB 0.7배 → 1GB 2배), 화병 크기는 방 합계 용량, 화병 모양과 목 색은 방을 구분하는 얼굴이에요.
+
+## 저장과 폴더 접근
+
+- 데스크톱 앱은 인터넷에 접속하지 않아요(CSP로 막아 둠). 기록은 앱의 WebView IndexedDB(`folduct-room`)에만 남고, 파일 내용은 저장하지 않아요.
+- 폴더에 하는 변경은 `src/gateways/mover.ts`의 두 가지 이동뿐이에요. 상자 안팎 이동, 그리고 현관 파일을 방 폴더로 옮기는 이동과 그 되돌리기예요.
+- 접근은 사용자가 고른 폴더로 제한돼요. 데스크톱은 macOS 권한(시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더)도 따라요.
+- 방을 열 때 폴더를 다시 읽어 목록을 맞춰요. 못 읽으면 배너로 알리고 목록은 그대로 둬요. 다 읽지 못한 경우(파일 1,000개, 깊이 10단계 초과) 못 본 파일을 ‘파일 없음’으로 바꾸지 않아요.
+- 파일의 마지막 사용 시각은 macOS Spotlight에서만 읽고, 다른 OS에서는 ‘모름’으로 둬요. OS마다 다른 경로·오류 번호·화면 말은 `src/domain/platform.ts`에 모았어요.
+
+## 브라우저에서 실행할 때
+
+화면 확인용으로 브라우저에서도 돌아가요. 현관과 플로팅 화병은 데스크톱 전용이에요.
+
+- 실제 파일 이동은 Chrome·Edge(폴더 고르기 + `move()`)에서만 돼요. 다른 브라우저와 샘플 방은 Folduct 안에서만 상자에 넣어요.
+- 여러 폴더를 한 번에 방으로 만들려면 아래 명령으로 목록 파일을 만든 뒤 메뉴의 **목록 파일 가져오기**로 골라요. 데스크톱에서는 새 방 창의 **상위 폴더에서 여러 개 고르기**를 써요.
   ```bash
   node apps/room/scripts/scan-folders.mjs --out ~/Downloads/folduct-rooms.json ~/프로젝트1 ~/프로젝트2
   ```
-  가져온 방은 보기 전용입니다. 방 안 **폴더 연결**을 한 번 누르면 실제 파일 이동(정리 상자)과 다시 보기를 쓸 수 있습니다.
-- 파일 열기: 방 안 물건을 두 번 누르거나 ‘파일 열기’를 누르면 앱 안 보기 창에서 이미지·영상·소리·PDF·글/코드를 봅니다. 폴더가 아직 연결되지 않은 방은 그 자리에서 ‘폴더 연결하고 열기’로 폴더를 고르고, 권한이 풀린 방은 같은 클릭에서 크롬에 읽기 권한을 다시 묻습니다(‘방문할 때마다 허용’을 고르면 다음부터 묻지 않음). 그 밖의 형식(PPT·PSD·ZIP 등)은 경로 복사로 원래 앱에서 엽니다.
-- 폴더 접근: 권한을 다시 묻는 건 브라우저뿐이고, 데스크톱은 폴더를 고를 때 받은 접근과 macOS 권한(시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더)을 따릅니다. 접근이 있는 방은 들어올 때와 접근을 허용한 직후 폴더를 자동으로 다시 읽어 목록을 맞추고, 못 읽으면 배너로 알리며 목록과 메모는 그대로 둡니다.
-- 완료된 프로젝트: 화병이나 메뉴의 방 줄을 오른쪽 클릭(메뉴 키, Shift+F10)하거나 방 패널·방 설정에서 옮깁니다. 실제 폴더는 그대로입니다. 기울기·주간 정리·용량 경고가 멈추고, 지도에서 빠져 메뉴의 ‘완료된 프로젝트’ 목록에 모입니다.
-- 실제 파일 이동은 Chrome·Edge(폴더 고르기 + `move()`)에서만. 다른 브라우저와 샘플 방은 Folduct 안에서만 상자에 넣습니다.
-- 폴더에 하는 변경은 `src/gateways/mover.ts`의 상자 안팎 이동뿐입니다(`removeEntry`·`createWritable` 미사용, 테스트로 확인).
+
+## 코드 위치
 
 | 폴더 | 내용 |
 | --- | --- |
-| `src/domain` | 방치 판정·물건 크기·방 용량·다시 보기 합치기(`care.ts`), 방 판 좌표(`plane.ts`), 가져오기(`importFile.ts`) |
-| `src/gateways` | 폴더 고르기·읽기·권한(`folder.ts`), 상자 이동(`mover.ts`) |
-| `src/storage` | IndexedDB(`db.ts`), 주간 정리·제자리로·복구(`box.ts`), 샘플 방 |
-| `src/art` | 파일 종류별 실루엣 오브제(`ObjectShape`), 프로젝트 색 |
-| `src/domain/sky.ts` | 집 화면 프로젝트 지도 배치: 진행 중인 방만 놓기, 파일 거리(오래 손대지 않을수록 바깥으로), 최근 14일 작업량 |
-| `src/pages`, `src/components` | 집(프로젝트 지도 `SkyMap` + 순위·추이 `SkyPanel`), 방, 서랍(물건·선반·정리 상자·방 설정), 새 방·주간 정리 창 |
+| `src/domain` | 화면·저장소와 무관한 규칙. 오래됨 판정과 스캔 합치기(`care.ts`), 현관(`doorstep.ts`), 작업 상태(`session.ts`), 작업 시간(`worklog.ts`), 방 얼굴(`face.ts`), 첫 화면 배치(`sky.ts`, `heroLayout.ts`) |
+| `src/gateways` | 폴더 읽기·권한(`folder.ts`), 이동(`mover.ts`), 데스크톱 연결(`native.ts`) |
+| `src/storage` | IndexedDB(`db.ts`), 주간 정리·제자리로·복구(`box.ts`), 현관 이동(`doorstep.ts`), 샘플 방 |
+| `src/art` | 파일 형식 색, 종이 오브제, 화병 모양 |
+| `src/pages`, `src/components` | 집(`Home`), 방(`RoomPage`), 플로팅 화병(`Pet`), 정리·새 방·환경설정 창 |
+| `src-tauri` | 창, 권한(`capabilities/`), Spotlight 읽기와 범위 검사(`src/lib.rs`) |
+
+`SkyMap`, `star` 같은 이름은 예전 밤하늘 디자인에서 남은 것이에요. 지금 화면은 화병과 종이예요.
