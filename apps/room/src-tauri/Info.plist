@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
   <key>NSDesktopFolderUsageDescription</key>
-  <string>Folduct는 고른 폴더를 읽고, 파일은 정리 상자 안팎으로만 옮겨요.</string>
+  <string>Folduct는 고른 폴더를 읽고, 새 파일은 고른 방 폴더로, 안 쓰는 파일은 정리 상자로 옮겨요.</string>
   <key>NSDocumentsFolderUsageDescription</key>
-  <string>Folduct는 고른 폴더를 읽고, 파일은 정리 상자 안팎으로만 옮겨요.</string>
+  <string>Folduct는 고른 폴더를 읽고, 새 파일은 고른 방 폴더로, 안 쓰는 파일은 정리 상자로 옮겨요.</string>
   <key>NSDownloadsFolderUsageDescription</key>
-  <string>Folduct는 고른 폴더를 읽고, 파일은 정리 상자 안팎으로만 옮겨요.</string>
+  <string>Folduct는 고른 폴더를 읽고, 새 파일은 고른 방 폴더로, 안 쓰는 파일은 정리 상자로 옮겨요.</string>
   <key>NSRemovableVolumesUsageDescription</key>
-  <string>Folduct는 고른 폴더를 읽고, 파일은 정리 상자 안팎으로만 옮겨요.</string>
+  <string>Folduct는 고른 폴더를 읽고, 새 파일은 고른 방 폴더로, 안 쓰는 파일은 정리 상자로 옮겨요.</string>
   <key>NSNetworkVolumesUsageDescription</key>
-  <string>Folduct는 고른 폴더를 읽고, 파일은 정리 상자 안팎으로만 옮겨요.</string>
+  <string>Folduct는 고른 폴더를 읽고, 새 파일은 고른 방 폴더로, 안 쓰는 파일은 정리 상자로 옮겨요.</string>
 </dict>
 </plist>

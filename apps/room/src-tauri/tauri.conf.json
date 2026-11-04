@@ -51,13 +51,14 @@
     "targets": ["app", "dmg", "nsis", "deb", "appimage"],
     "category": "Productivity",
     "shortDescription": "작업 폴더마다 작은 방 하나",
-    "longDescription": "작업 폴더를 방으로 보여 주는 로컬 앱이에요. 파일은 지우지 않고, 오래 안 쓴 파일은 정리 상자 안팎으로만 옮겨요.",
+    "longDescription": "작업 폴더를 방으로 보여 주는 로컬 앱이에요. 새 파일은 고른 방으로, 오래 안 쓴 파일은 정리 상자로 옮겨요.",
     "resources": {
       "THIRD-PARTY-LICENSES.txt": "THIRD-PARTY-LICENSES.txt",
       "../public/fonts/LICENSE-Pretendard.txt": "LICENSE-Pretendard.txt"
     },
     "macOS": {
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "13.0",
+      "signingIdentity": "-"
     },
     "windows": {
       "nsis": {

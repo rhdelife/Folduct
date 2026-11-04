@@ -8,6 +8,8 @@
 - 코드는 `redesign` 브랜치에 커밋돼 있지만 원격 저장소가 없어요. 서명·공증·배포는 아직 하지 않았어요.
 - 지금 만든 `.app`과 `.dmg`는 Apple Silicon 전용이고 임시 서명(ad-hoc)이에요. 다른 Mac에서 받으면 Gatekeeper가 막으니 **배포하면 안 돼요**.
 - 배포 빌드는 배포 직전의 커밋으로 새로 만들어 주세요.
+- `tauri.conf.json`의 `signingIdentity: "-"`로 번들 전체를 임시 서명해요. 2026-11-04 빌드에서 `codesign --verify --deep --strict`를 통과했고, Gatekeeper(`spctl`)는 공증 전이라 거절해요. 2번의 Developer ID 환경 변수가 이 값을 대신할 것으로 보지만 미검증이에요.
+- 다른 컴퓨터에서 실행해 본 적은 아직 없어요. 4번을 새 macOS 계정과 다른 Mac에서 해 주세요.
 
 ## 1. 확인함 (이 Mac, macOS 26.6 / Apple Silicon)
 
