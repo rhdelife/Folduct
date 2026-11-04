@@ -6,7 +6,7 @@ export const boxFolderName = "_Folduct 정리상자";
 export const sweepIntervalDays = 7;
 export const dayMs = 24 * 60 * 60 * 1000;
 export const defaultCare: CareSettings = { done: false, staleAfterDays: 30 };
-// 방 전체를 이만큼 안 쓰면 완료로 옮길지 묻습니다.
+// 방 전체를 이만큼 안 쓰면 홈에서 뺄지 묻습니다.
 export const doneAfterDays = 60;
 
 // 옛 기록은 기울어짐·쓰러짐 일수를 따로 가졌습니다. 예전 기본값 7일은 새 기본값으로 올리고, 직접 정한 쓰러짐 일수는 지킵니다.

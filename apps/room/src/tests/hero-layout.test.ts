@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
 import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
-import { baseView, calendarSpot, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
+import { baseView, calendarSpot, homeLimit, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { rowRest } from "../components/home/engine";
 import { rowOnlyPose, arrivalFrames, spillFrames, cardPose } from "../components/home/heroMotion";
 
@@ -74,11 +74,6 @@ describe("첫 화면 종이 배치", () => {
     for (const c of picked.cards.filter((card) => !card.extra)) expect([c.x, c.y]).toEqual(before.get(c.thing.id));
   });
 
-  it("방이 판의 장수보다 많아도 방마다 종이가 뜬다", () => {
-    const { cards } = heroLayout(many(cardCap + 6, 3), start, baseView, aspect);
-    expect(new Set(cards.map((c) => c.room.id)).size).toBe(cardCap + 6);
-  });
-
   it("몇 장 없는 방은 큰 종이도 판 안에 다 들어온다", () => {
     const { cards } = heroLayout([room("a", Array.from({ length: 10 }, (_, f) => thing(`f${f}`, { size: 1024 * 4 ** f })))], start, baseView, aspect);
     for (const card of cards) {
@@ -140,9 +135,9 @@ describe("방 자리", () => {
     }
   });
 
-  it("방이 많아도 화병끼리 겹치지 않는다", () => {
+  it("방이 자리만큼 차도 화병끼리 겹치지 않는다", () => {
     for (const view of views) {
-      for (const count of [3, 8, 12, 30]) {
+      for (const count of [3, 4, homeLimit]) {
         const unit = stageUnit(view) * vaseUnit;
         const list = spots(count, view).map(({ p, at }) => ({ ...at, half: vaseHalf(roomRadius(p.room, p.scale)) * unit }));
         list.forEach((a, i) => {

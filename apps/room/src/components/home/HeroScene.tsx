@@ -44,8 +44,8 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
             <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
-                <p>진행 중인 방이 없어요.</p>
-                <button type="button" aria-haspopup="dialog" onClick={actions.openMenu}>완료된 프로젝트 보기</button>
+                <p>홈에 둔 방이 없어요.</p>
+                <button type="button" aria-haspopup="dialog" onClick={actions.openMenu}>뺀 방 보기</button>
               </div>
             )}
           </section>

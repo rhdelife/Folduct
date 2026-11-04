@@ -5,7 +5,7 @@ import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane"
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
 import { previewMode } from "../components/FileViewer";
-import { clusterSpread, hash, homeActivity, layoutRooms, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, sky, vaseHalf, vaseLift } from "../domain/sky";
+import { clusterSpread, hash, homeActivity, homeLimit, layoutRooms, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
 import { kindParts, vaseBands, vaseIndex, vasePaths } from "../art/vases";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
@@ -580,16 +580,27 @@ describe("완료한 프로젝트", () => {
     expect(sweepCandidates(finished, start + 31 * dayMs)).toEqual([]);
   });
 
-  it("완료한 방은 지도에 놓지 않고, 진행 중인 방이 많아도 판 안에 놓는다", () => {
+  it("홈에서 뺀 방은 지도에 놓지 않고, 자리를 넘은 방도 놓지 않으며, 모두 판 안에 놓는다", () => {
     const rooms = Array.from({ length: 43 }, (_, i) => room([], { id: `r${i}`, care: { ...defaultCare, done: i >= 12 } }));
     const placed = layoutRooms(rooms);
-    expect(placed.map((p) => p.room.id)).toEqual(rooms.slice(0, 12).map((r) => r.id));
+    expect(placed.map((p) => p.room.id)).toEqual(rooms.slice(0, homeLimit).map((r) => r.id));
     for (const p of placed) {
       expect(p.at.x).toBeGreaterThanOrEqual(40);
       expect(p.at.x).toBeLessThanOrEqual(sky.width - 40);
       expect(p.at.y).toBeGreaterThanOrEqual(40);
       expect(p.at.y).toBeLessThanOrEqual(sky.height - 40);
     }
+  });
+
+  it("자리가 모자라면 방금 고른 방을 앞세우고, 나머지는 최근에 쓴 순서로 고른다", () => {
+    const used = (id: string, at: number) => room([thing({ id: `${id}-f`, path: `${id}.txt`, touchedAt: at })], { id });
+    const rooms = [used("옛날", start), ...Array.from({ length: homeLimit }, (_, i) => used(`r${i}`, start + (i + 1) * dayMs))];
+    expect(roomsToKeep(rooms, [null, null])).toHaveLength(homeLimit);
+    expect(roomsToKeep(rooms, [null, null])).not.toContain("옛날");
+    const picked = roomsToKeep(rooms, ["옛날", null]);
+    expect(picked).toHaveLength(homeLimit);
+    expect(picked).toContain("옛날");
+    expect(picked).not.toContain("r0");
   });
 
   it("방이 없거나 모두 완료했으면 지도가 빈다", () => {

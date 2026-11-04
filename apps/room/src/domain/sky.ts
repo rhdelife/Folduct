@@ -1,4 +1,4 @@
-import { dayMs, lastActivity, localDay, relativeDay, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
+import { dayMs, lastActivity, localDay, relativeDay, roomLastActivity, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
 import type { CareSettings, Room, Thing } from "./model";
 
 // 집 화면의 지도. 방은 떠 있는 화병, 파일은 크기만큼의 작은 별이고, 손대지 않은 파일은 방에서 멀어집니다.
@@ -162,8 +162,6 @@ export function labelHalf(name: string, view: View): number {
   // 아래 줄(용량과 상태)이 이름보다 길 때가 많아 최소 폭을 넉넉히 둡니다.
   return Math.min(Math.max(view.w * 0.22, 144) / 2, Math.max((chars * 13) / 2, 78));
 }
-// 방이 이만큼 많으면 고르거나 가리킨 방만 이름표를 보입니다.
-export const labelsHideFrom = 8;
 
 export function starRadius(bytes: number, scale = 1): number {
   return (4 + 8 * sizeRatio(bytes)) * scale;
@@ -176,28 +174,33 @@ export function calendarSpot(view: View): Box[] {
   return view.w >= 720 && view.h >= 640 ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
 }
 
-// 지도에는 진행 중인 방만 놓습니다. 적으면 넉넉히, 많으면 화병을 줄여 놓고 서로 밀어내 겹치지 않게 합니다.
+// 홈에 둘 수 있는 방의 수. 지금 하는 일만 보여 주려는 약속이에요. 숫자는 여기서만 정합니다.
+export const homeLimit = 5;
+
+// 자리가 모자랄 때 먼저 골라 둘 방. 사용자가 방금 고른 방을 앞세우고, 나머지는 최근에 쓴 순서입니다.
+export function roomsToKeep(active: Room[], prefer: (string | null)[]): string[] {
+  const rank = (room: Room) => (prefer.includes(room.id) ? 1 : 0);
+  return [...active].sort((a, b) => rank(b) - rank(a) || roomLastActivity(b) - roomLastActivity(a)).slice(0, homeLimit).map((room) => room.id);
+}
+
+// 지도에는 홈에 둔 방만 놓고, 서로 밀어내 겹치지 않게 합니다. 자리를 넘은 방은 고르는 창이 떠 있는 동안에만 생겨요.
 export function layoutRooms(rooms: Room[], view: View = baseView): Placed[] {
-  const active = rooms.filter((room) => !room.care.done);
-  const crowded = active.length > 8;
-  const scale = crowded ? Math.max(0.6, Math.sqrt(4 / active.length)) : 1;
-  const spread = crowded ? clamp(300 / Math.sqrt(active.length), 45, 120) : clusterSpread(active.length);
-  // 많으면 방마다 띄우는 파일을 줄입니다(전부는 오른쪽 목록에 있어요).
-  const limit = crowded ? clamp(Math.floor(100 / active.length), 8, 24) : 40;
+  const active = rooms.filter((room) => !room.care.done).slice(0, homeLimit);
+  const scale = 1;
+  const spread = clusterSpread(active.length);
+  const limit = 40;
   const perUnit = stageUnit(view) * vaseUnit;
   const margin = 8 * stageUnit(view);
   const items = roomSpots(active.length, view).map((spot, i): Movable => {
     const half = vaseHalf(roomRadius(active[i], scale)) * perUnit;
     const { x, y } = toPx(spot, view);
-    // 이름표가 보이는 방은 이름표까지 한 덩어리로 밀어냅니다.
-    const labelled = active.length < labelsHideFrom;
-    // 이름표 글자는 판을 따라 줄지 않으니 작은 화면에서도 실제 높이만큼은 비워 둡니다.
-    const label = labelled ? Math.max(labelHeight * stageUnit(view), 48) : 0;
-    const hw = labelled ? Math.max(half, labelHalf(active[i].name, view)) : half;
+    // 이름표까지 한 덩어리로 밀어냅니다. 이름표 글자는 판을 따라 줄지 않으니 작은 화면에서도 실제 높이만큼은 비워 둡니다.
+    const label = Math.max(labelHeight * stageUnit(view), 48);
+    const hw = Math.max(half, labelHalf(active[i].name, view));
     const hh = half + label / 2;
     return { x, y, hw, hh, dy: label / 2, minX: Math.min(view.w / 2, hw + margin), maxX: Math.max(view.w / 2, view.w - hw - margin), minY: Math.min(view.h / 2, Math.max(72 * stageUnit(view), 72) + half), maxY: Math.max(view.h / 2, view.h - hh * 2 - margin + half) };
   });
-  relaxBoxes(items, calendarSpot(view), { gap: margin, passes: crowded ? 120 : 40 });
+  relaxBoxes(items, calendarSpot(view), { gap: margin, passes: 40 });
   settleBoxes(items, calendarSpot(view), margin / 2, 12 * stageUnit(view));
   return active.map((room, i) => ({ room, at: toSky(items[i], view), scale, spread, limit }));
 }

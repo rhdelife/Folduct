@@ -453,8 +453,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.care.done && (
           <p className="banner happy-banner">
-            완료된 프로젝트예요. 주간 정리가 쉬어요.{" "}
-            <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>다시 진행 중으로</button>
+            홈에서 뺀 방이에요. 주간 정리가 쉬어요.{" "}
+            <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>홈에 올리기</button>
           </p>
         )}
         {room.source === "input" && (
@@ -760,11 +760,11 @@ function SettingsPanel({ room, onChange, onCare, onForget }: { room: Room; onCha
       <FacePicker face={room.face} onChange={(face) => onChange({ face })} />
       <fieldset className="care">
         <legend>방 돌보기</legend>
-        <div className="seg" role="radiogroup" aria-label="프로젝트 상태">
-          <label><input type="radio" name="room-status" checked={!room.care.done} onChange={() => onCare({ done: false })} />진행 중</label>
-          <label><input type="radio" name="room-status" checked={room.care.done} onChange={() => onCare({ done: true })} />완료</label>
+        <div className="seg" role="radiogroup" aria-label="홈에 둘지">
+          <label><input type="radio" name="room-status" checked={!room.care.done} onChange={() => onCare({ done: false })} />홈에 둠</label>
+          <label><input type="radio" name="room-status" checked={room.care.done} onChange={() => onCare({ done: true })} />홈에서 뺌</label>
         </div>
-        <p className="soft">{room.care.done ? "완료: 주간 정리를 멈추고 완료된 프로젝트로 옮겨요" : "진행 중: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
+        <p className="soft">{room.care.done ? "홈에서 뺌: 주간 정리를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
         <div className="row">
           <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
         </div>

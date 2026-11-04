@@ -1,5 +1,6 @@
 import { roomUsage } from "../../domain/care";
 import { formatBytes, type Room } from "../../domain/model";
+import { homeLimit } from "../../domain/sky";
 import { BrandMark, Icon } from "../Icon";
 
 export function HomeHeader({ rooms, ready, overdue, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
@@ -14,7 +15,7 @@ export function HomeHeader({ rooms, ready, overdue, onWeekly, onMenu, onNew, onS
       <div className={`home-caption${awake ? " visible" : ""}`}>
         <div className="caption-layer">
           <strong>내 방</strong>
-          <span>{active.length}개 · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</span>
+          <span>{active.length}/{homeLimit} · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</span>
         </div>
       </div>
       <div className="home-actions">

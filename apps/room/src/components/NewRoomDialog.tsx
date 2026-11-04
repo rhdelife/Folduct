@@ -143,7 +143,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     }
     onCreatedMany(
       `새 방 ${added}개${refreshed ? `, 다시 이은 방 ${refreshed}개` : ""}를 만들었어요.` +
-        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 완료된 프로젝트로 두었어요.` : "") +
+        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 홈에서 빼 두었어요.` : "") +
         (failed ? ` 읽지 못한 폴더 ${failed}개는 뺐어요.` : ""),
     );
   }

@@ -8,6 +8,7 @@ import { HomeHeader } from "../components/home/HomeHeader";
 import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
 import { HomeMenu } from "../components/HomeMenu";
+import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
@@ -16,7 +17,7 @@ import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type 
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
 import type { WorkLog } from "../domain/worklog";
-import { roomStats } from "../domain/sky";
+import { homeLimit, roomStats } from "../domain/sky";
 import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
 import { planSweep, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
@@ -61,6 +62,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [workLog, setWorkLog] = useState<WorkLog>({});
   const [doorMenu, setDoorMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
+  // 방금 홈에 올린 방. 자리가 모자라도 그 방을 먼저 골라 둡니다.
+  const raised = useRef<string | null>(null);
   const panel = useRef<HTMLElement>(null);
   const { toast, toastRegion } = useToast();
 
@@ -321,7 +324,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     }
     toast(
       `새 방 ${added}개${refreshed ? `, 다시 본 방 ${refreshed}개` : ""}를 띄웠어요.` +
-        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 완료된 프로젝트로 두었어요. 메뉴에서 고르면 바꿀 수 있어요.` : "") +
+        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 홈에서 빼 두었어요. 메뉴에서 고르면 바꿀 수 있어요.` : "") +
         (parsed.skipped ? ` 읽을 수 없는 항목 ${parsed.skipped}개는 뺐어요.` : ""),
     );
     await load();
@@ -329,12 +332,13 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
 
   // 실제 폴더는 그대로 두고 앱 안의 표시만 바꿉니다. 되돌리기는 나중에 불리니 옛 목록을 읽지 않게 바꿀 값을 받습니다.
   async function moveRoom(id: string, done: boolean) {
+    raised.current = done ? null : id;
     const saved = await patchRoom(id, (room) => ({ ...room, care: { ...room.care, done } }));
     setRooms((list) => list && list.map((room) => (room.id === id ? saved : room)));
     // 고른 방이 옮겨 가면 고르기를 풀어 카메라를 제자리로 돌립니다.
     setSelectedId((current) => (current === id ? null : current));
     setFocusId((current) => (saved.things.some((thing) => thing.id === current) ? null : current));
-    toast(done ? "완료된 프로젝트로 옮겼어요. 폴더와 파일은 그대로예요." : "진행 중으로 되돌렸어요.", {
+    toast(done ? "홈에서 뺐어요. 폴더와 파일은 그대로예요." : "홈에 올렸어요.", {
       label: "되돌리기",
       run: () => void moveRoom(id, !done).catch(fail(saveFailed)),
     });
@@ -342,6 +346,19 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     requestAnimationFrame(() => {
       if (!document.activeElement || document.activeElement === document.body) landFocus(id);
     });
+  }
+
+  // 고르지 않은 방을 홈에서 뺍니다. 저장에 실패하면 창이 남아 다시 고를 수 있어요.
+  async function keepOnHome(keep: Set<string>) {
+    const out = (rooms ?? []).filter((room) => !room.care.done && !keep.has(room.id));
+    try {
+      for (const room of out) await patchRoom(room.id, (current) => ({ ...current, care: { ...current.care, done: true } }));
+      setSelectedId((current) => (out.some((room) => room.id === current) ? null : current));
+      toast(`${out.length}개를 홈에서 뺐어요. 메뉴의 방 목록에 있고, 폴더와 파일은 그대로예요.`);
+    } catch (error) {
+      fail(saveFailed)(error);
+    }
+    await load();
   }
 
   // 누른 버튼이 사라졌으니 포커스를 줄의 다음 문서나 지도로 이어 줍니다.
@@ -391,6 +408,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
   const moveFailed = "옮기지 못했어요. 폴더 권한을 확인해 주세요.";
   const hasSample = rooms?.some((room) => room.source === "sample");
+  const onHome = (rooms ?? []).filter((room) => !room.care.done);
   const menuRoom = rooms?.find((room) => room.id === roomMenu?.id);
   const menuDoor = door.items.find((item) => item.id === doorMenu?.id);
   const viewingRoom = rooms?.find((room) => room.id === viewing?.roomId);
@@ -522,6 +540,9 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }}
         />
       )}
+      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && (
+        <HomeRoomsDialog rooms={onHome} prefer={[raised.current, returnTo]} now={now} onKeep={keepOnHome} />
+      )}
       {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}
       {roomMenu && menuRoom && (
         <ContextMenu
@@ -529,7 +550,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           y={roomMenu.y}
           opener={roomMenu.opener}
           label={`${menuRoom.name} 방`}
-          items={[{ label: menuRoom.care.done ? "진행 중으로 되돌리기" : "완료된 프로젝트로 이동", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
+          items={[{ label: menuRoom.care.done ? "홈에 올리기" : "홈에서 빼기", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
           onClose={() => setRoomMenu(null)}
         />
       )}

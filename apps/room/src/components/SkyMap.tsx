@@ -6,7 +6,7 @@ import { RoomFaceArt } from "./RoomFace";
 import { lastActivity, relativeDay } from "../domain/care";
 import { heroLayout, namedPaper, rowOnlyCards, type Card, type HeroNode } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { hash, labelsHideFrom, sky, stageUnit, stepRoom, toPx, vaseFill, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
+import { hash, sky, stageUnit, stepRoom, toPx, vaseFill, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useBetween, useEngine } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
@@ -24,7 +24,7 @@ const paperAspect = (thing: Thing) => {
 };
 
 // 집: 빛을 받는 하얀 판 위의 방 지도. 파일은 형식별 색(이미지 노랑·글 초록·영상 파랑·PDF/문서 빨강…)의 종이 오브제로 떠 있습니다.
-// 완료한 방은 지도에 놓지 않고, 메뉴의 완료된 프로젝트 목록에 둡니다.
+// 홈에서 뺀 방은 지도에 놓지 않고, 메뉴의 방 목록에 둡니다.
 export function SkyMap({
   rooms,
   stats,
@@ -214,7 +214,7 @@ export function SkyMap({
             }}
           />
         )}
-        <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방으로 들어가요. 메뉴 키로는 완료된 프로젝트로 옮길 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방으로 들어가요. 메뉴 키로는 홈에서 뺄 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -366,8 +366,7 @@ const MapLayers = memo(function MapLayers({
           );
         })}
       </div>
-      {/* 방이 8개부터는 이름표가 겹치니, 고르거나 가리킨 방만 이름을 보입니다. */}
-      <div className={`sky-rooms${ids.length >= labelsHideFrom ? " crowded" : ""}`} style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 화병은 방, 작은 오브제는 파일이에요. 색은 파일 형식이에요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
+      <div className="sky-rooms" style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 화병은 방, 작은 오브제는 파일이에요. 색은 파일 형식이에요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
         {ordered.map(({ room, at, r }) => {
           const { usage } = stats.get(room.id)!;
           const parts = kindParts(room.things);

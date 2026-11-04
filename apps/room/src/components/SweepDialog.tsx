@@ -138,13 +138,13 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
                       <span className="name">{room.name}</span>
                       <span className="soft">{Math.floor((now - roomLastActivity(room)) / dayMs)}일째 안 썼어요</span>
                       <span className="row">
-                        <button type="button" aria-label={`${room.name} 완료로 옮기기`} disabled={busy !== null} onClick={() => void answer(room, true)}>완료로 옮기기</button>
+                        <button type="button" aria-label={`${room.name} 홈에서 빼기`} disabled={busy !== null} onClick={() => void answer(room, true)}>홈에서 빼기</button>
                         <button type="button" className="quiet" aria-label={`${room.name} 그대로 두기`} disabled={busy !== null} onClick={() => void answer(room, false)}>그대로 두기</button>
                       </span>
                     </li>
                   ))}
                 </ul>
-                <p className="soft">완료로 옮겨도 폴더와 파일은 그대로예요.</p>
+                <p className="soft">홈에서 빼도 폴더와 파일은 그대로예요.</p>
                 {offerError && <p className="error" role="alert">저장하지 못했어요. 잠시 뒤 다시 해 주세요.</p>}
               </section>
             )}

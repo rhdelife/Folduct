@@ -1,6 +1,6 @@
 import { lastActivity, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
-import { calendarSpot, hash, labelHalf, labelHeight, labelsHideFrom, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
+import { calendarSpot, hash, labelHalf, labelHeight, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
 
 // 첫 화면 배치: 방 둘레의 파일을 판 전체에 흩고, 머리글·화병·이름표·머리 버튼을 피해 겹치지 않게 다듬습니다.
 
@@ -46,7 +46,6 @@ const headerBottom = (view: View) => (view.w < 720 ? 112 : view.w < 1200 ? 100 :
 // 좁은 창은 머리 띠 전체를 비웁니다. 높이는 styles.css의 --topbar-stacked-h, --topbar-phone-h예요.
 export function keepOut(nodes: HeroNode[], view: View): Box[] {
   const unit = stageUnit(view);
-  const crowded = nodes.length >= labelsHideFrom;
   const margin = 10 * unit;
   const band = (height: number): Box => ({ x: view.w / 2, y: height / 2, hw: view.w / 2, hh: height / 2 });
   const boxes: Box[] = view.w < 1200 ? [band(headerBottom(view))] : [
@@ -58,10 +57,9 @@ export function keepOut(nodes: HeroNode[], view: View): Box[] {
   boxes.push(...calendarSpot(view));
   for (const { at, r, room } of nodes) {
     const center = toPx(at, view);
-    // 고르면 화병이 커지니 커진 크기로 비워 둡니다. 많을 때는 그럴 자리가 없어요.
-    const half = vaseHalf(r) * unit * vaseUnit * (crowded ? 1.1 : vaseLift);
+    // 고르면 화병이 커지니 커진 크기로 비워 둡니다.
+    const half = vaseHalf(r) * unit * vaseUnit * vaseLift;
     boxes.push({ x: center.x, y: center.y, hw: half + margin, hh: half + margin });
-    if (crowded) continue;
     // 이름표는 화병 아래이고, 화병이 커지면 함께 내려갑니다. 두 자리를 다 비워요.
     const plain = vaseHalf(r) * unit * vaseUnit;
     const top = center.y + plain * 1.2;

@@ -71,8 +71,8 @@ export function Pet() {
     void (async () => {
       try {
         const [saved, list] = await Promise.all([getSession(), loadRooms()]);
-        // 지운 방의 작업은 이어 갈 수 없어요.
-        change(saved && list.some((item) => item.id === saved.roomId) ? restoreSession(saved) : null);
+        // 지운 방이나 홈에서 뺀 방의 작업은 이어 갈 수 없어요.
+        change(saved && list.some((item) => item.id === saved.roomId && !item.care.done) ? restoreSession(saved) : null);
       } catch (error) {
         console.error(error);
       }
@@ -151,13 +151,13 @@ export function Pet() {
     };
   }, [working]);
 
-  // 앱에서 방을 고치거나 지울 수 있어 틈틈이 다시 읽습니다. 작업하던 방을 지웠으면 작업도 끝나요.
+  // 앱에서 방을 고치거나 지울 수 있어 틈틈이 다시 읽습니다. 작업하던 방을 지우거나 홈에서 빼면 작업도 끝나요. 그때까지의 시간은 일력에 남아요.
   useEffect(() => {
     const timer = window.setInterval(() => void loadRooms().catch((error: unknown) => console.error(error)), watchEveryMs);
     return () => window.clearInterval(timer);
   }, [loadRooms]);
   useEffect(() => {
-    if (session && !rooms.some((item) => item.id === session.roomId)) change(null);
+    if (session && !rooms.some((item) => item.id === session.roomId && !item.care.done)) change(null);
   }, [rooms, session, change]);
 
   useEffect(() => {

@@ -738,7 +738,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .sky-canvas.entering .room-node { pointer-events: none; }
 
 .scene-hero .room-label { max-width: var(--room-label-max); }
-.sky-rooms.crowded .room-node:not(.selected, :hover, :focus-visible) .vase-tag { display: none; }
 /* 컨테이너 쿼리 대신 창 폭으로 봅니다. 지도가 곧 창이에요. */
 @media (max-width: 560px) {
   .scene-hero .room-sub { display: none; }

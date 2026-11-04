@@ -3,7 +3,7 @@ import { pickFace } from "./face";
 import { freeSpot } from "./plane";
 import { isSafeRelativePath, kindOf, newId, type Room, type RoomFace, type RoomSource, type ScannedFile } from "./model";
 
-// 이만큼 아무 파일도 쓰거나 고치지 않은 폴더는 가져올 때 '완료한 프로젝트'로 둡니다. 방 설정에서 언제든 바꿀 수 있어요.
+// 이만큼 아무 파일도 쓰거나 고치지 않은 폴더는 가져올 때 홈에서 빼 둡니다. 방 설정에서 언제든 바꿀 수 있어요.
 export { doneAfterDays };
 
 export type ImportedRoom = { name: string; origin: string; complete: boolean; failed: number; files: ScannedFile[] };

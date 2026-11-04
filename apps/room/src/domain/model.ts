@@ -29,7 +29,7 @@ export type Thing = {
   box: BoxEntry | null;
 };
 
-// done: 완료한 프로젝트. 주간 정리가 멈춥니다.
+// done: 홈에서 뺀 방. 주간 정리가 멈춥니다. 다 끝나지 않은 방도 있어 화면에는 '완료'라고 쓰지 않아요.
 export type CareSettings = { done: boolean; staleAfterDays: number };
 
 // 방의 얼굴: 화병 모양 번호와 목 색 번호. domain/face.ts
@@ -50,7 +50,7 @@ export type Room = {
   // 방 안에서 손대거나 방 밖에서 파일을 쓴 날(YYYY-MM-DD). 방치 판정의 기준입니다.
   workDays: string[];
   care: CareSettings;
-  // 오래 안 쓴 방을 완료로 옮길지 마지막으로 물은 시각. 그 뒤로 방을 다시 쓰기 전까지 묻지 않습니다.
+  // 오래 안 쓴 방을 홈에서 뺄지 마지막으로 물은 시각. 그 뒤로 방을 다시 쓰기 전까지 묻지 않습니다.
   doneOfferAt: number | null;
   face: RoomFace;
 };
