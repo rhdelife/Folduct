@@ -827,6 +827,10 @@
       "$type": "other",
       "$value": "217px"
     },
+    "room-head-duct": {
+      "$type": "other",
+      "$value": "56px"
+    },
     "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"
@@ -875,9 +879,9 @@
       "$type": "color",
       "$value": "#dadad6"
     },
-    "room-grid": {
-      "$type": "color",
-      "$value": "#e0e0e0"
+    "float-shade": {
+      "$type": "other",
+      "$value": "rgb(23 23 23 / 0.16)"
     },
     "room-line": {
       "$type": "color",

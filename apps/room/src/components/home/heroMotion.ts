@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject }
 import { ductLength, ductMouth } from "../../art/duct";
 import { roomUsage } from "../../domain/care";
 import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
-import { flightsFor, rowMetrics, type Card, type Flight, type HeroNode } from "../../domain/heroLayout";
+import { columnsFor, flightsFor, rowMetrics, type Card, type Flight, type HeroNode, type RoomColumn } from "../../domain/heroLayout";
 import { range, rowRest, useBetween, useEngine, useScene } from "./engine";
 
 // 첫 화면의 움직임. 처음 켤 때의 등장은 시계로, 첫 스크롤은 pos로 그립니다(되감아도 그대로 돌아와요).
@@ -11,7 +11,7 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-// 첫 스크롤: 0에서 rowRest까지 종이가 한 줄로 모여 쉽니다.
+// 첫 스크롤: 0에서 rowRest까지 주름관이 위에 나란히 서고, 종이는 각자의 주름관 아래로 모여 쉽니다.
 const gatherSpread = 180;
 
 export type Pose = { x: number; y: number; rot: number; scale: number; opacity: number };
@@ -115,6 +115,7 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
   const atRow = useBetween(rowRest - 5, rowRest + 5);
   const shown = useMemo(() => cards.filter((card) => !card.extra), [cards]);
   const flown = useRef<Map<string, Flight>>(new Map());
+  const columns = useRef<Map<string, RoomColumn>>(new Map());
   const row = useRef({ offset: 0, max: 0 });
   const [track, setTrack] = useState<{ max: number; y: number } | null>(null);
 
@@ -130,6 +131,15 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     if (pos <= 0) row.current.offset = 0;
     // 밀어 둔 줄은 제자리로 돌아가는 동안 함께 풀립니다.
     if (papers.current) papers.current.style.translate = row.current.offset ? `${-row.current.offset * easeInOut(range(pos, 0, rowRest))}px 0` : "";
+    // 종이와 같은 박자로 주름관도 자기 칸으로 갑니다.
+    const u = easeInOut(range(pos, 0, rowRest));
+    for (const { room, at } of nodes) {
+      const el = vaseOf(canvas.current!, room.id);
+      const column = columns.current.get(room.id);
+      if (!el || !column) continue;
+      const from = toPx(at, view);
+      el.style.translate = pos <= 0 ? "" : `${(column.x - from.x) * u - row.current.offset * u}px ${(column.y - from.y) * u}px`;
+    }
     for (const el of els.current) {
       const flight = flown.current.get(el.dataset.card!);
       if (!flight) continue;
@@ -148,18 +158,20 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
   };
   useScene(write);
 
-  // 스크롤이 시작될 때 현관 줄 아래로 줄의 자리를 잡고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
+  // 스크롤이 시작될 때 현관 줄 아래로 칸의 자리를 잡고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
   useEffect(() => {
     if (atRest) return;
     const door = canvas.current!.closest(".sky-layout")?.querySelector<HTMLElement>(".doorstep");
-    flown.current = flightsFor([...shown, ...rowOnly], nodes, view, door ? door.offsetTop + door.offsetHeight : 0);
+    const top = door ? door.offsetTop + door.offsetHeight : 0;
+    columns.current = columnsFor(nodes, view, top);
+    flown.current = flightsFor([...shown, ...rowOnly], nodes, view, top);
     const { overflow, bottom } = rowMetrics(flown.current, view);
     row.current = { max: overflow, offset: Math.min(row.current.offset, overflow) };
     setTrack(overflow > 0 ? { max: overflow, y: bottom } : null);
     write(engine.pos);
   }, [atRest, shown, rowOnly, nodes, view]);
 
-  // 줄을 옆으로 밉니다. 실제로 간 자리를 돌려줘요.
+  // 칸들을 옆으로 밉니다. 실제로 간 자리를 돌려줘요.
   const scrollRow = (by: (offset: number) => number) => {
     row.current.offset = Math.max(0, Math.min(row.current.max, by(row.current.offset)));
     write(engine.pos);

@@ -210,6 +210,7 @@
 | `scene/cal-dot` | `5px` |  |
 | `scene/cal-gap` | `2px` |  |
 | `scene/cal-w` | `217px` |  |
+| `scene/room-head-duct` | `56px` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |
@@ -222,7 +223,7 @@
 | `scene/room-tab-1` | `#ecece8` |  |
 | `scene/room-tab-2` | `#e3e3df` |  |
 | `scene/room-tab-3` | `#dadad6` |  |
-| `scene/room-grid` | `#e0e0e0` |  |
+| `scene/float-shade` | `rgb(23 23 23 / 0.16)` |  |
 | `scene/room-line` | `#dcdcda` |  |
 | `scene/room-line-strong` | `#c8c8c6` |  |
 | `scene/room-hover` | `#efefec` |  |

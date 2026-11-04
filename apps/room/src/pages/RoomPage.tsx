@@ -1,8 +1,9 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ductLength, kindParts } from "../art/duct";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
-import { FacePicker } from "../components/RoomFace";
+import { FacePicker, RoomFaceArt } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
 import { BrandMark, Icon } from "../components/Icon";
 import { KindLegend, SizeKey } from "../components/KindLegend";
@@ -23,13 +24,15 @@ type Panel = (typeof panels)[number];
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
+// 머리의 주름관 선 굵기 기준. 크기는 styles.css의 --room-head-duct와 같아요.
+const headDuctPx = 56;
 const folderIssues = {
   denied: "폴더 접근 권한이 없어요. 목록은 그대로예요.",
   gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록은 그대로예요.",
   other: "폴더를 읽지 못했어요. 목록은 그대로예요.",
 };
 // 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
-const stacked = "(max-width: 719.98px)";
+const stacked = "(max-width: 899.98px)";
 
 // 누른 버튼이 사라질 때는 다음 그림이 그려진 뒤 이어서 볼 곳으로 포커스를 옮깁니다.
 function focusSoon(selector: string) {
@@ -465,6 +468,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           돌아가기
         </button>
         <div className="topnav-title">
+          <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" />
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
           <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
         </div>

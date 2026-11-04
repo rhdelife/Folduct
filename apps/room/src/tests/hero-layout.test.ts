@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
-import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
+import { columnsFor, rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
 import { baseView, calendarSpot, homeLimit, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { rowRest } from "../components/home/engine";
@@ -148,7 +148,7 @@ describe("방 자리", () => {
   });
 });
 
-describe("첫 스크롤: 한 줄로 모으기", () => {
+describe("첫 스크롤: 프로젝트별로 모으기", () => {
   const { nodes, cards } = heroLayout(many(3, 14), start, baseView, aspect);
   const flights = flightsFor(cards, nodes, baseView);
 
@@ -162,8 +162,7 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     }
   });
 
-  it("쉼터에서는 모든 종이가 조금만 기울어 같은 높이의 한 줄이 된다", () => {
-    expect(new Set([...flights.values()].map((flight) => flight.to.y)).size).toBe(1);
+  it("쉼터에서는 모든 종이가 조금만 기울어 자기 자리에 닿는다", () => {
     for (const card of cards) {
       const flight = flights.get(card.thing.id)!;
       const pose = cardPose(rowRest, flight);
@@ -174,7 +173,28 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     }
   });
 
-  it("어느 창에서든 줄은 폭 안에 들고, 왼쪽부터 차례이며, 머리와 현관 줄과 창 아래를 넘지 않는다", () => {
+  it("파일은 자기 프로젝트의 칸 안, 그 주름관 아래에 모이고 다른 프로젝트와 섞이지 않는다", () => {
+    const columns = columnsFor(nodes, baseView);
+    expect(columns.size).toBe(nodes.length);
+    for (const card of cards) {
+      const column = columns.get(card.room.id)!;
+      const { to, half, tall } = flights.get(card.thing.id)!;
+      expect(to.x - half).toBeGreaterThanOrEqual(column.x - column.width / 2);
+      expect(to.x + half).toBeLessThanOrEqual(column.x + column.width / 2);
+      expect(to.y - tall).toBeGreaterThanOrEqual(column.papersTop);
+    }
+  });
+
+  it("주름관은 받침을 맞춰 나란히 서고, 원래 왼쪽에 있던 방이 왼쪽 칸에 온다", () => {
+    const columns = columnsFor(nodes, baseView);
+    const unit = stageUnit(baseView) * vaseUnit;
+    const bases = nodes.map((node) => columns.get(node.room.id)!.y + vaseHalf(node.r) * unit);
+    for (const base of bases) expect(base).toBeCloseTo(bases[0], 5);
+    const byRest = [...nodes].sort((a, b) => a.at.x - b.at.x).map((node) => columns.get(node.room.id)!.x);
+    expect(byRest).toEqual([...byRest].sort((a, b) => a - b));
+  });
+
+  it("어느 창에서든 머리와 현관 줄과 창 아래를 넘지 않고, 칸이 창보다 넓으면 넘친 만큼을 알려 준다", () => {
     const cases: [View, number, number, number][] = [
       [{ w: 375, h: 812 }, 8, 14, 112],
       [{ w: 375, h: 667 }, 3, 14, 112],
@@ -186,21 +206,21 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
       const laid = heroLayout(many(roomCount, files), start, view, aspect);
       const door = header + 90;
       const row = flightsFor(laid.cards, laid.nodes, view, door);
-      const placed = laid.cards.map((card) => ({ card, flight: row.get(card.thing.id)! })).sort((a, b) => a.flight.slot - b.flight.slot);
-      placed.forEach(({ card, flight }, index) => {
-        const half = (card.size * flight.to.scale) / 2;
-        const tall = (card.height * flight.to.scale) / 2;
-        expect(flight.to.x - half, `${view.w} 왼쪽`).toBeGreaterThanOrEqual(0);
-        expect(flight.to.x + half - rowMetrics(row, view).overflow, `${view.w} 오른쪽`).toBeLessThanOrEqual(view.w);
-        expect(flight.to.y - tall, `${view.w} 위`).toBeGreaterThanOrEqual(door);
-        expect(flight.to.y + tall, `${view.w} 아래`).toBeLessThanOrEqual(view.h);
-        if (index) expect(flight.to.x).toBeGreaterThan(placed[index - 1].flight.to.x);
-      });
-      expect(placed.every(({ flight }) => flight.to.scale >= 0.6 && flight.to.scale <= 1)).toBe(true);
+      const { overflow } = rowMetrics(row, view);
+      expect(row.size).toBe(laid.cards.length);
+      for (const card of laid.cards) {
+        const flight = row.get(card.thing.id)!;
+        expect(flight.to.x - flight.half, `${view.w} 왼쪽`).toBeGreaterThanOrEqual(0);
+        expect(flight.to.x + flight.half - overflow, `${view.w} 오른쪽`).toBeLessThanOrEqual(view.w);
+        expect(flight.to.y - flight.tall, `${view.w} 위`).toBeGreaterThanOrEqual(door);
+        expect(flight.to.y + flight.tall, `${view.w} 아래`).toBeLessThanOrEqual(view.h + 0.001);
+        expect(flight.to.scale, `${view.w} 배율`).toBeLessThanOrEqual(1);
+        expect(flight.to.scale, `${view.w} 배율`).toBeGreaterThan(0.3);
+      }
     }
   });
 
-  it("지도에 못 나온 파일도 줄에 들어오고, 창보다 길면 넘친 만큼을 알려 준다", () => {
+  it("지도에 못 나온 파일도 칸에 들어오고, 많아도 창 아래를 넘지 않는다", () => {
     const view = { w: 1280, h: 800 };
     const laid = heroLayout(many(2, 40), start, view, aspect);
     const only = rowOnlyCards(laid.cards, laid.nodes, start, view, aspect);
@@ -209,12 +229,14 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     expect(only.every((card) => card.rowOnly && !laid.cards.some((shown) => shown.thing.id === card.thing.id))).toBe(true);
     const row = flightsFor([...laid.cards, ...only], laid.nodes, view);
     expect(row.size).toBe(laid.cards.length + only.length);
-    expect(rowMetrics(row, view).overflow).toBeGreaterThan(0);
     expect([...row.values()].filter((flight) => flight.rowOnly).length).toBe(only.length);
-    expect(Math.min(...[...row.values()].map((flight) => flight.to.x - flight.half))).toBeGreaterThanOrEqual(0);
+    for (const flight of row.values()) {
+      expect(flight.to.x - flight.half).toBeGreaterThanOrEqual(0);
+      expect(flight.to.y + flight.tall).toBeLessThanOrEqual(view.h + 0.001);
+    }
   });
 
-  it("줄에만 있는 종이는 쉼터에서 보인다", () => {
+  it("칸에만 있는 종이는 쉼터에서 보인다", () => {
     const view = { w: 1280, h: 800 };
     const laid = heroLayout(many(2, 40), start, view, aspect);
     const only = rowOnlyCards(laid.cards, laid.nodes, start, view, aspect);
@@ -223,7 +245,7 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     expect(rowOnlyPose(rowRest, flight).opacity).toBe(1);
   });
 
-  it("최근에 작업한 파일이 왼쪽부터 놓인다", () => {
+  it("칸 안에서는 최근에 작업한 파일이 먼저 놓인다", () => {
     const days = [9, 1, 5, 3];
     const files = days.map((day, f) => thing(`f${f}`, { lastModified: start - day * 86400000, touchedAt: null, lastUsedAt: null }));
     const laid = heroLayout([room("a", files)], start, baseView, aspect);
@@ -231,25 +253,13 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     expect(laid.cards.map((card) => card.thing.id).sort((a, b) => row.get(a)!.slot - row.get(b)!.slot)).toEqual(["f1", "f3", "f2", "f0"]);
   });
 
-  it("넉넉한 창에서도 이웃과 살짝 겹쳐 더미처럼 놓인다", () => {
-    const laid = heroLayout(many(2, 3), start, baseView, aspect);
-    const row = flightsFor(laid.cards, laid.nodes, baseView);
-    const placed = laid.cards.map((card) => ({ card, flight: row.get(card.thing.id)! })).sort((a, b) => a.flight.slot - b.flight.slot);
-    placed.slice(1).forEach(({ card, flight }, index) => {
-      const before = placed[index];
-      const lap = before.flight.to.x + (before.card.size * before.flight.to.scale) / 2 - (flight.to.x - (card.size * flight.to.scale) / 2);
-      expect(lap).toBeGreaterThan(0);
-      expect(lap).toBeLessThan(Math.min(card.size, before.card.size) * flight.to.scale);
-    });
-  });
-
-  it("주름관과 이름표가 비어 있는 높이를 고른다", () => {
-    const view = { w: 1280, h: 800 };
-    const { nodes: few, cards: papers } = heroLayout(many(1, 4), start, view, aspect);
-    const { y } = [...flightsFor(papers, few, view).values()][0].to;
-    const tall = Math.max(...papers.map((card) => card.height));
-    const vase = keepOut(few, view).slice(3);
-    expect(vase.every((box) => y + tall / 2 <= box.y - box.hh || y - tall / 2 >= box.y + box.hh)).toBe(true);
+  it("같은 줄의 이웃과는 살짝 겹쳐 더미처럼 놓인다", () => {
+    const laid = heroLayout(many(1, 2), start, baseView, aspect);
+    const [a, b] = [...flightsFor(laid.cards, laid.nodes, baseView).values()].sort((x, y) => x.slot - y.slot);
+    expect(a.to.y === b.to.y || Math.abs(a.to.y - b.to.y) < Math.max(a.tall, b.tall)).toBe(true);
+    const lap = a.to.x + a.half - (b.to.x - b.half);
+    expect(lap).toBeGreaterThan(0);
+    expect(lap).toBeLessThan(Math.min(a.half, b.half) * 2);
   });
 });
 

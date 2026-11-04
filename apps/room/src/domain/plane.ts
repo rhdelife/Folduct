@@ -1,15 +1,17 @@
 import type { Spot, Thing } from "./model";
 
-// 방은 floor×floor 칸의 평평한 판입니다. 화면에는 960×600 판으로 그리고 틀 너비에 맞춰 줄입니다.
+// 방은 floor×floor 칸의 평평한 판입니다. 미리보기는 960×600 판으로 그리고, 방 화면은 창 크기만큼 판을 펼칩니다. 자리는 칸 단위로 저장하니 판 크기가 달라도 그대로예요.
 export const plane = { floor: 10, width: 960, height: 600 } as const;
 
-export function toScreen(spot: Spot): { left: number; top: number } {
-  return { left: (spot.x / plane.floor) * plane.width, top: (spot.y / plane.floor) * plane.height };
+export type PlaneSize = { width: number; height: number };
+
+export function toScreen(spot: Spot, size: PlaneSize = plane): { left: number; top: number } {
+  return { left: (spot.x / plane.floor) * size.width, top: (spot.y / plane.floor) * size.height };
 }
 
 // 화면에서 끈 거리(px)를 판 위 칸 거리로 바꿉니다. toScreen의 역변환입니다.
-export function screenDeltaToFloor(dx: number, dy: number): Spot {
-  return { x: (dx / plane.width) * plane.floor, y: (dy / plane.height) * plane.floor };
+export function screenDeltaToFloor(dx: number, dy: number, size: PlaneSize = plane): Spot {
+  return { x: (dx / size.width) * plane.floor, y: (dy / size.height) * plane.floor };
 }
 
 export function clampSpot(spot: Spot): Spot {
