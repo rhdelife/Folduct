@@ -41,10 +41,13 @@ function reach(w: number, h: number, degrees: number) {
 }
 
 const headerBottom = (view: View) => (view.w < 720 ? 112 : view.w < 1200 ? 100 : 74);
+// 현관 줄의 높이. styles.css의 .doorstep 한 줄에 맞춰요.
+const doorHeight = 118;
+const doorBottom = (view: View) => headerBottom(view) + doorHeight;
 
-// 파일이 피할 자리: 머리의 로고·숫자·버튼, 주름관과 이름표.
+// 파일이 피할 자리: 머리의 로고·숫자·버튼, 현관 줄, 주름관과 이름표.
 // 좁은 창은 머리 띠 전체를 비웁니다. 높이는 styles.css의 --topbar-stacked-h, --topbar-phone-h예요.
-export function keepOut(nodes: HeroNode[], view: View): Box[] {
+export function keepOut(nodes: HeroNode[], view: View, top = 0): Box[] {
   const unit = stageUnit(view);
   const margin = 10 * unit;
   const band = (height: number): Box => ({ x: view.w / 2, y: height / 2, hw: view.w / 2, hh: height / 2 });
@@ -54,6 +57,7 @@ export function keepOut(nodes: HeroNode[], view: View): Box[] {
     // 메뉴에 '정리할 때예요'가 붙어도 종이가 밑에 깔리지 않을 폭입니다. 알림이 떠도 종이가 움직이지 않게 늘 비워요.
     { x: view.w - 130, y: 40, hw: 130, hh: 34 },
   ];
+  if (top > 0) boxes.push(band(top));
   boxes.push(...calendarSpot(view));
   for (const { at, r, room } of nodes) {
     const center = toPx(at, view);
@@ -69,9 +73,10 @@ export function keepOut(nodes: HeroNode[], view: View): Box[] {
   return boxes;
 }
 
-export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, selectedId: string | null = null): HeroLayout {
+export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, selectedId: string | null = null, doorOpen = false): HeroLayout {
   const unit = stageUnit(view);
-  const nodes: HeroNode[] = layoutRooms(rooms, view).map((placed) => ({ ...placed, r: roomRadius(placed.room, placed.scale) }));
+  const top = doorOpen ? doorBottom(view) : 0;
+  const nodes: HeroNode[] = layoutRooms(rooms, view, top).map((placed) => ({ ...placed, r: roomRadius(placed.room, placed.scale) }));
 
   // 방마다 번갈아 한 장씩 뽑아 작은 방도 빠지지 않게 합니다.
   const piles = nodes.map(({ room, at, spread, scale }) => ({ room, stars: roomStars(room, at, spread, now, 40, scale) }));
@@ -86,7 +91,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const shown = new Set(base.map(({ star }) => star.thing.id));
   const extras = piles.filter(({ room }) => room.id === selectedId).flatMap(({ room, stars }) => stars.filter(({ thing }) => !shown.has(thing.id)).map((star) => ({ room, star })));
 
-  const fixed = keepOut(nodes, view);
+  const fixed = keepOut(nodes, view, top);
   const free = view.w * view.h - fixed.reduce((sum, box) => sum + 4 * box.hw * box.hh, 0);
   const paperUnit = Math.max(unit, smallUnit);
   const widths = base.map(({ star }) => paperWidth(star.thing.size, paperUnit));
@@ -125,7 +130,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   let stuck = new Set<Movable>();
   for (let tries = 0; tries < 4; tries += 1) {
     // 마지막 시도는 바닥 없이 줄여 종이를 빼지 않는 쪽을 택합니다.
-    if (tries === 3) floor = 0;
+    // 폰 폭에 현관 줄까지 있으면 아이콘으로 다 띄우기보다 이름이 찍히는 장만 남겨요.
+    if (tries === 3 && !(top > 0 && view.w < 720)) floor = 0;
     placed = base.map((entry) => cardOf(entry, false));
     const items = placed.map(({ item }) => item);
     const used = items.reduce((sum, { hw, hh }) => sum + 4 * hw * hh, 0);

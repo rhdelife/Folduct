@@ -181,7 +181,7 @@ export function roomsToKeep(active: Room[], prefer: (string | null)[]): string[]
 }
 
 // 지도에는 홈에 둔 방만 놓고, 서로 밀어내 겹치지 않게 합니다. 자리를 넘은 방은 고르는 창이 떠 있는 동안에만 생겨요.
-export function layoutRooms(rooms: Room[], view: View = baseView): Placed[] {
+export function layoutRooms(rooms: Room[], view: View = baseView, top = 0): Placed[] {
   const active = rooms.filter((room) => !room.care.done).slice(0, homeLimit);
   const scale = 1;
   const spread = clusterSpread(active.length);
@@ -195,7 +195,7 @@ export function layoutRooms(rooms: Room[], view: View = baseView): Placed[] {
     const label = Math.max(labelHeight * stageUnit(view), 48);
     const hw = Math.max(half, labelHalf(active[i].name, view));
     const hh = half + label / 2;
-    return { x, y, hw, hh, dy: label / 2, minX: Math.min(view.w / 2, hw + margin), maxX: Math.max(view.w / 2, view.w - hw - margin), minY: Math.min(view.h / 2, Math.max(72 * stageUnit(view), 72) + half), maxY: Math.max(view.h / 2, view.h - hh * 2 - margin + half) };
+    return { x, y, hw, hh, dy: label / 2, minX: Math.min(view.w / 2, hw + margin), maxX: Math.max(view.w / 2, view.w - hw - margin), minY: Math.min(view.h / 2, Math.max(72 * stageUnit(view), 72, top) + half), maxY: Math.max(view.h / 2, view.h - hh * 2 - margin + half) };
   });
   relaxBoxes(items, calendarSpot(view), { gap: margin, passes: 40 });
   settleBoxes(items, calendarSpot(view), margin / 2, 12 * stageUnit(view));

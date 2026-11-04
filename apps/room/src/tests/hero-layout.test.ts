@@ -253,6 +253,29 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
   });
 });
 
+describe("현관 줄 자리", () => {
+  it("현관 줄이 있으면 주름관과 종이가 그 아래에 놓인다", () => {
+    for (const view of [{ w: 375, h: 812 }, { w: 720, h: 900 }, { w: 1280, h: 800 }]) {
+      const line = (view.w < 720 ? 112 : view.w < 1200 ? 100 : 74) + 118;
+      const { nodes, cards } = heroLayout(many(3, 4), start, view, aspect, null, true);
+      for (const { at, r } of nodes) expect(toPx(at, view).y - vaseHalf(r) * stageUnit(view) * vaseUnit).toBeGreaterThanOrEqual(line);
+      for (const card of cards) expect(toPx(card, view).y + card.height / 2).toBeGreaterThan(line);
+      expect(cards.filter((card) => toPx(card, view).y - card.height / 2 < line - 2)).toEqual([]);
+    }
+  });
+
+  it("폰 폭에 현관 줄이 있어도 종이는 이름이 찍히는 크기다", () => {
+    const { cards } = heroLayout(many(4, 12), start, { w: 375, h: 700 }, aspect, null, true);
+    expect(cards.length).toBeGreaterThan(0);
+    expect(Math.min(...cards.map((card) => card.size))).toBeGreaterThanOrEqual(namedPaper);
+  });
+
+  it("현관 줄이 없으면 그 자리를 비우지 않는다", () => {
+    const view = { w: 1280, h: 800 };
+    expect(keepOut([], view).length).toBe(keepOut([], view, 192).length - 1);
+  });
+});
+
 describe("일력 자리", () => {
   it("주름관은 일력 자리에 앉지 않는다", () => {
     for (const view of [{ w: 720, h: 640 }, { w: 720, h: 900 }, { w: 1280, h: 800 }]) {

@@ -31,6 +31,7 @@ export function SkyMap({
   now,
   selectedId,
   focusId,
+  doorOpen,
   onSelectRoom,
   onOpenRoom,
   onFocusThing,
@@ -42,6 +43,7 @@ export function SkyMap({
   now: number;
   selectedId: string | null;
   focusId: string | null;
+  doorOpen: boolean;
   onSelectRoom: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
@@ -106,7 +108,7 @@ export function SkyMap({
 
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
   const { ordered, cards, ids, camera } = useMemo(() => {
-    const { nodes, cards } = heroLayout(rooms, now, view, paperAspect, selectedId);
+    const { nodes, cards } = heroLayout(rooms, now, view, paperAspect, selectedId, doorOpen);
     // 고른 방과 그 파일들이 화면을 채우도록 확대하고 가운데로 옮깁니다. 변환은 CSS가 부드럽게 이어 줍니다.
     const picked = nodes.find((item) => item.room.id === selectedId);
     let camera: Camera = null;
@@ -122,7 +124,7 @@ export function SkyMap({
       camera = { zoom, x: focusPoint.x - picked.at.x * zoom, y: focusPoint.y - picked.at.y * zoom };
     }
     return { ordered: nodes, cards, ids: nodes.map((item) => item.room.id), camera };
-  }, [rooms, selectedId, now, view]);
+  }, [rooms, selectedId, now, view, doorOpen]);
 
   // 줄에만 있는 종이는 줄로 모일 때만 그립니다.
   const gathering = !useBetween(0, 5);
