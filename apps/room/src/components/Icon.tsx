@@ -18,11 +18,15 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   );
 }
 
-// 화병 로고(design/logo/folduct-vase.svg). 색은 브랜드 전용 토큰 --brand 하나만 씁니다. size는 높이예요.
+// 주름관 로고(design/logo/folduct-symbol.svg). 세로 관이 기둥, 꺾인 관과 머리가 윗줄, 내민 팔이 가운뎃줄인 F예요. 색은 브랜드 전용 토큰 --brand 하나만 씁니다. size는 높이예요.
 export function BrandMark({ size }: { size: number }) {
   return (
-    <svg className="mark" viewBox="28 28 504 912" width={Math.round((size * 504) / 912)} height={size} fill="var(--brand)" aria-hidden="true" focusable="false">
-      <path d="M113 43C113 34 447 34 447 43L447 540C447 565 449 580 458 593C494 603 520 615 523 636C530 665 509 689 475 702C454 712 451 731 447 756L440 887C439 919 411 934 280 934C149 934 121 919 120 887L113 756C109 731 106 712 85 702C51 689 30 665 37 636C40 615 66 603 102 593C111 580 113 565 113 540Z" />
+    <svg className="mark" viewBox="-4 -8 128 128" width={size} height={size} fill="var(--brand)" aria-hidden="true" focusable="false">
+      <path d="M42 64C54 64 66 64 78 64" fill="none" stroke="var(--brand)" strokeWidth={13} strokeLinecap="round" />
+      <path d="M70 64a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z" />
+      <path d="M14 106L54 106L56 114L12 114Z" />
+      <path d="M47 112L47 40.1L47.2 36.8L47.7 34.2L48.2 32.8L48.9 32L49.9 31.5L51.5 31.2L54.1 31L72 31L72 5L53.9 5L50.9 5.1L47.9 5.4L45.8 5.8L42.7 6.5L40.7 7.2L37.7 8.5L35.7 9.6L32.9 11.5L31.1 13L29.5 14.6L27.3 17.4L26 19.3L24.4 22.4L23.1 25.7L22.2 29.1L21.5 32.6L21.1 37.5L21 112Z" />
+      <path fillRule="evenodd" d="M67 20C67 -7.7 117 -7.7 117 20C117 47.7 67 47.7 67 20ZM78.3 19.8A5.8 6.6 -8 1 0 89.7 18.2A5.8 6.6 -8 1 0 78.3 19.8ZM95 18.8A6.1 7 -8 1 0 107 17.2A6.1 7 -8 1 0 95 18.8Z" />
     </svg>
   );
 }

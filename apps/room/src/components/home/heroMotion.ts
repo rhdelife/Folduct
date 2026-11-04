@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { ductLength, ductMouth } from "../../art/duct";
+import { roomUsage } from "../../domain/care";
 import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
 import { flightsFor, rowMetrics, type Card, type Flight, type HeroNode } from "../../domain/heroLayout";
 import { range, rowRest, useBetween, useEngine, useScene } from "./engine";
@@ -45,7 +47,7 @@ export function arrivalFrames(rest: Pt, half: number, view: View, ms: number): K
   });
 }
 
-// 종이 한 장의 등장: 자기 방 화병에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
+// 종이 한 장의 등장: 자기 방 주름관의 입에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
 export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   return [
     { offset: 0, opacity: 0, translate: `${dx}px ${dy}px`, scale: "0.2", rotate: `${2 * kick}deg`, easing: "cubic-bezier(.16,1,.3,1)" },
@@ -73,7 +75,7 @@ function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]
   const add = (el: Element | null | undefined, frames: Keyframe[], options: KeyframeAnimationOptions) => {
     if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
   };
-  // 화병이 먼저 날아와 자리를 잡고, 그 화병에서 파일이 흩어져 나옵니다.
+  // 주름관이 먼저 날아와 자리를 잡고, 그 입에서 파일이 흩어져 나옵니다.
   const step = vaseStep(nodes.length);
   const unit = stageUnit(view) * vaseUnit;
   const landed = new Map<string, number>();
@@ -91,7 +93,10 @@ function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]
     const home = nodes.find((node) => node.room.id === card.room.id);
     if (!home) return;
     const rest = toPx(card, view);
-    const origin = toPx(home.at, view);
+    const center = toPx(home.at, view);
+    const mouth = ductMouth(home.room.face.shape, ductLength(roomUsage(home.room).totalBytes));
+    const box = vaseHalf(home.r) * unit * 2;
+    const origin = { x: center.x + mouth.x * box, y: center.y + mouth.y * box };
     const turn = spilled.get(card.room.id) ?? 0;
     spilled.set(card.room.id, turn + 1);
     const delay = (landed.get(card.room.id) ?? 0) + turn * spillStep;

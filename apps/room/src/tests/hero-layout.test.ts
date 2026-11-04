@@ -41,7 +41,7 @@ describe("첫 화면 종이 배치", () => {
     expect(covers({ ...baseView, w: 375, h: 812 }, 187, 110)).toBe(true);
   });
 
-  it("종이끼리, 머리글·화병·이름표·머리 버튼과 겹치지 않는다", () => {
+  it("종이끼리, 머리글·주름관·이름표·머리 버튼과 겹치지 않는다", () => {
     for (const view of views) {
       for (const [roomCount, files] of [[1, 30], [2, 20], [3, 14], [12, 6], [30, 3]]) {
         const { nodes, cards } = heroLayout(many(roomCount, files), start, view, aspect);
@@ -135,7 +135,7 @@ describe("방 자리", () => {
     }
   });
 
-  it("방이 자리만큼 차도 화병끼리 겹치지 않는다", () => {
+  it("방이 자리만큼 차도 주름관끼리 겹치지 않는다", () => {
     for (const view of views) {
       for (const count of [3, 4, homeLimit]) {
         const unit = stageUnit(view) * vaseUnit;
@@ -243,7 +243,7 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     });
   });
 
-  it("화병과 이름표가 비어 있는 높이를 고른다", () => {
+  it("주름관과 이름표가 비어 있는 높이를 고른다", () => {
     const view = { w: 1280, h: 800 };
     const { nodes: few, cards: papers } = heroLayout(many(1, 4), start, view, aspect);
     const { y } = [...flightsFor(papers, few, view).values()][0].to;
@@ -254,7 +254,7 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
 });
 
 describe("일력 자리", () => {
-  it("화병은 일력 자리에 앉지 않는다", () => {
+  it("주름관은 일력 자리에 앉지 않는다", () => {
     for (const view of [{ w: 720, h: 640 }, { w: 720, h: 900 }, { w: 1280, h: 800 }]) {
       for (const count of [1, 3, 5, 7, 12]) {
         const [box] = calendarSpot(view);
@@ -274,7 +274,7 @@ describe("일력 자리", () => {
 });
 
 describe("등장 경로", () => {
-  it("화병은 왼쪽 아래 화면 밖에서 시작해 제자리에 똑바로 내려앉는다", () => {
+  it("주름관은 왼쪽 아래 화면 밖에서 시작해 제자리에 똑바로 내려앉는다", () => {
     const rest = { x: 480, y: 440 };
     const frames = arrivalFrames(rest, 80, baseView, 1600);
     const [x, y] = String(frames[0].translate).split(" ").map(parseFloat);
@@ -284,7 +284,7 @@ describe("등장 경로", () => {
     expect(parseFloat(String(frames[frames.length - 1].rotate))).toBeCloseTo(0, 5);
   });
 
-  it("자기 화병 자리에서 나와 제자리에 앉는다", () => {
+  it("자기 주름관 자리에서 나와 제자리에 앉는다", () => {
     const frames = spillFrames(100, 50, 10);
     expect(frames[0]).toMatchObject({ opacity: 0, translate: "100px 50px" });
     expect(frames[frames.length - 1]).toMatchObject({ opacity: 1, translate: "0px 0px", scale: "1", rotate: "0deg" });

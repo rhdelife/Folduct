@@ -34,7 +34,7 @@ describe("인트로 종이", () => {
     expect(introPapers([])).toEqual([]);
   });
 
-  it("화병과 글자가 있는 가운데를 비우고 화면 안쪽에 놓아요", () => {
+  it("주름관과 글자가 있는 가운데를 비우고 화면 안쪽에 놓아요", () => {
     for (const paper of introPapers([...many(8, "image"), ...many(8, "text")])) {
       expect(Math.abs(paper.x) >= 38 || Math.abs(paper.y) >= 35, `${paper.x}, ${paper.y}`).toBe(true);
       expect(Math.abs(paper.x)).toBeLessThanOrEqual(45);

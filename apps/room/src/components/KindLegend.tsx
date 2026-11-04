@@ -2,7 +2,7 @@ import { ObjectShape } from "../art/ObjectShape";
 import { colorGroups } from "../art/palette";
 import { objectScale } from "../domain/care";
 import { formatBytes, type Kind, type Thing } from "../domain/model";
-import { kindParts, kindSummary } from "../art/vases";
+import { kindParts, kindSummary } from "../art/duct";
 
 // 지금 보이는 파일에 있는 색 묶음만 범례로 보여줍니다. 견본은 실제 오브제와 같은 모양이고, 색만으로 뜻을 전하지 않도록 글자를 붙입니다.
 export function KindLegend({ kinds }: { kinds: Iterable<Kind> }) {

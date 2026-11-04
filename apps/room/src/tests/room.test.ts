@@ -6,7 +6,7 @@ import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "..
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
 import { previewMode } from "../components/FileViewer";
 import { clusterSpread, hash, homeActivity, homeLimit, layoutRooms, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
-import { kindParts, vaseBands, vaseIndex, vasePaths } from "../art/vases";
+import { kindParts } from "../art/duct";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
 import { seed, view } from "./fakeFolder";
@@ -439,24 +439,12 @@ describe("밤하늘 지도", () => {
     expect(distance(fallen.id)).toBeGreaterThan(distance(fresh.id));
   });
 
-  it("화병은 방마다 정해지고, 형식별 용량이 바닥부터 주어진 높이만큼 쌓인다", () => {
-    expect(vaseIndex("방-1")).toBe(vaseIndex("방-1"));
-    expect(new Set(Array.from({ length: 80 }, (_, i) => vaseIndex(`방-${i}`))).size).toBe(vasePaths.length);
-    for (const path of vasePaths) expect(path).not.toContain("NaN");
-
+  it("형식별 용량은 없어진 파일을 빼고 묶인다", () => {
     const parts = kindParts([thing({ kind: "image", size: 30 }), thing({ kind: "video", size: 10 }), thing({ kind: "pdf", size: 60, missing: true })]);
     expect(parts.map((part) => [part.label, part.size])).toEqual([["이미지", 30], ["영상", 10]]);
-    const half = vaseBands(parts, 0.5);
-    expect(half.map((band) => band.height)).toEqual([75, 25]);
-    expect(half[0].y + half[0].height).toBe(100);
-    expect(half[1].y + half[1].height).toBe(half[0].y);
-    expect(half[1].y).toBe(0);
-    // 1을 넘어도 화병 밖으로 넘치지 않고, 0이면 비어 있습니다.
-    expect(vaseBands(parts, 1.4)[1].y).toBe(-100);
-    expect(vaseBands(parts, 0)).toEqual([]);
   });
 
-  it("파일은 커진 화병과 이름표 자리를 피해 뜬다", () => {
+  it("파일은 커진 주름관과 이름표 자리를 피해 뜬다", () => {
     const things = Array.from({ length: 40 }, (_, i) => thing({ path: `f${i}.png`, id: `t${i}`, size: 5 * MB }));
     const r = room(things);
     const center = { x: 500, y: 300 };

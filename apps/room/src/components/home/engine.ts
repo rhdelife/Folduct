@@ -214,7 +214,7 @@ export function createEngine(): Engine {
       hold(false);
     };
 
-    // 지도 화병처럼 화살표를 직접 쓰는 곳은 preventDefault로 먼저 가져갑니다. 창에서 듣기 때문에 그 뒤에 옵니다.
+    // 지도 주름관처럼 화살표를 직접 쓰는 곳은 preventDefault로 먼저 가져갑니다. 창에서 듣기 때문에 그 뒤에 옵니다.
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || blocked()) return;
       if (inside(event.target, ownInput) || inside(event.target, typing)) return;

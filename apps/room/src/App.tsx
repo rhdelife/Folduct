@@ -21,7 +21,7 @@ function readRoute(): string | null {
 
 export default function App() {
   const [roomId, setRoomId] = useState(readRoute);
-  // 집으로 돌아오면 방금 있던 방의 화병으로 포커스를 돌려줍니다.
+  // 집으로 돌아오면 방금 있던 방의 주름관으로 포커스를 돌려줍니다.
   const [lastRoomId, setLastRoomId] = useState(roomId);
   // 인트로는 집으로 켤 때만 나옵니다. 방 주소로 바로 열었거나 방에서 돌아올 때는 나오지 않아요.
   const [intro, setIntro] = useState<"checking" | "playing" | "leaving" | "off">(roomId ? "off" : "checking");

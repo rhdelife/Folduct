@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { shortPath } from "../domain/platform";
 import { ObjectShape } from "../art/ObjectShape";
-import { kindParts, vaseBands } from "../art/vases";
+import { ductLength, kindParts } from "../art/duct";
 import { RoomFaceArt } from "./RoomFace";
 import { lastActivity, relativeDay, thingAge } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
-import { homeActivity, pickStarThings, progressText, roomActivity, vaseFill, type RoomStat } from "../domain/sky";
+import { roomUsage } from "../domain/care";
+import { homeActivity, pickStarThings, progressText, roomActivity, type RoomStat } from "../domain/sky";
 import { Capacity } from "./Capacity";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { KindMix } from "./KindLegend";
@@ -27,7 +28,7 @@ export function HomeSummary({ rooms, stats, now }: { rooms: Room[]; stats: Map<s
       <p className="lede">
         {active === 0
           ? "홈에 둔 방이 없어요. 새 방을 만들거나, 뺀 방을 골라 홈에 올릴 수 있어요."
-          : "화병은 방, 색은 파일 형식이에요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 홈에서 뺀 방은 지도에서 빠지고 아래 목록에 모여요."}
+          : "주름관은 방, 색은 파일 형식이에요. 관이 길수록 용량이 커요. 파일은 클수록 크게, 오래 손대지 않을수록 멀리 떠 있어요. 홈에서 뺀 방은 지도에서 빠지고 아래 목록에 모여요."}
       </p>
       <dl>
         <div><dt>홈 / 뺀 방</dt><dd>{active}<small> / {rooms.length - active}</small></dd></div>
@@ -159,9 +160,11 @@ export function SkyPanel({
   );
 }
 
-// 방은 어디서나 화병입니다. 지도와 같은 그림을 줄 높이에 맞춰 작게 그려요.
+// 방은 어디서나 주름관입니다. 지도와 같은 그림을 줄 높이에 맞춰 작게 그려요.
+const rankPx = 24;
+
 export function RankVase({ room, partial }: { room: Room; partial: boolean }) {
-  return <RoomFaceArt face={room.face} bands={vaseBands(kindParts(room.things), partial ? 0 : vaseFill)} className="rank-vase" />;
+  return <RoomFaceArt face={room.face} parts={partial ? [] : kindParts(room.things)} length={ductLength(roomUsage(room).totalBytes)} px={rankPx} className="rank-vase" />;
 }
 
 function RoomRows({ rows, now, onSelectRoom, onRoomMenu }: { rows: ({ room: Room } & RoomStat)[]; now: number; onSelectRoom: (id: string) => void; onRoomMenu: OpenRoomMenu }) {

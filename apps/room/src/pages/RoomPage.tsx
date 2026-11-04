@@ -127,7 +127,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     };
   }, [roomId, attempt]);
 
-  // 방을 열어 둔 채 플로팅 화병으로 파일을 넣거나 되돌리면 저장된 목록을 바로 가져옵니다. 들고 있는 고침부터 저장해 덮어쓰지 않아요.
+  // 방을 열어 둔 채 플로팅 창으로 파일을 넣거나 되돌리면 저장된 목록을 바로 가져옵니다. 들고 있는 고침부터 저장해 덮어쓰지 않아요.
   useEffect(() => {
     if (!isNative()) return;
     let left = false;

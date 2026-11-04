@@ -1,46 +1,68 @@
-import { useId } from "react";
-import { vasePaths, type VaseBand } from "../art/vases";
+import { useMemo, type CSSProperties } from "react";
+import { drawPose, drawRoom, ductLayers, ductShapeCount, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
 import { faceColors, faceColorVar } from "../domain/face";
 import type { RoomFace } from "../domain/model";
 
-// 목 높이. 어느 화병이든 입구에서 이만큼 칠하면 몸통의 층과 겹치지 않아요(끝까지 찬 때만 층 위로 덮습니다).
-const neckHeight = 30;
+type Parts = { label: string; color: string; size: number }[];
 
-// 방은 어디서나 이 그림입니다. 모양과 색은 프로젝트, 안쪽 층은 파일 형식을 뜻해요.
-export function RoomFaceArt({ face, bands = [], className, viewBox = "-100 -100 200 200", glass = "vase-body", band = "vase-band", line = "vase-line" }: {
-  face: RoomFace;
-  bands?: VaseBand[];
-  className?: string;
-  viewBox?: string;
-  glass?: string;
-  band?: string;
-  line?: string;
-}) {
-  // WebKit은 크기 0인 다른 svg의 clipPath를 따라가지 못해 화병마다 둡니다.
-  const clip = useId();
-  const path = vasePaths[face.shape];
+function Piece({ piece, band }: { piece: DuctPiece; band?: string }) {
+  const layer = piece.tone === "layer";
   return (
-    <svg className={className} viewBox={viewBox} aria-hidden="true" focusable="false">
-      <clipPath id={clip}><path d={path} /></clipPath>
-      <path className={glass} d={path} />
-      <g clipPath={`url(#${clip})`}>
-        {bands.map((item) => <rect key={item.label} className={band} x={-100} y={item.y} width={200} height={item.height} fill={item.color} />)}
-        <rect className="vase-neck" x={-100} y={-100} width={200} height={neckHeight} style={{ fill: faceColorVar(face.color) }} />
-      </g>
-      <path className={line} d={path} />
+    <path
+      className={layer && band ? `duct-layer ${band}` : `duct-${piece.tone}`}
+      d={piece.d}
+      fill={piece.color}
+      fillRule={piece.even ? "evenodd" : undefined}
+      style={layer ? ({ "--i": piece.i, "--n": piece.n } as CSSProperties) : undefined}
+    />
+  );
+}
+
+function DuctArt({ drawing, className, foot, paper, band }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string }) {
+  return (
+    <svg className={className} viewBox={drawing.viewBox} aria-hidden="true" focusable="false" style={{ "--duct-foot": foot, "--duct-paper": paper } as CSSProperties}>
+      {drawing.items.map((item, at) =>
+        "parts" in item ? (
+          <g key={at} transform={item.transform} className={item.rib === undefined ? undefined : "duct-rib"} style={item.rib === undefined ? undefined : ({ "--rib": item.rib } as CSSProperties)}>
+            {item.parts.map((part, inner) => <Piece key={inner} piece={part} band={band} />)}
+          </g>
+        ) : (
+          <Piece key={at} piece={item} band={band} />
+        ),
+      )}
     </svg>
   );
 }
+
+const partsKey = (parts: Parts) => parts.map((part) => `${part.label}:${part.size}`).join();
+
+// 방은 어디서나 이 그림입니다. 모양과 받침 색은 프로젝트, 길이는 용량, 주름 색은 파일 형식을 뜻해요. px는 그림이 차지하는 폭입니다.
+export function RoomFaceArt({ face, parts = [], length = 0.7, px, className }: { face: RoomFace; parts?: Parts; length?: number; px: number; className?: string }) {
+  const key = partsKey(parts);
+  const level = Math.round(length * 50) / 50;
+  // 부모가 다시 그려져도 같은 값이면 선을 다시 만들지 않습니다.
+  const drawing = useMemo(() => drawRoom(face.shape, level, { px, layers: ductLayers(parts) }), [face.shape, level, px, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <DuctArt drawing={drawing} className={className} foot={faceColorVar(face.color)} />;
+}
+
+// 플로팅 창과 인트로의 자세. 창 안에서는 표준 자세에 그 방의 색만 입혀요. 자세를 모양마다 그리면 56가지가 됩니다.
+export function PoseArt({ pose, parts = [], px, foot, paper, band, className }: { pose: DuctPose; parts?: Parts; px: number; foot?: string; paper?: string; band?: string; className?: string }) {
+  const key = partsKey(parts);
+  const drawing = useMemo(() => drawPose(pose, { px, layers: ductLayers(parts) }), [pose, px, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <DuctArt drawing={drawing} className={className} foot={foot} paper={paper} band={band} />;
+}
+
+const pickerPx = 64;
 
 // 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다.
 export function FacePicker({ face, onChange }: { face: RoomFace; onChange: (face: RoomFace) => void }) {
   return (
     <fieldset className="face-picker">
       <legend>방 얼굴</legend>
-      <div className="face-options" role="group" aria-label="화병 모양">
-        {vasePaths.map((_, shape) => (
+      <div className="face-options" role="group" aria-label="주름관 모양">
+        {Array.from({ length: ductShapeCount }, (_, shape) => (
           <button key={shape} type="button" className="face-option" aria-label={`모양 ${shape + 1}`} aria-pressed={face.shape === shape} onClick={() => onChange({ ...face, shape })}>
-            <RoomFaceArt face={{ ...face, shape }} className="face-art" />
+            <RoomFaceArt face={{ ...face, shape }} px={pickerPx} className="face-art" />
           </button>
         ))}
       </div>

@@ -34,7 +34,7 @@ let doorChecked = false;
 
 const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms.json 폴더1 폴더2…";
 
-// 그 방의 화병으로 포커스를 옮깁니다. 화병이 없으면 지도로 들어오는 자리(첫 화병이나 빈 지도의 버튼)로요.
+// 그 방의 주름관으로 포커스를 옮깁니다. 주름관이 없으면 지도로 들어오는 자리(첫 주름관이나 빈 지도의 버튼)로요.
 function landFocus(id: string) {
   (document.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('.room-node[tabindex="0"], .sky-empty button'))?.focus();
 }
@@ -52,7 +52,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
-  // 방에서 돌아오면 패널 없이 화병을 고르는 첫 화면으로 옵니다.
+  // 방에서 돌아오면 패널 없이 주름관을 고르는 첫 화면으로 옵니다.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 패널이 닫히며 미끄러지는 동안에도 내용이 남도록 마지막으로 고른 방을 기억합니다.
   const [panelId, setPanelId] = useState<string | null>(null);
@@ -138,7 +138,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     getWorkLog().then(setWorkLog, (error: unknown) => console.error(error));
   }, []);
 
-  // 플로팅 화병이 파일을 옮겼거나 작업을 끝냈을 때입니다. 끝낸 방에 치울 파일이 있으면 정리 창을 띄워요.
+  // 플로팅 창이 파일을 옮겼거나 작업을 끝냈을 때입니다. 끝낸 방에 치울 파일이 있으면 정리 창을 띄워요.
   useEffect(() => {
     if (!isNative()) return;
     let left = false;
@@ -182,7 +182,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
 
   if (selected && selected.id !== panelId) setPanelId(selected.id);
 
-  // 패널을 닫으면 포커스가 갈 곳을 잃으니, 방금 본 방의 화병으로 돌려줍니다. 다른 곳에 있는 포커스는 빼앗지 않습니다.
+  // 패널을 닫으면 포커스가 갈 곳을 잃으니, 방금 본 방의 주름관으로 돌려줍니다. 다른 곳에 있는 포커스는 빼앗지 않습니다.
   // 새로 연 방은 패널 맨 위부터 보여 줍니다. 파일을 눌러 열면 그 줄로 가는 스크롤을 두고요.
   useEffect(() => {
     if (selected) {
@@ -219,7 +219,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
 
   // 불러오는 중이거나 실패하면 움직일 게 없습니다.
   const ready = rooms !== null && !loadFailed;
-  // 방에서 돌아오면 들어갔던 화병으로 포커스를 돌려줍니다.
+  // 방에서 돌아오면 들어갔던 주름관으로 포커스를 돌려줍니다.
   useEffect(() => {
     if (ready && returnTo) landFocus(returnTo);
   }, [ready]);
@@ -342,7 +342,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       label: "되돌리기",
       run: () => void moveRoom(id, !done).catch(fail(saveFailed)),
     });
-    // 화병이 사라져 포커스를 잃었으면 지도로 이어 줍니다.
+    // 주름관이 사라져 포커스를 잃었으면 지도로 이어 줍니다.
     requestAnimationFrame(() => {
       if (!document.activeElement || document.activeElement === document.body) landFocus(id);
     });

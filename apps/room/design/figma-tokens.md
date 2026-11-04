@@ -206,7 +206,6 @@
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |
-| `scene/pet-rest` | `0.45` |  |
 | `scene/cal-number` | `44px` |  |
 | `scene/cal-dot` | `5px` |  |
 | `scene/cal-gap` | `2px` |  |

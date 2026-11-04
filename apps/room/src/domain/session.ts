@@ -1,6 +1,6 @@
 import type { DoorItem } from "./doorstep";
 
-// 지금 하고 있는 작업 하나. 플로팅 화병의 시작·멈춤·끝내기가 이 값만 바꿉니다. 없으면 꺼진 상태예요.
+// 지금 하고 있는 작업 하나. 플로팅 창의 시작·멈춤·끝내기가 이 값만 바꿉니다. 없으면 꺼진 상태예요.
 // since는 시간을 세기 시작한 시각이고, 멈춰 있으면 null입니다. 쌓인 시간은 workedMs에 있어요.
 // watchFrom은 마지막으로 시작하거나 다시 시작한 시각이에요. 이 뒤에 들어온 파일만 이 작업의 파일로 봅니다.
 export type Session = { roomId: string; status: "working" | "paused"; workedMs: number; since: number | null; watchFrom: number };
@@ -34,7 +34,7 @@ export function arrivals(items: DoorItem[], session: Session | null): DoorItem[]
   return items.filter((item) => item.since >= session.watchFrom).sort((a, b) => a.since - b.since || a.lastModified - b.lastModified);
 }
 
-// 플로팅 화병 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.
+// 플로팅 창 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.
 export const askChoices = [0, 5, 10, 30] as const;
 export type PetSettings = { askEvery: number; hidden: boolean };
 export const defaultPet: PetSettings = { askEvery: 10, hidden: false };

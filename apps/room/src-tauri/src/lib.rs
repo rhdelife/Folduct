@@ -58,7 +58,7 @@ fn place_pet_top_right<R: Runtime>(pet: &tauri::WebviewWindow<R>) {
   let x = monitor.position().x as f64 + monitor.size().width as f64 - (WIDTH + RIGHT_GAP) * scale;
   let y = monitor.position().y as f64 + TOP_GAP * scale;
   let _ = pet.set_position(tauri::PhysicalPosition::new(x, y));
-  // 메인 창이 화병 자리까지 오면 건너뛰기와 머리 버튼이 가려져요. 왼쪽으로 비켜 둡니다.
+  // 메인 창이 플로팅 창 자리까지 오면 건너뛰기와 머리 버튼이 가려져요. 왼쪽으로 비켜 둡니다.
   if let Some(main) = pet.app_handle().get_webview_window("main") {
     if let (Ok(at), Ok(size)) = (main.outer_position(), main.outer_size()) {
       let overlap = at.x as f64 + size.width as f64 - x;
@@ -69,7 +69,7 @@ fn place_pet_top_right<R: Runtime>(pet: &tauri::WebviewWindow<R>) {
   }
 }
 
-// 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 화병이 따라옵니다.
+// 다른 앱으로 옮겨도, 다른 데스크톱이나 전체 화면 앱으로 가도 플로팅 창이 따라옵니다.
 // 일반 창은 다른 앱의 전체 화면 위에 뜨지 못해 패널로 바꿉니다. 눌러도 앱이 앞으로 나오지 않아 쓰던 전체 화면을 떠나지 않아요.
 #[cfg(target_os = "macos")]
 fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
@@ -117,7 +117,7 @@ fn float_everywhere<R: Runtime>(window: &tauri::WebviewWindow<R>) {
   }
 }
 
-// 플로팅 화병의 메뉴에서 부릅니다.
+// 플로팅 창의 메뉴에서 부릅니다.
 #[tauri::command]
 fn show_main<R: Runtime>(app: AppHandle<R>) {
   show_main_window(&app);
@@ -220,7 +220,7 @@ pub fn run() {
       }
       Ok(())
     })
-    // 메인 창을 닫아도 플로팅 화병은 남습니다. 완전히 끄는 건 ⌘Q나 화병 메뉴예요.
+    // 메인 창을 닫아도 플로팅 창은 남습니다. 완전히 끄는 건 ⌘Q나 플로팅 창 메뉴예요.
     .on_window_event(|window, event| {
       if let (WindowEvent::CloseRequested { api, .. }, "main") = (event, window.label()) {
         api.prevent_close();
@@ -338,7 +338,7 @@ mod tests {
     std::fs::remove_dir_all(&base).unwrap();
   }
 
-  // 플로팅 화병도 고른 폴더 안에서만 옮기고, 지우거나 고쳐 쓰지 못합니다.
+  // 플로팅 창도 고른 폴더 안에서만 옮기고, 지우거나 고쳐 쓰지 못합니다.
   #[test]
   fn pet_moves_but_never_deletes() {
     let base = std::env::temp_dir().join(format!("folduct-pet-{}", std::process::id()));

@@ -2,7 +2,7 @@ import { lastActivity, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
 import { calendarSpot, hash, labelHalf, labelHeight, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
 
-// 첫 화면 배치: 방 둘레의 파일을 판 전체에 흩고, 머리글·화병·이름표·머리 버튼을 피해 겹치지 않게 다듬습니다.
+// 첫 화면 배치: 방 둘레의 파일을 판 전체에 흩고, 머리글·주름관·이름표·머리 버튼을 피해 겹치지 않게 다듬습니다.
 
 // shortcut: 판에는 약 24장만 띄웁니다(방마다 번갈아 큰 파일부터). 고른 방만 제 파일을 한도까지 더 보여요. 방이 이보다 많으면 방마다 한 장씩은 띄워요. 판을 더 채우고 싶으면 이 값을 올려요.
 export const cardCap = 24;
@@ -42,7 +42,7 @@ function reach(w: number, h: number, degrees: number) {
 
 const headerBottom = (view: View) => (view.w < 720 ? 112 : view.w < 1200 ? 100 : 74);
 
-// 파일이 피할 자리: 머리의 로고·숫자·버튼, 화병과 이름표.
+// 파일이 피할 자리: 머리의 로고·숫자·버튼, 주름관과 이름표.
 // 좁은 창은 머리 띠 전체를 비웁니다. 높이는 styles.css의 --topbar-stacked-h, --topbar-phone-h예요.
 export function keepOut(nodes: HeroNode[], view: View): Box[] {
   const unit = stageUnit(view);
@@ -57,10 +57,10 @@ export function keepOut(nodes: HeroNode[], view: View): Box[] {
   boxes.push(...calendarSpot(view));
   for (const { at, r, room } of nodes) {
     const center = toPx(at, view);
-    // 고르면 화병이 커지니 커진 크기로 비워 둡니다.
+    // 고르면 주름관이 커지니 커진 크기로 비워 둡니다.
     const half = vaseHalf(r) * unit * vaseUnit * vaseLift;
     boxes.push({ x: center.x, y: center.y, hw: half + margin, hh: half + margin });
-    // 이름표는 화병 아래이고, 화병이 커지면 함께 내려갑니다. 두 자리를 다 비워요.
+    // 이름표는 주름관 아래이고, 주름관이 커지면 함께 내려갑니다. 두 자리를 다 비워요.
     const plain = vaseHalf(r) * unit * vaseUnit;
     const top = center.y + plain * 1.2;
     const bottom = center.y + plain * (0.24 + vaseLift) + labelHeight * 0.75;
@@ -169,7 +169,7 @@ const rowMinScale = 0.8;
 export const rowCap = 120;
 const rowTries = 12;
 
-// 줄의 높이 자리: 머리와 현관 줄(top) 아래에서 화병과 이름표에 가장 덜 걸리는 곳. 비슷하면 가운데 쪽입니다.
+// 줄의 높이 자리: 머리와 현관 줄(top) 아래에서 주름관과 이름표에 가장 덜 걸리는 곳. 비슷하면 가운데 쪽입니다.
 function rowY(height: number, nodes: HeroNode[], view: View, top: number): number {
   const min = Math.max(top, headerBottom(view)) + height / 2 + rowEdge;
   // 아래에 옆으로 미는 막대 자리를 남깁니다.

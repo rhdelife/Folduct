@@ -168,7 +168,7 @@
         "fill": {
           "$type": "color",
           "$value": "#e5bb4d",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -181,7 +181,7 @@
         "fill": {
           "$type": "color",
           "$value": "#5f9b6d",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -194,7 +194,7 @@
         "fill": {
           "$type": "color",
           "$value": "#2a64ad",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -207,7 +207,7 @@
         "fill": {
           "$type": "color",
           "$value": "#c9553f",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -220,7 +220,7 @@
         "fill": {
           "$type": "color",
           "$value": "#dd8b47",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -233,7 +233,7 @@
         "fill": {
           "$type": "color",
           "$value": "#8371c0",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -246,7 +246,7 @@
         "fill": {
           "$type": "color",
           "$value": "#c95b93",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -259,7 +259,7 @@
         "fill": {
           "$type": "color",
           "$value": "#98743f",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -272,7 +272,7 @@
         "fill": {
           "$type": "color",
           "$value": "#a5a5a1",
-          "$description": "화병 띠와 색 막대, 종이의 진한 면"
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
         },
         "edge": {
           "$type": "color",
@@ -810,10 +810,6 @@
     "pet-list-h": {
       "$type": "other",
       "$value": "168px"
-    },
-    "pet-rest": {
-      "$type": "other",
-      "$value": "0.45"
     },
     "cal-number": {
       "$type": "other",

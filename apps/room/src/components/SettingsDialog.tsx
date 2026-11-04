@@ -107,7 +107,7 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
         <label className="setting-row">
           <span>
             <strong>인트로</strong>
-            <small>앱을 켤 때 파일을 화병에 담는 장면을 보여 줘요.</small>
+            <small>앱을 켤 때 파일을 주름관 입에 담는 장면을 보여 줘요.</small>
           </span>
           <input type="checkbox" role="switch" checked={introOn ?? false} disabled={introOn === null} onChange={(event) => toggle(event.target.checked)} />
         </label>
@@ -115,15 +115,15 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
           <>
             <label className="setting-row">
               <span>
-                <strong>플로팅 화병</strong>
-                <small>어느 창에서든 작업을 시작하고 멈출 수 있게 화병을 띄워요.</small>
+                <strong>플로팅 창</strong>
+                <small>어느 창에서든 작업을 시작하고 멈출 수 있게 작은 창을 띄워요.</small>
               </span>
               <input type="checkbox" role="switch" checked={!pet.hidden} onChange={(event) => changePet({ ...pet, hidden: !event.target.checked })} />
             </label>
             <label className="setting-row">
               <span>
                 <strong>상태 확인 주기</strong>
-                <small>화병 옆에서 지금 작업 중인지 물어봐요.</small>
+                <small>플로팅 창에서 지금 작업 중인지 물어봐요.</small>
               </span>
               <select value={pet.askEvery} onChange={(event) => changePet({ ...pet, askEvery: Number(event.target.value) })}>
                 {askChoices.map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "묻지 않기" : `${minutes}분마다`}</option>)}

@@ -4,7 +4,7 @@ import type { Room, ScannedFile, Thing } from "../domain/model";
 import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
 import { answerDoneOffer, planSweep, reconcileBox, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
 import { sampleRooms } from "../storage/sample";
-import { vaseIndex } from "../art/vases";
+import { ductIndex } from "../art/duct";
 import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { put, seed, view, type MemoryDir } from "./fakeFolder";
 
@@ -98,7 +98,7 @@ describe("돌보기 설정 옮기기", () => {
     expect(normalizeRoom({ ...old, care: { ...old.care, fallAfterDays: 14 } }).care.staleAfterDays).toBe(14);
     expect(normalizeRoom({ ...old, doneOfferAt: 5 }).doneOfferAt).toBe(5);
     // 얼굴이 없던 방은 예전과 같은 모양을 받고, 저장된 얼굴은 지킵니다.
-    expect(normalizeRoom(old).face.shape).toBe(vaseIndex(old.id));
+    expect(normalizeRoom(old).face.shape).toBe(ductIndex(old.id));
     expect(normalizeRoom({ ...old, face: { shape: 3, color: 5 } }).face).toEqual({ shape: 3, color: 5 });
   });
 });

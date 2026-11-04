@@ -1,25 +1,25 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { kindParts, vaseBands, vasePaths } from "../art/vases";
+import { kindParts } from "../art/duct";
 import { introMs, introPapers, introThings } from "../domain/intro";
 import type { Thing } from "../domain/model";
 import { listRooms } from "../storage/db";
 import { sampleRooms } from "../storage/sample";
+import { PoseArt } from "./RoomFace";
 
 type Phase = "scatter" | "gather" | "fill" | "rise";
 
 const copy: Record<Phase, string> = {
   scatter: "파일이 흩어져 있어요.",
-  gather: "하나씩 화병에 담아요.",
-  fill: "색은 형식, 크기는 용량이에요.",
+  gather: "하나씩 주름관에 담아요.",
+  fill: "색은 형식, 길이는 용량이에요.",
   rise: "이제 방으로 가요.",
 };
 const nextPhase = { gather: "fill", fill: "rise" } as const;
-// 화병이 다 차도 입구까지 넘치지 않을 높이입니다.
-const fillLevel = 0.82;
-const vasePath = vasePaths[0];
+// 그림이 차지하는 폭. 화면마다 달라 선 굵기가 무난한 값으로 둡니다.
+const introPx = 240;
 
-// 앱을 켤 때 한 번, 흩어진 파일을 화병에 담고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
+// 앱을 켤 때 한 번, 흩어진 파일을 주름관 입에 담고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
 export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave: () => void; onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("scatter");
   const [things, setThings] = useState<Thing[] | null>(null);
@@ -54,7 +54,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
   }, [leaving, onLeave]);
 
   const papers = useMemo(() => introPapers(things ?? []), [things]);
-  const bands = useMemo(() => vaseBands(kindParts(things ?? []), fillLevel), [things]);
+  const parts = useMemo(() => kindParts(things ?? []), [things]);
 
   return (
     <section className={`intro phase-${phase}${leaving ? " leaving" : ""}`} aria-label="Folduct 인트로" aria-hidden={leaving || undefined}>
@@ -72,16 +72,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
           <div className="intro-center">
             <div className="intro-vase-lift">
               <div className="intro-vase">
-                <svg className="vase-art" viewBox="-100 -100 200 200" aria-hidden="true" focusable="false">
-                  <defs><clipPath id="intro-vase-clip"><path d={vasePath} /></clipPath></defs>
-                  <path className="vase-body" d={vasePath} />
-                  <g clipPath="url(#intro-vase-clip)">
-                    {bands.map((band, index) => (
-                      <rect key={band.label} className="vase-band intro-band" x={-100} y={band.y} width={200} height={band.height} fill={band.color} style={{ "--i": index, "--n": bands.length } as CSSProperties} />
-                    ))}
-                  </g>
-                  <path className="vase-line" d={vasePath} />
-                </svg>
+                <PoseArt pose={phase === "rise" ? "done" : "idle"} parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
               </div>
             </div>
             <div className="intro-foot">

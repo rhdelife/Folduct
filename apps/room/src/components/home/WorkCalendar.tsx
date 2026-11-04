@@ -31,7 +31,7 @@ export function WorkCalendar({ rooms, log, now }: { rooms: Room[]; log: WorkLog;
           </div>
         ))}
       </div>
-      <p className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(" · ") : "화병에서 작업을 시작하면 쌓여요."}</p>
+      <p className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(" · ") : "플로팅 창에서 작업을 시작하면 쌓여요."}</p>
     </section>
   );
 }

@@ -67,7 +67,7 @@ for (const [name, raw] of Object.entries(vars)) {
 
 for (const m of palette.matchAll(/\{ label: "([^"]+)", color: "(#[0-9a-f]{6})", edge: "(#[0-9a-f]{6})",[^}]*?kinds: \[([^\]]*)\] \}/g)) {
   tokens.color.kind[m[1]] = {
-    fill: { $type: "color", $value: m[2], $description: "화병 띠와 색 막대, 종이의 진한 면" },
+    fill: { $type: "color", $value: m[2], $description: "주름 칸과 색 막대, 종이의 진한 면" },
     edge: { $type: "color", $value: m[3], $description: "판 위에서 3:1이 필요한 진한 색" },
     $description: `파일 형식: ${m[4].replace(/"/g, "")}`,
   };

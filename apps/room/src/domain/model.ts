@@ -32,7 +32,7 @@ export type Thing = {
 // done: 홈에서 뺀 방. 주간 정리가 멈춥니다. 다 끝나지 않은 방도 있어 화면에는 '완료'라고 쓰지 않아요.
 export type CareSettings = { done: boolean; staleAfterDays: number };
 
-// 방의 얼굴: 화병 모양 번호와 목 색 번호. domain/face.ts
+// 방의 얼굴: 주름관 모양 번호와 받침 색 번호. domain/face.ts
 export type RoomFace = { shape: number; color: number };
 
 export type RoomSource = "handle" | "input" | "sample";

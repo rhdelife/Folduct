@@ -29,7 +29,7 @@ function pickPapers(things: Thing[]): Thing[] {
   return picked;
 }
 
-// 화면 가운데(화병과 글자 자리)를 비우고 네모난 고리 위에 고르게 흩어 놓습니다. x는 vw, y는 vh, 가운데가 0입니다.
+// 화면 가운데(주름관과 글자 자리)를 비우고 네모난 고리 위에 고르게 흩어 놓습니다. x는 vw, y는 vh, 가운데가 0입니다.
 export function introPapers(things: Thing[]): IntroPaper[] {
   const picked = pickPapers(things);
   return picked.map((thing, index) => {

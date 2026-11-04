@@ -3,18 +3,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { kindParts, vaseBands } from "../art/vases";
+import { kindParts, type DuctPose } from "../art/duct";
+import { kindTones } from "../art/palette";
 import { localDay } from "../domain/care";
+import { faceColorVar } from "../domain/face";
 import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
-import { vaseFill } from "../domain/sky";
 import { addWork } from "../domain/worklog";
 import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded, setPetVisible, workLogged } from "../gateways/native";
 import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
-import { BrandMark } from "./Icon";
-import { RoomFaceArt } from "./RoomFace";
+import { PoseArt } from "./RoomFace";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
@@ -23,8 +23,10 @@ const askShownMs = 30_000;
 // 작업 중에 새 파일을 찾는 주기.
 const watchEveryMs = 10_000;
 const doneShownMs = 20_000;
+// 그림이 차지하는 폭. styles.css --pet-vase와 같아요.
+const petPx = 104;
 
-// 앱 화면과 따로 늘 떠 있는 작은 창. 화병은 지금 하는 프로젝트이고, 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
+// 앱 화면과 따로 늘 떠 있는 작은 창. 주름관은 지금 하는 프로젝트이고, 자세가 지금 상태를 말해요. 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
   const [session, setSession] = useState<Session | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -33,7 +35,7 @@ export function Pet() {
   const [pet, setPet] = useState<PetSettings>(defaultPet);
   const [asking, setAsking] = useState(false);
   const [door, setDoor] = useState<Doorstep | null>(null);
-  const [done, setDone] = useState<{ text: string; undo?: { item: DoorItem; moved: DoorMove; room: Room } } | null>(null);
+  const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { item: DoorItem; moved: DoorMove; room: Room } } | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
@@ -192,7 +194,7 @@ export function Pet() {
     }
     setFileBusy(false);
     tellMain();
-    if (problem) setDone({ text: problem });
+    if (problem) setDone({ text: problem, failed: true });
     else if (count === 1 && last) setDone({ text: `${target.name} 방으로 옮겼어요.${last.moved.name === last.item.path ? "" : ` 이름이 같아 ${last.moved.name.normalize("NFC")}(으)로 두었어요.`}`, undo: { ...last, room: target } });
     else setDone({ text: `${target.name} 방으로 ${count}개 옮겼어요.` });
     void loadRooms().catch((error: unknown) => console.error(error));
@@ -214,12 +216,12 @@ export function Pet() {
       const { state, error } = await undoBring(item, moved, target);
       // 되돌린 파일을 다시 묻지 않게 줄에서는 빼 둡니다. 원래 폴더에 돌아가 있어요.
       setDoor(error ? state : await patchDoorstep((latest) => dropItem(latest, item.id)));
-      setDone({ text: error ?? "원래 폴더로 되돌렸어요." });
+      setDone({ text: error ?? "원래 폴더로 되돌렸어요.", failed: Boolean(error) });
       tellMain();
       void loadRooms().catch((reason: unknown) => console.error(reason));
     } catch (error) {
       console.error(error);
-      setDone({ text: "되돌리지 못했어요. 폴더 권한을 확인해 주세요." });
+      setDone({ text: "되돌리지 못했어요. 폴더 권한을 확인해 주세요.", failed: true });
     }
   }
 
@@ -228,16 +230,16 @@ export function Pet() {
     const home = await win.outerPosition();
     try {
       const folder = await pickRoomFolder(await downloadDir());
-      // 선택 창이 작은 화병 창에 붙으면서 창을 밀어내요. 제자리로 돌려놓습니다.
+      // 선택 창이 작은 창에 붙으면서 창을 밀어내요. 제자리로 돌려놓습니다.
       await win.setPosition(home);
       if (!folder) return;
       const { state, error } = await addDoorFolder(folder);
       setDoor(state);
-      if (error) setDone({ text: error });
+      if (error) setDone({ text: error, failed: true });
       tellMain();
     } catch (error) {
       console.error(error);
-      setDone({ text: "폴더를 읽지 못했어요. 권한을 확인해 주세요." });
+      setDone({ text: "폴더를 읽지 못했어요. 권한을 확인해 주세요.", failed: true });
     }
   }
 
@@ -294,6 +296,7 @@ export function Pet() {
   const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
   const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
   const state = session ? session.status : "off";
+  const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   return (
     <main ref={root} className={`pet pet-${state}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => (press.current = null)}>
       <button
@@ -306,7 +309,9 @@ export function Pet() {
           if (!dragged.current) openMenu();
         }}
       >
-        {room ? <RoomFaceArt face={room.face} bands={vaseBands(kindParts(room.things), vaseFill)} /> : <BrandMark size={72} />}
+        <span key={pose} className="pet-pose">
+          <PoseArt pose={pose} parts={room ? kindParts(room.things) : []} px={petPx} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
+        </span>
       </button>
       {session ? (
         <div className="pet-bar">
@@ -394,7 +399,7 @@ export function Pet() {
             </button>
           )}
           {isNative() && <button type="button" onClick={openApp}>앱 열기</button>}
-          {isNative() && <button type="button" onClick={hide}>화병 숨기기</button>}
+          {isNative() && <button type="button" onClick={hide}>숨기기</button>}
           {isNative() && <button type="button" onClick={() => invoke("quit_app").catch((error: unknown) => console.error(error))}>Folduct 끄기</button>}
         </div>
       )}

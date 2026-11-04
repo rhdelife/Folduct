@@ -1,14 +1,11 @@
 import { dayMs, lastActivity, localDay, relativeDay, roomLastActivity, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
 import type { CareSettings, Room, Thing } from "./model";
 
-// 집 화면의 지도. 방은 떠 있는 화병, 파일은 크기만큼의 작은 별이고, 손대지 않은 파일은 방에서 멀어집니다.
+// 집 화면의 지도. 방은 받침 위에 선 주름관, 파일은 크기만큼의 작은 별이고, 손대지 않은 파일은 방에서 멀어집니다.
 export const sky = { width: 1000, height: 680, centerX: 500, centerY: 340 } as const;
 
 export type Point = { x: number; y: number };
 export type Star = { thing: Thing; x: number; y: number; r: number; stale: boolean; days: number };
-
-// 화병이 찬 높이. 방마다 같고, 안쪽 층이 파일 형식의 몫을 보여 줍니다.
-export const vaseFill = 0.8;
 
 // 같은 글자는 늘 같은 0~1 값을 돌려줍니다(FNV-1a). 새로고침해도 별자리가 그대로입니다.
 export function hash(text: string, salt = 0): number {
@@ -69,7 +66,7 @@ export function relaxBoxes(items: Movable[], fixed: Box[], { pad = 0, gap = 0, p
       const a = items[i];
       a.x = clamp(a.x, a.minX, a.maxX);
       a.y = clamp(a.y, a.minY, a.maxY);
-      // 고정된 것은 가장자리 제한보다 먼저입니다. 머리글이나 화병 위로 올라가느니 가장자리 밖으로 조금 나가요.
+      // 고정된 것은 가장자리 제한보다 먼저입니다. 머리글이나 주름관 위로 올라가느니 가장자리 밖으로 조금 나가요.
       for (const box of fixed) {
         const [mx, my] = push(a.x - box.x, a.y + (a.dy ?? 0) - box.y, a.hw + box.hw + gap, a.hh + box.hh + gap, i);
         a.x += mx;
@@ -109,7 +106,7 @@ export function settleBoxes(items: Movable[], fixed: Box[], gap: number, step: n
   return stuck;
 }
 
-// 방 자리. 화병이 판 가운데를 물결처럼 가로지릅니다. 좁은 창에서는 둘씩 줄을 지어요. 많으면 해바라기로 채웁니다.
+// 방 자리. 주름관이 판 가운데를 물결처럼 가로지릅니다. 좁은 창에서는 둘씩 줄을 지어요. 많으면 해바라기로 채웁니다.
 export function roomSpots(count: number, view: View = baseView): Point[] {
   const { w, h } = view;
   const spot = (x: number, y: number) => {
@@ -144,16 +141,16 @@ export function roomRadius(room: Room, scale = 1): number {
   return (20 + 28 * sizeRatio(roomUsage(room).totalBytes)) * scale;
 }
 
-// 화병 높이의 절반. 고르면 화병이 vaseLift배로 커지므로, 파일은 커진 화병 바깥에 미리 자리를 잡습니다(고를 때 파일이 움직이지 않아요).
+// 주름관 높이의 절반. 고르면 주름관이 vaseLift배로 커지므로, 파일은 커진 주름관 바깥에 미리 자리를 잡습니다(고를 때 파일이 움직이지 않아요).
 export const vaseLift = 1.5;
 export function vaseHalf(radius: number): number {
   return radius * 1.35;
 }
 
-// 화병 크기 1이 화면 단위 1에서 차지하는 px(1000칸 지도를 1280에 펼친 값).
+// 주름관 크기 1이 화면 단위 1에서 차지하는 px(1000칸 지도를 1280에 펼친 값).
 export const vaseUnit = 1.28;
 
-// 방 이름표 자리(화병 아래). roomStars의 첫 자리 잡기에만 쓰는 어림값이고, 겹침은 heroLayout이 실제 이름으로 다시 봅니다.
+// 방 이름표 자리(주름관 아래). roomStars의 첫 자리 잡기에만 쓰는 어림값이고, 겹침은 heroLayout이 실제 이름으로 다시 봅니다.
 export const labelHalfWidth = 100;
 export const labelHeight = 60;
 // 이름표 폭의 절반. 글자 폭을 재지 않고 어림합니다(한글 1em, 그 밖 0.6em). 최대 폭은 CSS --room-label-max와 같아요.
@@ -215,7 +212,7 @@ export function pickStarThings(room: Room, limit: number): Thing[] {
 export function roomStars(room: Room, center: Point, spread: number, now: number, limit = 40, scale = 1): Star[] {
   const picked = pickStarThings(room, limit);
   const half = vaseHalf(roomRadius(room, scale));
-  // 세로는 0.8배로 눌러 놓으니, 위아래로도 커진 화병에 닿지 않게 그만큼 더 띄웁니다.
+  // 세로는 0.8배로 눌러 놓으니, 위아래로도 커진 주름관에 닿지 않게 그만큼 더 띄웁니다.
   const inner = (half * vaseLift) / 0.8 + 8 * scale;
   return picked.map((thing) => {
     const { stale, days } = thingAge(thing, room.care, room.workDays, now);
@@ -230,7 +227,7 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
     const distance = inner + r + spread * (stale ? 1.0 + 0.25 * jitter : 0.5 * jitter);
     const dx = Math.cos(angle) * distance;
     const dy = Math.sin(angle) * distance * 0.8;
-    // 이름표 자리에 떨어진 파일은 좌우로 비켜 줍니다. 이름표는 화병이 커지면 함께 내려갑니다.
+    // 이름표 자리에 떨어진 파일은 좌우로 비켜 줍니다. 이름표는 주름관이 커지면 함께 내려갑니다.
     const onLabel = Math.abs(dx) < labelHalfWidth + r && dy + r > half && dy - r < half * vaseLift + labelHeight;
     const side = (dx < 0 ? -1 : 1) * (labelHalfWidth + r + 4 + 30 * jitter);
     return {

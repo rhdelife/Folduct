@@ -1,12 +1,12 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { kindColors } from "../art/palette";
-import { kindParts, kindSummary, vaseBands } from "../art/vases";
+import { ductLength, kindParts, kindSummary } from "../art/duct";
 import { RoomFaceArt } from "./RoomFace";
 import { lastActivity, relativeDay } from "../domain/care";
 import { heroLayout, namedPaper, rowOnlyCards, type Card, type HeroNode } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { hash, sky, stageUnit, stepRoom, toPx, vaseFill, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
+import { hash, sky, stageUnit, stepRoom, toPx, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useBetween, useEngine } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
@@ -160,7 +160,7 @@ export function SkyMap({
     if (!atRow) setTip((current) => (current?.at ? null : current));
   }, [atRow]);
 
-  // 화병이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
+  // 주름관이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
   if (hoverRoom && !ids.includes(hoverRoom)) setHoverRoom(null);
   if (tip && !ids.includes(tip.room.id)) setTip(null);
 
@@ -247,7 +247,7 @@ export function SkyMap({
 }
 
 // 선·종이·방 층. 말풍선 상태를 받지 않으므로, 종이 위를 오가도 다시 그리지 않습니다.
-// 화병과 종이는 HTML 층에 둡니다. 합성 레이어라 떠다니고 커져도 지도를 다시 그리지 않아 방이 많아도 부드럽습니다.
+// 주름관과 종이는 HTML 층에 둡니다. 합성 레이어라 숨쉬고 커져도 지도를 다시 그리지 않아 방이 많아도 부드럽습니다.
 const MapLayers = memo(function MapLayers({
   ordered,
   cards,
@@ -310,7 +310,7 @@ const MapLayers = memo(function MapLayers({
     if (!next) return;
     event.preventDefault();
     event.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-room-id="${CSS.escape(next)}"]`)?.focus();
-    // 패널이 열려 있으면 고르기도 따라갑니다. 카메라가 그 화병을 가운데로 데려와 패널 뒤에 숨지 않아요.
+    // 패널이 열려 있으면 고르기도 따라갑니다. 카메라가 그 주름관을 가운데로 데려와 패널 뒤에 숨지 않아요.
     if (document.querySelector(".sky-panel.open")) onSelectRoom(next);
   }
 
@@ -366,11 +366,10 @@ const MapLayers = memo(function MapLayers({
           );
         })}
       </div>
-      <div className="sky-rooms" style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 화병은 방, 작은 오브제는 파일이에요. 색은 파일 형식이에요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
+      <div className="sky-rooms" style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방 지도. 주름관은 방, 작은 오브제는 파일이에요. 관이 길수록 용량이 크고, 색은 파일 형식이에요. 손대지 않은 파일일수록 멀리 떠 있어요." aria-describedby="sky-hint">
         {ordered.map(({ room, at, r }) => {
           const { usage } = stats.get(room.id)!;
           const parts = kindParts(room.things);
-          const bands = vaseBands(parts, usage.exact ? vaseFill : 0);
           const size = `${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`;
           const menu = roomMenuTriggers(room.id, onRoomMenu);
           return (
@@ -394,9 +393,8 @@ const MapLayers = memo(function MapLayers({
               onMouseLeave={() => onHoverRoom(null)}
             >
               <span className="vase-lift">
-                <span className="vase-shadow" />
                 <span className="vase-float">
-                  <RoomFaceArt face={room.face} bands={bands} className="vase-art" />
+                  <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" />
                 </span>
               </span>
               <span className="vase-tag">

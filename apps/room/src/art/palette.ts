@@ -1,7 +1,7 @@
 import type { Kind } from "../domain/model";
 
 // 색은 파일 형식의 몫입니다. 어느 프로젝트에 있든 이미지는 노랑, 글은 초록, 영상은 파랑, PDF·문서·발표는 빨강입니다.
-// color는 화병 띠와 색 막대, edge는 판 위에서 3:1이 필요한 진한 색입니다. 이 줄 모양은 export-figma-tokens.mjs가 그대로 읽으니 필드를 끼워 넣지 않습니다.
+// color는 주름 칸과 색 막대, edge는 판 위에서 3:1이 필요한 진한 색입니다. 이 줄 모양은 export-figma-tokens.mjs가 그대로 읽으니 필드를 끼워 넣지 않습니다.
 export const colorGroups: { label: string; color: string; edge: string; kinds: Kind[] }[] = [
   { label: "이미지", color: "#e5bb4d", edge: "#8e6e1a", kinds: ["image"] },
   { label: "글·코드", color: "#5f9b6d", edge: "#3b5f4d", kinds: ["text"] },
