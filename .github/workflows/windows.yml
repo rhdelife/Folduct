@@ -1,0 +1,51 @@
+name: windows
+on:
+  push:
+    branches: [windows-build]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/room
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/room/src-tauri
+          cache-on-failure: true
+      - run: npm ci
+      - run: npx tauri build --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folduct-windows-setup
+          path: apps/room/src-tauri/target/release/bundle/nsis/*-setup.exe
+      # 이 Windows 서버에 실제로 설치하고 켜서, 바로 꺼지지 않는지 보고 화면을 남깁니다.
+      - name: Install and launch
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $app = Get-ChildItem "$env:LOCALAPPDATA\Folduct" -Filter *.exe | Where-Object Name -notmatch 'uninstall' | Select-Object -First 1
+          $process = Start-Process $app.FullName -PassThru
+          Start-Sleep 25
+          if ($process.HasExited) { throw "App exited right away: $($process.ExitCode)" }
+          Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $image = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          [System.Drawing.Graphics]::FromImage($image).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $image.Save("$PWD/windows-smoke.png")
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-smoke
+          path: apps/room/windows-smoke.png
+          if-no-files-found: warn
+      - run: npm test
+      - run: cargo test
+        working-directory: apps/room/src-tauri
