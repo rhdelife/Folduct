@@ -152,6 +152,12 @@
   --pet-list-h: 168px;
   --pet-rest: 0.45;
 
+  /* 일력 */
+  --cal-number: 44px;
+  --cal-dot: 5px;
+  --cal-gap: 2px;
+  --cal-w: 217px;
+
   /* 주간 정리 */
   --weekly-w: min(55vw, 760px);
   --weekly-shadow: 0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06);
@@ -1082,6 +1088,22 @@ main.page-status { min-height: 100dvh; align-content: center; }
   .room-page { padding: 0 var(--gutter) var(--space-8); }
   .topnav { grid-template-columns: minmax(0, 1fr) max-content; gap: 0 var(--space-3); padding: var(--space-3) 0; }
   .topnav-title { grid-row: 2; grid-column: 1 / -1; margin-top: var(--space-2); }
+}
+
+/* ══ 일력 ══ */
+.work-cal { position: absolute; left: var(--chrome-x); bottom: var(--space-4); z-index: var(--hero-tip-z); display: grid; gap: var(--space-2); width: var(--cal-w); color: var(--ink); }
+.work-cal-total { display: flex; align-items: baseline; gap: var(--space-1); }
+.work-cal-total strong { font-size: var(--cal-number); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.work-cal-total span { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; }
+.work-cal-total small { margin-left: var(--space-2); color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.work-cal-days { display: grid; gap: var(--cal-gap); }
+.work-cal-days div { display: flex; gap: var(--cal-gap); }
+.work-cal-days i { display: block; width: var(--cal-dot); height: var(--cal-dot); border-radius: 50%; background: var(--line); }
+.work-cal-days i.past { background: var(--line-strong); }
+.work-cal-days i.on { background: var(--ink); }
+.work-cal-rooms { display: -webkit-box; overflow: hidden; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+@media (max-width: 719.98px), (max-height: 639.98px) {
+  .work-cal { display: none; }
 }
 
 /* ══ 플로팅 화병 ══ */

@@ -15,10 +15,11 @@ import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
+import type { WorkLog } from "../domain/worklog";
 import { roomStats } from "../domain/sky";
-import { doorChanged, isNative, sessionEnded } from "../gateways/native";
+import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
 import { planSweep, type SweepPlan } from "../storage/box";
-import { forgetRoom, getDoorstep, getLastSweepAt, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
+import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
 
@@ -57,6 +58,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [focusId, setFocusId] = useState<string | null>(null);
   const [roomMenu, setRoomMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
   const [door, setDoor] = useState<Doorstep>(emptyDoorstep);
+  const [workLog, setWorkLog] = useState<WorkLog>({});
   const [doorMenu, setDoorMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLElement>(null);
@@ -129,6 +131,10 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     })();
   }, [toast]);
 
+  useEffect(() => {
+    getWorkLog().then(setWorkLog, (error: unknown) => console.error(error));
+  }, []);
+
   // 플로팅 화병이 파일을 옮겼거나 작업을 끝냈을 때입니다. 끝낸 방에 치울 파일이 있으면 정리 창을 띄워요.
   useEffect(() => {
     if (!isNative()) return;
@@ -138,6 +144,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       if (left) stop();
       else stops.push(stop);
     };
+    void listen(workLogged, () => void getWorkLog().then(setWorkLog, (error: unknown) => console.error(error))).then(add);
     void listen(doorChanged, () => {
       void getDoorstep().then(setDoor, (error: unknown) => console.error(error));
       void load();
@@ -418,7 +425,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} doorItems={door.items} onDoorMenu={openDoorMenu} />
+              <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} />
             )}
           </div>
         </div>

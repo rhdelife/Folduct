@@ -1,3 +1,4 @@
+import { normalizeWorkLog, type WorkLog } from "../domain/worklog";
 import { normalizePet, normalizeSession, type PetSettings, type Session } from "../domain/session";
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
@@ -137,6 +138,24 @@ export async function getPetSettings(): Promise<PetSettings> {
 
 export function savePetSettings(pet: PetSettings): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(pet, "pet"));
+}
+
+export async function getWorkLog(): Promise<WorkLog> {
+  return normalizeWorkLog(await run<unknown>("meta", "readonly", (store) => store.get("workLog")));
+}
+
+export async function patchWorkLog(mutate: (log: WorkLog) => WorkLog): Promise<WorkLog> {
+  const db = await open();
+  const tx = db.transaction("meta", "readwrite");
+  const store = tx.objectStore("meta");
+  let saved: WorkLog = {};
+  const request = store.get("workLog");
+  request.onsuccess = () => {
+    saved = mutate(normalizeWorkLog(request.result));
+    store.put(saved, "workLog");
+  };
+  await settle(tx);
+  return saved;
 }
 
 export async function getIntroOn(): Promise<boolean> {

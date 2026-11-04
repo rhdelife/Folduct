@@ -4,12 +4,14 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, vaseBands } from "../art/vases";
+import { localDay } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { vaseFill } from "../domain/sky";
-import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded, setPetVisible } from "../gateways/native";
-import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, savePetSettings, saveSession } from "../storage/db";
+import { addWork } from "../domain/worklog";
+import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded, setPetVisible, workLogged } from "../gateways/native";
+import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { BrandMark } from "./Icon";
 import { RoomFaceArt } from "./RoomFace";
@@ -39,12 +41,25 @@ export function Pet() {
   const room = rooms.find((item) => item.id === session?.roomId) ?? null;
   const working = session?.status === "working";
 
-  const change = useCallback((next: Session | null) => {
+  // 작업 중이던 시간은 상태가 바뀔 때마다 일력에 넣습니다. 앱이 갑자기 꺼져도 마지막 저장 뒤의 시간만 빠져요.
+  const latest = useRef<Session | null>(null);
+  const commit = useCallback((next: Session | null) => {
+    const before = latest.current;
+    latest.current = next;
     setSession(next);
+    saveSession(next).catch((error: unknown) => console.error(error));
+    if (before?.since == null) return;
+    const at = Date.now();
+    patchWorkLog((log) => addWork(log, localDay(at), before.roomId, workedTime(before, at) - before.workedMs))
+      .then(() => (isNative() ? emit(workLogged) : undefined))
+      .catch((error: unknown) => console.error(error));
+  }, []);
+
+  const change = useCallback((next: Session | null) => {
+    commit(next);
     setNow(Date.now());
     setAsking(false);
-    saveSession(next).catch((error: unknown) => console.error(error));
-  }, []);
+  }, [commit]);
 
   const loadRooms = useCallback(async () => {
     const list = await listRooms();
@@ -103,17 +118,14 @@ export function Pet() {
   useEffect(() => {
     if (!working) return;
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    const save = window.setInterval(() => setSession((current) => {
-      if (!current) return current;
-      const next = checkpointSession(current, Date.now());
-      saveSession(next).catch((error: unknown) => console.error(error));
-      return next;
-    }), saveEveryMs);
+    const save = window.setInterval(() => {
+      if (latest.current) commit(checkpointSession(latest.current, Date.now()));
+    }, saveEveryMs);
     return () => {
       window.clearInterval(tick);
       window.clearInterval(save);
     };
-  }, [working]);
+  }, [working, commit]);
 
   // 작업 중에만 폴더를 봅니다. 시작하는 순간 한 번 읽어 두어야 그 전에 들어온 파일이 이 작업의 파일로 잡히지 않아요.
   useEffect(() => {

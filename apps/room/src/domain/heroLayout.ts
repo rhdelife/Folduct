@@ -1,6 +1,6 @@
 import { lastActivity, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
-import { hash, labelHalf, labelHeight, labelsHideFrom, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
+import { calendarSpot, hash, labelHalf, labelHeight, labelsHideFrom, layoutRooms, relaxBoxes, roomRadius, settleBoxes, roomStars, stageUnit, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type Box, type Movable, type Placed, type Star, type View } from "./sky";
 
 // 첫 화면 배치: 방 둘레의 파일을 판 전체에 흩고, 머리글·화병·이름표·머리 버튼을 피해 겹치지 않게 다듬습니다.
 
@@ -55,6 +55,7 @@ export function keepOut(nodes: HeroNode[], view: View): Box[] {
     // 메뉴에 '정리할 때예요'가 붙어도 종이가 밑에 깔리지 않을 폭입니다. 알림이 떠도 종이가 움직이지 않게 늘 비워요.
     { x: view.w - 130, y: 40, hw: 130, hh: 34 },
   ];
+  boxes.push(...calendarSpot(view));
   for (const { at, r, room } of nodes) {
     const center = toPx(at, view);
     // 고르면 화병이 커지니 커진 크기로 비워 둡니다. 많을 때는 그럴 자리가 없어요.

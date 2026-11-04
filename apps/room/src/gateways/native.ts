@@ -16,6 +16,7 @@ export const petSettingsChanged = "pet-settings";
 // 플로팅 창이 현관 줄이나 방을 바꿨을 때, 작업을 끝냈을 때 메인 창에 알립니다.
 export const doorChanged = "door-changed";
 export const sessionEnded = "session-ended";
+export const workLogged = "work-logged";
 
 export const setPetVisible = (visible: boolean): Promise<void> => invoke("set_pet_visible", { visible });
 

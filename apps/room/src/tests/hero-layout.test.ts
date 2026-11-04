@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, localDay } from "../domain/care";
 import { rowCap, rowMetrics, rowOnlyCards, rowTilt, cardCap, flightsFor, heroLayout, keepOut, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
-import { baseView, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
+import { baseView, calendarSpot, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { rowRest } from "../components/home/engine";
 import { rowOnlyPose, arrivalFrames, spillFrames, cardPose } from "../components/home/heroMotion";
 
@@ -255,6 +255,26 @@ describe("첫 스크롤: 한 줄로 모으기", () => {
     const tall = Math.max(...papers.map((card) => card.height));
     const vase = keepOut(few, view).slice(3);
     expect(vase.every((box) => y + tall / 2 <= box.y - box.hh || y - tall / 2 >= box.y + box.hh)).toBe(true);
+  });
+});
+
+describe("일력 자리", () => {
+  it("화병은 일력 자리에 앉지 않는다", () => {
+    for (const view of [{ w: 720, h: 640 }, { w: 720, h: 900 }, { w: 1280, h: 800 }]) {
+      for (const count of [1, 3, 5, 7, 12]) {
+        const [box] = calendarSpot(view);
+        for (const { at, r } of heroLayout(many(count, 2), start, view, aspect).nodes) {
+          const center = toPx(at, view);
+          const half = vaseHalf(r) * stageUnit(view) * vaseUnit;
+          expect(center.x - half >= box.x + box.hw || center.y + half <= box.y - box.hh).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("일력을 숨기는 창에서는 자리를 비우지 않는다", () => {
+    expect(calendarSpot({ w: 375, h: 812 })).toEqual([]);
+    expect(calendarSpot({ w: 720, h: 520 })).toEqual([]);
   });
 });
 

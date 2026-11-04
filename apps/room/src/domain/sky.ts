@@ -171,6 +171,11 @@ export function starRadius(bytes: number, scale = 1): number {
 
 export type Placed = { room: Room; at: Point; scale: number; spread: number; limit: number };
 
+// 왼쪽 아래 일력 자리입니다. 좁거나 낮은 창에서는 일력을 숨겨요. 크기와 창 기준은 styles.css의 .work-cal에 맞춰요.
+export function calendarSpot(view: View): Box[] {
+  return view.w >= 720 && view.h >= 640 ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
+}
+
 // 지도에는 진행 중인 방만 놓습니다. 적으면 넉넉히, 많으면 화병을 줄여 놓고 서로 밀어내 겹치지 않게 합니다.
 export function layoutRooms(rooms: Room[], view: View = baseView): Placed[] {
   const active = rooms.filter((room) => !room.care.done);
@@ -192,8 +197,8 @@ export function layoutRooms(rooms: Room[], view: View = baseView): Placed[] {
     const hh = half + label / 2;
     return { x, y, hw, hh, dy: label / 2, minX: Math.min(view.w / 2, hw + margin), maxX: Math.max(view.w / 2, view.w - hw - margin), minY: Math.min(view.h / 2, Math.max(72 * stageUnit(view), 72) + half), maxY: Math.max(view.h / 2, view.h - hh * 2 - margin + half) };
   });
-  relaxBoxes(items, [], { gap: margin, passes: crowded ? 120 : 40 });
-  settleBoxes(items, [], margin / 2, 12 * stageUnit(view));
+  relaxBoxes(items, calendarSpot(view), { gap: margin, passes: crowded ? 120 : 40 });
+  settleBoxes(items, calendarSpot(view), margin / 2, 12 * stageUnit(view));
   return active.map((room, i) => ({ room, at: toSky(items[i], view), scale, spread, limit }));
 }
 

@@ -1,11 +1,13 @@
 import { useEffect, type RefObject } from "react";
 import type { DoorItem } from "../../domain/doorstep";
+import type { WorkLog } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { BrandMark } from "../Icon";
 import { SkyMap } from "../SkyMap";
 import { SkyPanel } from "../SkyPanel";
 import { useBetween, type SceneProps } from "./engine";
+import { WorkCalendar } from "./WorkCalendar";
 
 type HeroProps = SceneProps & {
   selectedId: string | null;
@@ -14,10 +16,11 @@ type HeroProps = SceneProps & {
   panelRef: RefObject<HTMLElement | null>;
   doorItems: DoorItem[];
   onDoorMenu: OpenRoomMenu;
+  workLog: WorkLog;
 };
 
 // 첫 화면: 방 지도와 고른 방 패널.
-export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef, doorItems, onDoorMenu }: HeroProps) {
+export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef, doorItems, onDoorMenu, workLog }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
   const panelRoom = rooms.find((room) => room.id === panelId) ?? null;
 
@@ -62,6 +65,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
           </aside>
           {/* 방을 고르면 패널과 겹치니 잠시 비켜 줍니다. */}
           {!selected && <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />}
+          {!selected && <WorkCalendar rooms={rooms} log={workLog} now={now} />}
         </div>
       )}
     </section>

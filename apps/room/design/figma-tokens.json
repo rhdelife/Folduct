@@ -815,6 +815,22 @@
       "$type": "other",
       "$value": "0.45"
     },
+    "cal-number": {
+      "$type": "other",
+      "$value": "44px"
+    },
+    "cal-dot": {
+      "$type": "other",
+      "$value": "5px"
+    },
+    "cal-gap": {
+      "$type": "other",
+      "$value": "2px"
+    },
+    "cal-w": {
+      "$type": "other",
+      "$value": "217px"
+    },
     "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"
