@@ -266,8 +266,8 @@ const armsDown = ["M34 82C14 82 8 86 5 93", "M42 80C58 79 65 82 70 89"];
 const mouth = (x: number, y: number, rx: number, ry: number, inRx: number, inRy: number) => ({ head: [x, y, rx, ry] as [number, number, number, number], inner: [x, y, inRx, inRy] as [number, number, number, number] });
 // 받침은 그대로 두고 허리만 옆으로 휩니다. sway가 프레임마다 바뀌면 관이 꿈틀대요.
 const wriggle = (sway: number, end: Pt = [70, 40]) => `M36 108C36 98 ${36 + sway} 92 ${36 + sway} 80C${36 + sway} 72 ${40 + sway * 0.4} 66 ${44 + sway * 0.4} 60C50 52 ${end[0] - 10} ${end[1] + 6} ${end[0]} ${end[1]}`;
-const wide = { ...mouth(74, 30, 35, 36, 29, 31), eyes: [[62, 8], [87, 7]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
-const tall = { ...mouth(75, 31, 33, 38, 27, 33), eyes: [[64, 7], [86, 6]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
+const wide = { ...mouth(73, 33, 32, 30, 25.5, 24.5), eyes: [[62, 20], [85, 19]] as [Pt, Pt], eyeScale: 0.85, arms: armsUp };
+const tall = { ...mouth(73, 33, 31, 31, 24.5, 25.5), eyes: [[63, 19], [84, 18]] as [Pt, Pt], eyeScale: 0.85, arms: armsUp };
 const closing = { ...mouth(72, 38, 32, 25, 25, 15), eyes: [[61, 33], [83, 32]] as [Pt, Pt], eyeScale: 0.85, arms: armsDown };
 const shut = { ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]] as [Pt, Pt], face: "closed" as const, arms: armsDown };
 const chewUp = { ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]] as [Pt, Pt], face: "happy" as const, arms: armsDown };
@@ -275,7 +275,7 @@ const shutEnd: Pt = [68, 46];
 const eatFrames: Spec[] = [
   poses.idle,
   { ...poses.idle, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
-  { ...poses.idle, line: wriggle(0), ...mouth(72, 33, 31, 31, 25, 25), eyes: [[61, 20], [84, 19]], eyeScale: 0.85, arms: armsUp },
+  { ...poses.idle, line: wriggle(0), ...mouth(71, 35, 30, 27.5, 23.5, 21), eyes: [[61, 27], [83, 26]], eyeScale: 0.95, arms: armsUp },
   { ...poses.idle, ...wide, line: wriggle(0) },
   { ...poses.idle, ...tall, line: wriggle(2) },
   // 받아먹는 한 바퀴: 입을 여닫는 동안 삼킨 덩어리가 위에서 아래로 내려가고 허리가 좌우로 휩니다.
