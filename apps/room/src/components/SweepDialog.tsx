@@ -35,7 +35,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
     try {
       const result = await runSweep(target, selected, now);
       // 그 방 프로도가 상자로 가는 파일을 배웅합니다.
-      for (const outcome of result) cue(outcome.roomId, { body: "bye", face: "happy", ms: 950 });
+      for (const outcome of result) if (outcome.moved > 0) cue(outcome.roomId, { body: "bye", face: "happy", ms: 950 });
       setOutcomes((current) => (current ? current.map((outcome) => result.find((next) => next.roomId === outcome.roomId) ?? outcome) : result));
     } catch {
       setStopped(true);
