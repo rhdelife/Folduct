@@ -5,14 +5,14 @@ import { hash } from "./sky";
 // 인트로의 시간표(ms). 종이가 다 날아드는 시간은 styles.css의 --intro-fly·--intro-stagger와 맞춰 둡니다.
 export const introMs = { gather: 3300, fill: 2400, rise: 1300, leave: 600 };
 
-// 파일을 먹는 순서: [스프라이트 프레임, ms]. 입을 벌려 종이가 다 들어올 때까지 받아먹고, 씹고, 꿀꺽 삼켜 제자리로 돌아옵니다. 다 더하면 introMs.gather예요.
-const gobble: [number, number][] = [[3, 70], [5, 50], [6, 90], [5, 50], [3, 70], [4, 110]];
-const chew: [number, number][] = [[7, 90], [8, 90], [7, 90], [8, 90]];
+// 파일을 먹는 순서: [스프라이트 프레임, ms]. 입을 벌려 종이가 다 들어올 때까지 꿈틀대며 받아먹고, 씹고, 꿀꺽 삼켜 제자리로 돌아옵니다. 다 더하면 introMs.gather예요.
+const gobble: [number, number][] = [[5, 74], [6, 73], [7, 73], [8, 73], [9, 74], [10, 73]];
+const chew: [number, number][] = [[11, 90], [12, 90], [11, 90], [12, 90]];
 export const eatTimeline: [number, number][] = [
   [0, 80], [1, 160], [2, 80], [3, 120], [4, 200],
   ...gobble, ...gobble, ...gobble, ...gobble,
   ...chew,
-  [9, 90], [10, 90], [11, 90], [12, 110],
+  [13, 90], [14, 90], [15, 90], [16, 110],
   [0, 160],
 ];
 

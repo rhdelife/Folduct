@@ -153,8 +153,13 @@ function tube(spec: Spec) {
     const m = Math.hypot(dx, dy) || 1;
     const swell = spec.bulge ? spec.bulge[1] * Math.exp(-(((i / (out.length - 1) - spec.bulge[0]) / 0.1) ** 2)) : 0;
     const half = spec.width / 2 + spec.scallop * Math.abs(Math.sin((Math.PI * i) / spec.rib)) + swell;
-    L.push([p[0] - (dy / m) * half, p[1] + (dx / m) * half]);
-    R.push([p[0] + (dy / m) * half, p[1] - (dx / m) * half]);
+    // 꺾이는 안쪽은 굵기보다 반지름이 작으면 선이 되돌아가 엉킵니다. 되돌아가는 점은 앞 점에 붙여 접습니다.
+    const unfold = (side: Pt[], point: Pt): Pt => {
+      const last = side[side.length - 1];
+      return last && (point[0] - last[0]) * dx + (point[1] - last[1]) * dy <= 0 ? last : point;
+    };
+    L.push(unfold(L, [p[0] - (dy / m) * half, p[1] + (dx / m) * half]));
+    R.push(unfold(R, [p[0] + (dy / m) * half, p[1] - (dx / m) * half]));
   });
   return { L, R, body: poly([...L, ...[...R].reverse()]) };
 }
@@ -255,20 +260,35 @@ export function drawPose(pose: DuctPose, { px, layers }: { px: number; layers?: 
 }
 
 // ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──
-const reach = "M36 108C36 88 36 72 44 60C50 52 60 46 70 40";
-const armsUp = ["M22 82C14 78 8 72 6 64", "M50 80C60 76 68 70 72 62"];
+// 허리가 휘어도 팔이 몸에서 떨어지지 않게 관 안쪽에서 시작합니다.
+const armsUp = ["M34 82C18 78 8 72 6 64", "M42 80C60 76 68 70 72 62"];
+const armsDown = ["M34 82C14 82 8 86 5 93", "M42 80C58 79 65 82 70 89"];
 const mouth = (x: number, y: number, rx: number, ry: number, inRx: number, inRy: number) => ({ head: [x, y, rx, ry] as [number, number, number, number], inner: [x, y, inRx, inRy] as [number, number, number, number] });
+// 받침은 그대로 두고 허리만 옆으로 휩니다. sway가 프레임마다 바뀌면 관이 꿈틀대요.
+const wriggle = (sway: number, end: Pt = [70, 40]) => `M36 108C36 98 ${36 + sway} 92 ${36 + sway} 80C${36 + sway} 72 ${40 + sway * 0.4} 66 ${44 + sway * 0.4} 60C50 52 ${end[0] - 10} ${end[1] + 6} ${end[0]} ${end[1]}`;
+const wide = { ...mouth(74, 30, 35, 36, 29, 31), eyes: [[62, 8], [87, 7]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
+const tall = { ...mouth(75, 31, 33, 38, 27, 33), eyes: [[64, 7], [86, 6]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
+const closing = { ...mouth(72, 38, 32, 25, 25, 15), eyes: [[61, 33], [83, 32]] as [Pt, Pt], eyeScale: 0.85, arms: armsDown };
+const shut = { ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]] as [Pt, Pt], face: "closed" as const, arms: armsDown };
+const chewUp = { ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]] as [Pt, Pt], face: "happy" as const, arms: armsDown };
+const shutEnd: Pt = [68, 46];
 const eatFrames: Spec[] = [
   poses.idle,
   { ...poses.idle, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
-  { ...poses.idle, line: reach, ...mouth(72, 33, 31, 31, 25, 25), eyes: [[61, 20], [84, 19]], eyeScale: 0.85, arms: armsUp },
-  { ...poses.idle, line: reach, ...mouth(74, 30, 35, 36, 29, 31), eyes: [[62, 8], [87, 7]], eyeScale: 0.7, arms: armsUp },
-  { ...poses.idle, line: reach, ...mouth(75, 31, 33, 38, 27, 33), eyes: [[64, 7], [86, 6]], eyeScale: 0.7, arms: armsUp },
-  { ...poses.idle, ...mouth(72, 38, 32, 25, 25, 15), eyes: [[61, 33], [83, 32]], eyeScale: 0.85 },
-  { ...poses.idle, ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]], face: "closed" },
-  { ...poses.idle, ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]], face: "happy" },
-  { ...poses.idle, ...mouth(70, 42, 32, 21, 25, 10), eyes: [[60, 42], [81, 41]], face: "closed" },
-  ...[0.82, 0.6, 0.38, 0.16].map((at): Spec => ({ ...poses.idle, bulge: [at, 7], face: "happy" })),
+  { ...poses.idle, line: wriggle(0), ...mouth(72, 33, 31, 31, 25, 25), eyes: [[61, 20], [84, 19]], eyeScale: 0.85, arms: armsUp },
+  { ...poses.idle, ...wide, line: wriggle(0) },
+  { ...poses.idle, ...tall, line: wriggle(2) },
+  // 받아먹는 한 바퀴: 입을 여닫는 동안 삼킨 덩어리가 위에서 아래로 내려가고 허리가 좌우로 휩니다.
+  { ...poses.idle, ...wide, line: wriggle(4), bulge: [0.86, 6] },
+  { ...poses.idle, ...closing, line: wriggle(6, shutEnd), bulge: [0.72, 7] },
+  { ...poses.idle, ...shut, line: wriggle(2, shutEnd), bulge: [0.58, 7] },
+  { ...poses.idle, ...closing, line: wriggle(-4, shutEnd), bulge: [0.44, 7] },
+  { ...poses.idle, ...wide, line: wriggle(-6), bulge: [0.3, 7] },
+  { ...poses.idle, ...tall, line: wriggle(-2), bulge: [0.16, 6] },
+  { ...poses.idle, ...chewUp, line: wriggle(3, shutEnd) },
+  { ...poses.idle, ...shut, ...mouth(70, 42, 32, 21, 25, 10), line: wriggle(-3, shutEnd) },
+  // 마지막 꿀꺽: 가장 크게 불룩해져 받침까지 내려갑니다. 끝으로 갈수록 잦아들어 서 있는 그림에 닿아요.
+  ...([[0.84, 8, 5], [0.62, 9, -5], [0.4, 9, 3], [0.18, 8, -2]] as const).map(([at, size, sway]): Spec => ({ ...poses.idle, line: wriggle(sway, shutEnd), bulge: [at, size], face: "happy", arms: armsDown })),
 ];
 export const eatFrameCount = eatFrames.length;
 export const eatBoard = { width: board.w, height: board.h };
