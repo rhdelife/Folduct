@@ -84,13 +84,13 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  /* 전시장 방향: 판·카드·버튼은 각지게, 작은 칸만 2px로 살짝 다듬습니다. */
-  --radius-xs: 2px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 0;
-  --radius-xl: 0;
-  --radius-pill: 0;
+  /* 글래스 방향: 테두리 대신 둥근 면과 부드러운 그림자로 나눕니다. */
+  --radius-xs: 4px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
   /* 들린 판의 아래 끝에만 둥글게. */
   --radius-sheet: 32px;
 
@@ -102,10 +102,23 @@
   --control-lg: 44px;
   --thing-image-h: 240px;
 
-  /* 떠 보이는 그림자는 창(--shadow-3)에만. 나머지는 선 한 줄입니다. */
-  --shadow-1: 0 0 0 1px var(--line-strong);
-  --shadow-2: 0 0 0 1px var(--line-strong);
-  --shadow-3: 0 24px 64px rgb(27 26 24 / 0.18), 0 0 0 1px rgb(27 26 24 / 0.08);
+  /* 선 없이 그림자로만 뜹니다. */
+  --shadow-1: 0 1px 2px rgb(23 23 23 / 0.04), 0 4px 16px rgb(23 23 23 / 0.06);
+  --shadow-2: 0 2px 4px rgb(23 23 23 / 0.05), 0 8px 24px rgb(23 23 23 / 0.08);
+  --shadow-3: 0 2px 6px rgb(23 23 23 / 0.05), 0 24px 64px rgb(23 23 23 / 0.16);
+
+  /* 글래스: 뒤가 비치는 면. 글자는 흰색과 섞인 면 위에 놓이므로 4.5:1을 지키려고 흰색을 충분히 남깁니다. */
+  --glass-blur: blur(24px) saturate(160%);
+  --glass-bg: rgb(255 255 255 / 0.62);
+  --glass-bg-strong: rgb(255 255 255 / 0.86);
+  --glass-chip: rgb(255 255 255 / 0.56);
+  --glass-chip-hover: rgb(255 255 255 / 0.9);
+  --glass-wash: rgb(23 23 23 / 0.05);
+  --glass-wash-strong: rgb(23 23 23 / 0.09);
+  --glass-dark: rgb(23 23 23 / 0.74);
+  --glass-dark-chip: rgb(255 255 255 / 0.16);
+  --glass-shadow: 0 1px 2px rgb(23 23 23 / 0.04), 0 12px 40px rgb(23 23 23 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.7);
+  --glass-chip-shadow: 0 1px 2px rgb(23 23 23 / 0.07);
 
   --dur-1: 120ms;
   --dur-2: 200ms;
@@ -1278,3 +1291,98 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .face-art { width: 100%; height: 100%; overflow: visible; }
 .face-swatch { display: block; width: 100%; height: 100%; }
 
+/* ══ 글래스 ══ */
+/* 테두리를 없애고 뒤가 비치는 면과 그림자로 나눕니다. 위 규칙들을 덮으려고 맨 뒤에 둡니다. */
+.side, .sheet-body, dialog.sheet:not(.menu) .sheet-body, dialog.sheet.weekly .sheet-body, .context-menu, .sky-tip, .sky-panel, .doorstep {
+  border: 0;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+}
+
+/* 버튼·입력: 선 대신 면. 고른 상태는 잉크 고리나 굵은 글자가 말합니다. */
+:where(button, .button) { border: 0; background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
+:where(button, .button):hover:where(:not(:disabled)) { background: var(--glass-chip-hover); }
+:where(button, .button).primary { background: var(--ink); box-shadow: none; }
+:where(button, .button).primary:hover:where(:not(:disabled)) { background: var(--ink-hover); }
+:where(button).quiet, :where(button).danger, :where(button).link, :where(.topnav > .row, .viewer-head) :where(button) { background: transparent; box-shadow: none; }
+:where(button).quiet:hover:where(:not(:disabled)) { background: var(--glass-wash); }
+:where(button).danger:hover:where(:not(:disabled)) { background: var(--status-danger-bg); }
+:where(button)[aria-pressed="true"]:not(.thing, .room-node) { background: var(--glass-wash-strong); box-shadow: none; }
+:where(.room-page, .page-status, dialog.sheet:not(.menu)) :where(button, .button) { border-width: 0; }
+input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :where(.room-page, dialog.sheet:not(.menu)) :where(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select) { border: 0; border-radius: var(--radius-sm); background: var(--glass-wash); }
+.seg, .sort, .room-page .seg, dialog.sheet:not(.menu) .seg { border-radius: var(--radius-pill); background: var(--glass-wash); }
+.room-page .seg label:has(input:checked), dialog.sheet:not(.menu) .seg label:has(input:checked), .seg label:has(input:checked), .sort button[aria-pressed="true"] { outline: 0; background: var(--glass-chip-hover); box-shadow: var(--glass-chip-shadow); }
+.home .sort button[aria-pressed="true"] { background: none; box-shadow: none; }
+.topnav > .row button:hover:not(:disabled), .viewer-head button:hover:not(:disabled), .home-link, .home-link:hover:not(:disabled), .pet-vase { box-shadow: none; }
+
+/* 선으로 나누던 줄은 여백과 호버 면으로 나눕니다. */
+.rank button, .home .rank, .home .rank-num, .home .done-group summary, .home .empty-row, .home .menu-actions, .home .menu-actions button, .home .menu-actions button:hover:not(:disabled), .home .sky-summary dl, .home .sky-summary dl > div, .home .room-mode .preview, .sweep-results li, .sweep-room li, .setting-row, .setting-door, .legend-strip, .banner, .banner.danger, fieldset, .thing-icon, .viewer-note, .viewer-stage, .thing-image { border: 0; }
+.rank button, .home .menu-actions button, .topnav > .row button, .home-link, .tabs button, .pet-menu button, .context-menu button, .thing, .box-spot, .room-node, .door-item.quiet { box-shadow: none; }
+.rank button, .home .menu-actions button, .context-menu button, .pet-menu button { border-radius: var(--radius-sm); background: transparent; }
+.rank button:hover:not(:disabled), .home .menu-actions button:hover:not(:disabled), .context-menu button:hover:not(:disabled), .pet-menu button:hover:not(:disabled) { background: var(--glass-wash); }
+.thing, .box-spot, .room-node, :where(button).thing, :where(button).box-spot { background: none; }
+
+/* 알림·배너 */
+.toast { border-radius: var(--radius-md); background: var(--glass-dark); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--shadow-2); }
+.toast button { background: transparent; box-shadow: none; }
+.banner, .banner.danger, .banner.happy-banner { border-radius: var(--radius-sm); }
+.context-menu { padding: var(--space-1); border-radius: var(--radius-md); background: var(--glass-bg-strong); }
+.sky-tip { border-radius: var(--radius-md); background: var(--glass-bg-strong); }
+
+/* 방: 판 위의 이름표와 선반 칩 */
+.thing .tag, .box-spot .tag { border-radius: var(--radius-xs); background: var(--glass-bg-strong); }
+.shelf-chip { border: 0; border-radius: calc(var(--radius-pill) / var(--s)); background: var(--glass-chip); color: var(--ink-soft); box-shadow: var(--glass-chip-shadow); }
+.shelf-chip:hover:not(:disabled) { background: var(--glass-chip-hover); }
+.room-plane.mini { border-radius: calc(var(--radius-md) / var(--s)); background: var(--glass-wash); }
+
+/* 방의 창: 탭까지 한 장의 유리입니다. 필터가 남으면 뒤를 흐리지 못해 그림자는 면에 답니다. */
+.side { border-radius: var(--radius-lg); overflow: hidden; filter: none; }
+.tabs { gap: var(--gap-hair); min-height: 0; padding: var(--space-2) var(--space-2) 0; }
+.tabs button { flex: 1 1 auto; justify-content: center; min-height: var(--control-md); padding: 0 var(--space-1); border-radius: var(--radius-sm); text-align: center; white-space: nowrap; }
+.tabs button::before, .tabs button::after { content: none; }
+.tabs button[aria-selected="true"] { background: var(--glass-chip-hover); box-shadow: var(--glass-chip-shadow); color: var(--ink); }
+.tabs button[aria-selected="false"]:hover:not(:disabled) { background: var(--glass-wash); color: var(--ink); }
+.drawer { padding: var(--space-3); background: none; border-radius: 0; }
+.drawer > .thing-panel, .drawer > .settings, .drawer-head, .drawer > div:not(.thing-panel, .settings) > p { padding: var(--space-1); background: none; }
+.list { display: grid; gap: var(--space-1); }
+.list li { margin: 0; border: 0; border-radius: var(--radius-sm); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
+.list button { border-radius: var(--radius-pill); }
+.thing-image { border-radius: var(--radius-sm); background: var(--glass-wash); }
+.state-stale { border-radius: var(--radius-sm); }
+.face-option { border-radius: var(--radius-sm); background: var(--glass-chip); }
+.room-page .face-option[aria-pressed="true"], dialog.sheet:not(.menu) .face-option[aria-pressed="true"] { background: var(--glass-chip-hover); outline: 2px solid var(--ink); outline-offset: -2px; }
+.face-swatch { border-radius: var(--radius-xs); }
+
+/* 대화상자: 폴더 탭을 떼고 유리 한 장으로 둡니다. */
+dialog.sheet:not(.menu) { padding-top: 0; }
+dialog.sheet:not(.menu)::before, dialog.sheet:not(.menu)::after { content: none; }
+dialog.sheet:not(.menu) .sheet-body, dialog.sheet.weekly .sheet-body { max-height: calc(100dvh - var(--space-12)); border-radius: var(--radius-lg); }
+dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); }
+.sweep-room { border-radius: var(--radius-md); background: var(--glass-chip); overflow: hidden; }
+.viewer-note, .viewer-stage { border-radius: var(--radius-md); background: var(--glass-chip); }
+.sweep .sheet-body > .row.end:last-child, .sheet-body:has(> .sweep-room) > .row.end:last-child, dialog.sheet.weekly .sheet-body > .row.end:last-child { border-top: 0; background: var(--glass-bg-strong); }
+.sheet-body .path { border-radius: var(--radius-xs); background: var(--glass-wash); }
+.home dialog.sheet.menu .sheet-body { border: 0; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; background: var(--glass-bg); box-shadow: var(--glass-shadow); }
+
+/* 고른 방 패널의 구멍 줄과 여백 선도 선이라 뺍니다. */
+.home .sky-panel { border: 0; background-image: none; }
+
+/* 현관 */
+.doorstep { border-radius: 0; box-shadow: var(--shadow-1); }
+.door-item { border: 0; border-radius: var(--radius-sm); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
+
+/* 플로팅 창: 창 밖 바탕화면은 웹 화면이 흐릴 수 없어 흰색을 많이 남긴 면으로 둡니다. 그림자도 창 안에서 끝나게 작게요. */
+.pet-bar, .pet .pet-start, .pet-ask, .pet-menu { border: 0; border-radius: var(--radius-md); background: var(--glass-bg-strong); box-shadow: var(--glass-chip-shadow); }
+.pet .pet-start { border-radius: var(--radius-pill); }
+.pet-working .pet-bar { background: var(--glass-dark); }
+.pet .pet-toggle { border: 0; border-radius: var(--radius-pill); background: var(--glass-wash); box-shadow: none; }
+.pet-working .pet .pet-toggle, .pet.pet-working .pet-toggle { background: var(--glass-dark-chip); }
+.pet .pet-toggle:hover:not(:disabled), .pet .pet-toggle:active:not(:disabled) { background: var(--glass-wash-strong); }
+.pet.pet-working .pet-toggle:hover:not(:disabled), .pet.pet-working .pet-toggle:active:not(:disabled) { background: var(--glass-dark-chip); }
+.pet-ask button { border-radius: var(--radius-pill); }
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass-bg: var(--surface); --glass-bg-strong: var(--surface); --glass-chip: var(--surface); --glass-dark: var(--ink); }
+}

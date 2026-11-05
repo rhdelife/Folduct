@@ -141,12 +141,12 @@
 | `size/space/8` | `32px` |  |
 | `size/space/10` | `40px` |  |
 | `size/space/12` | `48px` |  |
-| `size/radius/xs` | `2px` |  |
-| `size/radius/sm` | `2px` |  |
-| `size/radius/md` | `2px` |  |
-| `size/radius/lg` | `0` |  |
-| `size/radius/xl` | `0` |  |
-| `size/radius/pill` | `0` |  |
+| `size/radius/xs` | `4px` |  |
+| `size/radius/sm` | `10px` |  |
+| `size/radius/md` | `14px` |  |
+| `size/radius/lg` | `20px` |  |
+| `size/radius/xl` | `24px` |  |
+| `size/radius/pill` | `999px` |  |
 | `size/radius/sheet` | `32px` |  |
 | `size/layout/topbar-h` | `72px` |  |
 | `size/layout/chrome-y` | `42px` |  |
@@ -166,8 +166,8 @@
 ## 그림자
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `shadow/1` | `[object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
-| `shadow/2` | `[object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
+| `shadow/1` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
+| `shadow/2` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
 | `shadow/3` | `[object Object], [object Object]` | Figma에서는 Effect style(그림자 2겹)로 만드세요. |
 
 ## 움직임
@@ -189,6 +189,17 @@
 | --- | --- | --- |
 | `scene/topbar-stacked-h` | `100px` |  |
 | `scene/topbar-phone-h` | `112px` |  |
+| `scene/glass-blur` | `blur(24px) saturate(160%)` |  |
+| `scene/glass-bg` | `rgb(255 255 255 / 0.62)` |  |
+| `scene/glass-bg-strong` | `rgb(255 255 255 / 0.86)` |  |
+| `scene/glass-chip` | `rgb(255 255 255 / 0.56)` |  |
+| `scene/glass-chip-hover` | `rgb(255 255 255 / 0.9)` |  |
+| `scene/glass-wash` | `rgb(23 23 23 / 0.05)` |  |
+| `scene/glass-wash-strong` | `rgb(23 23 23 / 0.09)` |  |
+| `scene/glass-dark` | `rgb(23 23 23 / 0.74)` |  |
+| `scene/glass-dark-chip` | `rgb(255 255 255 / 0.16)` |  |
+| `scene/glass-shadow` | `0 1px 2px rgb(23 23 23 / 0.04), 0 12px 40px rgb(23 23 23 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.7)` |  |
+| `scene/glass-chip-shadow` | `0 1px 2px rgb(23 23 23 / 0.07)` |  |
 | `scene/z-intro` | `8000` |  |
 | `scene/intro-vase` | `min(40dvh, 56vw)` |  |
 | `scene/intro-foot` | `112px` |  |
