@@ -3,7 +3,30 @@ import type { Kind, Room, Thing } from "./model";
 import { hash } from "./sky";
 
 // 인트로의 시간표(ms). 종이가 다 날아드는 시간은 styles.css의 --intro-fly·--intro-stagger와 맞춰 둡니다.
-export const introMs = { gather: 2400, fill: 2400, rise: 1300, leave: 600 };
+export const introMs = { gather: 3300, fill: 2400, rise: 1300, leave: 600 };
+
+// 파일을 먹는 순서: [스프라이트 프레임, ms]. 입을 벌려 종이가 다 들어올 때까지 받아먹고, 씹고, 꿀꺽 삼켜 제자리로 돌아옵니다. 다 더하면 introMs.gather예요.
+const gobble: [number, number][] = [[3, 70], [5, 50], [6, 90], [5, 50], [3, 70], [4, 110]];
+const chew: [number, number][] = [[7, 90], [8, 90], [7, 90], [8, 90]];
+export const eatTimeline: [number, number][] = [
+  [0, 80], [1, 160], [2, 80], [3, 120], [4, 200],
+  ...gobble, ...gobble, ...gobble, ...gobble,
+  ...chew,
+  [9, 90], [10, 90], [11, 90], [12, 110],
+  [0, 160],
+];
+
+// 스프라이트를 프레임 단위로 넘기는 키프레임. 사이를 잇지 않고 칸마다 뚝뚝 넘어갑니다.
+export function eatKeyframes(timeline: [number, number][], frameCount: number): Keyframe[] {
+  const total = timeline.reduce((sum, [, ms]) => sum + ms, 0);
+  let at = 0;
+  const frames = timeline.map(([frame, ms]): Keyframe => {
+    const key = { offset: at / total, easing: "step-end", transform: `translateX(${(-frame / frameCount) * 100}%)` };
+    at += ms;
+    return key;
+  });
+  return [...frames, { offset: 1, transform: frames[frames.length - 1].transform }];
+}
 
 export const introPaperCount = 14;
 const introMinThings = 6;

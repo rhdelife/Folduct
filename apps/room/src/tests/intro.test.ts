@@ -1,5 +1,8 @@
+/// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { introPaperCount, introPapers, introThings } from "../domain/intro";
+import sheet from "../art/duct-eat.png?inline";
+import { eatBoard, eatFrameCount } from "../art/duct";
+import { eatKeyframes, eatTimeline, introMs, introPaperCount, introPapers, introThings } from "../domain/intro";
 import type { Kind, Room, Thing } from "../domain/model";
 import { sampleRooms } from "../storage/sample";
 
@@ -44,5 +47,31 @@ describe("인트로 종이", () => {
 
   it("같은 파일은 언제나 같은 자리예요", () => {
     expect(introPapers(many(8))).toEqual(introPapers(many(8)));
+  });
+});
+
+describe("파일을 먹는 스프라이트", () => {
+  it("시간표는 모으는 시간과 같고, 있는 프레임만 쓰며, 서 있는 그림으로 끝난다", () => {
+    expect(eatTimeline.reduce((sum, [, ms]) => sum + ms, 0)).toBe(introMs.gather);
+    for (const [frame] of eatTimeline) expect(frame).toBeLessThan(eatFrameCount);
+    expect(new Set(eatTimeline.map(([frame]) => frame)).size).toBe(eatFrameCount);
+    expect(eatTimeline.at(-1)![0]).toBe(0);
+  });
+
+  it("키프레임은 칸 단위로 넘어가고 시작과 끝이 제자리다", () => {
+    const keys = eatKeyframes(eatTimeline, eatFrameCount);
+    expect(keys[0]).toMatchObject({ offset: 0, transform: "translateX(0%)" });
+    expect(keys.at(-1)).toMatchObject({ offset: 1 });
+    expect(keys.at(-1)!.transform).toBe("translateX(0%)");
+    const offsets = keys.map((key) => key.offset as number);
+    expect(offsets).toEqual([...offsets].sort((a, b) => a - b));
+  });
+
+  it("시트 파일이 프레임 수와 그림 칸 비율에 맞다", () => {
+    const png = atob(sheet.split(",")[1]);
+    const u32 = (at: number) => [0, 1, 2, 3].reduce((sum, i) => sum * 256 + png.charCodeAt(at + i), 0);
+    const [width, height] = [u32(16), u32(20)];
+    expect(width % eatFrameCount).toBe(0);
+    expect((width / eatFrameCount) / height).toBeCloseTo(eatBoard.width / eatBoard.height, 2);
   });
 });

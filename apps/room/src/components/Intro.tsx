@@ -1,7 +1,9 @@
+/// <reference types="vite/client" />
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { kindParts } from "../art/duct";
-import { introMs, introPapers, introThings } from "../domain/intro";
+import { eatFrameCount, kindParts } from "../art/duct";
+import eatSheet from "../art/duct-eat.png";
+import { eatKeyframes, eatTimeline, introMs, introPapers, introThings } from "../domain/intro";
 import type { Thing } from "../domain/model";
 import { listRooms } from "../storage/db";
 import { sampleRooms } from "../storage/sample";
@@ -11,7 +13,7 @@ type Phase = "scatter" | "gather" | "fill" | "rise";
 
 const copy: Record<Phase, string> = {
   scatter: "파일이 흩어져 있어요.",
-  gather: "하나씩 주름관에 담아요.",
+  gather: "하나씩 꿀꺽 삼켜요.",
   fill: "색은 형식, 길이는 용량이에요.",
   rise: "이제 방으로 가요.",
 };
@@ -19,11 +21,12 @@ const nextPhase = { gather: "fill", fill: "rise" } as const;
 // 그림이 차지하는 폭. 화면마다 달라 선 굵기가 무난한 값으로 둡니다.
 const introPx = 240;
 
-// 앱을 켤 때 한 번, 흩어진 파일을 주름관 입에 담고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
+// 앱을 켤 때 한 번, 흩어진 파일을 주름관이 받아먹고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
 export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave: () => void; onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("scatter");
   const [things, setThings] = useState<Thing[] | null>(null);
   const skip = useRef<HTMLButtonElement>(null);
+  const sprite = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     document.title = "Folduct";
@@ -43,6 +46,15 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
     const timer = setTimeout(() => (phase === "rise" ? onLeave() : setPhase(nextPhase[phase])), introMs[phase]);
     return () => clearTimeout(timer);
   }, [phase, leaving, onLeave, onDone]);
+
+  useEffect(() => {
+    if (phase !== "gather" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const play = sprite.current?.animate(eatKeyframes(eatTimeline, eatFrameCount), { duration: introMs.gather, fill: "forwards" });
+    // 입 모양이 종이와 어긋나지 않게 첫 종이가 실제로 움직이기 시작한 시각에 맞춥니다.
+    const paper = document.querySelector(".intro-paper")?.getAnimations()[0];
+    paper?.ready.then(() => { if (play) play.startTime = paper.startTime; }).catch(() => undefined);
+    return () => play?.cancel();
+  }, [phase]);
 
   useEffect(() => {
     if (leaving) return;
@@ -72,6 +84,10 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
           <div className="intro-center">
             <div className="intro-vase-lift">
               <div className="intro-vase">
+                {/* 먹는 동안만 시트를 보여 줍니다. 미리 올려 풀어 두어 시작할 때 멈칫하지 않아요. */}
+                <div className="intro-sprite" aria-hidden="true">
+                  <img ref={sprite} src={eatSheet} alt="" style={{ width: `${eatFrameCount * 100}%` }} onLoad={(event) => void event.currentTarget.decode().catch(() => undefined)} />
+                </div>
                 <PoseArt pose={phase === "rise" ? "done" : "idle"} parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
               </div>
             </div>

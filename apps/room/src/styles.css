@@ -116,6 +116,8 @@
   --ease-fan: cubic-bezier(0.2, 0.8, 0.2, 1);
   /* 주름관이 자세를 바꾸거나 커질 때 씁니다. */
   --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+  /* 종이가 입으로 빨려 들어갈 때. 갈수록 빨라집니다. */
+  --ease-suck: cubic-bezier(0.6, 0, 0.9, 0.5);
   --z-toast: 9000;
   /* 인트로: 주름관 한 변, 그 아래 글자·버튼 칸, 종이 축소, 시간표(domain/intro.ts의 introMs와 맞춥니다). */
   --z-intro: 8000;
@@ -1150,18 +1152,28 @@ html[data-window="pet"] body::after { display: none; }
 
 /* ══ 인트로 ══ */
 /* 흩어진 종이 → 주름관 입으로 날아듦 → 주름이 형식별 색으로 물듦 → 주름관이 올라가고 집이 드러남. */
-.intro { --mouth: calc((var(--intro-vase) + var(--intro-foot)) * -0.5 + var(--intro-vase) * 0.36); --mouth-x: calc(var(--intro-vase) * 0.074); position: fixed; inset: 0; z-index: var(--z-intro); display: grid; place-items: center; overflow: hidden; background: var(--lightbox); -webkit-user-select: none; user-select: none; }
+.intro { --mouth: calc((var(--intro-vase) + var(--intro-foot)) * -0.5 + var(--intro-vase) * 0.3); --mouth-x: calc(var(--intro-vase) * 0.103); position: fixed; inset: 0; z-index: var(--z-intro); display: grid; place-items: center; overflow: hidden; background: var(--lightbox); -webkit-user-select: none; user-select: none; }
 .intro.leaving { opacity: 0; pointer-events: none; transition: opacity var(--intro-leave) ease-out; }
 .intro-papers { position: absolute; inset: 0; pointer-events: none; }
 /* 자리는 --x(vw)·--y(vh)가 정하고, 안쪽 판이 살짝 흔들립니다. */
 .intro-paper { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), 0) rotate(var(--rot)) scale(var(--intro-paper-scale)); animation: intro-drop var(--intro-fly) var(--ease-settle) backwards; animation-delay: calc(var(--i) * 60ms); }
 .intro-paper-art { width: max-content; translate: -50% -50%; transform-origin: 50% 20%; animation: intro-sway 4s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -0.7s); }
-.intro:not(.phase-scatter) .intro-paper { animation: intro-gather var(--intro-fly) var(--ease-standard) forwards; animation-delay: calc(var(--i) * var(--intro-stagger)); }
+/* 먹히는 동안 종이는 주름관 앞으로 나와 입속으로 작아집니다. */
+.intro:not(.phase-scatter) .intro-papers { z-index: 1; }
+.intro:not(.phase-scatter) .intro-paper { animation: intro-gather var(--intro-fly) var(--ease-suck) forwards; animation-delay: calc(var(--i) * var(--intro-stagger)); }
 .intro-center { position: relative; display: grid; justify-items: center; }
 .intro-vase-lift { transition: transform var(--intro-rise) ease-in, opacity var(--intro-rise) ease-in; }
 .phase-rise .intro-vase-lift { transform: translate3d(0, -100dvh, 0); }
 .intro-vase { position: relative; width: var(--intro-vase); height: var(--intro-vase); transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
 /* 주름은 받침부터 차례로 물듭니다. */
+.intro-sprite { position: absolute; left: 0; top: 50%; width: 100%; aspect-ratio: 136 / 130; overflow: hidden; translate: 0 -50%; visibility: hidden; }
+.intro-sprite img { display: block; max-width: none; height: 100%; }
+/* 움직임을 줄인 사람에게는 시트를 틀지 않고 서 있는 그림을 그대로 둡니다. */
+@media (prefers-reduced-motion: no-preference) {
+  .phase-gather .intro-vase { animation: none; }
+  .phase-gather .intro-sprite { visibility: visible; }
+  .phase-gather .vase-art { visibility: hidden; }
+}
 .intro-band { opacity: 0; }
 .phase-fill .intro-band, .phase-rise .intro-band { animation: intro-band var(--intro-band) var(--ease-settle) forwards; animation-delay: calc(var(--i) * var(--intro-fill) / var(--n)); }
 .intro-foot { display: grid; align-content: start; justify-items: center; gap: var(--space-3); height: var(--intro-foot); padding-top: var(--space-5); text-align: center; }
@@ -1173,8 +1185,8 @@ html[data-window="pet"] body::after { display: none; }
 @keyframes intro-sway { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
 @keyframes intro-gather {
   from { transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), 0) rotate(var(--rot)) scale(var(--intro-paper-scale)); }
-  72% { opacity: 1; transform: translate3d(var(--mouth-x), calc(var(--mouth) - 8vh), 0) rotate(0deg) scale(0.5); }
-  to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(0deg) scale(0.2); }
+  82% { opacity: 1; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 200deg)) scale(0.42); }
+  to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 280deg)) scale(0.06); }
 }
 @keyframes intro-band { to { opacity: 1; } }
 @media (max-width: 719.98px) {

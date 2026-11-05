@@ -19,6 +19,9 @@ type Spec = {
   face?: "happy" | "closed" | "wide";
   ticks?: string[];
   paperAt?: [number, number, number];
+  // 삼킨 파일이 지나가는 자리. 관 길이의 비율과 불룩한 정도예요.
+  bulge?: [number, number];
+  eyeScale?: number;
 };
 
 export type DuctTone = "ink" | "white" | "foot" | "paper" | "solid" | "layer";
@@ -148,7 +151,8 @@ function tube(spec: Spec) {
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     const m = Math.hypot(dx, dy) || 1;
-    const half = spec.width / 2 + spec.scallop * Math.abs(Math.sin((Math.PI * i) / spec.rib));
+    const swell = spec.bulge ? spec.bulge[1] * Math.exp(-(((i / (out.length - 1) - spec.bulge[0]) / 0.1) ** 2)) : 0;
+    const half = spec.width / 2 + spec.scallop * Math.abs(Math.sin((Math.PI * i) / spec.rib)) + swell;
     L.push([p[0] - (dy / m) * half, p[1] + (dx / m) * half]);
     R.push([p[0] + (dy / m) * half, p[1] - (dx / m) * half]);
   });
@@ -201,7 +205,7 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1 }: { w: num
   }
   items.push({ d: oval(spec.head), tone: "white" }, ...pen(oval(spec.head), w), { d: oval(spec.inner), tone: "ink" });
   const [a, b] = spec.eyes;
-  const r = Math.max(3.4, w);
+  const r = Math.max(3.4, w) * (spec.eyeScale ?? 1);
   if (spec.face === "happy") {
     for (const [x, y] of [a, b]) items.push(...pen(`M${x - 5} ${y + 2}C${x - 3} ${y - 4} ${x + 3} ${y - 4} ${x + 5} ${y + 2}`, w * 0.85, "white"));
   } else if (spec.face === "closed") {
@@ -248,6 +252,29 @@ const poses: Record<DuctPose, Spec> = {
 
 export function drawPose(pose: DuctPose, { px, layers }: { px: number; layers?: DuctLayer[] }): DuctDrawing {
   return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move" }) };
+}
+
+// ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──
+const reach = "M36 108C36 88 36 72 44 60C50 52 60 46 70 40";
+const armsUp = ["M22 82C14 78 8 72 6 64", "M50 80C60 76 68 70 72 62"];
+const mouth = (x: number, y: number, rx: number, ry: number, inRx: number, inRy: number) => ({ head: [x, y, rx, ry] as [number, number, number, number], inner: [x, y, inRx, inRy] as [number, number, number, number] });
+const eatFrames: Spec[] = [
+  poses.idle,
+  { ...poses.idle, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
+  { ...poses.idle, line: reach, ...mouth(72, 33, 31, 31, 25, 25), eyes: [[61, 20], [84, 19]], eyeScale: 0.85, arms: armsUp },
+  { ...poses.idle, line: reach, ...mouth(74, 30, 35, 36, 29, 31), eyes: [[62, 8], [87, 7]], eyeScale: 0.7, arms: armsUp },
+  { ...poses.idle, line: reach, ...mouth(75, 31, 33, 38, 27, 33), eyes: [[64, 7], [86, 6]], eyeScale: 0.7, arms: armsUp },
+  { ...poses.idle, ...mouth(72, 38, 32, 25, 25, 15), eyes: [[61, 33], [83, 32]], eyeScale: 0.85 },
+  { ...poses.idle, ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]], face: "closed" },
+  { ...poses.idle, ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]], face: "happy" },
+  { ...poses.idle, ...mouth(70, 42, 32, 21, 25, 10), eyes: [[60, 42], [81, 41]], face: "closed" },
+  ...[0.82, 0.6, 0.38, 0.16].map((at): Spec => ({ ...poses.idle, bulge: [at, 7], face: "happy" })),
+];
+export const eatFrameCount = eatFrames.length;
+export const eatBoard = { width: board.w, height: board.h };
+
+export function drawEatFrame(frame: number, px: number): DuctDrawing {
+  return { viewBox: boardBox, items: draw(eatFrames[frame], { w: ductWeight(px) }) };
 }
 
 // ── 방마다 다른 주름관 8가지. 길이는 용량이라 긴 선을 용량만큼만 잘라 씁니다. ──
