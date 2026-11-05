@@ -1152,7 +1152,7 @@ html[data-window="pet"] body::after { display: none; }
 
 /* ══ 인트로 ══ */
 /* 흩어진 종이 → 주름관 입으로 날아듦 → 주름이 형식별 색으로 물듦 → 주름관이 올라가고 집이 드러남. */
-.intro { --mouth: calc((var(--intro-vase) + var(--intro-foot)) * -0.5 + var(--intro-vase) * 0.404); --mouth-x: calc(var(--intro-vase) * 0.088); position: fixed; inset: 0; z-index: var(--z-intro); display: grid; place-items: center; overflow: hidden; background: var(--lightbox); -webkit-user-select: none; user-select: none; }
+.intro { --mouth: calc((var(--intro-vase) + var(--intro-foot)) * -0.5 + var(--intro-vase) * 0.3); --mouth-x: calc(var(--intro-vase) * 0.103); position: fixed; inset: 0; z-index: var(--z-intro); display: grid; place-items: center; overflow: hidden; background: var(--lightbox); -webkit-user-select: none; user-select: none; }
 .intro.leaving { opacity: 0; pointer-events: none; transition: opacity var(--intro-leave) ease-out; }
 .intro-papers { position: absolute; inset: 0; pointer-events: none; }
 /* 자리는 --x(vw)·--y(vh)가 정하고, 안쪽 판이 살짝 흔들립니다. */
@@ -1185,8 +1185,8 @@ html[data-window="pet"] body::after { display: none; }
 @keyframes intro-sway { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
 @keyframes intro-gather {
   from { transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), 0) rotate(var(--rot)) scale(var(--intro-paper-scale)); }
-  82% { opacity: 1; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 120deg)) scale(0.3); }
-  to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 160deg)) scale(0.04); }
+  82% { opacity: 1; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 200deg)) scale(0.42); }
+  to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 280deg)) scale(0.06); }
 }
 @keyframes intro-band { to { opacity: 1; } }
 @media (max-width: 719.98px) {

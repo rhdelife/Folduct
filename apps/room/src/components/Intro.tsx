@@ -13,7 +13,7 @@ type Phase = "scatter" | "gather" | "fill" | "rise";
 
 const copy: Record<Phase, string> = {
   scatter: "파일이 흩어져 있어요.",
-  gather: "냠냠, 하나씩 먹어요.",
+  gather: "하나씩 꿀꺽 삼켜요.",
   fill: "색은 형식, 길이는 용량이에요.",
   rise: "이제 방으로 가요.",
 };
