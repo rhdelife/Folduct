@@ -22,6 +22,8 @@ type Spec = {
   // 삼킨 파일이 지나가는 자리. 관 길이의 비율과 불룩한 정도예요.
   bulge?: [number, number];
   eyeScale?: number;
+  // 얼굴 안의 작은 입. o는 벌린 입의 자리와 크기, nom은 오물거리는 입의 자리예요.
+  bite?: { o?: [number, number, number, number]; nom?: Pt };
 };
 
 export type DuctTone = "ink" | "white" | "foot" | "paper" | "solid" | "layer";
@@ -220,6 +222,11 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1 }: { w: num
   } else {
     items.push(dot(a[0], a[1], r, "white"), dot(b[0], b[1], r * 1.08, "white"));
   }
+  if (spec.bite?.o) items.push({ d: oval(spec.bite.o), tone: "white" });
+  if (spec.bite?.nom) {
+    const [x, y] = spec.bite.nom;
+    items.push(...pen(`M${x - 6} ${y}C${x - 5} ${y + 4} ${x - 1} ${y + 4} ${x} ${y}C${x + 1} ${y + 4} ${x + 5} ${y + 4} ${x + 6} ${y}`, w * 0.8, "white"));
+  }
   for (const tick of spec.ticks ?? []) items.push(...pen(tick, w * 0.8));
   if (spec.paperAt) {
     const [x, y, rot] = spec.paperAt;
@@ -261,34 +268,34 @@ export function drawPose(pose: DuctPose, { px, layers }: { px: number; layers?: 
 
 // ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──
 // 허리가 휘어도 팔이 몸에서 떨어지지 않게 관 안쪽에서 시작합니다.
-const armsUp = ["M34 82C18 78 8 72 6 64", "M42 80C60 76 68 70 72 62"];
+const armsUp = ["M34 82C22 80 12 76 8 69", "M42 80C56 78 66 74 70 67"];
 const armsDown = ["M34 82C14 82 8 86 5 93", "M42 80C58 79 65 82 70 89"];
 const mouth = (x: number, y: number, rx: number, ry: number, inRx: number, inRy: number) => ({ head: [x, y, rx, ry] as [number, number, number, number], inner: [x, y, inRx, inRy] as [number, number, number, number] });
-// 받침은 그대로 두고 허리만 옆으로 휩니다. sway가 프레임마다 바뀌면 관이 꿈틀대요.
-const wriggle = (sway: number, end: Pt = [70, 40]) => `M36 108C36 98 ${36 + sway} 92 ${36 + sway} 80C${36 + sway} 72 ${40 + sway * 0.4} 66 ${44 + sway * 0.4} 60C50 52 ${end[0] - 10} ${end[1] + 6} ${end[0]} ${end[1]}`;
-const wide = { ...mouth(74, 30, 35, 36, 29, 31), eyes: [[62, 8], [87, 7]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
-const tall = { ...mouth(75, 31, 33, 38, 27, 33), eyes: [[64, 7], [86, 6]] as [Pt, Pt], eyeScale: 0.7, arms: armsUp };
-const closing = { ...mouth(72, 38, 32, 25, 25, 15), eyes: [[61, 33], [83, 32]] as [Pt, Pt], eyeScale: 0.85, arms: armsDown };
-const shut = { ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]] as [Pt, Pt], face: "closed" as const, arms: armsDown };
-const chewUp = { ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]] as [Pt, Pt], face: "happy" as const, arms: armsDown };
-const shutEnd: Pt = [68, 46];
+// 받침은 그대로 두고 허리만 옆으로 살짝 휩니다.
+const wriggle = (sway: number, end: Pt = [68, 46]) => `M36 108C36 98 ${36 + sway} 92 ${36 + sway} 80C${36 + sway} 72 ${40 + sway * 0.4} 66 ${44 + sway * 0.4} 60C50 52 ${end[0] - 10} ${end[1] + 6} ${end[0]} ${end[1]}`;
+// 머리 크기는 거의 그대로 두고 눈 아래 작은 입만 벌립니다. 크게 벌리면 괴물처럼 보여요.
+const gape = { ...mouth(72, 35, 30, 27, 23, 20), eyes: [[61, 30], [83, 29]] as [Pt, Pt], bite: { o: [72, 44, 5.5, 4.5] as [number, number, number, number] }, arms: armsUp };
+const wider = { ...mouth(72, 34, 30, 28, 23, 21), eyes: [[61, 29], [83, 28]] as [Pt, Pt], bite: { o: [72, 44, 6.5, 5.5] as [number, number, number, number] }, arms: armsUp };
+const small = { ...mouth(71, 37, 30, 25, 23, 18), eyes: [[61, 34], [82, 33]] as [Pt, Pt], bite: { o: [71, 44, 4, 3] as [number, number, number, number] }, arms: armsUp };
+const nomUp = { ...mouth(70, 38, 31, 24, 24, 17), eyes: [[60, 35], [81, 34]] as [Pt, Pt], face: "happy" as const, bite: { nom: [70.5, 44] as Pt }, arms: armsDown };
+const nomDown = { ...mouth(70, 40, 31, 23, 24, 16), eyes: [[60, 37], [81, 36]] as [Pt, Pt], face: "happy" as const, bite: { nom: [70.5, 46] as Pt }, arms: armsDown };
 const eatFrames: Spec[] = [
   poses.idle,
-  { ...poses.idle, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
-  { ...poses.idle, line: wriggle(0), ...mouth(72, 33, 31, 31, 25, 25), eyes: [[61, 20], [84, 19]], eyeScale: 0.85, arms: armsUp },
-  { ...poses.idle, ...wide, line: wriggle(0) },
-  { ...poses.idle, ...tall, line: wriggle(2) },
-  // 받아먹는 한 바퀴: 입을 여닫는 동안 삼킨 덩어리가 위에서 아래로 내려가고 허리가 좌우로 휩니다.
-  { ...poses.idle, ...wide, line: wriggle(4), bulge: [0.86, 6] },
-  { ...poses.idle, ...closing, line: wriggle(6, shutEnd), bulge: [0.72, 7] },
-  { ...poses.idle, ...shut, line: wriggle(2, shutEnd), bulge: [0.58, 7] },
-  { ...poses.idle, ...closing, line: wriggle(-4, shutEnd), bulge: [0.44, 7] },
-  { ...poses.idle, ...wide, line: wriggle(-6), bulge: [0.3, 7] },
-  { ...poses.idle, ...tall, line: wriggle(-2), bulge: [0.16, 6] },
-  { ...poses.idle, ...chewUp, line: wriggle(3, shutEnd) },
-  { ...poses.idle, ...shut, ...mouth(70, 42, 32, 21, 25, 10), line: wriggle(-3, shutEnd) },
-  // 마지막 꿀꺽: 가장 크게 불룩해져 받침까지 내려갑니다. 끝으로 갈수록 잦아들어 서 있는 그림에 닿아요.
-  ...([[0.84, 8, 5], [0.62, 9, -5], [0.4, 9, 3], [0.18, 8, -2]] as const).map(([at, size, sway]): Spec => ({ ...poses.idle, line: wriggle(sway, shutEnd), bulge: [at, size], face: "happy", arms: armsDown })),
+  { ...poses.idle, ...mouth(69, 41, 30, 23, 23, 16), eyes: [[59, 40], [80, 39]] },
+  { ...poses.idle, line: wriggle(0), ...small, arms: armsUp },
+  { ...poses.idle, line: wriggle(0), ...gape },
+  { ...poses.idle, line: wriggle(1), ...wider },
+  // 받아먹는 한 바퀴: 작은 입을 오물거리는 동안 삼킨 파일이 관을 따라 내려가고 허리가 살짝 휩니다.
+  { ...poses.idle, ...gape, line: wriggle(2), bulge: [0.86, 3] },
+  { ...poses.idle, ...small, line: wriggle(3), bulge: [0.72, 4] },
+  { ...poses.idle, ...nomUp, line: wriggle(1), bulge: [0.58, 4.5] },
+  { ...poses.idle, ...nomDown, line: wriggle(-2), bulge: [0.44, 4.5] },
+  { ...poses.idle, ...small, line: wriggle(-3), bulge: [0.3, 4] },
+  { ...poses.idle, ...wider, line: wriggle(-1), bulge: [0.16, 3] },
+  { ...poses.idle, ...nomUp, line: wriggle(1.5) },
+  { ...poses.idle, ...nomDown, line: wriggle(-1.5) },
+  // 마지막 꿀꺽: 웃는 얼굴로 조금 더 큰 덩어리를 받침까지 내려보내고 서 있는 그림으로 돌아옵니다.
+  ...([[0.84, 5, 2], [0.62, 5.5, -2], [0.4, 5.5, 1], [0.18, 5, -1]] as const).map(([at, size, sway]): Spec => ({ ...poses.idle, line: wriggle(sway), bulge: [at, size], face: "happy", arms: armsDown })),
 ];
 export const eatFrameCount = eatFrames.length;
 export const eatBoard = { width: board.w, height: board.h };

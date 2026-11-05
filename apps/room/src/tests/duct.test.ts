@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drawPose, drawRoom, ductIndex, ductLayers, ductLength, ductMouth, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
+import { drawEatFrame, drawPose, drawRoom, ductIndex, ductLayers, ductLength, ductMouth, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
 
 const pieces = (drawing: DuctDrawing): DuctPiece[] => drawing.items.flatMap((item) => ("parts" in item ? item.parts : [item]));
 const allPoses: DuctPose[] = ["idle", "watch", "offer", "move", "done", "rest", "shock"];
@@ -61,6 +61,13 @@ describe("주름관 그림", () => {
     expect(pieces(drawRoom(0, 0.8, { px: 20, layers })).some((piece) => piece.tone === "solid")).toBe(true);
     expect(pieces(drawRoom(0, 0.8, { px: 120, layers })).some((piece) => piece.tone === "solid")).toBe(false);
     expect(ductWeight(300)).toBeLessThan(ductWeight(72));
+  });
+
+  it("받아먹는 프레임은 입을 벌리거나 오물거리고, 큰 입으로 머리가 부풀지 않아요", () => {
+    const idle = pieces(drawEatFrame(0, 240));
+    // 벌린 입(3, 4번)에는 얼굴보다 작은 흰 조각이 하나 더 있어요.
+    for (const frame of [3, 4, 5, 10]) expect(pieces(drawEatFrame(frame, 240)).filter((piece) => piece.tone === "white").length).toBeGreaterThan(idle.filter((piece) => piece.tone === "white").length);
+    expect(drawEatFrame(0, 240)).toEqual(drawPose("idle", { px: 240 }));
   });
 
   it("용량이 클수록 길고, 끝은 정해져 있어요", () => {
