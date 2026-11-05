@@ -840,6 +840,10 @@
       "$type": "other",
       "$value": "56px"
     },
+    "frodo-guide": {
+      "$type": "other",
+      "$value": "64px"
+    },
     "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"

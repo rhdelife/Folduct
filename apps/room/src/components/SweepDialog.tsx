@@ -5,6 +5,8 @@ import { formatBytes, type Room } from "../domain/model";
 import { isNative } from "../gateways/native";
 import { answerDoneOffer, runSweep, type SweepOutcome, type SweepPlan } from "../storage/box";
 import { setLastSweepAt } from "../storage/db";
+import { FrodoGuide } from "./FrodoGuide";
+import { cue } from "./useFrodo";
 import { useModal } from "./useModal";
 
 // 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
@@ -32,6 +34,8 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
     setBusy(key);
     try {
       const result = await runSweep(target, selected, now);
+      // 그 방 프로도가 상자로 가는 파일을 배웅합니다.
+      for (const outcome of result) cue(outcome.roomId, { body: "bye", face: "happy", ms: 950 });
       setOutcomes((current) => (current ? current.map((outcome) => result.find((next) => next.roomId === outcome.roomId) ?? outcome) : result));
     } catch {
       setStopped(true);
@@ -93,6 +97,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
         else void later();
       }}
     >
+      <FrodoGuide />
       <div className="sheet-body">
         <h2 id="sweep-title">이번 주 정리 · {week}</h2>
         {stopped ? (

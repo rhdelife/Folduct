@@ -5,6 +5,7 @@ import { askChoices, defaultPet, type PetSettings } from "../domain/session";
 import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible } from "../gateways/native";
 import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn } from "../storage/db";
 import { addDoorFolder } from "../storage/doorstep";
+import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 
 export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doorstep: Doorstep; onDoorstep: (state: Doorstep) => void; onClose: () => void; onError: (message: string) => void }) {
@@ -99,6 +100,7 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
         if (pressedOutside.current && event.target === event.currentTarget) onClose();
       }}
     >
+      <FrodoGuide />
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="settings-title">환경설정</h2>

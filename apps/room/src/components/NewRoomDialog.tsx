@@ -5,6 +5,7 @@ import { formatBytes, type Room, type RoomSource } from "../domain/model";
 import { canPickFolder, pickFolder, scanFileList, type ScanResult } from "../gateways/folder";
 import { allowRooms, folderName, isNative, pickParent, pickRoomFolder, sameFolder, scanRoomFolder, type ChildFolder } from "../gateways/native";
 import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
+import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 
 type Draft = { source: RoomSource; rootName: string; handle: FileSystemDirectoryHandle | null; origin?: string; scan: ScanResult };
@@ -186,6 +187,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   const total = draft?.scan.files.reduce((sum, file) => sum + file.size, 0) ?? 0;
   return (
     <dialog ref={dialog} className="sheet" aria-labelledby="new-room-title" onCancel={(event) => { event.preventDefault(); if (!saving) onClose(); }}>
+      <FrodoGuide />
       {same ? (
         <div className="sheet-body">
           {same.handle ? (

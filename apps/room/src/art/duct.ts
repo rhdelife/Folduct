@@ -26,7 +26,10 @@ type Spec = {
 
 export type DuctTone = "ink" | "white" | "foot" | "paper" | "solid" | "layer";
 export type DuctPiece = { d: string; tone: DuctTone; even?: boolean; color?: string; i?: number; n?: number };
-export type DuctGroup = { rib?: number; transform?: string; parts: DuctPiece[] };
+// 살아 있는 그림에서 표정 시트가 앉을 자리: 얼굴의 가운데와 반지름.
+export type DuctFaceSlot = { face: [number, number, number, number] };
+export type DuctPart = "head" | "armL" | "armR";
+export type DuctGroup = { rib?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
 export type DuctDrawing = { viewBox: string; items: (DuctPiece | DuctGroup)[] };
 export type DuctLayer = { label: string; color: string; share: number };
 export type DuctPose = "idle" | "watch" | "offer" | "move" | "done" | "rest" | "shock";
@@ -175,15 +178,17 @@ function layerColorAt(layers: DuctLayer[], at: number): string | null {
 
 const armEnd = (d: string): Pt => (d.match(/-?\d*\.?\d+/g) ?? []).slice(-2).map(Number) as Pt;
 
-function draw(spec: Spec, { w, layers = [], moving = false, seed = 1 }: { w: number; layers?: DuctLayer[]; moving?: boolean; seed?: number }): DuctDrawing["items"] {
+function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = false }: { w: number; layers?: DuctLayer[]; moving?: boolean; seed?: number; live?: boolean }): DuctDrawing["items"] {
   const pen = makePen(seed);
   const { L, R, body } = tube(spec);
   const items: DuctDrawing["items"] = [];
   // 팔은 관 뒤에서 나오고, 끝에 작은 손을 답니다.
-  for (const arm of spec.arms) {
+  spec.arms.forEach((arm, at) => {
     const [x, y] = armEnd(arm);
-    items.push(...pen(arm, w), dot(x, y, Math.max(2.4, w * 0.8)));
-  }
+    const pieces = [...pen(arm, w), dot(x, y, Math.max(2.4, w * 0.8))];
+    if (live) items.push({ part: at === 0 ? "armL" : "armR", parts: pieces });
+    else items.push(...pieces);
+  });
   items.push({ d: spec.foot, tone: "foot" }, ...pen(spec.foot, w));
   const last = L.length - 1;
   if (moving) {
@@ -208,6 +213,13 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1 }: { w: num
     items.push(...pen(body, w));
     for (let i = spec.rib; i < L.length - 2; i += spec.rib) items.push(...pen(open([L[i], R[i]]), w * 0.62));
   }
+  // 살아 있는 그림의 얼굴은 표정 시트가 맡습니다. 머리는 끄덕이고 갸웃하게 한 덩어리로 묶어요.
+  if (live) {
+    items.push({ part: "head", parts: [{ d: oval(spec.head), tone: "white" }, ...pen(oval(spec.head), w), { face: spec.inner }] });
+    for (const tick of spec.ticks ?? []) items.push(...pen(tick, w * 0.8));
+    if (spec.paperAt) items.push(paperGroup(spec.paperAt, w, pen));
+    return items;
+  }
   items.push({ d: oval(spec.head), tone: "white" }, ...pen(oval(spec.head), w), { d: oval(spec.inner), tone: "ink" });
   const [a, b] = spec.eyes;
   const r = Math.max(3.4, w) * (spec.eyeScale ?? 1);
@@ -221,12 +233,13 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1 }: { w: num
     items.push(dot(a[0], a[1], r, "white"), dot(b[0], b[1], r * 1.08, "white"));
   }
   for (const tick of spec.ticks ?? []) items.push(...pen(tick, w * 0.8));
-  if (spec.paperAt) {
-    const [x, y, rot] = spec.paperAt;
-    const sheet = "M-11 -14L5 -14L11 -8L11 14L-11 14Z";
-    items.push({ transform: `translate(${x} ${y}) rotate(${rot})`, parts: [{ d: sheet, tone: "paper" }, ...pen(sheet, w * 0.8), ...pen("M5 -14L5 -8L11 -8", w * 0.55)] });
-  }
+  if (spec.paperAt) items.push(paperGroup(spec.paperAt, w, pen));
   return items;
+}
+
+function paperGroup([x, y, rot]: [number, number, number], w: number, pen: ReturnType<typeof makePen>): DuctGroup {
+  const sheet = "M-11 -14L5 -14L11 -8L11 14L-11 14Z";
+  return { transform: `translate(${x} ${y}) rotate(${rot})`, parts: [{ d: sheet, tone: "paper" }, ...pen(sheet, w * 0.8), ...pen("M5 -14L5 -8L11 -8", w * 0.55)] };
 }
 
 // 아주 작게 그릴 때는 선이 뭉쳐요. 눈만 또렷한 실루엣으로 그립니다.
@@ -255,8 +268,8 @@ const poses: Record<DuctPose, Spec> = {
   shock: { ...stand, line: "M42 108C42 90 40 74 32 60C28 52 26 48 24 44", head: [26, 34, 27, 23], inner: [26, 34, 20, 16], eyes: [[18, 33], [35, 32]], face: "wide", foot: "M18 106L66 106L68 114L16 114Z", arms: ["M26 76C16 70 8 62 2 62", "M56 78C68 72 78 62 84 50"], ticks: ["M64 18L72 12", "M68 34L78 32"] },
 };
 
-export function drawPose(pose: DuctPose, { px, layers }: { px: number; layers?: DuctLayer[] }): DuctDrawing {
-  return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move" }) };
+export function drawPose(pose: DuctPose, { px, layers, live }: { px: number; layers?: DuctLayer[]; live?: boolean }): DuctDrawing {
+  return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move", live }) };
 }
 
 // ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──
@@ -296,6 +309,46 @@ export const eatBoard = { width: board.w, height: board.h };
 export function drawEatFrame(frame: number, px: number): DuctDrawing {
   return { viewBox: boardBox, items: draw(eatFrames[frame], { w: ductWeight(px) }) };
 }
+
+// ── 표정 시트(art/duct-faces.png)의 프레임. 모든 프로도가 한 장을 같이 씁니다. 몸은 방마다 모양과 색이 달라 코드로 그려요. ──
+const faceEyes: [Pt, Pt] = [[-10, -1], [11, -2]];
+const faceOval = "M-22 0C-22 -23.8 22 -23.8 22 0C22 23.8 -22 23.8 -22 0Z";
+const lookBy = (dx: number, dy: number): DuctPiece[] => faceEyes.map(([x, y], at) => dot(x + dx, y + dy, at ? 4.1 : 3.8, "white"));
+const lidBy = (dx: number, dy: number): ((pen: ReturnType<typeof makePen>) => DuctPiece[]) => (pen) => faceEyes.flatMap(([x, y]) => pen(`M${x - 5 + dx} ${y + dy}L${x + 5 + dx} ${y + dy}`, 2.4, "white"));
+const faceDraw = {
+  base: () => lookBy(0, 0),
+  blink: () => faceEyes.map(([x, y]) => ({ d: oval([x, y, 4, 1.5]), tone: "white" as const })),
+  shut: lidBy(0, 0),
+  lookR: () => lookBy(5, 0),
+  lookDR: () => lookBy(4, 3),
+  lookD: () => lookBy(0, 4),
+  lookDL: () => lookBy(-4, 3),
+  lookL: () => lookBy(-5, 0),
+  lookUL: () => lookBy(-4, -3),
+  lookU: () => lookBy(0, -4),
+  lookUR: () => lookBy(4, -3),
+  happy: (pen: ReturnType<typeof makePen>) => faceEyes.flatMap(([x, y]) => pen(`M${x - 5} ${y + 2}C${x - 3} ${y - 4} ${x + 3} ${y - 4} ${x + 5} ${y + 2}`, 2.2, "white")),
+  wide: () => [...faceEyes.map(([x, y], at) => dot(x, y, at ? 6.2 : 5.8, "white")), ...faceEyes.map(([x, y]) => dot(x, y + 1, 1.9))],
+  worried: (pen: ReturnType<typeof makePen>) => [...lookBy(0, 3), ...pen("M-16 -6L-7 -10", 2, "white"), ...pen("M8 -11L17 -7", 2, "white")],
+  sleepy: lidBy(0, 3),
+  tilt: () => [dot(-11, -5, 3.8, "white"), dot(11, 2, 4.1, "white")],
+};
+export type FaceExpr = keyof typeof faceDraw;
+export const faceFrames = Object.keys(faceDraw) as FaceExpr[];
+export const faceCell = { width: 240, height: 196 };
+
+export function drawFaceFrame(frame: number): DuctDrawing {
+  const pen = makePen(frame + 1);
+  return { viewBox: "-22 -18 44 36", items: [{ d: faceOval, tone: "ink" }, ...faceDraw[faceFrames[frame]](pen)] };
+}
+
+// 커서가 어느 쪽에 있는지로 볼 곳을 고릅니다. 화면 좌표라 y는 아래가 +예요.
+const lookOrder: FaceExpr[] = ["lookR", "lookDR", "lookD", "lookDL", "lookL", "lookUL", "lookU", "lookUR"];
+export function lookExpr(dx: number, dy: number): FaceExpr {
+  return lookOrder[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
+}
+
+export const poseFace: Record<DuctPose, FaceExpr> = { idle: "base", watch: "lookR", offer: "lookR", move: "lookU", done: "happy", rest: "sleepy", shock: "wide" };
 
 // ── 방마다 다른 주름관 8가지. 길이는 용량이라 긴 선을 용량만큼만 잘라 씁니다. ──
 const roomLines = [
@@ -351,10 +404,10 @@ function centeredLeft(spec: Spec): number {
   return Math.round((left + right) / 2 - board.w / 2);
 }
 
-export function drawRoom(shape: number, length: number, { px, layers }: { px: number; layers?: DuctLayer[] }): DuctDrawing {
+export function drawRoom(shape: number, length: number, { px, layers, live }: { px: number; layers?: DuctLayer[]; live?: boolean }): DuctDrawing {
   const spec = roomSpec(shape, length);
   const viewBox = `${centeredLeft(spec)} ${board.y} ${board.w} ${board.h}`;
-  return { viewBox, items: px < ductSilhouetteUnder ? silhouette(spec) : draw(spec, { w: ductWeight(px), layers, seed: shape + 1 }) };
+  return { viewBox, items: px < ductSilhouetteUnder ? silhouette(spec) : draw(spec, { w: ductWeight(px), layers, seed: shape + 1, live }) };
 }
 
 // 머리의 자리. 그림 칸 가운데를 0으로, 칸 폭을 1로 잽니다. 파일이 이 입에서 나와요.

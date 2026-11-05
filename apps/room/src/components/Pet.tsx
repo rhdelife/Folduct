@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Pointer
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
-import { kindParts, type DuctPose } from "../art/duct";
+import { cursorPosition, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { kindParts, poseFace, type DuctPose } from "../art/duct";
 import { kindTones } from "../art/palette";
 import { localDay } from "../domain/care";
 import { faceColorVar } from "../domain/face";
@@ -15,6 +15,7 @@ import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded
 import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt } from "./RoomFace";
+import { cue } from "./useFrodo";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
@@ -25,6 +26,9 @@ const watchEveryMs = 10_000;
 const doneShownMs = 20_000;
 // 그림이 차지하는 폭. styles.css --pet-vase와 같아요.
 const petPx = 104;
+// 커서를 읽는 주기. 앱이 뒤에 있으면 창에 호버가 오지 않아 위치를 직접 읽습니다.
+const cursorEveryMs = 150;
+const glanceEveryMs = 9_000;
 
 // 앱 화면과 따로 늘 떠 있는 작은 창. 주름관은 지금 하는 프로젝트이고, 자세가 지금 상태를 말해요. 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
@@ -255,6 +259,52 @@ export function Pet() {
     };
   }, [loadRooms]);
 
+  // 프로도가 커서를 눈으로 따라가고, 창에 들어오면 손을 흔듭니다. 멈춤 상태에서는 자고 있어요.
+  const sleeping = session?.status === "paused";
+  useEffect(() => {
+    if (pet.hidden || sleeping) {
+      cue("pet", { look: null });
+      return;
+    }
+    let inside = false;
+    const see = (x: number, y: number, w: number, h: number) => {
+      cue("pet", { look: { x, y } });
+      const now = x >= 0 && y >= 0 && x < w && y < h;
+      if (now && !inside) cue("pet", { body: "wave" });
+      inside = now;
+    };
+    if (!isNative()) {
+      const onMove = (event: globalThis.PointerEvent) => see(event.clientX, event.clientY, window.innerWidth, window.innerHeight);
+      window.addEventListener("pointermove", onMove);
+      return () => window.removeEventListener("pointermove", onMove);
+    }
+    const win = getCurrentWindow();
+    let last = "";
+    const timer = window.setInterval(() => {
+      void Promise.all([cursorPosition(), win.outerPosition(), win.scaleFactor()]).then(([at, origin, scale]) => {
+        const key = `${at.x},${at.y},${origin.x},${origin.y}`;
+        if (key === last) return;
+        last = key;
+        see((at.x - origin.x) / scale, (at.y - origin.y) / scale, window.innerWidth, window.innerHeight);
+      }).catch((error: unknown) => console.error(error));
+    }, cursorEveryMs);
+    return () => window.clearInterval(timer);
+  }, [pet.hidden, sleeping]);
+
+  // 작업 중에는 가끔 폴더를 살피듯 두리번거립니다.
+  useEffect(() => {
+    if (!working) return;
+    let back = 0;
+    const timer = window.setInterval(() => {
+      cue("pet", { face: "lookL", ms: 500 });
+      back = window.setTimeout(() => cue("pet", { face: "lookR", ms: 500 }), 600);
+    }, glanceEveryMs);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(back);
+    };
+  }, [working]);
+
   // 투명한 자리도 클릭을 막으니 창을 내용에 딱 맞춥니다.
   useLayoutEffect(() => {
     if (!isNative() || !root.current) return;
@@ -270,6 +320,7 @@ export function Pet() {
   function onPointerDown(event: PointerEvent<HTMLElement>) {
     dragged.current = false;
     press.current = (event.target as Element).closest("[data-no-drag]") ? null : { x: event.clientX, y: event.clientY };
+    if (press.current) cue("pet", { body: "stretch" });
   }
 
   function onPointerMove(event: PointerEvent<HTMLElement>) {
@@ -298,7 +349,10 @@ export function Pet() {
   const state = session ? session.status : "off";
   const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   return (
-    <main ref={root} className={`pet pet-${state}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => (press.current = null)}>
+    <main ref={root} className={`pet pet-${state}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
+      if (press.current) cue("pet", { body: "hop" });
+      press.current = null;
+    }}>
       <button
         type="button"
         className="pet-vase"
@@ -310,7 +364,7 @@ export function Pet() {
         }}
       >
         <span key={pose} className="pet-pose">
-          <PoseArt pose={pose} parts={room ? kindParts(room.things) : []} px={petPx} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
+          <PoseArt pose={pose} actor="pet" mood={asking ? "tilt" : menuOpen ? "lookD" : poseFace[pose]} parts={room ? kindParts(room.things) : []} px={petPx} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
         </span>
       </button>
       {session ? (

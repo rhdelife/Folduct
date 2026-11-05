@@ -5,6 +5,7 @@ import { objectScale } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
 import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen, type PlaneSize } from "../domain/plane";
 import { Icon } from "./Icon";
+import { centerOf, cue } from "./useFrodo";
 import { useFitCanvas } from "./useFitScale";
 
 const keyMoves: Record<string, Spot> = { ArrowRight: { x: 0.25, y: 0 }, ArrowLeft: { x: -0.25, y: 0 }, ArrowUp: { x: 0, y: -0.25 }, ArrowDown: { x: 0, y: 0.25 } };
@@ -102,7 +103,7 @@ export function RoomScene({
             )}
           </div>
         )}
-        <button type="button" className="box-spot" style={{ left: boxAt.left, top: boxAt.top, zIndex: depth(boxSpot) }} onClick={onOpenBox} aria-label={`정리 상자, ${boxCount}개 들어 있음`}>
+        <button type="button" className="box-spot" style={{ left: boxAt.left, top: boxAt.top, zIndex: depth(boxSpot) }} onClick={onOpenBox} onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })} onPointerLeave={() => cue(room.id, { look: null })} aria-label={`정리 상자, ${boxCount}개 들어 있음`}>
           <CardboardBox things={room.things.filter((thing) => thing.box)} />
           <span className="tag"><b>정리 상자</b><span>{boxCount}개</span></span>
         </button>
@@ -113,6 +114,8 @@ export function RoomScene({
             order={order}
             size={size}
             selected={thing.id === selectedId}
+            onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
+            onPointerLeave={() => cue(room.id, { look: null })}
             onPointerDown={(event) => {
               justDragged.current = false;
               if (event.button !== 0) return;
@@ -124,6 +127,8 @@ export function RoomScene({
               if (!current || current.id !== thing.id || event.buttons === 0) return;
               if (!current.moved && Math.hypot(event.clientX - current.x, event.clientY - current.y) / scale < 4) return;
               current.moved = true;
+              // 끌려가는 파일을 눈으로 따라갑니다.
+              cue(room.id, { look: { x: event.clientX, y: event.clientY } });
               // 끄는 동안은 React를 다시 그리지 않고 화면에서만 옮깁니다(판 좌표 px, 벽 안쪽으로 잘라서).
               const from = toScreen(current.start, size);
               const to = toScreen(dropSpot(event, current), size);
@@ -176,7 +181,7 @@ function ThingObject({
   order: number;
   size: PlaneSize;
   selected: boolean;
-} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
+} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerEnter" | "onPointerLeave" | "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
   const at = toScreen(thing.spot!, planeSize);
   const size = Math.round(60 * objectScale(thing.size));
   // 종이마다 비율이 달라요. 버튼을 종이에 꼭 맞춰야 이름표와 포커스 테두리가 종이에 붙습니다.

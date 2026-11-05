@@ -5,7 +5,9 @@ import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
 import { FacePicker, RoomFaceArt } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
+import { FrodoGuide } from "../components/FrodoGuide";
 import { BrandMark, Icon } from "../components/Icon";
+import { cue } from "../components/useFrodo";
 import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
@@ -201,6 +203,11 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   useEffect(() => {
     if (room) document.title = `${room.name} · Folduct`;
   }, [room?.name]);
+  // 방에 들어오면 프로도가 반겨 줍니다.
+  const roomLoaded = room !== null;
+  useEffect(() => {
+    if (roomLoaded) cue(roomId, { body: "hop", face: "happy", ms: 800 });
+  }, [roomLoaded, roomId]);
 
   // touch: 손댄 물건. 손댄 시각과 '방을 쓴 날'을 함께 남깁니다.
   function update(change: (room: Room) => Room, touch: string[] = []) {
@@ -275,6 +282,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   async function rescan() {
     if (!handle || !latest.current) return;
+    cue(roomId, { face: "lookL", ms: 500 });
+    window.setTimeout(() => cue(roomId, { face: "lookR", ms: 500 }), 600);
     // 상태에 남은 값 대신 지금 권한을 봅니다. 그사이 풀렸으면 '다시 시도'가 이 클릭에서 다시 물어요.
     if ((await folderAccess(handle)) !== "granted" && !(await askFolder(handle))) return toast("폴더 접근이 있어야 다시 볼 수 있어요.");
     setAccess("granted");
@@ -322,6 +331,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   // 파일 안으로 들어가기. 폴더가 없으면 연결부터, 권한이 없으면 같은 클릭 안에서 묻습니다(읽기 권한만).
   async function openFile(thingId: string, folder: Folder | null = handle) {
+    cue(roomId, { body: "nod" });
     const req = ++viewerReq.current;
     const stale = () => viewerReq.current !== req;
     const current = latest.current;
@@ -384,6 +394,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       if (result.error) return toast(result.error);
       // 기다리는 동안 쓴 메모·자리를 지우지 않게, 바뀐 칸만 지금 상태에 덧씌웁니다.
       update((current) => ({ ...current, things: current.things.map((thing) => (thing.id === id ? { ...thing, ...result.patch, spot: thing.spot ?? freeSpot(current.things, 3) } : thing)) }), [id]);
+      cue(roomId, { body: "wave", face: "happy", ms: 950 });
       toast("제자리로 돌려놓았어요.");
       focusSoon("#room-drawer h2");
     } catch {
@@ -395,6 +406,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   // 선반의 물건을 빈자리에 놓습니다. 여러 개면 하나씩 빈자리를 찾아 겹치지 않게 놓아요.
   function place(ids: string[]) {
+    cue(roomId, { body: "hop", face: "happy", ms: 800 });
     update((current) => {
       let things = current.things;
       ids.forEach((id, index) => {
@@ -407,6 +419,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   function shelve(thing: Thing) {
     const spot = thing.spot;
+    cue(roomId, { body: "nod" });
     patchThing(thing.id, { spot: null }, false);
     focusSoon("#room-drawer h2");
     toast("선반에 올려두었어요.", {
@@ -461,6 +474,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   return (
     <main className="room-page">
+      <FrodoGuide />
       <header className="topnav">
         <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
           <BrandMark size={32} />
@@ -468,7 +482,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           돌아가기
         </button>
         <div className="topnav-title">
-          <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" />
+          <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" actor={room.id} mood={saveError || folderIssue ? "worried" : selected?.missing ? "wide" : room.care.done ? "shut" : "base"} />
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
           <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
         </div>
@@ -525,11 +539,15 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             onSelect={(id) => {
               setSelectedId(id);
               setPanel("thing");
+              cue(roomId, { body: "nod" });
               // 서랍이 무대 아래로 쌓인 좁은 창에서는 고른 결과가 보이게 서랍을 끌어올립니다.
               if (window.matchMedia(stacked).matches) side.current?.scrollIntoView({ block: "nearest" });
             }}
             onOpen={(id) => void openFile(id)}
-            onMove={(id, spot: Spot, commit) => patchThing(id, { spot }, commit)}
+            onMove={(id, spot: Spot, commit) => {
+              patchThing(id, { spot }, commit);
+              if (commit) cue(roomId, { face: "happy", ms: 800, look: null });
+            }}
             onOpenBox={() => setPanel("box")}
             onOpenShelf={() => setPanel("shelf")}
           />
@@ -803,7 +821,10 @@ function SettingsPanel({ room, onChange, onCare, onForget }: { room: Room; onCha
     <div className="settings">
       <h2 tabIndex={-1}>방 설정</h2>
       <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => onChange({ name: event.target.value })} /></label>
-      <FacePicker face={room.face} onChange={(face) => onChange({ face })} />
+      <FacePicker face={room.face} onChange={(face) => {
+        onChange({ face });
+        cue(room.id, { body: "hop" });
+      }} />
       <fieldset className="care">
         <legend>방 돌보기</legend>
         <div className="seg" role="radiogroup" aria-label="홈에 둘지">

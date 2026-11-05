@@ -1,7 +1,10 @@
+/// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { drawPose, drawRoom, ductIndex, ductLayers, ductLength, ductMouth, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
+import faces from "../art/duct-faces.png?inline";
+import { cue, onCue, type Cue } from "../components/useFrodo";
+import { drawFaceFrame, drawPose, drawRoom, faceCell, faceFrames, lookExpr, poseFace, ductIndex, ductLayers, ductLength, ductMouth, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
 
-const pieces = (drawing: DuctDrawing): DuctPiece[] => drawing.items.flatMap((item) => ("parts" in item ? item.parts : [item]));
+const pieces = (drawing: DuctDrawing): DuctPiece[] => drawing.items.flatMap((item) => ("parts" in item ? item.parts.filter((part): part is DuctPiece => "d" in part) : [item]));
 const allPoses: DuctPose[] = ["idle", "watch", "offer", "move", "done", "rest", "shock"];
 const layers = [{ label: "영상", color: "#2a64ad", share: 0.7 }, { label: "글·코드", color: "#5f9b6d", share: 0.3 }];
 
@@ -74,5 +77,45 @@ describe("주름관 그림", () => {
   it("같은 방은 늘 같은 모양이고 여덟 모양에 흩어져요", () => {
     expect(ductIndex("방-1")).toBe(ductIndex("방-1"));
     expect(new Set(Array.from({ length: 80 }, (_, i) => ductIndex(`방-${i}`))).size).toBe(ductShapeCount);
+  });
+});
+
+describe("프로도의 표정과 신호", () => {
+  it("표정 시트는 프레임 수와 칸 크기에 맞고, 모든 프레임이 망가지지 않았어요", () => {
+    const png = atob(faces.split(",")[1]);
+    const u32 = (at: number) => [0, 1, 2, 3].reduce((sum, i) => sum * 256 + png.charCodeAt(at + i), 0);
+    expect([u32(16), u32(20)]).toEqual([faceCell.width * faceFrames.length, faceCell.height]);
+    expect(new Set(faceFrames.map((_, at) => JSON.stringify(drawFaceFrame(at)))).size).toBe(faceFrames.length);
+    for (const face of Object.values(poseFace)) expect(faceFrames).toContain(face);
+  });
+
+  it("커서 쪽을 여덟 방향으로 바라봐요", () => {
+    expect(lookExpr(10, 0)).toBe("lookR");
+    expect(lookExpr(-10, 0)).toBe("lookL");
+    expect(lookExpr(0, -10)).toBe("lookU");
+    expect(lookExpr(0, 10)).toBe("lookD");
+    expect(lookExpr(10, -10)).toBe("lookUR");
+    expect(lookExpr(-10, 10)).toBe("lookDL");
+  });
+
+  it("살아 있는 그림은 얼굴 자리와 움직일 부위를 내주고, 정지 그림은 그대로예요", () => {
+    const parts = (drawing: { items: unknown[] }) => drawing.items.flatMap((item) => ((item as { part?: string }).part ? [(item as { part: string }).part] : []));
+    expect(parts(drawRoom(0, 0.5, { px: 120, live: true }))).toEqual(["armL", "armR", "head"]);
+    expect(parts(drawPose("idle", { px: 104, live: true }))).toEqual(["armL", "armR", "head"]);
+    expect(parts(drawRoom(0, 0.5, { px: 120 }))).toEqual([]);
+    const head = drawRoom(0, 0.5, { px: 120, live: true }).items.find((item) => "part" in item && item.part === "head");
+    expect(head && "parts" in head && head.parts.some((part) => "face" in part)).toBe(true);
+  });
+
+  it("신호는 그 프로도에게만 가고, 그려지기 전에 온 신호는 잠깐 맡아 둬요", () => {
+    const heard: Cue[] = [];
+    const stop = onCue("방-가", (next) => heard.push(next));
+    cue("방-가", { body: "wave" });
+    cue("방-나", { body: "hop" });
+    expect(heard).toEqual([{ body: "wave" }]);
+    stop();
+    const late: Cue[] = [];
+    onCue("방-나", (next) => late.push(next));
+    expect(late).toEqual([{ body: "hop" }]);
   });
 });

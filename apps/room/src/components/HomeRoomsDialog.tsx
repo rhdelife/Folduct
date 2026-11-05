@@ -3,6 +3,7 @@ import { relativeDay, roomLastActivity, roomUsage } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { homeLimit, roomsToKeep } from "../domain/sky";
 import { RankVase } from "./SkyPanel";
+import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 
 // 홈 자리보다 방이 많아지면 뜹니다. 새 방, 다시 올리기, 가져오기, 예전 기록이 모두 이 창 하나로 옵니다.
@@ -32,6 +33,7 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
   const shown = rooms.filter((room) => keep.has(room.id)).length;
   return (
     <dialog ref={dialog} className="sheet" aria-labelledby="home-rooms-title" onCancel={(event) => event.preventDefault()}>
+      <FrodoGuide />
       <form
         className="sheet-body"
         onSubmit={(event) => {

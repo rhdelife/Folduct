@@ -161,6 +161,8 @@
 
   /* 방 머리의 주름관 */
   --room-head-duct: 56px;
+  /* 메뉴와 대화창 곁의 도우미 프로도. */
+  --frodo-guide: 64px;
 
   /* 주간 정리 */
   --weekly-w: min(55vw, 760px);
@@ -1124,9 +1126,9 @@ html[data-window="pet"] body::after { display: none; }
 :where(button).pet-vase { min-height: 0; padding: 0; border: 0; background: none; cursor: grab; }
 :where(button).pet-vase:hover:not(:disabled), :where(button).pet-vase:active:not(:disabled) { background: none; transform: none; }
 .pet-pose { display: block; transform-origin: 50% 90%; animation: duct-pose var(--dur-3) var(--ease-spring); }
-.pet-vase svg { display: block; width: var(--pet-vase); height: var(--pet-vase); overflow: visible; transform-origin: 50% 90%; animation: duct-breathe 2400ms ease-in-out infinite alternate; }
-.pet-working .pet-vase svg { animation-duration: 1600ms; }
-.pet-paused .pet-vase svg { animation: none; }
+.pet-pose > svg { display: block; width: var(--pet-vase); height: var(--pet-vase); overflow: visible; transform-origin: 50% 90%; animation: duct-breathe 2400ms ease-in-out infinite alternate; }
+.pet-working .pet-pose > svg { animation-duration: 1600ms; }
+.pet-paused .pet-pose > svg { animation: none; }
 .pet-bar { box-sizing: border-box; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border: 2px solid var(--ink); background: var(--surface); color: var(--ink); }
 .pet-working .pet-bar { background: var(--ink); color: var(--bg); }
 .pet-status { min-width: 0; display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; column-gap: var(--space-2); }
@@ -1147,7 +1149,40 @@ html[data-window="pet"] body::after { display: none; }
 .pet-menu button { width: 100%; min-height: var(--control-sm); justify-content: flex-start; padding: 0 var(--space-1); border: 0; background: none; color: var(--ink); font-size: var(--text-sm); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pet-menu button:hover:not(:disabled) { background: var(--surface-sunken); }
 @media (prefers-reduced-motion: reduce) {
-  .pet-pose, .pet-vase svg, .duct-rib { animation: none; }
+  .pet-pose, .pet-pose > svg, .duct-rib { animation: none; }
+}
+
+/* ══ 프로도의 동작 ══ */
+/* 얼굴은 표정 시트(useFrodo)가, 몸은 여기 움직임이 맡습니다. 신호가 끝나면 클래스가 빠져 제자리로 돌아와요. */
+.duct-part-armL, .duct-part-armR { transform-box: fill-box; }
+.duct-part-armL { transform-origin: 100% 0%; }
+.duct-part-armR { transform-origin: 0% 0%; }
+svg.frodo-hop { transform-origin: 50% 90%; animation: frodo-hop 560ms var(--ease-settle); }
+svg.frodo-stretch { transform-origin: 50% 90%; animation: frodo-stretch 800ms var(--ease-standard); }
+svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ease-spring); }
+.frodo-wave .duct-part-armR { animation: frodo-wave-r 300ms ease-in-out 3 alternate; }
+.frodo-bye .duct-part-armR { animation: frodo-wave-r 300ms ease-in-out 3 alternate; }
+.frodo-bye .duct-part-armL { animation: frodo-wave-l 300ms ease-in-out 3 alternate; }
+.frodo-nod .duct-part-head { animation: frodo-nod 420ms ease-in-out; }
+.frodo-tilt .duct-part-head { animation: frodo-tilt 720ms ease-in-out; }
+/* 스크롤로 자리를 옮기는 동안 콩콩 뛰어갑니다. */
+.sky-canvas.away:not(.at-row) .vase-float { animation: frodo-bounce 340ms ease-in-out infinite alternate; }
+@keyframes frodo-hop { 0% { transform: scale(1.04, 0.92); } 40% { transform: translateY(-12%) scale(0.97, 1.05); } 75% { transform: scale(1.03, 0.96); } 100% { transform: none; } }
+@keyframes frodo-stretch { 30% { transform: scale(0.95, 1.1); } 100% { transform: none; } }
+@keyframes frodo-rise { from { transform: scaleY(0.05); opacity: 0; } 60% { transform: scaleY(1.1); opacity: 1; } to { transform: none; } }
+@keyframes frodo-wave-r { from { transform: rotate(0deg); } to { transform: rotate(-55deg); } }
+@keyframes frodo-wave-l { from { transform: rotate(0deg); } to { transform: rotate(55deg); } }
+@keyframes frodo-nod { 40% { transform: translateY(6%) rotate(5deg); } 100% { transform: none; } }
+@keyframes frodo-tilt { 30%, 70% { transform: rotate(-11deg); } 100% { transform: none; } }
+@keyframes frodo-bounce { from { transform: none; } to { transform: translateY(-7%) scale(0.98, 1.03); } }
+/* 도우미는 창 구석에 서 있어 무엇도 가로막지 않습니다. 폰 폭에는 자리가 없고 호버도 없어 두지 않아요. */
+.frodo-guide { position: fixed; right: var(--space-4); bottom: var(--space-2); z-index: var(--hero-tip-z); width: var(--frodo-guide); height: var(--frodo-guide); pointer-events: none; }
+.frodo-guide svg:not(.duct-face) { display: block; width: 100%; height: 100%; overflow: visible; }
+@media (max-width: 719.98px) {
+  .frodo-guide { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  svg.frodo-hop, svg.frodo-stretch, svg.frodo-rise, .duct-part-head, .duct-part-armL, .duct-part-armR, .sky-canvas.away:not(.at-row) .vase-float { animation: none; }
 }
 
 /* ══ 인트로 ══ */

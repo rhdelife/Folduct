@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
+import { cue } from "./useFrodo";
 
 export type ToastAction = { label: string; run: () => void };
 type ToastItem = { id: number; message: string; action?: ToastAction };
@@ -15,7 +16,10 @@ export function toastMs(message: string, hasAction: boolean) {
 // 대화상자는 자기 안에 결과를 보여 줘요. 새 알림은 이전 알림을 바꿔 씁니다.
 export function useToast() {
   const [current, setCurrent] = useState<ToastItem | null>(null);
-  const toast = useCallback((message: string, action?: ToastAction) => setCurrent({ id: ++nextId, message, action }), []);
+  const toast = useCallback((message: string, action?: ToastAction) => {
+    cue("guide", { body: "nod" });
+    setCurrent({ id: ++nextId, message, action });
+  }, []);
   // 이미 다른 알림으로 바뀌었으면 그대로 둡니다.
   const close = useCallback((id: number) => setCurrent((cur) => (cur?.id === id ? null : cur)), []);
   // 알림 영역은 늘 붙어 있어야 화면 읽기 프로그램이 바뀐 내용을 읽어 줍니다.

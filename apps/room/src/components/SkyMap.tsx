@@ -3,6 +3,7 @@ import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { kindColors } from "../art/palette";
 import { ductLength, kindParts, kindSummary } from "../art/duct";
 import { RoomFaceArt } from "./RoomFace";
+import { centerOf, cue } from "./useFrodo";
 import { lastActivity, relativeDay } from "../domain/care";
 import { heroLayout, namedPaper, rowOnlyCards, type Card, type HeroNode } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
@@ -125,6 +126,11 @@ export function SkyMap({
     }
     return { ordered: nodes, cards, ids: nodes.map((item) => item.room.id), camera };
   }, [rooms, selectedId, now, view, doorOpen]);
+
+  // 현관에 새 파일이 오면 모두 고개를 들어 그쪽을 봅니다.
+  useEffect(() => {
+    if (doorOpen) for (const { room } of ordered) cue(room.id, { face: "lookU", ms: 1200 });
+  }, [doorOpen]);
 
   // 줄에만 있는 종이는 줄로 모일 때만 그립니다.
   const gathering = !useBetween(0, 5);
@@ -350,16 +356,24 @@ const MapLayers = memo(function MapLayers({
               <div
                 className="paper-art"
                 style={{ rotate: `${card.rot}deg` }}
-                onClick={() => (engine.pos > 5 ? onOpenThing : onFocusThing)(card.room.id, card.thing.id)}
+                onClick={() => {
+                  cue(card.room.id, { body: "nod" });
+                  (engine.pos > 5 ? onOpenThing : onFocusThing)(card.room.id, card.thing.id);
+                }}
                 onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
                 onPointerUp={(event) => onPaperUp(event, card)}
                 onMouseEnter={(event) => {
+                  // 이 파일의 방 프로도만 종이를 바라봅니다.
+                  cue(card.room.id, { look: centerOf(event.currentTarget) });
                   if (engine.pos <= 5) return onShowTip({ star: card, room: card.room });
                   const box = event.currentTarget.parentElement!.getBoundingClientRect();
                   const origin = event.currentTarget.closest(".sky-canvas")!.getBoundingClientRect();
                   onShowTip({ star: card, room: card.room, at: { x: box.left + box.width / 2 - origin.left, top: box.top - origin.top, bottom: box.bottom - origin.top } });
                 }}
-                onMouseLeave={onHideTip}
+                onMouseLeave={() => {
+                  cue(card.room.id, { look: null });
+                  onHideTip();
+                }}
               >
                 {focused && <span className="paper-pulse pulse" style={{ borderColor: kindColors[card.thing.kind] }} />}
                 <ObjectShape kind={card.thing.kind} size={card.size} name={card.thing.name} seed={card.thing.id} nameFrom={namedPaper} />
@@ -385,18 +399,31 @@ const MapLayers = memo(function MapLayers({
               aria-pressed={selectedId === room.id}
               aria-label={`${room.name} 방, ${size}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
               onClick={() => onOpenRoom(room.id)}
-              onContextMenu={menu.onContextMenu}
-              onFocus={() => setLastFocus(room.id)}
+              onContextMenu={(event) => {
+                cue(room.id, { body: "tilt", face: "tilt", ms: 720 });
+                menu.onContextMenu(event);
+              }}
+              onFocus={(event) => {
+                setLastFocus(room.id);
+                if (event.currentTarget.matches(":focus-visible")) cue(room.id, { body: "wave" });
+              }}
               onKeyDown={(event) => {
                 menu.onKeyDown(event);
                 onRoomKey(event, room.id);
               }}
-              onMouseEnter={() => onHoverRoom(room.id)}
-              onMouseLeave={() => onHoverRoom(null)}
+              onMouseEnter={() => {
+                onHoverRoom(room.id);
+                cue(room.id, { body: "wave" });
+              }}
+              onMouseMove={(event) => cue(room.id, { look: { x: event.clientX, y: event.clientY } })}
+              onMouseLeave={() => {
+                onHoverRoom(null);
+                cue(room.id, { look: null });
+              }}
             >
               <span className="vase-lift">
                 <span className="vase-float">
-                  <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" />
+                  <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" actor={room.id} mood={selectedId === room.id ? "happy" : selectedId ? "shut" : "base"} />
                 </span>
               </span>
               <span className="vase-tag">

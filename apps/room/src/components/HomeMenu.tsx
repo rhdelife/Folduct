@@ -5,6 +5,7 @@ import type { RoomStat } from "../domain/sky";
 import type { OpenRoomMenu } from "./ContextMenu";
 import { KindLegend, SizeKey } from "./KindLegend";
 import { HomeSummary, RoomRanking } from "./SkyPanel";
+import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 
 // 왼쪽에서 열리는 메뉴. 도구와 방으로 바로 갑니다. 요약과 범례는 접어서 맨 아래에 둡니다.
@@ -47,6 +48,7 @@ export function HomeMenu({
         if (pressedOutside.current && event.target === event.currentTarget) onClose();
       }}
     >
+      <FrodoGuide />
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="menu-title">메뉴</h2>

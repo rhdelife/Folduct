@@ -6,7 +6,9 @@ import { createEngine, EngineContext, type HomeActions } from "../components/hom
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
 import { Icon } from "../components/Icon";
+import { FrodoGuide } from "../components/FrodoGuide";
 import { NewRoomDialog } from "../components/NewRoomDialog";
+import { cue } from "../components/useFrodo";
 import { HomeMenu } from "../components/HomeMenu";
 import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
@@ -448,6 +450,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       <EngineContext.Provider value={engine}>
         <div className="home-stage">
           {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
+          <FrodoGuide />
           <HomeHeader rooms={rooms ?? []} ready={ready} overdue={overdue} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
           <div className="home-sheet">
             {loadFailed ? (
@@ -514,7 +517,11 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       {creating && (
         <NewRoomDialog
           onClose={() => setCreating(false)}
-          onCreated={onOpen}
+          onCreated={(id) => {
+            onOpen(id);
+            // 들어가며 반기는 동작 뒤에 받침에서 쑥 올라옵니다.
+            window.setTimeout(() => cue(id, { body: "rise", face: "happy", ms: 900 }), 250);
+          }}
           onOpenExisting={onOpen}
           onCreatedMany={(message) => {
             setCreating(false);
