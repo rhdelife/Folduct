@@ -334,7 +334,7 @@ h1[tabindex="-1"]:focus-visible, h2[tabindex="-1"]:focus-visible { outline: none
 .room-plane :focus-visible { outline-width: calc(2px / var(--s)); outline-offset: calc(2px / var(--s)); }
 .thing:focus-visible, .box-spot:focus-visible { outline-offset: calc(-2px / var(--s)); border-radius: calc(6px / var(--s)); }
 .room-node:focus { outline: none; }
-.room-node:focus-visible .vase-lift { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
+.room-node:focus-visible .room-card { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
 
 :where(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select) { padding: var(--space-1) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); }
 input:focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 1px; }
@@ -406,8 +406,9 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 /* 나타날 때는 장면이 자리 잡은 뒤 늦게, 사라질 때는 바로. */
 .home-caption { position: absolute; top: var(--chrome-y); left: 0; right: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease-out; }
 .home-caption.visible { opacity: 1; }
-.caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8) + var(--space-3)); top: 0; translate: 0 -50%; display: flex; align-items: baseline; gap: var(--space-3); white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-caption); line-height: var(--lh-caption); letter-spacing: -0.01em; }
-.caption-layer strong { font-weight: 500; color: var(--ink-caption); }
+/* 요약 두 줄: 방 수와 용량을 굵게, 그 아래 할 일을 한 줄로. */
+.caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8) + var(--space-3)); top: 0; translate: 0 -50%; display: grid; white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.caption-layer strong { font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 @media (max-width: 1199.98px) {
   :root { --topbar-h: var(--topbar-stacked-h); }
 }
@@ -480,9 +481,18 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node.selected .vase-lift { transform: scale(var(--lift)); }
 /* 고른 방의 파일은 하나씩 튀어나오고, 종이처럼 얇은 그림자를 가집니다. */
 /* 고른 프로도만 보이게 다른 방은 이름표까지 흐리게 둡니다. */
-.room-node.dim .vase-lift, .room-node.dim .vase-tag { opacity: 0.18; }
+.room-node.dim :is(.vase-lift, .vase-tag, .room-card, .room-floor) { opacity: 0.18; }
 .room-node.dim:focus-visible .vase-lift { opacity: 1; }
 .room-node { cursor: pointer; }
+/* 방 카드: 줄마다 같은 크기라 프로도들이 한 바닥에 나란히 서요. 받침 아래로 이름표까지 덮습니다. */
+.room-card { position: absolute; left: 50%; bottom: calc(var(--card-below) * -1); width: var(--card-w); height: var(--card-h); translate: -50% 0; border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); transition: box-shadow var(--dur-2) var(--ease-standard), opacity var(--dur-focus) var(--ease-glide), height var(--dur-focus) var(--ease-glide); }
+/* 고른 프로도는 vaseLift배로 커지니 카드도 그만큼 위로 늘려 머리가 밖으로 나가지 않게 합니다. */
+.room-node.selected .room-card { height: calc(var(--card-h) + (var(--lift) - 1) * var(--half) * 2 * var(--u)); }
+.room-floor { position: absolute; left: 50%; bottom: 0; width: 70%; height: var(--space-2); translate: -50% 50%; border-radius: 50%; background: var(--glass-wash-strong); transition: opacity var(--dur-focus) var(--ease-glide); }
+.room-sub b { font-weight: 700; color: var(--ink); }
+@media (hover: hover) {
+  .room-node:hover .room-card { box-shadow: var(--shadow-2); }
+}
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out 3; }
 .room-label, .room-sub { text-shadow: 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo); }
 .room-label { max-width: 34cqw; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
@@ -679,8 +689,8 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 
 /* 창이 좁으면 글자를 줄이고, 메뉴 자리를 비켜 둡니다. */
 @media (max-width: 1100px) {
-  .caption-layer { right: var(--chrome-reserve); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: 0; }
-  .caption-layer strong { font-size: var(--text-md); line-height: var(--lh-md); }
+  .caption-layer { right: var(--chrome-reserve); }
+  .caption-layer strong { font-size: var(--text-lg); line-height: var(--lh-lg); }
 }
 /* 창이 좁으면 한 줄로 쌓습니다. 데스크톱 앱 최소 폭(720)에서는 두 칸을 지킵니다. */
 @media (max-width: 719.98px) {
@@ -691,9 +701,10 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   /* 좁아서 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
   .home-actions b { display: inline-block; width: var(--space-2); height: var(--space-2); margin-left: var(--space-1); overflow: hidden; border-radius: var(--radius-pill); background: var(--ink); font-size: 0; }
   .home-actions b::before { content: none; }
-  .caption-layer { left: calc(var(--gutter) + var(--space-8) + var(--space-2)); right: calc(var(--space-12) * 2 + var(--space-6)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .caption-layer { left: calc(var(--gutter) + var(--space-8) + var(--space-2)); right: calc(var(--space-12) * 2 + var(--space-6)); grid-template-columns: minmax(0, 1fr); font-size: var(--text-xs); line-height: var(--lh-xs); }
+  .caption-layer strong { font-size: var(--text-md); line-height: var(--lh-md); }
   /* 길어져도 한 줄로 끊습니다. 접히면 아래 쪽 이동에 닿아요. */
-  .caption-layer span { overflow: hidden; text-overflow: ellipsis; }
+  .caption-layer :is(strong, span) { overflow: hidden; text-overflow: ellipsis; }
   .room-body { grid-template-columns: 1fr; }
   .side { position: static; max-height: none; }
   /* 폰에서는 패널이 아래에서 올라오고, 지도는 남은 위쪽 가운데로 비켜 납니다. */
@@ -1109,7 +1120,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 }
 
 /* ══ 일력 ══ */
-.work-cal { position: absolute; left: var(--chrome-x); bottom: var(--space-4); z-index: var(--hero-tip-z); display: grid; gap: var(--space-2); width: var(--cal-w); color: var(--ink); }
+.work-cal { position: absolute; left: calc(var(--chrome-x) - var(--space-4)); bottom: var(--space-4); z-index: var(--hero-tip-z); box-sizing: content-box; display: grid; gap: var(--space-2); width: var(--cal-w); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); }
 .work-cal-total { display: flex; align-items: baseline; gap: var(--space-1); }
 .work-cal-total strong { font-size: var(--cal-number); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .work-cal-total span { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; }

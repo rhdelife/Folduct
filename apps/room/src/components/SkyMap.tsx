@@ -342,8 +342,8 @@ const MapLayers = memo(function MapLayers({
         })}
       </div>
       <div className="sky-rooms" style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방들. 주름관은 방, 작은 오브제는 파일이에요. 관이 길수록 용량이 크고, 색은 파일 형식이에요. 파일은 각 주름관 아래에 최근 작업 순서로 놓여요." aria-describedby="sky-hint">
-        {ordered.map(({ room, at, r }) => {
-          const { usage } = stats.get(room.id)!;
+        {ordered.map(({ room, at, r, card }) => {
+          const { usage, stale } = stats.get(room.id)!;
           const parts = kindParts(room.things);
           const size = `${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`;
           const menu = roomMenuTriggers(room.id, onRoomMenu);
@@ -353,10 +353,10 @@ const MapLayers = memo(function MapLayers({
               type="button"
               data-room-id={room.id}
               className={`room-node${selectedId === room.id ? " selected" : ""}${selectedId && selectedId !== room.id ? " dim" : ""}`}
-              style={{ left: `${(at.x / sky.width) * 100}%`, top: `${(at.y / sky.height) * 100}%`, "--half": vaseHalf(r), "--lift": vaseLift, "--phase": hash(room.id, 3) } as CSSProperties}
+              style={{ left: `${(at.x / sky.width) * 100}%`, top: `${(at.y / sky.height) * 100}%`, "--half": vaseHalf(r), "--lift": vaseLift, "--phase": hash(room.id, 3), "--card-w": `${card.w}px`, "--card-h": `${card.h}px`, "--card-below": `${card.below}px` } as CSSProperties}
               tabIndex={room.id === tabStop ? 0 : -1}
               aria-pressed={selectedId === room.id}
-              aria-label={`${room.name} 방, ${size}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
+              aria-label={`${room.name} 방, ${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
               onClick={() => pick(room.id)}
               onContextMenu={(event) => {
                 cue(room.id, { body: "tilt", face: "tilt", ms: 720 });
@@ -378,6 +378,9 @@ const MapLayers = memo(function MapLayers({
                 cue(room.id, { look: null });
               }}
             >
+              {/* 카드와 바닥 그림자: 프로도가 허공에 뜨지 않고 제 칸에 서 있게 합니다. */}
+              <span className="room-card" aria-hidden="true" />
+              <span className="room-floor" aria-hidden="true" />
               <span className="vase-lift">
                 <span className="vase-float">
                   <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" actor={room.id} mood={selectedId === room.id ? "happy" : selectedId ? "shut" : "base"} />
@@ -385,7 +388,7 @@ const MapLayers = memo(function MapLayers({
               </span>
               <span className="vase-tag">
                 <span className="room-label">{room.name}</span>
-                <span className="room-sub">{size}</span>
+                <span className="room-sub">{size}{stale > 0 && <b> · 안 쓴 파일 {stale}개</b>}</span>
               </span>
             </button>
           );

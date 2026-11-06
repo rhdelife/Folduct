@@ -13,6 +13,8 @@ export const columnMin = 170;
 const columnMax = 300;
 const edge = 16;
 const columnPad = 18;
+// 홈 카드 안에서 프로도가 점처럼 작아지지 않게 하는 가장 작은 반지름. 용량은 관 길이로도 보여요.
+const heroMinRadius = 38;
 // "방 열기 · +N개 더" 한 줄의 높이(styles.css .room-more)
 export const moreHeight = 32;
 const moreWidth = 96;
@@ -27,7 +29,8 @@ export type Card = Star & {
   rot: number;
   kick: number;
 };
-export type HeroNode = Placed & { r: number };
+// card: 프로도 뒤에 깔리는 방 카드(px). 줄마다 같은 높이라 받침과 이름표가 한 선에 서요. below는 받침에서 카드 아래 끝까지예요.
+export type HeroNode = Placed & { r: number; card: { w: number; h: number; below: number } };
 // 파일 칸 아래 "방 열기" 단추 자리(지도 좌표)와 칸에 다 못 놓은 파일 수.
 export type MoreSpot = { room: Room; x: number; y: number; count: number };
 export type HeroLayout = { nodes: HeroNode[]; cards: Card[]; more: MoreSpot[] };
@@ -56,7 +59,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const lines = Math.ceil(active.length / perLine);
   const width = Math.min(columnMax, across / perLine);
   const band = (view.h - top - edge) / lines;
-  const radii = active.map((room) => roomRadius(room));
+  const radii = active.map((room) => Math.max(heroMinRadius, roomRadius(room)));
   const tallest = Math.max(...radii.map((r) => vaseHalf(r) * ductUnit));
   const [calendar] = calendarSpot(view);
 
@@ -73,7 +76,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     const feet = lineTop + Math.max(tallest * 2, band * 0.42);
     const r = radii[i];
     const at = { x, y: feet - vaseHalf(r) * ductUnit };
-    nodes.push({ room, at: toSky(at, view), scale: 1, spread: 0, limit: 0, r });
+    const card = { w: width - columnPad, h: tallest * 2 + columnPad + label, below: label };
+    nodes.push({ room, at: toSky(at, view), scale: 1, spread: 0, limit: 0, r, card });
 
     const bottom = lineTop + band - edge;
     const picked = room.id === selectedId;

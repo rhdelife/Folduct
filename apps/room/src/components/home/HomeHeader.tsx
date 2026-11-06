@@ -1,9 +1,8 @@
 import { roomUsage } from "../../domain/care";
 import { formatBytes, type Room } from "../../domain/model";
-import { homeLimit } from "../../domain/sky";
 import { BrandMark, Icon } from "../Icon";
 
-export function HomeHeader({ rooms, ready, overdue, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+export function HomeHeader({ rooms, ready, overdue, newFiles, staleFiles, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; newFiles: number; staleFiles: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const active = rooms.filter((room) => !room.care.done);
   const awake = rooms.length > 0;
   return (
@@ -14,8 +13,8 @@ export function HomeHeader({ rooms, ready, overdue, onWeekly, onMenu, onNew, onS
       </div>
       <div className={`home-caption${awake ? " visible" : ""}`}>
         <div className="caption-layer">
-          <strong>내 방</strong>
-          <span>{active.length}/{homeLimit} · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</span>
+          <strong>방 {active.length}개 · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</strong>
+          <span>{[newFiles > 0 && `새 파일 ${newFiles}개가 기다려요`, staleFiles > 0 && `안 쓴 파일 ${staleFiles}개`].filter(Boolean).join(" · ") || "모두 제자리예요"}</span>
         </div>
       </div>
       <div className="home-actions">

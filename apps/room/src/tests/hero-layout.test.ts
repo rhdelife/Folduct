@@ -41,6 +41,17 @@ describe("첫 화면: 주름관 한 줄과 파일 칸", () => {
     expect(feetOf(phone[2], { w: 375, h: 812 })).toBeGreaterThan(feetOf(phone[0], { w: 375, h: 812 }));
   });
 
+  it("방 카드는 줄마다 같은 크기로 이웃과 겹치지 않고, 작은 방도 점처럼 줄지 않는다", () => {
+    for (const view of views) {
+      const rooms = [room("tiny", [thing("t", { size: 16 })]), ...many(3, 6)];
+      const { nodes } = heroLayout(rooms, start, view, aspect);
+      for (const node of nodes) expect(node.card).toEqual(nodes[0].card);
+      for (const node of nodes) expect(node.r).toBeGreaterThanOrEqual(38);
+      const xs = nodes.map((node) => toPx(node.at, view).x);
+      for (let i = 1; i < xs.length; i += 1) if (Math.abs(feetOf(nodes[i], view) - feetOf(nodes[i - 1], view)) < 1) expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(nodes[0].card.w);
+    }
+  });
+
   it("종이는 기울지 않고, 서로·창 밖·일력과 겹치지 않으며, 자기 주름관 이름표 아래 칸 안에 있다", () => {
     for (const view of views) {
       for (const count of [1, 3, homeLimit]) {
