@@ -105,6 +105,53 @@ export async function forgetRoom(id: string): Promise<void> {
   await run("rooms", "readwrite", (store) => store.delete(id));
   await run("handles", "readwrite", (store) => store.delete(id));
   await deleteRoomMark(id);
+  await run("meta", "readwrite", (store) => store.delete(roomPictures(id)));
+}
+
+// 파일마다 사용자가 고른 그림. 방 기록을 자주 저장하니 무거운 그림은 따로, 저장소를 새로 만들지 않고 meta에 `pic:<방 id>:<물건 id>` 키로 둡니다.
+// Blob 대신 바이트로 둡니다. WebKit IndexedDB의 Blob 저장은 버전마다 말썽이 있었어요.
+export type StoredPicture = { type: string; bytes: ArrayBuffer };
+export type RoomPicture = { room: string; thing: string; picture: StoredPicture };
+
+const pictureKey = (room: string, thing: string) => `pic:${room}:${thing}`;
+const roomPictures = (room: string) => IDBKeyRange.bound(`pic:${room}:`, `pic:${room}:￿`);
+
+export const isStoredPicture = (value: unknown): value is StoredPicture => {
+  const picture = value as Partial<StoredPicture> | null | undefined;
+  return typeof picture?.type === "string" && picture.type.startsWith("image/") && picture.bytes instanceof ArrayBuffer && picture.bytes.byteLength > 0;
+};
+
+// 물건 id는 UUID라 콜론이 없어요. 마지막 콜론 앞이 방 id입니다.
+export function parsePictureKey(key: unknown): { room: string; thing: string } | null {
+  if (typeof key !== "string" || !key.startsWith("pic:")) return null;
+  const cut = key.lastIndexOf(":");
+  const room = key.slice(4, cut);
+  const thing = key.slice(cut + 1);
+  return cut > 4 && room && thing ? { room, thing } : null;
+}
+
+export async function listPictures(): Promise<RoomPicture[]> {
+  const db = await open();
+  const tx = db.transaction("meta", "readonly");
+  const store = tx.objectStore("meta");
+  const range = IDBKeyRange.bound("pic:", "pic:￿");
+  const keys = store.getAllKeys(range);
+  const values = store.getAll(range);
+  await settle(tx);
+  // 망가진 기록은 건너뛰기만 하고 지우지 않아요.
+  return keys.result.flatMap((key, at) => {
+    const id = parsePictureKey(key);
+    const picture = values.result[at];
+    return id && isStoredPicture(picture) ? [{ ...id, picture }] : [];
+  });
+}
+
+export function putPicture(room: string, thing: string, picture: StoredPicture): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(picture, pictureKey(room, thing)));
+}
+
+export function deletePicture(room: string, thing: string): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.delete(pictureKey(room, thing)));
 }
 
 export async function getHandle(id: string): Promise<FileSystemDirectoryHandle | null> {

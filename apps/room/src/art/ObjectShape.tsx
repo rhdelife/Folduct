@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
 import type { Kind } from "../domain/model";
+import { usePicture } from "../storage/pictures";
 import { kindColors, kindTones, tonesFrom, type PaperTones } from "./palette";
 
 // 파일 하나 = 형식별 색의 납작한 종이 한 장. 테두리 없이 면으로 칠하고, 구멍은 진짜로 뚫어 겹치면 아래 종이가 보입니다.
@@ -609,8 +610,19 @@ function PrintedName({ slot, name, tones, unit, id }: { slot: Slot; name: string
   );
 }
 
-export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56 }: { kind: Kind; color?: string; size: number; name?: string; seed?: string; nameFrom?: number }) {
+// 사용자가 고른 그림을 그 형식 색 종이에 끼웁니다. 종이 크기는 원래 그림과 같아서 부르는 쪽 자리 계산이 그대로예요.
+// 이름을 찍을 때는 아래 띠를 비워 두고, 그 띠가 새 이름 칸이 됩니다.
+function pictureLayout(art: PaperArt, band: number) {
+  const margin = Math.round(Math.min(art.w, art.h) * 0.08);
+  const slot: Slot = { x: margin, y: art.h - band, w: art.w - margin * 2, h: Math.max(0, band - margin / 2), fill: "ink", on: "pale", center: true };
+  const frame = { x: margin, y: margin, w: art.w - margin * 2, h: art.h - margin - (band || margin) };
+  return { slot, frame };
+}
+
+export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56, picture }: { kind: Kind; color?: string; size: number; name?: string; seed?: string; nameFrom?: number; picture?: string | null }) {
   const id = useId();
+  const stored = usePicture(seed);
+  const pictureUrl = picture === undefined ? stored : picture ?? undefined;
   const art = pickArt(kind, seed);
   const tones = color && color !== kindColors[kind] ? tonesFrom(color) : kindTones[kind];
   const full = Boolean(name) && size >= 40;
@@ -618,6 +630,12 @@ export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56 }: { 
   const side = Math.max(art.w, art.h);
   const paint = full ? tones : { pale: tones.soft, soft: tones.color, color: tones.edge, edge: tones.edge, ink: tones.ink };
   const perPixel = (full ? art.w : side) / size;
+  const hair = Math.max(0.9, perPixel);
+  const unit = Math.max(8.5, 5.7 + size * 0.05) * perPixel;
+  const named = full && Boolean(name) && size >= nameFrom;
+  // 세로로 긴 종이는 이름 두 줄, 가로로 긴 종이는 한 줄. 그림이 종이의 절반 아래로 줄지 않게 띠는 40%까지만.
+  const band = named ? Math.min(art.h * 0.4, unit * 1.24 * (art.h > art.w ? 2 : 1) + unit * 0.6) : 0;
+  const pictured = pictureUrl ? pictureLayout(art, band) : null;
   return (
     <svg
       className="object"
@@ -626,9 +644,17 @@ export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56 }: { 
       height={full ? size * (art.h / art.w) : size}
       aria-hidden="true"
     >
-      <g fillRule="evenodd">{art.draw(paint, full, Math.max(0.9, perPixel))}</g>
+      {pictured ? (
+        <g>
+          <path d={box(0, 0, art.w, art.h)} fill={paint.pale} />
+          <image href={pictureUrl} x={pictured.frame.x} y={pictured.frame.y} width={pictured.frame.w} height={pictured.frame.h} preserveAspectRatio="xMidYMid slice" />
+          <path d={box(pictured.frame.x, pictured.frame.y, pictured.frame.w, pictured.frame.h)} fill="none" stroke={paint.edge} strokeOpacity={0.35} strokeWidth={hair} />
+        </g>
+      ) : (
+        <g fillRule="evenodd">{art.draw(paint, full, hair)}</g>
+      )}
       {/* 가장 작아도 8.5px, 56 위로는 종이보다 천천히 커져 글자가 서류처럼 작게 남습니다. */}
-      {full && name && size >= nameFrom && <PrintedName slot={art.slot} name={name} tones={tones} unit={Math.max(8.5, 5.7 + size * 0.05) * perPixel} id={id} />}
+      {named && name && <PrintedName slot={pictured?.slot ?? art.slot} name={name} tones={tones} unit={unit} id={id} />}
     </svg>
   );
 }

@@ -23,7 +23,7 @@ import type { WorkLog } from "../domain/worklog";
 import { homeLimit, roomStats } from "../domain/sky";
 import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
 import { planSweep, refreshRooms, type SweepPlan } from "../storage/box";
-import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listRooms, patchDoorstep, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
+import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
 
@@ -315,13 +315,15 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   // 샘플 방은 한 번에 치우고, 잠깐 동안 되돌릴 수 있습니다.
   async function clearSamples() {
     const samples = (rooms ?? []).filter((room) => room.source === "sample");
-    await Promise.all(samples.map((room) => forgetRoom(room.id)));
     const gone = new Set(samples.map((room) => room.id));
+    // 방을 잊으면 파일마다 고른 그림도 지워지니, 되돌릴 때 같이 넣으려고 먼저 들고 있어요.
+    const pictures = (await listPictures().catch(() => [])).filter((item) => gone.has(item.room));
+    await Promise.all(samples.map((room) => forgetRoom(room.id)));
     setRooms((list) => list && list.filter((room) => !gone.has(room.id)));
     toast(`샘플 방 ${samples.length}개를 치웠어요.`, {
       label: "되돌리기",
       run: () =>
-        void Promise.all(samples.map((room) => saveRoom(room)))
+        void Promise.all([...samples.map((room) => saveRoom(room)), ...pictures.map((item) => putPicture(item.room, item.thing, item.picture))])
           .then(load)
           .then(() => {
             toast(`샘플 방 ${samples.length}개를 되돌렸어요.`);

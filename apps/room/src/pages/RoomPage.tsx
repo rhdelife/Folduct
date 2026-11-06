@@ -19,6 +19,7 @@ import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
+import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 
 // 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
 const panels = ["thing", "shelf", "box"] as const;
@@ -593,6 +594,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                   onOpen={(id) => void openFile(id)}
                   onShelve={shelve}
                   onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
+                  onToast={toast}
                 />
               ) : (
                 <div>
@@ -689,7 +691,43 @@ function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
   return url && <img className="thing-image" src={url} alt={`${thing.name} 미리보기`} onError={() => setUrl(null)} />;
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onReveal }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onReveal?: (id: string) => void }) {
+// 파일마다 내 이미지로 꾸미기. 고른 그림은 줄여서 앱 저장소에만 두고, 파일과 폴더는 건드리지 않아요.
+function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; onToast: (message: string) => void }) {
+  const picture = usePicture(thing.id);
+  const input = useRef<HTMLInputElement>(null);
+  const pick = useRef<HTMLButtonElement>(null);
+  const [busy, setBusy] = useState(false);
+  const run = (job: () => Promise<void>, done: string) => {
+    if (busy) return;
+    setBusy(true);
+    job().then(
+      () => onToast(done),
+      (error: unknown) => onToast(error instanceof PictureError ? error.message : "이미지를 저장하지 못했어요."),
+    ).finally(() => setBusy(false));
+  };
+  // disabled는 누른 단추의 포커스를 날려서, 일하는 동안은 aria-disabled로만 막아요.
+  return (
+    <>
+      <button ref={pick} type="button" aria-disabled={busy} onClick={() => !busy && input.current?.click()}>{picture ? "다른 이미지로" : "내 이미지로 꾸미기"}</button>
+      {/* 누른 단추가 사라지니 포커스를 고르기 단추로 옮겨요. */}
+      {picture && <button type="button" aria-disabled={busy} onClick={() => run(() => clearPicture(room.id, thing.id).then(() => pick.current?.focus()), "원래 그림으로 돌렸어요.")}>원래 그림으로</button>}
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          // 같은 그림을 다시 골라도 바뀜이 오게 비워 둡니다.
+          event.currentTarget.value = "";
+          if (file) run(() => setPicture(room.id, thing.id, file), "이 파일을 내 이미지로 꾸몄어요.");
+        }}
+      />
+    </>
+  );
+}
+
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onReveal, onToast }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onReveal?: (id: string) => void; onToast: (message: string) => void }) {
   const age = thingAge(thing, room.care, room.workDays, now);
   const last = lastActivity(thing);
   return (
@@ -719,6 +757,9 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onRev
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
         <button type="button" onClick={() => onShelve(thing)}>선반에 올려두기</button>
+      </div>
+      <div className="row wrap">
+        <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />
       </div>
       {/* 끌기 없이 한 번씩 눌러서도 옮길 수 있게 합니다. */}
       <div className="row">
