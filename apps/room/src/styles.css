@@ -2,10 +2,10 @@
 @font-face { font-family: Pretendard; src: url("/fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: swap; }
 
 :root {
-  /* 라이트박스: 빛을 받는 하얀 판, 얇은 선, 굵은 검정 글자. 색은 파일 형식의 몫(palette.ts)이고, 상태는 잉크·모양·글자로 보여줍니다. */
-  --bg: #fefefb;
+  /* 라이트박스: 눈이 부시지 않게 살짝 낮춘 흰 판, 얇은 선, 굵은 검정 글자. 색은 파일 형식의 몫(palette.ts)이고, 상태는 잉크·모양·글자로 보여줍니다. */
+  --bg: #f6f6f3;
   /* 판 아래 바닥(들린 판 밑)과 판의 점. 흰색끼리 겨우 갈리는 정도로 둡니다. */
-  --ground: #f5f5f2;
+  --ground: #efefec;
   --surface: #ffffff;
   --surface-sunken: #f4f1ea;
   --surface-hover: #f2eee6;
@@ -13,7 +13,7 @@
   --ink: #171717;
   --ink-caption: #555555;
   /* 머리글 문장. 이름(--ink-caption)보다 한 단 옅고, 판 위에서 4.5:1을 지킵니다. */
-  --ink-caption-soft: #727272;
+  --ink-caption-soft: #6b6b6b;
   --ink-hover: #34312d;
   --ink-pressed: #0d0c0b;
   --ink-soft: #66635d;
@@ -25,9 +25,9 @@
   /* 브랜드(주름관 로고) 전용. 글자·상태·파일 형식에는 쓰지 않습니다. */
   --brand: #171717;
 
-  --lightbox-1: #ffffff;
-  --lightbox-2: #fdfdfc;
-  --lightbox-3: #f8f8f6;
+  --lightbox-1: #f9f9f7;
+  --lightbox-2: #f6f6f3;
+  --lightbox-3: #f0f0ed;
   --lightbox: radial-gradient(ellipse at 50% 45%, var(--lightbox-1) 0%, var(--lightbox-2) 66%, var(--lightbox-3) 100%);
   --stitch: rgb(27 26 24 / 0.22);
   --halo: var(--lightbox-2);

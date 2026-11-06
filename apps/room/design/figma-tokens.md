@@ -26,15 +26,15 @@
 ## 색 · 중립
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `color/neutral/bg` | `#fefefb` |  |
-| `color/neutral/ground` | `#f5f5f2` |  |
+| `color/neutral/bg` | `#f6f6f3` |  |
+| `color/neutral/ground` | `#efefec` |  |
 | `color/neutral/surface` | `#ffffff` |  |
 | `color/neutral/surface-sunken` | `#f4f1ea` |  |
 | `color/neutral/surface-hover` | `#f2eee6` |  |
 | `color/neutral/surface-selected` | `#ebe6dc` |  |
 | `color/neutral/ink` | `#171717` |  |
 | `color/neutral/ink-caption` | `#555555` |  |
-| `color/neutral/ink-caption-soft` | `#727272` |  |
+| `color/neutral/ink-caption-soft` | `#6b6b6b` |  |
 | `color/neutral/ink-hover` | `#34312d` |  |
 | `color/neutral/ink-pressed` | `#0d0c0b` |  |
 | `color/neutral/ink-soft` | `#66635d` |  |
@@ -59,10 +59,10 @@
 ## 색 · 라이트박스
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
-| `color/lightbox/1` | `#ffffff` |  |
-| `color/lightbox/2` | `#fdfdfc` |  |
-| `color/lightbox/3` | `#f8f8f6` |  |
-| `color/lightbox/gradient` | `radial-gradient(ellipse at 50% 45%, #ffffff 0%, #fdfdfc 66%, #f8f8f6 100%)` | Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요. |
+| `color/lightbox/1` | `#f9f9f7` |  |
+| `color/lightbox/2` | `#f6f6f3` |  |
+| `color/lightbox/3` | `#f0f0ed` |  |
+| `color/lightbox/gradient` | `radial-gradient(ellipse at 50% 45%, #f9f9f7 0%, #f6f6f3 66%, #f0f0ed 100%)` | Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요. |
 
 ## 색 · 상태 (패널·배너·글자 전용)
 | 토큰 | 값 | 설명 |

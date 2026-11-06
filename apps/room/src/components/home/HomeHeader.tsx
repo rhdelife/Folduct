@@ -5,6 +5,7 @@ import { BrandMark, Icon } from "../Icon";
 export function HomeHeader({ rooms, ready, overdue, newFiles, staleFiles, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; newFiles: number; staleFiles: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const active = rooms.filter((room) => !room.care.done);
   const awake = rooms.length > 0;
+  const todo = [newFiles > 0 && `새 파일 ${newFiles}개가 기다려요`, staleFiles > 0 && `안 쓴 파일 ${staleFiles}개`].filter(Boolean).join(" · ");
   return (
     <header className={`home-header${awake ? " has-caption" : ""}`}>
       <div className="home-brand">
@@ -13,8 +14,9 @@ export function HomeHeader({ rooms, ready, overdue, newFiles, staleFiles, onWeek
       </div>
       <div className={`home-caption${awake ? " visible" : ""}`}>
         <div className="caption-layer">
-          <strong>방 {active.length}개 · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</strong>
-          <span>{[newFiles > 0 && `새 파일 ${newFiles}개가 기다려요`, staleFiles > 0 && `안 쓴 파일 ${staleFiles}개`].filter(Boolean).join(" · ") || "모두 제자리예요"}</span>
+          <strong>{active.length} {active.length === 1 ? "Room" : "Rooms"} · {formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))}</strong>
+          {/* 할 일이 없으면 둘째 줄을 비웁니다. */}
+          {todo && <span>{todo}</span>}
         </div>
       </div>
       <div className="home-actions">

@@ -3,11 +3,11 @@
     "neutral": {
       "bg": {
         "$type": "color",
-        "$value": "#fefefb"
+        "$value": "#f6f6f3"
       },
       "ground": {
         "$type": "color",
-        "$value": "#f5f5f2"
+        "$value": "#efefec"
       },
       "surface": {
         "$type": "color",
@@ -35,7 +35,7 @@
       },
       "ink-caption-soft": {
         "$type": "color",
-        "$value": "#727272"
+        "$value": "#6b6b6b"
       },
       "ink-hover": {
         "$type": "color",
@@ -121,19 +121,19 @@
     "lightbox": {
       "1": {
         "$type": "color",
-        "$value": "#ffffff"
+        "$value": "#f9f9f7"
       },
       "2": {
         "$type": "color",
-        "$value": "#fdfdfc"
+        "$value": "#f6f6f3"
       },
       "3": {
         "$type": "color",
-        "$value": "#f8f8f6"
+        "$value": "#f0f0ed"
       },
       "gradient": {
         "$type": "gradient",
-        "$value": "radial-gradient(ellipse at 50% 45%, #ffffff 0%, #fdfdfc 66%, #f8f8f6 100%)",
+        "$value": "radial-gradient(ellipse at 50% 45%, #f9f9f7 0%, #f6f6f3 66%, #f0f0ed 100%)",
         "$description": "Figma 변수로는 못 넣어요. Paint style(원형 그라데이션)로 만드세요."
       }
     },
