@@ -842,13 +842,9 @@
       "$type": "other",
       "$value": "110ms"
     },
-    "intro-band": {
-      "$type": "other",
-      "$value": "700ms"
-    },
     "intro-fill": {
       "$type": "other",
-      "$value": "1500ms"
+      "$value": "2000ms"
     },
     "intro-rise": {
       "$type": "other",
@@ -869,10 +865,6 @@
     "hero-tip-z": {
       "$type": "other",
       "$value": "50"
-    },
-    "paper-dim": {
-      "$type": "other",
-      "$value": "0.18"
     },
     "room-label-max": {
       "$type": "other",

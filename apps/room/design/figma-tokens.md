@@ -209,14 +209,12 @@
 | `scene/intro-paper-scale` | `1` |  |
 | `scene/intro-fly` | `900ms` |  |
 | `scene/intro-stagger` | `110ms` |  |
-| `scene/intro-band` | `700ms` |  |
-| `scene/intro-fill` | `1500ms` |  |
+| `scene/intro-fill` | `2000ms` |  |
 | `scene/intro-rise` | `1300ms` |  |
 | `scene/intro-leave` | `600ms` |  |
 | `scene/hero-type` | `max(2.22vw, 3vh)` |  |
 | `scene/hero-layer-z` | `40` |  |
 | `scene/hero-tip-z` | `50` |  |
-| `scene/paper-dim` | `0.18` |  |
 | `scene/room-label-max` | `max(22vw, 144px)` |  |
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-vase` | `104px` |  |

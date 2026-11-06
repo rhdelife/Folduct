@@ -143,8 +143,7 @@
   --intro-paper-scale: 1;
   --intro-fly: 900ms;
   --intro-stagger: 110ms;
-  --intro-band: 700ms;
-  --intro-fill: 1500ms;
+  --intro-fill: 2000ms;
   --intro-rise: 1300ms;
   --intro-leave: 600ms;
 
@@ -162,7 +161,6 @@
   --hero-type: max(2.22vw, 3vh);
   --hero-layer-z: 40;
   --hero-tip-z: 50;
-  --paper-dim: 0.18;
   --room-label-max: max(22vw, 144px);
 
   /* 플로팅 창 */
@@ -449,8 +447,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .sky-tip em { font-style: normal; font-weight: 700; color: var(--ink); }
 .sky-tip em.calm { font-weight: 500; color: var(--ink-soft); }
 
-.links line { stroke-width: 1.1; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
-.links.lit line { opacity: 0.75; }
 /* 지도 카메라: 방을 고르면 그 방이 가운데로 끌려오며 확대됩니다. */
 .sky-camera { position: relative; pointer-events: none; transform-origin: 0 0; transition: transform 750ms var(--ease-standard); }
 /* 방 주름관: 받침 위에 서서 주름으로 숨쉬고, 고르면 카메라와 같은 박자로 커집니다.
@@ -477,7 +473,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 /* 고르면 받침을 디딘 채 위로 커져요. 아래 이름표와 파일 칸은 그대로예요. */
 .room-node.selected .vase-lift { transform: scale(var(--lift)); transform-origin: 50% 100%; }
 /* 고른 방의 파일은 하나씩 튀어나오고, 종이처럼 얇은 그림자를 가집니다. */
-.room-node.dim .vase-lift { opacity: 0.18; }
+/* 고른 프로도만 보이게 다른 방은 이름표까지 흐리게 둡니다. */
+.room-node.dim .vase-lift, .room-node.dim .vase-tag { opacity: 0.18; }
 .room-node.dim:focus-visible .vase-lift { opacity: 1; }
 .room-node { cursor: pointer; }
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out 3; }
@@ -723,7 +720,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .scene-hero .sky-panel { top: var(--topbar-h); }
 .scene-hero .sky-camera { position: absolute; inset: 0; z-index: var(--hero-layer-z); }
 .scene-hero .sky-tip { z-index: var(--hero-tip-z); }
-.sky-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .scene-hero .sky-rooms { z-index: 2; }
 
 /* 파일 종이. 첫 스크롤에 한 줄로 모여요(heroMotion). */
@@ -733,7 +729,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .paper-art { display: block; width: 100%; height: 100%; pointer-events: auto; cursor: pointer; transition: scale var(--dur-2) var(--ease-standard), translate var(--dur-2) var(--ease-standard), opacity var(--dur-3) var(--ease-standard); }
 .paper-art .object { display: block; overflow: visible; }
 .sky-canvas.entering .paper-art { pointer-events: none; }
-.papers.faded .paper:not(.lifted) .paper-art { opacity: var(--paper-dim); }
 .paper.focused .paper-art { scale: 1.08; }
 .paper-pulse { position: absolute; inset: calc(var(--space-2) * -1); border: 2px solid; border-radius: 50%; pointer-events: none; }
 @media (hover: hover) {
@@ -1210,8 +1205,9 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   .phase-gather .intro-sprite { visibility: visible; }
   .phase-gather .vase-art { visibility: hidden; }
 }
-.intro-band { opacity: 0; }
-.phase-fill .intro-band, .phase-rise .intro-band { animation: intro-band var(--intro-band) var(--ease-settle) forwards; animation-delay: calc(var(--i) * var(--intro-fill) / var(--n)); }
+/* 색 주름 묶음을 아래에서 위로 걷어 올립니다. 게이지처럼 천천히 시작해 끝에서 가만히 멈춰요. */
+.intro-band { clip-path: inset(100% 0 0 0); }
+.phase-fill .intro-band, .phase-rise .intro-band { animation: intro-fill var(--intro-fill) var(--ease-standard) forwards; }
 .intro-foot { display: grid; align-content: start; justify-items: center; gap: var(--space-3); height: var(--intro-foot); padding-top: var(--space-5); text-align: center; }
 .intro-copy { margin: 0; color: var(--ink-caption); font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: 500; }
 .intro-copy span { display: block; animation: fade-in var(--dur-3) var(--ease-standard); }
@@ -1224,7 +1220,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   82% { opacity: 1; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 200deg)) scale(0.42); }
   to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 280deg)) scale(0.06); }
 }
-@keyframes intro-band { to { opacity: 1; } }
+@keyframes intro-fill { to { clip-path: inset(0 0 0 0); } }
 @media (max-width: 719.98px) {
   .intro { --intro-paper-scale: 0.72; }
   :where(button).quiet.intro-skip { right: var(--space-2); font-size: var(--text-sm); }
@@ -1233,7 +1229,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 @media (prefers-reduced-motion: reduce) {
   .intro-paper, .intro-paper-art, .intro-vase, .intro-copy span { animation: none; }
   .intro:not(.phase-scatter) .intro-paper { animation: none; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
-  .phase-fill .intro-band, .phase-rise .intro-band { animation: none; opacity: 1; }
+  .phase-fill .intro-band, .phase-rise .intro-band { animation: none; clip-path: none; }
   .phase-rise .intro-vase-lift { transform: none; }
 }
 
