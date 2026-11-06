@@ -1164,6 +1164,12 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 .frodo-nod .duct-part-head { animation: frodo-nod 420ms ease-in-out; }
 .frodo-tilt .duct-part-head { animation: frodo-tilt 720ms ease-in-out; }
 /* 스크롤로 자리를 옮기는 동안 콩콩 뛰어갑니다. */
+/* 뱉기: 몸을 웅크리며 머리를 움츠렸다가, 파일이 나오는 동안 머리를 부풀렸다 오므렸다 해요. 머리는 목을 축으로 움직여요. */
+svg.frodo-spit { transform-origin: 50% 90%; animation: frodo-windup 300ms var(--ease-standard); }
+.frodo-spit .duct-part-head { animation: frodo-gulp 300ms var(--ease-standard), frodo-spit 190ms ease-in-out 300ms infinite alternate; }
+@keyframes frodo-windup { 60% { transform: scale(1.06, 0.88); } 100% { transform: none; } }
+@keyframes frodo-gulp { 60% { transform: scale(0.88) rotate(5deg); } 100% { transform: none; } }
+@keyframes frodo-spit { from { transform: scale(1.02) rotate(-2deg); } to { transform: scale(1.18) rotate(-7deg); } }
 @keyframes frodo-hop { 0% { transform: scale(1.04, 0.92); } 40% { transform: translateY(-12%) scale(0.97, 1.05); } 75% { transform: scale(1.03, 0.96); } 100% { transform: none; } }
 @keyframes frodo-stretch { 30% { transform: scale(0.95, 1.1); } 100% { transform: none; } }
 @keyframes frodo-rise { from { transform: scaleY(0.05); opacity: 0; } 60% { transform: scaleY(1.1); opacity: 1; } to { transform: none; } }
@@ -1178,7 +1184,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   .frodo-guide { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  svg.frodo-hop, svg.frodo-stretch, svg.frodo-rise, .duct-part-head, .duct-part-armL, .duct-part-armR { animation: none; }
+  svg.frodo-hop, svg.frodo-stretch, svg.frodo-rise, svg.frodo-spit, .duct-part-head, .duct-part-armL, .duct-part-armR { animation: none; }
 }
 
 /* ══ 인트로 ══ */

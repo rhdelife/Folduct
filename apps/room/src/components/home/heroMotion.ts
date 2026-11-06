@@ -3,6 +3,7 @@ import { ductLength, ductMouth } from "../../art/duct";
 import { roomUsage } from "../../domain/care";
 import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
 import type { Card, HeroNode } from "../../domain/heroLayout";
+import { cue } from "../useFrodo";
 import { range, useEngine } from "./engine";
 
 // 첫 화면의 움직임: 처음 켤 때 주름관이 날아와 서고, 방을 고르면 그 주름관 입에서 파일이 제 칸으로 나옵니다.
@@ -42,8 +43,10 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
 const vaseStep = (count: number) => Math.min(220, 1500 / Math.max(1, count));
 const flightMs = 1600;
 const vaseFrom = 150;
-// 고른 뒤 카메라가 다가가는 동안 조금 기다렸다가 뱉기 시작해요.
-const spillFrom = 240;
+// 고른 뒤 카메라가 다가가는 동안 프로도가 웅크렸다가(windUp) 뱉기 시작해요. 몸짓은 styles.css의 frodo-spit과 맞춰요.
+const windFrom = 220;
+const windUp = 300;
+const spillFrom = windFrom + windUp;
 const spillStep = 45;
 const spillMs = 760;
 
@@ -125,7 +128,18 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
   useLayoutEffect(() => {
     const home = nodes.find((node) => node.room.id === selectedId);
     if (!home || reduced()) return;
-    const { anims } = playSpill(canvas.current!, cards, home, view);
-    return () => anims.forEach((anim) => anim.cancel());
+    const { anims, endsAt } = playSpill(canvas.current!, cards, home, view);
+    // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 고른 방의 웃는 얼굴로 돌아가요.
+    const id = home.room.id;
+    const spitting = endsAt - spillFrom - spillMs / 2;
+    // 뱉을 파일이 없는 방은 웅크리지 않아요.
+    const timers = cards.length === 0 ? [] : [
+      window.setTimeout(() => cue(id, { body: "spit", bodyMs: windUp + spitting, face: "shut", ms: windUp }), windFrom),
+      window.setTimeout(() => cue(id, { face: "wide", ms: spitting }), spillFrom),
+    ];
+    return () => {
+      timers.forEach(clearTimeout);
+      anims.forEach((anim) => anim.cancel());
+    };
   }, [selectedId]);
 }
