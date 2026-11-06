@@ -200,6 +200,9 @@
 | `scene/glass-dark-chip` | `rgb(255 255 255 / 0.16)` |  |
 | `scene/glass-shadow` | `0 1px 2px rgb(23 23 23 / 0.04), 0 12px 40px rgb(23 23 23 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.7)` |  |
 | `scene/glass-chip-shadow` | `0 1px 2px rgb(23 23 23 / 0.07)` |  |
+| `scene/button-bg` | `rgb(23 23 23 / 0.07)` |  |
+| `scene/button-bg-hover` | `rgb(23 23 23 / 0.11)` |  |
+| `scene/button-bg-pressed` | `rgb(23 23 23 / 0.16)` |  |
 | `scene/z-intro` | `8000` |  |
 | `scene/intro-vase` | `min(40dvh, 56vw)` |  |
 | `scene/intro-foot` | `112px` |  |

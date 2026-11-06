@@ -119,6 +119,10 @@
   --glass-dark-chip: rgb(255 255 255 / 0.16);
   --glass-shadow: 0 1px 2px rgb(23 23 23 / 0.04), 0 12px 40px rgb(23 23 23 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.7);
   --glass-chip-shadow: 0 1px 2px rgb(23 23 23 / 0.07);
+  /* 버튼 면: 흰 유리 위에서도 영역이 보이게 명도를 살짝 낮춘 무채색 */
+  --button-bg: rgb(23 23 23 / 0.07);
+  --button-bg-hover: rgb(23 23 23 / 0.11);
+  --button-bg-pressed: rgb(23 23 23 / 0.16);
 
   --dur-1: 120ms;
   --dur-2: 200ms;
@@ -1302,14 +1306,14 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 }
 
 /* 버튼·입력: 선 대신 면. 고른 상태는 잉크 고리나 굵은 글자가 말합니다. */
-:where(button, .button) { border: 0; background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
-:where(button, .button):hover:where(:not(:disabled)) { background: var(--glass-chip-hover); }
+:where(button, .button) { border: 0; background: var(--button-bg); box-shadow: none; }
+:where(button, .button):hover:where(:not(:disabled)) { background: var(--button-bg-hover); }
 :where(button, .button).primary { background: var(--ink); box-shadow: none; }
 :where(button, .button).primary:hover:where(:not(:disabled)) { background: var(--ink-hover); }
 :where(button).quiet, :where(button).danger, :where(button).link, :where(.topnav > .row, .viewer-head) :where(button) { background: transparent; box-shadow: none; }
 :where(button).quiet:hover:where(:not(:disabled)) { background: var(--glass-wash); }
 :where(button).danger:hover:where(:not(:disabled)) { background: var(--status-danger-bg); }
-:where(button)[aria-pressed="true"]:not(.thing, .room-node) { background: var(--glass-wash-strong); box-shadow: none; }
+:where(button)[aria-pressed="true"]:not(.thing, .room-node) { background: var(--button-bg-pressed); box-shadow: none; }
 :where(.room-page, .page-status, dialog.sheet:not(.menu)) :where(button, .button) { border-width: 0; }
 input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :where(.room-page, dialog.sheet:not(.menu)) :where(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select) { border: 0; border-radius: var(--radius-sm); background: var(--glass-wash); }
 .seg, .sort, .room-page .seg, dialog.sheet:not(.menu) .seg { border-radius: var(--radius-pill); background: var(--glass-wash); }
@@ -1333,8 +1337,8 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :
 
 /* 방: 판 위의 이름표와 선반 칩 */
 .thing .tag, .box-spot .tag { border-radius: var(--radius-xs); background: var(--glass-bg-strong); }
-.shelf-chip { border: 0; border-radius: calc(var(--radius-pill) / var(--s)); background: var(--glass-chip); color: var(--ink-soft); box-shadow: var(--glass-chip-shadow); }
-.shelf-chip:hover:not(:disabled) { background: var(--glass-chip-hover); }
+.shelf-chip { border: 0; border-radius: calc(var(--radius-pill) / var(--s)); background: var(--button-bg); color: var(--ink-soft); box-shadow: none; }
+.shelf-chip:hover:not(:disabled) { background: var(--button-bg-hover); }
 .room-plane.mini { border-radius: calc(var(--radius-md) / var(--s)); background: var(--glass-wash); }
 
 /* 방의 창: 탭까지 한 장의 유리입니다. 필터가 남으면 뒤를 흐리지 못해 그림자는 면에 답니다. */
@@ -1351,8 +1355,8 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :
 .list button { border-radius: var(--radius-pill); }
 .thing-image { border-radius: var(--radius-sm); background: var(--glass-wash); }
 .state-stale { border-radius: var(--radius-sm); }
-.face-option { border-radius: var(--radius-sm); background: var(--glass-chip); }
-.room-page .face-option[aria-pressed="true"], dialog.sheet:not(.menu) .face-option[aria-pressed="true"] { background: var(--glass-chip-hover); outline: 2px solid var(--ink); outline-offset: -2px; }
+.face-option { border-radius: var(--radius-sm); background: var(--button-bg); }
+.room-page .face-option[aria-pressed="true"], dialog.sheet:not(.menu) .face-option[aria-pressed="true"] { background: var(--button-bg-pressed); outline: 2px solid var(--ink); outline-offset: -2px; }
 .face-swatch { border-radius: var(--radius-xs); }
 
 /* 대화상자: 폴더 탭을 떼고 유리 한 장으로 둡니다. */
