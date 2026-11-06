@@ -8,6 +8,7 @@ import { HomeHeader } from "../components/home/HomeHeader";
 import { Icon } from "../components/Icon";
 import { FrodoGuide } from "../components/FrodoGuide";
 import { NewRoomDialog } from "../components/NewRoomDialog";
+import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 import { cue } from "../components/useFrodo";
 import { HomeMenu } from "../components/HomeMenu";
 import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
@@ -60,6 +61,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [panelId, setPanelId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [roomMenu, setRoomMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
+  const [roomSettingsId, setRoomSettingsId] = useState<string | null>(null);
   const [door, setDoor] = useState<Doorstep>(emptyDoorstep);
   const [workLog, setWorkLog] = useState<WorkLog>({});
   const [doorMenu, setDoorMenu] = useState<{ id: string; opener: HTMLElement; x: number; y: number } | null>(null);
@@ -427,6 +429,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const hasSample = rooms?.some((room) => room.source === "sample");
   const onHome = (rooms ?? []).filter((room) => !room.care.done);
   const menuRoom = rooms?.find((room) => room.id === roomMenu?.id);
+  const settingsRoom = rooms?.find((room) => room.id === roomSettingsId);
   const menuDoor = door.items.find((item) => item.id === doorMenu?.id);
   const viewingRoom = rooms?.find((room) => room.id === viewing?.roomId);
   const viewingThing = viewingRoom?.things.find((thing) => thing.id === viewing?.thingId);
@@ -562,7 +565,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }}
         />
       )}
-      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && (
+      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !settingsRoom && (
         <HomeRoomsDialog rooms={onHome} prefer={[raised.current, returnTo]} now={now} onKeep={keepOnHome} />
       )}
       {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}
@@ -572,8 +575,28 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           y={roomMenu.y}
           opener={roomMenu.opener}
           label={`${menuRoom.name} 방`}
-          items={[{ label: menuRoom.care.done ? "홈에 올리기" : "홈에서 빼기", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) }]}
+          items={[
+            { label: "방 설정", onSelect: fromMenu(() => setRoomSettingsId(menuRoom.id)) },
+            { label: menuRoom.care.done ? "홈에 올리기" : "홈에서 빼기", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) },
+          ]}
           onClose={() => setRoomMenu(null)}
+        />
+      )}
+      {settingsRoom && (
+        <RoomSettingsDialog
+          key={settingsRoom.id}
+          room={settingsRoom}
+          onClose={() => {
+            setRoomSettingsId(null);
+            void load();
+          }}
+          onForgotten={() => {
+            const id = settingsRoom.id;
+            setRoomSettingsId(null);
+            setSelectedId((current) => (current === id ? null : current));
+            toast("방을 지웠어요. 폴더와 파일은 그대로예요.");
+            void load().then(() => requestAnimationFrame(() => landFocus(id)));
+          }}
         />
       )}
       {doorMenu && menuDoor && (

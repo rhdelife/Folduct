@@ -993,9 +993,9 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .drawer { position: relative; flex: 0 1 auto; min-height: 0; max-height: none; padding: var(--room-step); background-color: var(--ground); border-radius: 0 var(--room-radius) var(--room-radius) var(--room-radius); }
 /* 서랍 내용은 회색 폴더 위에 놓은 흰 종이 한 장입니다. */
 .drawer > div { gap: var(--space-4); }
-.drawer > .thing-panel, .drawer > .settings { padding: var(--space-4); background: var(--bg); }
+.drawer > .thing-panel { padding: var(--space-4); background: var(--bg); }
 /* 목록 서랍은 표처럼 칸들만 폴더 위에 놓입니다. 머리글도, 맺음말도 칸 하나예요. */
-.drawer-head, .drawer > div:not(.thing-panel, .settings) > p { padding: var(--space-3); background: var(--bg); }
+.drawer-head, .drawer > div:not(.thing-panel) > p { padding: var(--space-3); background: var(--bg); }
 .drawer-head { display: grid; gap: var(--space-2); }
 .drawer-head > button { justify-self: start; }
 .drawer code { font-family: var(--font-mono); font-size: var(--text-xs); }

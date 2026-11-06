@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ductLength, kindParts } from "../art/duct";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
-import { FacePicker, RoomFaceArt } from "../components/RoomFace";
+import { RoomFaceArt } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
 import { FrodoGuide } from "../components/FrodoGuide";
 import { BrandMark, Icon } from "../components/Icon";
@@ -13,14 +13,15 @@ import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
 import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { clampSpot, freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, type CareSettings, type Room, type ScannedFile, type Spot, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, type Room, type ScannedFile, type Spot, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
-import { forgetRoom, getRoom, saveHandle, saveRoom } from "../storage/db";
+import { getRoom, saveHandle, saveRoom } from "../storage/db";
 
-const panels = ["thing", "shelf", "box", "settings"] as const;
+// 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
+const panels = ["thing", "shelf", "box"] as const;
 type Panel = (typeof panels)[number];
 
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
@@ -63,8 +64,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const busyNow = useRef(busy);
   busyNow.current = busy;
   const dirty = useRef(false);
-  // 방을 지우는 중이거나 지운 뒤에는 저장하지 않습니다. 늦게 끝난 동기화가 지운 방을 되살리지 않게요.
-  const forgetting = useRef(false);
   // 파일 열기 요청 번호. 창을 닫거나 다른 파일을 열면 늘어나서, 늦게 끝난 읽기는 버립니다.
   const viewerReq = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -74,7 +73,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   // 저장이 실패하면 다시 '고칠 것 있음'으로 두고 배너로 알립니다. 화면의 내용은 그대로라 다시 저장할 수 있어요.
   function flush() {
     const snap = latest.current;
-    if (forgetting.current || !dirty.current || !snap) return;
+    if (!dirty.current || !snap) return;
     dirty.current = false;
     saveRoom(snap).then(
       () => setSaveError(false),
@@ -470,7 +469,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const selected = room.things.find((thing) => thing.id === selectedId && thing.spot && !thing.box) ?? null;
   const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
   const boxed = room.things.filter((thing) => thing.box);
-  const tabLabels: Record<Panel, string> = { thing: "물건", shelf: `선반 ${shelfCount}`, box: `정리 상자 ${boxed.length}`, settings: "방 설정" };
+  const tabLabels: Record<Panel, string> = { thing: "물건", shelf: `선반 ${shelfCount}`, box: `정리 상자 ${boxed.length}` };
 
   return (
     <main className="room-page">
@@ -605,25 +604,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               />
             )}
             {panel === "box" && <BoxPanel things={boxed} busy={busy !== null} onRestore={(id) => void restore(id)} onCopy={copy} />}
-            {panel === "settings" && (
-              <SettingsPanel
-                room={room}
-                onChange={(patch) => update((current) => ({ ...current, ...patch }))}
-                onCare={(patch) => update((current) => ({ ...current, care: { ...current.care, ...patch } }))}
-                onForget={async () => {
-                  if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 방 기록만 사라져요.`))) return;
-                  forgetting.current = true;
-                  try {
-                    await forgetRoom(room.id);
-                    onBack();
-                  } catch {
-                    forgetting.current = false;
-                    dirty.current = true;
-                    toast("방을 지우지 못했어요. 잠시 뒤 다시 해 주세요.");
-                  }
-                }}
-              />
-            )}
           </div>
         </aside>
       </div>
@@ -811,32 +791,6 @@ function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: 
           })}
         </ul>
       )}
-    </div>
-  );
-}
-
-function SettingsPanel({ room, onChange, onCare, onForget }: { room: Room; onChange: (patch: Partial<Room>) => void; onCare: (patch: Partial<CareSettings>) => void; onForget: () => Promise<void> }) {
-  const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
-  return (
-    <div className="settings">
-      <h2 tabIndex={-1}>방 설정</h2>
-      <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => onChange({ name: event.target.value })} /></label>
-      <FacePicker face={room.face} onChange={(face) => {
-        onChange({ face });
-        cue(room.id, { body: "hop" });
-      }} />
-      <fieldset className="care">
-        <legend>방 돌보기</legend>
-        <div className="seg" role="radiogroup" aria-label="홈에 둘지">
-          <label><input type="radio" name="room-status" checked={!room.care.done} onChange={() => onCare({ done: false })} />홈에 둠</label>
-          <label><input type="radio" name="room-status" checked={room.care.done} onChange={() => onCare({ done: true })} />홈에서 뺌</label>
-        </div>
-        <p className="soft">{room.care.done ? "홈에서 뺌: 주간 정리를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
-        <div className="row">
-          <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
-        </div>
-      </fieldset>
-      <button type="button" className="danger" onClick={() => void onForget()}>이 방을 Folduct에서 지우기 (파일은 그대로)</button>
     </div>
   );
 }
