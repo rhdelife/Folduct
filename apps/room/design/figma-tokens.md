@@ -80,7 +80,8 @@
 | 이미지 | `#e5bb4d` | `#8e6e1a` | image |
 | 글·코드 | `#5f9b6d` | `#3b5f4d` | text |
 | 영상 | `#2a64ad` | `#123f80` | video |
-| PDF·문서·발표 | `#c9553f` | `#8d2d1e` | pdf, office |
+| PDF·문서 | `#c9553f` | `#8d2d1e` | pdf, office |
+| 발표 | `#2b9a95` | `#1b6763` | slides |
 | 표 | `#dd8b47` | `#a35a22` | table |
 | 소리 | `#8371c0` | `#54438e` | audio |
 | 디자인 | `#c95b93` | `#863a62` | design |

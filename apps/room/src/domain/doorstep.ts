@@ -1,5 +1,5 @@
 import { relativeDay } from "./care";
-import { newId, type Kind, type Room, type ScannedFile } from "./model";
+import { newId, storedKind, type Kind, type Room, type ScannedFile } from "./model";
 import { samePath } from "./platform";
 
 // 현관: 어느 방에도 속하지 않은 폴더(다운로드 등)에 새로 생긴 문서를 모아 둡니다. 화면·저장소와 무관한 순수 함수만 둡니다.
@@ -92,7 +92,7 @@ export function normalizeDoorstep(value: unknown): Doorstep {
     folders: Array.isArray(state.folders) ? state.folders.filter((folder) => typeof folder === "string") : [],
     seen: state.seen && typeof state.seen === "object" ? state.seen : {},
     // 망가진 줄 하나가 집 화면 전체를 멈추지 않게, 그릴 수 없는 줄만 뺍니다.
-    items: Array.isArray(state.items) ? state.items.filter((item) => typeof item?.id === "string" && typeof item.folder === "string" && typeof item.path === "string" && typeof item.name === "string") : [],
+    items: Array.isArray(state.items) ? state.items.filter((item) => typeof item?.id === "string" && typeof item.folder === "string" && typeof item.path === "string" && typeof item.name === "string").map((item) => ({ ...item, kind: storedKind(item.kind, item.name) })) : [],
     readAt: typeof state.readAt === "number" ? state.readAt : null,
   };
 }

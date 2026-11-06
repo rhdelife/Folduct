@@ -100,14 +100,15 @@ function smooth(pts: Pt[]): string {
 
 const wave = (t: number, k: number, seed: number) => Math.sin(2 * Math.PI * k * t + seed * 2.399) * 0.6 + Math.sin(2 * Math.PI * (k * 2 + 1) * t + seed * 1.13) * 0.4;
 
-// 펜 하나. 그을 때마다 다음 씨앗을 써서 선마다 다르게, 그러나 언제나 같게 흔들립니다.
-function makePen(start: number) {
+// 펜 하나. 그을 때마다 다음 씨앗을 써서 선마다 다르게, 그러나 언제나 같게 흔들립니다. 파일 종이(ObjectShape)도 같은 펜으로 그려요.
+// step은 선을 따라 점을 찍는 간격이에요. 작게 그리는 종이는 화면 1px보다 촘촘한 점이 보이지 않으니 넓게 찍어요.
+export function makePen(start: number, step = 2.6) {
   let count = start;
   return (d: string, w: number, tone: DuctTone = "ink"): DuctPiece[] =>
     flatten(d).map(({ pts, closed }) => {
       count += 1;
       const seed = count % 97;
-      const { out, total } = resample(pts, closed, 2.6);
+      const { out, total } = resample(pts, closed, step);
       const n = out.length;
       const k1 = Math.max(1, Math.round(total / 34));
       const k2 = Math.max(1, Math.round(total / 26));

@@ -203,7 +203,7 @@
         },
         "$description": "파일 형식: video"
       },
-      "PDF·문서·발표": {
+      "PDF·문서": {
         "fill": {
           "$type": "color",
           "$value": "#c9553f",
@@ -215,6 +215,19 @@
           "$description": "판 위에서 3:1이 필요한 진한 색"
         },
         "$description": "파일 형식: pdf, office"
+      },
+      "발표": {
+        "fill": {
+          "$type": "color",
+          "$value": "#2b9a95",
+          "$description": "주름 칸과 색 막대, 종이의 진한 면"
+        },
+        "edge": {
+          "$type": "color",
+          "$value": "#1b6763",
+          "$description": "판 위에서 3:1이 필요한 진한 색"
+        },
+        "$description": "파일 형식: slides"
       },
       "표": {
         "fill": {

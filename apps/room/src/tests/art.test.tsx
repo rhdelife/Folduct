@@ -68,6 +68,36 @@ describe("종이 오브제", () => {
     }
   });
 
+  it("손그림 길은 펜이 읽는 절대 좌표 M·L·C·Z만 쓰고, 선이 잘리지 않게 종이 안쪽에 있어요", () => {
+    for (const kind of kinds) {
+      for (const art of paperArts[kind]) {
+        const label = `${kind}/${art.id}`;
+        expect(art.parts.some((part) => "pen" in part && !part.detail), `${label} 윤곽`).toBe(true);
+        for (const part of art.parts) {
+          expect(part.d, label).toMatch(/^M[MLCZ0-9.\s-]+$/);
+          const numbers = part.d.match(/-?\d*\.?\d+/g)!.map(Number);
+          for (let at = 0; at < numbers.length; at += 2) {
+            expect(numbers[at], `${label} x`).toBeGreaterThanOrEqual(3);
+            expect(numbers[at], `${label} x`).toBeLessThanOrEqual(art.w - 3);
+            expect(numbers[at + 1], `${label} y`).toBeGreaterThanOrEqual(3);
+            expect(numbers[at + 1], `${label} y`).toBeLessThanOrEqual(art.h - 3);
+          }
+          if ("pen" in part) expect(part.pen, label).toBeGreaterThan(0);
+          if ("pen" in part) expect(part.pen, label).toBeLessThanOrEqual(2);
+        }
+        const { x, y, w, h } = art.slot;
+        expect(x >= 0 && y >= 0 && x + w <= art.w && y + h <= art.h, `${label} 이름 칸`).toBe(true);
+      }
+    }
+  });
+
+  it("작게 그리면 잔선(detail)을 빼요", () => {
+    const art = paperArts.text.find((item) => item.parts.some((part) => "pen" in part && part.detail))!;
+    const seed = Array.from({ length: 200 }, (_, at) => `s${at}`).find((value) => pickArt("text", value) === art)!;
+    const count = (svg: string) => (svg.match(/<path/g) ?? []).length;
+    expect(count(render({ kind: "text", seed, size: 24 }))).toBeLessThan(count(render({ kind: "text", seed, size: 96, name: "a.md" })));
+  });
+
   it("따로 준 색은 그 색으로 다섯 단을 만들어요", () => {
     const tones = tonesFrom("#5f6670");
     expect(tones.color).toBe("#5f6670");

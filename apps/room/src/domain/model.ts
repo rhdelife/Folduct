@@ -1,5 +1,5 @@
 // 방 하나 = 연결한 폴더 하나. 폴더 안 파일은 방 안의 '물건'이 됩니다.
-export type Kind = "image" | "video" | "audio" | "pdf" | "text" | "table" | "office" | "design" | "archive" | "unknown";
+export type Kind = "image" | "video" | "audio" | "pdf" | "text" | "table" | "office" | "slides" | "design" | "archive" | "unknown";
 
 export type BoxEntry = {
   // moving-*는 옮기기 직전에 남기는 기록이라, 중간에 꺼져도 실제 위치를 보고 맞출 수 있습니다.
@@ -63,7 +63,8 @@ const extensions: [Kind, string[]][] = [
   ["audio", ["mp3", "wav", "ogg", "m4a", "aac", "flac", "aiff"]],
   ["pdf", ["pdf"]],
   ["table", ["csv", "tsv", "xls", "xlsx", "numbers"]],
-  ["office", ["doc", "docx", "ppt", "pptx", "hwp", "hwpx", "pages", "key"]],
+  ["office", ["doc", "docx", "hwp", "hwpx", "pages", "odt"]],
+  ["slides", ["ppt", "pptx", "key", "odp"]],
   ["design", ["psd", "ai", "sketch", "fig", "xd", "indd", "eps", "blend", "procreate"]],
   ["archive", ["zip", "rar", "7z", "tar", "gz", "dmg", "iso"]],
   ["text", ["txt", "md", "json", "xml", "yaml", "yml", "html", "css", "scss", "js", "cjs", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "ipynb", "r", "kt", "php", "rb", "py", "java", "swift", "go", "rs", "c", "cpp", "sh", "sql", "log", "toml", "rtf"]],
@@ -76,8 +77,14 @@ export function kindOf(name: string): Kind {
 }
 
 export const kindLabels: Record<Kind, string> = {
-  image: "이미지", video: "영상", audio: "소리", pdf: "PDF", text: "글·코드", table: "표", office: "문서", design: "디자인", archive: "압축", unknown: "기타",
+  image: "이미지", video: "영상", audio: "소리", pdf: "PDF", text: "글·코드", table: "표", office: "문서", slides: "발표", design: "디자인", archive: "압축", unknown: "기타",
 };
+
+// 저장된 형식을 지금 규칙에 맞춥니다. 모르는 값은 이름으로 다시 정하고, 발표가 '문서'에서 갈라지기 전(2026-11) 기록의 발표 파일은 발표로 옮겨요.
+export function storedKind(kind: unknown, name: string): Kind {
+  if (typeof kind !== "string" || !Object.hasOwn(kindLabels, kind)) return kindOf(name);
+  return kind === "office" && kindOf(name) === "slides" ? "slides" : (kind as Kind);
+}
 
 export function formatBytes(size: number): string {
   if (!Number.isFinite(size) || size < 0) return "크기 모름";
