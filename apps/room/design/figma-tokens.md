@@ -42,7 +42,7 @@
 | `color/neutral/line` | `#e6e2db` |  |
 | `color/neutral/line-strong` | `#d2ccc2` |  |
 | `color/neutral/on-ink` | `#ffffff` |  |
-| `color/neutral/brand` | `#630b01` |  |
+| `color/neutral/brand` | `#171717` |  |
 | `color/neutral/stitch` | `#1b1a1838` |  |
 | `color/neutral/halo` | `{color.lightbox.2}` |  |
 | `color/neutral/ink-wash` | `#1b1a180f` |  |

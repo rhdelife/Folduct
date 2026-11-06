@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 export type IconName = "sweep" | "import" | "pin" | "settings";
 
@@ -18,15 +18,26 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   );
 }
 
-// 주름관 로고(design/logo/folduct-symbol.svg). 세로 관이 기둥, 꺾인 관과 머리가 윗줄, 내민 팔이 가운뎃줄인 F예요. 색은 브랜드 전용 토큰 --brand 하나만 씁니다. size는 높이예요.
+// 빼꼼 프로도 로고(design/logo/folduct-symbol.svg). 판 아래에서 올라온 관이 F의 기둥, 머리로 꺾인 관이 윗줄, 열린 입구로 끝나는 가지가 가운뎃줄이에요.
+// 치수는 판 824의 황금비 수열(824/φⁿ)에서 나오고, 머리는 판의 황금 교차점에 있어요. 색은 흰 판(--surface)과 로고 전용 --brand 둘뿐이에요. size는 높이예요.
+const tube = ["M294.5 984L294.5 489A74.3 74.3 0 0 1 368.8 414.7L560.6 414.7", "M294.5 609.3L489 609.3"];
 export function BrandMark({ size }: { size: number }) {
+  const plate = `brand-plate-${useId()}`;
   return (
-    <svg className="mark" viewBox="-4 -8 128 128" width={size} height={size} fill="var(--brand)" aria-hidden="true" focusable="false">
-      <path d="M42 64C54 64 66 64 78 64" fill="none" stroke="var(--brand)" strokeWidth={13} strokeLinecap="round" />
-      <path d="M70 64a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z" />
-      <path d="M14 106L54 106L56 114L12 114Z" />
-      <path d="M47 112L47 40.1L47.2 36.8L47.7 34.2L48.2 32.8L48.9 32L49.9 31.5L51.5 31.2L54.1 31L72 31L72 5L53.9 5L50.9 5.1L47.9 5.4L45.8 5.8L42.7 6.5L40.7 7.2L37.7 8.5L35.7 9.6L32.9 11.5L31.1 13L29.5 14.6L27.3 17.4L26 19.3L24.4 22.4L23.1 25.7L22.2 29.1L21.5 32.6L21.1 37.5L21 112Z" />
-      <path fillRule="evenodd" d="M67 20C67 -7.7 117 -7.7 117 20C117 47.7 67 47.7 67 20ZM78.3 19.8A5.8 6.6 -8 1 0 89.7 18.2A5.8 6.6 -8 1 0 78.3 19.8ZM95 18.8A6.1 7 -8 1 0 107 17.2A6.1 7 -8 1 0 95 18.8Z" />
+    <svg className="mark" viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" focusable="false">
+      <clipPath id={plate}><rect x="100" y="100" width="824" height="824" rx="185" /></clipPath>
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="var(--surface)" />
+      <g clipPath={`url(#${plate})`} fill="none">
+        {tube.map((d) => <path key={d} d={d} stroke="var(--brand)" strokeWidth={155.3} />)}
+        {tube.map((d) => <path key={`in${d}`} d={d} stroke="var(--surface)" strokeWidth={120.2} />)}
+        <ellipse cx="489" cy="609.3" rx="28.4" ry="68.9" fill="var(--surface)" stroke="var(--brand)" strokeWidth={17.5} />
+        <ellipse cx="489" cy="609.3" rx="10.8" ry="51.3" fill="var(--brand)" />
+        <ellipse cx="609.3" cy="414.7" rx="97.3" ry="83.7" fill="var(--surface)" stroke="var(--brand)" strokeWidth={17.5} />
+        <ellipse cx="609.3" cy="414.7" rx="68.9" ry="55.3" fill="var(--brand)" />
+        <ellipse cx="572.1" cy="411.7" rx="16.7" ry="20" fill="var(--surface)" />
+        <ellipse cx="646.4" cy="410.7" rx="17.7" ry="21.2" fill="var(--surface)" />
+      </g>
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="var(--line-strong)" strokeWidth={8} />
     </svg>
   );
 }

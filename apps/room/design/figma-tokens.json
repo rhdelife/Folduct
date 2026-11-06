@@ -67,7 +67,7 @@
       },
       "brand": {
         "$type": "color",
-        "$value": "#630b01"
+        "$value": "#171717"
       },
       "stitch": {
         "$type": "color",
