@@ -1255,7 +1255,7 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-3); border-top: 1px solid var(--line); cursor: pointer; }
 .setting-row strong { display: block; font-size: var(--text-md); line-height: var(--lh-md); }
 .setting-row small { display: block; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.setting-row select { flex: none; }
+.setting-row select, .setting-row button { flex: none; }
 .setting-row input { flex: none; width: var(--space-5); height: var(--space-5); margin: 0; cursor: inherit; }
 
 /* 현관: 첫 화면 머리 바로 아래의 새 문서 1열. 넘치면 옆으로 밀어 봅니다. 띠 전체에 바탕을 깔아 뒤로 떠다니는 종이와 글자가 섞이지 않게 합니다. */

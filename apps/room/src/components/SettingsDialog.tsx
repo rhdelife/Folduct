@@ -6,6 +6,7 @@ import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible
 import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn } from "../storage/db";
 import { addDoorFolder } from "../storage/doorstep";
 import { FrodoGuide } from "./FrodoGuide";
+import { replayIntroEvent } from "./Intro";
 import { useModal } from "./useModal";
 
 export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doorstep: Doorstep; onDoorstep: (state: Doorstep) => void; onClose: () => void; onError: (message: string) => void }) {
@@ -113,6 +114,13 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
           </span>
           <input type="checkbox" role="switch" checked={introOn ?? false} disabled={introOn === null} onChange={(event) => toggle(event.target.checked)} />
         </label>
+        <div className="setting-row">
+          <span>
+            <strong>인트로 다시 보기</strong>
+            <small>지금 바로 처음 장면을 틀어요. Esc로 건너뛸 수 있어요.</small>
+          </span>
+          <button type="button" onClick={() => window.dispatchEvent(new Event(replayIntroEvent))}>다시 보기</button>
+        </div>
         {isNative() && (
           <>
             <label className="setting-row">

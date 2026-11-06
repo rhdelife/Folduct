@@ -20,6 +20,8 @@ const copy: Record<Phase, string> = {
 const nextPhase = { gather: "fill", fill: "rise" } as const;
 // 그림이 차지하는 폭. 화면마다 달라 선 굵기가 무난한 값으로 둡니다.
 const introPx = 240;
+// 환경설정의 다시 보기가 보내고 App이 받습니다. 환경설정은 집 안에 있어 App까지 이벤트로 알려요.
+export const replayIntroEvent = "folduct-replay-intro";
 
 // 앱을 켤 때 한 번, 흩어진 파일을 주름관이 받아먹고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
 export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave: () => void; onDone: () => void }) {

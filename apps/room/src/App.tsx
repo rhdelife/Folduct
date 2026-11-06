@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
-import { Intro } from "./components/Intro";
+import { Intro, replayIntroEvent } from "./components/Intro";
 import { useGuideEvents } from "./components/FrodoGuide";
 import { isNative } from "./gateways/native";
 import { Home } from "./pages/Home";
@@ -33,6 +33,12 @@ export default function App() {
     // 설정을 못 읽으면 인트로 없이 집으로 갑니다. 저장소 오류는 집 화면이 알려요.
     getIntroOn().then((on) => setIntro(on ? "playing" : "off"), () => setIntro("off"));
   }, [intro]);
+  // 다시 보기는 켜기 설정과 상관없이 한 번 틉니다. 인트로 동안 집이 내려가며 열린 환경설정 창도 함께 닫혀요.
+  useEffect(() => {
+    const replay = () => setIntro("playing");
+    window.addEventListener(replayIntroEvent, replay);
+    return () => window.removeEventListener(replayIntroEvent, replay);
+  }, []);
   useEffect(() => {
     const onHash = () => {
       const id = readRoute();
