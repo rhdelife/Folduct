@@ -207,7 +207,7 @@
 | `scene/button-bg-pressed` | `rgb(23 23 23 / 0.16)` |  |
 | `scene/z-intro` | `8000` |  |
 | `scene/intro-vase` | `min(40dvh, 56vw)` |  |
-| `scene/intro-foot` | `112px` |  |
+| `scene/intro-foot` | `136px` |  |
 | `scene/intro-paper-scale` | `1` |  |
 | `scene/intro-fly` | `900ms` |  |
 | `scene/intro-stagger` | `110ms` |  |

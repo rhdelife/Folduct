@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { eatFrameCount, kindParts } from "../art/duct";
+import { eatFrameCount, kindParts, kindSummary } from "../art/duct";
 import eatSheet from "../art/duct-eat.png";
 import { eatKeyframes, eatTimeline, introMs, introPapers, introThings } from "../domain/intro";
 import type { Thing } from "../domain/model";
@@ -18,6 +18,8 @@ const copy: Record<Phase, string> = {
   rise: "이제 방으로 가요.",
 };
 const nextPhase = { gather: "fill", fill: "rise" } as const;
+// 세 칸 진행 막대: 흩어짐 → 삼킴 → 색. 올라갈 때는 다 찬 채로 둡니다.
+const stepOf: Record<Phase, number> = { scatter: 1, gather: 2, fill: 3, rise: 3 };
 // 그림이 차지하는 폭. 화면마다 달라 선 굵기가 무난한 값으로 둡니다.
 const introPx = 240;
 // 환경설정의 다시 보기가 보내고 App이 받습니다. 환경설정은 집 안에 있어 App까지 이벤트로 알려요.
@@ -69,6 +71,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
 
   const papers = useMemo(() => introPapers(things ?? []), [things]);
   const parts = useMemo(() => kindParts(things ?? []), [things]);
+  const note = phase === "gather" ? `파일 ${papers.length}개` : phase === "fill" && parts.length ? kindSummary(parts) : null;
 
   return (
     <section className={`intro phase-${phase}${leaving ? " leaving" : ""}`} aria-label="Folduct 인트로" aria-hidden={leaving || undefined}>
@@ -84,7 +87,10 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
             ))}
           </div>
           <div className="intro-center">
+            {/* 프로도가 빈 판에 떠 있지 않게 카드와 바닥 그림자 위에 세웁니다. 홈의 방 카드와 같은 면이에요. */}
+            <span className="intro-card" aria-hidden="true" />
             <div className="intro-vase-lift">
+              <span className="intro-floor" aria-hidden="true" />
               <div className="intro-vase">
                 {/* 먹는 동안만 시트를 보여 줍니다. 미리 올려 풀어 두어 시작할 때 멈칫하지 않아요. */}
                 <div className="intro-sprite" aria-hidden="true">
@@ -94,7 +100,11 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
               </div>
             </div>
             <div className="intro-foot">
+              <ol className="intro-steps" aria-hidden="true">
+                {[1, 2, 3].map((step) => <li key={step} className={step <= stepOf[phase] ? "on" : undefined} />)}
+              </ol>
               <p className="intro-copy" role="status"><span key={phase}>{copy[phase]}</span></p>
+              {note && <p className="intro-note"><span key={phase}>{note}</span></p>}
               {phase === "scatter" && (
                 <button
                   type="button"

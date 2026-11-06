@@ -841,7 +841,7 @@
     },
     "intro-foot": {
       "$type": "other",
-      "$value": "112px"
+      "$value": "136px"
     },
     "intro-paper-scale": {
       "$type": "other",
