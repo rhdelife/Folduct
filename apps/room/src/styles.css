@@ -484,15 +484,12 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node.dim :is(.vase-lift, .vase-tag, .room-card, .room-floor) { opacity: 0.18; }
 .room-node.dim:focus-visible .vase-lift { opacity: 1; }
 .room-node { cursor: pointer; }
-/* 방 카드: 줄마다 같은 크기라 프로도들이 한 바닥에 나란히 서요. 받침 아래로 이름표까지 덮습니다. */
-.room-card { position: absolute; left: 50%; bottom: calc(var(--card-below) * -1); width: var(--card-w); height: var(--card-h); translate: -50% 0; border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); transition: box-shadow var(--dur-2) var(--ease-standard), opacity var(--dur-focus) var(--ease-glide), height var(--dur-focus) var(--ease-glide); }
+/* 방 카드: 그림자·테두리 없이 흰 면만. 줄마다 같은 크기라 프로도들이 한 바닥에 나란히 서요. 받침 아래로 이름표까지 덮습니다. */
+.room-card { position: absolute; left: 50%; bottom: calc(var(--card-below) * -1); width: var(--card-w); height: var(--card-h); translate: -50% 0; border-radius: var(--radius-lg); background: var(--surface); transition: opacity var(--dur-focus) var(--ease-glide), height var(--dur-focus) var(--ease-glide); }
 /* 고른 프로도는 vaseLift배로 커지니 카드도 그만큼 위로 늘려 머리가 밖으로 나가지 않게 합니다. */
 .room-node.selected .room-card { height: calc(var(--card-h) + (var(--lift) - 1) * var(--half) * 2 * var(--u)); }
 .room-floor { position: absolute; left: 50%; bottom: 0; width: 70%; height: var(--space-2); translate: -50% 50%; border-radius: 50%; background: var(--glass-wash-strong); transition: opacity var(--dur-focus) var(--ease-glide); }
 .room-sub b { font-weight: 700; color: var(--ink); }
-@media (hover: hover) {
-  .room-node:hover .room-card { box-shadow: var(--shadow-2); }
-}
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out 3; }
 .room-label, .room-sub { text-shadow: 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo); }
 .room-label { max-width: 34cqw; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
@@ -1120,7 +1117,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 }
 
 /* ══ 일력 ══ */
-.work-cal { position: absolute; left: calc(var(--chrome-x) - var(--space-4)); bottom: var(--space-4); z-index: var(--hero-tip-z); box-sizing: content-box; display: grid; gap: var(--space-2); width: var(--cal-w); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); }
+.work-cal { position: absolute; left: calc(var(--chrome-x) - var(--space-4)); bottom: var(--space-4); z-index: var(--hero-tip-z); box-sizing: content-box; display: grid; gap: var(--space-2); width: var(--cal-w); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); }
 .work-cal-total { display: flex; align-items: baseline; gap: var(--space-1); }
 .work-cal-total strong { font-size: var(--cal-number); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .work-cal-total span { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; }
@@ -1216,7 +1213,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 .intro-center { position: relative; display: grid; justify-items: center; }
 .intro-vase-lift { position: relative; transition: transform var(--intro-rise) ease-in, opacity var(--intro-rise) ease-in; }
 /* 무대 카드: 프로도 뒤 흰 면. 올라갈 때는 프로도만 떠나고 카드는 사라져요. */
-.intro-card { position: absolute; top: calc(var(--space-4) * -1); left: 50%; width: calc(var(--intro-vase) * 1.15); height: calc(var(--intro-vase) + var(--space-8)); translate: -50% 0; border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-1); transition: opacity var(--intro-rise) ease-in; }
+.intro-card { position: absolute; top: calc(var(--space-4) * -1); left: 50%; width: calc(var(--intro-vase) * 1.15); height: calc(var(--intro-vase) + var(--space-8)); translate: -50% 0; border-radius: var(--radius-xl); background: var(--surface); transition: opacity var(--intro-rise) ease-in; }
 .phase-rise .intro-card { opacity: 0; }
 /* 받침 아래 그림자. 받침은 그림 왼쪽(판 폭의 0.32)에 서 있고 바닥은 판 높이의 0.92예요(art/duct.ts의 stand). */
 .intro-floor { position: absolute; left: calc(var(--intro-vase) * 0.316); top: calc(var(--intro-vase) * 0.92); width: calc(var(--intro-vase) * 0.45); height: var(--space-3); translate: -50% -50%; border-radius: 50%; background: var(--glass-wash-strong); }
