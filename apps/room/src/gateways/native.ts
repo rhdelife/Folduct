@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { exists, mkdir, readDir, readFile, rename, stat } from "@tauri-apps/plugin-fs";
+import { exists, mkdir, readDir, readFile, stat } from "@tauri-apps/plugin-fs";
 import { isSafeRelativePath } from "../domain/model";
 import { baseName, childPath, joinPath, samePath } from "../domain/platform";
 import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, scanFolder, type Access, type AccessMode, type DirectorySource, type ScanResult } from "./folder";
@@ -72,9 +72,8 @@ export function pathDirectory(dir: string): PathDirectory {
       return {
         async move(destination, newName) {
           const to = childPath((destination as PathDirectory).path, newName);
-          // shortcut: 확인과 이름 바꾸기 사이에 다른 앱이 같은 이름을 만들면 덮어쓸 수 있어요(브라우저 move()와 같은 한계). 문제가 되면 Rust에서 renamex_np(RENAME_EXCL)로 바꿉니다.
-          if (await exists(to)) throw new DOMException("자리에 파일이 있어요", "InvalidModificationError");
-          await rename(from, to);
+          // 대상 자리에 파일이 있으면 OS가 거절합니다(lib.rs move_file). 확인과 이동 사이에 생긴 파일도 덮어쓰지 않아요.
+          await invoke("move_file", { from, to });
         },
       };
     },

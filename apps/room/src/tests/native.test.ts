@@ -5,7 +5,7 @@ import { scanFolder } from "../gateways/folder";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
 import { openInApp, parseSpotlightDate, pathDirectory, pathSource, readPathFile, scanRoomFolder } from "../gateways/native";
 
-// 메모리 디스크. rename은 POSIX처럼 덮어쓰므로, 덮어쓰지 않는 건 어댑터가 지켜야 합니다.
+// 메모리 디스크. 이동은 lib.rs move_file처럼 대상 자리에 무엇이 있으면 거절합니다.
 type Entry = { dir?: boolean; link?: boolean; data?: string; mtime?: number };
 const disk = vi.hoisted(() => new Map<string, { dir?: boolean; link?: boolean; data?: string; mtime?: number }>());
 
@@ -32,15 +32,20 @@ vi.mock("@tauri-apps/plugin-fs", () => {
       if (disk.has(path) || !disk.get(parentOf(path))?.dir) throw new Error(`mkdir failed: ${path}`);
       disk.set(path, { dir: true });
     },
-    rename: async (from: string, to: string) => {
-      disk.set(to, get(from));
-      disk.delete(from);
-    },
     readFile: async (path: string) => new TextEncoder().encode(get(path).data ?? ""),
   };
 });
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: async () => null }));
-const invoke = vi.hoisted(() => vi.fn());
+const invoke = vi.hoisted(() =>
+  vi.fn(async (cmd: string, args: any): Promise<any> => {
+    if (cmd !== "move_file") return undefined;
+    const entry = disk.get(args.from);
+    if (!entry) throw "No such file or directory (os error 2)";
+    if (disk.has(args.to)) throw "File exists (os error 17)";
+    disk.set(args.to, entry);
+    disk.delete(args.from);
+  }),
+);
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 
 function seed() {
@@ -158,8 +163,8 @@ describe("데스크톱 파일 열기", () => {
 });
 
 describe("데스크톱 권한", () => {
-  it("fs 권한은 읽기·폴더 만들기·이름 바꾸기뿐이고, 고정 경로 스코프를 두지 않는다", () => {
-    const allowed = /^fs:allow-(read-dir|stat|exists|read-file|mkdir|rename)$/;
+  it("fs 권한은 읽기·폴더 만들기뿐이고(옮기기는 덮어쓰지 않는 move_file 명령), 고정 경로 스코프를 두지 않는다", () => {
+    const allowed = /^fs:allow-(read-dir|stat|exists|read-file|mkdir)$/;
     expect(capabilities.permissions.filter((permission) => typeof permission !== "string" || (permission.startsWith("fs:") && !allowed.test(permission)))).toEqual([]);
   });
 
@@ -167,6 +172,6 @@ describe("데스크톱 권한", () => {
     const sources = import.meta.glob(["../**/*.ts", "../**/*.tsx", "!../tests/**"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
     const names = Object.values(sources).flatMap((text) => [...text.matchAll(/import\s*{([^}]*)}\s*from\s*"@tauri-apps\/plugin-fs"/g)].flatMap((match) => match[1].split(",").map((name) => name.trim()).filter(Boolean)));
     expect(names.length).toBeGreaterThan(0);
-    expect(names.filter((name) => !["exists", "mkdir", "readDir", "readFile", "rename", "stat"].includes(name))).toEqual([]);
+    expect(names.filter((name) => !["exists", "mkdir", "readDir", "readFile", "stat"].includes(name))).toEqual([]);
   });
 });

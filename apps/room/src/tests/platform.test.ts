@@ -22,17 +22,21 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
       .filter(([child]) => child !== path.toLowerCase() && child.startsWith(`${path.toLowerCase().replace(/\\$/, "")}\\`) && !child.slice(path.replace(/\\$/, "").length + 1).includes("\\"))
       .map(([child, entry]) => ({ name: child.slice(child.lastIndexOf("\\") + 1), isDirectory: !!entry.dir, isFile: !entry.dir, isSymlink: false })),
   mkdir: async (path: string) => void disk.set(path.toLowerCase(), { dir: true }),
-  rename: async (from: string, to: string) => {
-    const entry = disk.get(from.toLowerCase());
-    if (!entry) throw new Error("The system cannot find the file specified. (os error 2)");
-    disk.set(to.toLowerCase(), entry);
-    disk.delete(from.toLowerCase());
-  },
   readFile: async (path: string) => new TextEncoder().encode(disk.get(path.toLowerCase())?.data ?? ""),
 }));
 const dialog = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => dialog);
-const invoke = vi.hoisted(() => vi.fn());
+// move_file은 MoveFileExW처럼 대상 자리에 무엇이 있으면(대소문자만 달라도) 거절합니다.
+const invoke = vi.hoisted(() =>
+  vi.fn(async (cmd: string, args: any): Promise<any> => {
+    if (cmd !== "move_file") return undefined;
+    const entry = disk.get(args.from.toLowerCase());
+    if (!entry) throw "The system cannot find the file specified. (os error 2)";
+    if (disk.has(args.to.toLowerCase())) throw "Cannot create a file when that file already exists. (os error 183)";
+    disk.set(args.to.toLowerCase(), entry);
+    disk.delete(args.from.toLowerCase());
+  }),
+);
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 
 const root = "C:\\Users\\준\\방";

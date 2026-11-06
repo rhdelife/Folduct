@@ -11,7 +11,6 @@
     "dialog:allow-open",
     "fs:allow-read-dir",
     "fs:allow-stat",
-    "fs:allow-exists",
-    "fs:allow-rename"
+    "fs:allow-exists"
   ]
 }

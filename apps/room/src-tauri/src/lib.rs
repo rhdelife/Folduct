@@ -140,6 +140,63 @@ fn reveal_in_finder<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), 
   tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| e.to_string())
 }
 
+// 고른 폴더 안 파일 하나를 이름 바꾸기로 옮깁니다. 대상 자리에 무엇이 있으면 OS가 거절하므로, 확인한 뒤 다른 앱이 만든 파일도 덮어쓰지 않습니다.
+#[tauri::command]
+fn move_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Result<(), String> {
+  in_scope(&app, &from)?;
+  in_scope(&app, &to)?;
+  if !from.is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  rename_no_replace(&from, &to).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+  use std::ffi::{CString, c_char, c_int, c_uint};
+  use std::os::unix::ffi::OsStrExt;
+  unsafe extern "C" {
+    fn renamex_np(from: *const c_char, to: *const c_char, flags: c_uint) -> c_int;
+  }
+  const RENAME_EXCL: c_uint = 0x4;
+  const ENOTSUP: i32 = 45;
+  let c_path = |path: &Path| CString::new(path.as_os_str().as_bytes()).map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput));
+  let (from_c, to_c) = (c_path(from)?, c_path(to)?);
+  if unsafe { renamex_np(from_c.as_ptr(), to_c.as_ptr(), RENAME_EXCL) } == 0 {
+    return Ok(());
+  }
+  let error = std::io::Error::last_os_error();
+  // exFAT 외장 디스크처럼 RENAME_EXCL을 모르는 파일 시스템만 예전 방식으로 옮깁니다.
+  if error.raw_os_error() == Some(ENOTSUP) { check_then_rename(from, to) } else { Err(error) }
+}
+
+#[cfg(windows)]
+fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+  use std::os::windows::ffi::OsStrExt;
+  #[link(name = "kernel32")]
+  unsafe extern "system" {
+    fn MoveFileExW(existing: *const u16, new: *const u16, flags: u32) -> i32;
+  }
+  // 플래그 0: MOVEFILE_REPLACE_EXISTING 없이 부르면 대상이 있을 때 거절하고, 다른 드라이브로 복사하지도 않습니다.
+  let wide = |path: &Path| path.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<u16>>();
+  let (from_w, to_w) = (wide(from), wide(to));
+  if unsafe { MoveFileExW(from_w.as_ptr(), to_w.as_ptr(), 0) } != 0 { Ok(()) } else { Err(std::io::Error::last_os_error()) }
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
+fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+  check_then_rename(from, to)
+}
+
+// shortcut: 확인과 이름 바꾸기 사이에 다른 앱이 같은 이름을 만들면 덮어쓸 수 있어요. 원자적으로 거절하는 호출이 없는 곳에서만 쓰고, Linux를 지원하면 renameat2(RENAME_NOREPLACE)로 바꿉니다.
+#[cfg(not(windows))]
+fn check_then_rename(from: &Path, to: &Path) -> std::io::Result<()> {
+  if to.symlink_metadata().is_ok() {
+    return Err(std::io::Error::from(std::io::ErrorKind::AlreadyExists));
+  }
+  std::fs::rename(from, to)
+}
+
 fn safe_relative(path: &str) -> bool {
   !path.is_empty() && Path::new(path).components().all(|part| matches!(part, Component::Normal(_)))
 }
@@ -211,7 +268,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file])
     .setup(|_app| {
       if let Some(pet) = _app.get_webview_window("pet") {
         place_pet_top_right(&pet);
@@ -273,7 +330,7 @@ mod tests {
     std::fs::write(parent.join("other/a.txt"), "a").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
-      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates])
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates, move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
@@ -288,11 +345,11 @@ mod tests {
     invoke(&webview, "allow_rooms", json!({ "folders": [room] })).unwrap();
     invoke(&webview, "plugin:fs|stat", json!({ "path": file })).unwrap();
     invoke(&webview, "plugin:fs|mkdir", json!({ "path": room.join("_Folduct 정리상자") })).unwrap();
-    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": file, "newPath": boxed })).unwrap();
+    invoke(&webview, "move_file", json!({ "from": file, "to": boxed })).unwrap();
     assert_eq!(std::fs::read_to_string(&boxed).unwrap(), "원본");
 
     assert!(invoke(&webview, "plugin:fs|stat", json!({ "path": parent.join("other/a.txt") })).is_err());
-    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": boxed, "newPath": outside.join("시안.psd") })).is_err());
+    assert!(invoke(&webview, "move_file", json!({ "from": boxed, "to": outside.join("시안.psd") })).is_err());
     assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": boxed })).is_err());
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": boxed })).is_err());
     assert!(invoke(&webview, "open_in_app", json!({ "path": outside })).is_err());
@@ -318,7 +375,7 @@ mod tests {
     std::fs::write(door.join("보고서.pdf"), "원본").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
-      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates])
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates, move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
@@ -327,10 +384,10 @@ mod tests {
     app.fs_scope().allow_directory(&room, true).unwrap();
     let (from, to) = (door.join("보고서.pdf"), room.join("보고서.pdf"));
 
-    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": outside.join("보고서.pdf") })).is_err());
-    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": to })).unwrap();
+    assert!(invoke(&webview, "move_file", json!({ "from": from, "to": outside.join("보고서.pdf") })).is_err());
+    invoke(&webview, "move_file", json!({ "from": from, "to": to })).unwrap();
     assert_eq!(std::fs::read_to_string(&to).unwrap(), "원본");
-    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": to, "newPath": from })).unwrap();
+    invoke(&webview, "move_file", json!({ "from": to, "to": from })).unwrap();
     assert_eq!(std::fs::read_to_string(&from).unwrap(), "원본");
     assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": from })).is_err());
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": from })).is_err());
@@ -349,6 +406,7 @@ mod tests {
     std::fs::write(door.join("보고서.pdf"), "원본").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "pet", Default::default()).build().unwrap();
@@ -356,12 +414,39 @@ mod tests {
     app.fs_scope().allow_directory(&room, true).unwrap();
     let (from, to) = (door.join("보고서.pdf"), room.join("보고서.pdf"));
 
-    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": outside.join("보고서.pdf") })).is_err());
-    invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": to })).unwrap();
+    assert!(invoke(&webview, "move_file", json!({ "from": from, "to": outside.join("보고서.pdf") })).is_err());
+    invoke(&webview, "move_file", json!({ "from": from, "to": to })).unwrap();
     assert_eq!(std::fs::read_to_string(&to).unwrap(), "원본");
     assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": to })).is_err());
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": to })).is_err());
     assert!(to.exists());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 확인을 건너뛰고 바로 불러도 대상 자리에 있는 파일을 덮어쓰지 않습니다. 덮어쓰는 plugin-fs rename은 권한에서 뺐어요.
+  #[test]
+  fn move_never_replaces_existing_file() {
+    let base = std::env::temp_dir().join(format!("folduct-excl-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let (from, to) = (base.join("새.psd"), base.join("있던.psd"));
+    std::fs::write(&from, "새것").unwrap();
+    std::fs::write(&to, "있던 것").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![move_file])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&base, true).unwrap();
+
+    assert!(invoke(&webview, "move_file", json!({ "from": from, "to": to })).is_err());
+    assert!(invoke(&webview, "plugin:fs|rename", json!({ "oldPath": from, "newPath": to })).is_err());
+    assert!(invoke(&webview, "move_file", json!({ "from": base, "to": base.join("../폴더") })).is_err());
+    assert!(rename_no_replace(&from, &to).is_err());
+    assert_eq!(std::fs::read_to_string(&from).unwrap(), "새것");
+    assert_eq!(std::fs::read_to_string(&to).unwrap(), "있던 것");
+    invoke(&webview, "move_file", json!({ "from": from, "to": base.join("빈자리.psd") })).unwrap();
+    assert_eq!(std::fs::read_to_string(base.join("빈자리.psd")).unwrap(), "새것");
     std::fs::remove_dir_all(&base).unwrap();
   }
 
