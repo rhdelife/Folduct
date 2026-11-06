@@ -255,9 +255,9 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     if (ready) return engine.attach();
   }, [engine, ready]);
 
-  // 방이 하나도 없으면 움직일 게 없습니다.
-  const noRooms = rooms?.length === 0;
-  useEffect(() => engine.lock(noRooms), [engine, noRooms]);
+  // 홈은 주름관이 한 줄로 선 한 화면이라 스크롤로 넘어갈 곳이 없습니다.
+  // shortcut: 두 번째 화면을 없애면서 엔진은 늘 잠가 두었어요. 다시 넘길 화면이 생기지 않으면 engine.ts와 useBetween 쓰임을 걷어내요.
+  useEffect(() => engine.lock(true), [engine]);
 
   // 줄로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
   useEffect(() => {

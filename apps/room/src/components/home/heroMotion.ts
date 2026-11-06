@@ -1,32 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import { ductLength, ductMouth } from "../../art/duct";
 import { roomUsage } from "../../domain/care";
 import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
-import { columnsFor, flightsFor, rowMetrics, type Card, type Flight, type HeroNode, type RoomColumn } from "../../domain/heroLayout";
-import { range, rowRest, useBetween, useEngine, useScene } from "./engine";
+import type { Card, HeroNode } from "../../domain/heroLayout";
+import { range, useEngine } from "./engine";
 
-// 첫 화면의 움직임. 처음 켤 때의 등장은 시계로, 첫 스크롤은 pos로 그립니다(되감아도 그대로 돌아와요).
+// 첫 화면의 움직임: 처음 켤 때 주름관이 날아와 서고, 그 입에서 파일이 제 칸으로 나옵니다.
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-// 첫 스크롤: 0에서 rowRest까지 주름관이 위에 나란히 서고, 종이는 각자의 주름관 아래로 모여 쉽니다.
-const gatherSpread = 180;
-
-export type Pose = { x: number; y: number; rot: number; scale: number; opacity: number };
-
-// 쉬는 자리에서의 거리로 돌려줍니다. rot은 종이가 쉴 때의 기울기에 더하는 값이에요.
-// 줄에만 있는 종이는 제자리에서 나타납니다.
-export function rowOnlyPose(pos: number, { to }: Flight): Pose {
-  return { x: to.x, y: to.y, rot: to.rot, scale: to.scale, opacity: range(pos, rowRest * 0.6, rowRest) };
-}
-
-export function cardPose(pos: number, { rest, to, stagger }: Flight): Pose {
-  const start = stagger * gatherSpread;
-  const u = easeInOut(range(pos, start, start + rowRest - gatherSpread));
-  return { x: (to.x - rest.x) * u, y: (to.y - rest.y) * u, rot: to.rot * u, scale: lerp(1, to.scale, u), opacity: 1 };
-}
 
 // 2차 베지어 위의 점들을 키프레임으로 씁니다. 합성 스레드에서 도니 비행 중에 JS가 돌지 않아요.
 type Pt = { x: number; y: number };
@@ -109,75 +91,8 @@ function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
 let entrancePlayed = false;
 
-export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], rowOnly: Card[], nodes: HeroNode[], view: View, selectedId: string | null) {
+export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null) {
   const engine = useEngine();
-  const atRest = useBetween(0, 5);
-  const atRow = useBetween(rowRest - 5, rowRest + 5);
-  const shown = useMemo(() => cards.filter((card) => !card.extra), [cards]);
-  const flown = useRef<Map<string, Flight>>(new Map());
-  const columns = useRef<Map<string, RoomColumn>>(new Map());
-  const row = useRef({ offset: 0, max: 0 });
-  const [track, setTrack] = useState<{ max: number; y: number } | null>(null);
-
-  const els = useRef<HTMLElement[]>([]);
-  const papers = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    const root = canvas.current!;
-    els.current = [...root.querySelectorAll<HTMLElement>(".paper")];
-    papers.current = root.querySelector(".papers");
-  });
-
-  const write = (pos: number) => {
-    if (pos <= 0) row.current.offset = 0;
-    // 밀어 둔 줄은 제자리로 돌아가는 동안 함께 풀립니다.
-    if (papers.current) papers.current.style.translate = row.current.offset ? `${-row.current.offset * easeInOut(range(pos, 0, rowRest))}px 0` : "";
-    // 종이와 같은 박자로 주름관도 자기 칸으로 갑니다.
-    const u = easeInOut(range(pos, 0, rowRest));
-    for (const { room, at } of nodes) {
-      const el = vaseOf(canvas.current!, room.id);
-      const column = columns.current.get(room.id);
-      if (!el || !column) continue;
-      const from = toPx(at, view);
-      el.style.translate = pos <= 0 ? "" : `${(column.x - from.x) * u - row.current.offset * u}px ${(column.y - from.y) * u}px`;
-    }
-    for (const el of els.current) {
-      const flight = flown.current.get(el.dataset.card!);
-      if (!flight) continue;
-      if (pos <= 0) {
-        el.style.transform = "";
-        el.style.opacity = flight.rowOnly ? "0" : "";
-        el.style.zIndex = "";
-        continue;
-      }
-      const pose = flight.rowOnly ? rowOnlyPose(pos, flight) : cardPose(pos, flight);
-      el.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rot}deg) scale(${pose.scale})`;
-      el.style.opacity = pose.opacity < 1 ? String(pose.opacity) : "";
-      // 더미에서는 최근에 작업한 왼쪽 종이가 맨 위에 옵니다.
-      el.style.zIndex = String(flown.current.size - flight.slot);
-    }
-  };
-  useScene(write);
-
-  // 스크롤이 시작될 때 현관 줄 아래로 칸의 자리를 잡고 바로 그립니다. 쉬는 동안에는 아무 일도 하지 않아요.
-  useEffect(() => {
-    if (atRest) return;
-    const door = canvas.current!.closest(".sky-layout")?.querySelector<HTMLElement>(".doorstep");
-    const top = door ? door.offsetTop + door.offsetHeight : 0;
-    columns.current = columnsFor(nodes, view, top);
-    flown.current = flightsFor([...shown, ...rowOnly], nodes, view, top);
-    const { overflow, bottom } = rowMetrics(flown.current, view);
-    row.current = { max: overflow, offset: Math.min(row.current.offset, overflow) };
-    setTrack(overflow > 0 ? { max: overflow, y: bottom } : null);
-    write(engine.pos);
-  }, [atRest, shown, rowOnly, nodes, view]);
-
-  // 칸들을 옆으로 밉니다. 실제로 간 자리를 돌려줘요.
-  const scrollRow = (by: (offset: number) => number) => {
-    row.current.offset = Math.max(0, Math.min(row.current.max, by(row.current.offset)));
-    write(engine.pos);
-    return row.current.offset;
-  };
-
   // 등장. 휠, 키, 누르기 중 무엇이든 들어오면 바로 끝난 모습으로 갑니다.
   const settle = useRef<(() => void) | null>(null);
   const hasScene = nodes.length > 0;
@@ -189,7 +104,7 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     }
     const root = canvas.current!;
     root.classList.add("entering");
-    const { anims, endsAt } = playEntrance({ root, cards: shown, nodes, view });
+    const { anims, endsAt } = playEntrance({ root, cards, nodes, view });
     const stop = () => {
       clearTimeout(timer);
       for (const name of inputs) removeEventListener(name, finish, true);
@@ -208,11 +123,4 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     // StrictMode의 두 번째 실행에서 다시 틀 수 있게 여기서는 표시하지 않습니다.
     return stop;
   }, [hasScene]);
-
-  // 메뉴처럼 입력 없이 떠나도 등장을 끝냅니다.
-  useEffect(() => {
-    if (!atRest) settle.current?.();
-  }, [atRest]);
-
-  return { atRest, atRow, track, row, scrollRow };
 }
