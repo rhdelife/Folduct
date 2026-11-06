@@ -458,6 +458,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node { position: absolute; display: block; width: calc(var(--half) * 2 * var(--u)); height: calc(var(--half) * 2 * var(--u)); min-height: 0; padding: 0; border: 0; background: none; transform: translate(-50%, -50%); pointer-events: auto; }
 .room-node:active:where(:not(:disabled)) { transform: translate(-50%, -50%); background: none; }
 .vase-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
+/* 뱉기 전에 웅크리는 축(heroMotion.ts). 키프레임 대신 여기 두어야 WebKit이 합성 스레드에서 돌려요. */
+.vase-art { transform-origin: 50% 90%; }
 /* 크기는 늘 받침을 축으로 바꿉니다. 고를 때만 축을 옮기면 고르고 풀 때 주름관이 툭 튀었어요. */
 .vase-lift { transform-origin: 50% 100%; transition: transform var(--dur-focus) var(--ease-glide), opacity var(--dur-focus) var(--ease-glide); }
 .vase-float { transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; animation-delay: calc(var(--phase) * -10s); }
@@ -1165,6 +1167,8 @@ svg.frodo-hop { transform-origin: 50% 90%; animation: frodo-hop 560ms var(--ease
 svg.frodo-stretch { transform-origin: 50% 90%; animation: frodo-stretch 800ms var(--ease-standard); }
 svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ease-spring); }
 .frodo-wave .duct-part-armR { animation: frodo-wave-r 300ms ease-in-out 3 alternate; }
+/* 고른 프로도는 마우스를 올렸을 때 시작한 손 흔들기를 멈춥니다. 다가가는 동안 팔(SVG)을 그리면 WebKit에서 화면 전체를 다시 그려 끊겼어요. */
+.room-node.selected .frodo-wave .duct-part-armR { animation: none; }
 .frodo-bye .duct-part-armR { animation: frodo-wave-r 300ms ease-in-out 3 alternate; }
 .frodo-bye .duct-part-armL { animation: frodo-wave-l 300ms ease-in-out 3 alternate; }
 .frodo-nod .duct-part-head { animation: frodo-nod 420ms ease-in-out; }

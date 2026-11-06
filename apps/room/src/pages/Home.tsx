@@ -37,6 +37,13 @@ let doorChecked = false;
 // 창이 보이는 동안 현관 폴더를 다시 읽는 간격(RoomPage.tsx와 같은 값)
 const rereadEveryMs = 15_000;
 
+// 다시 읽어도 내용이 같으면 앞의 값을 그대로 둡니다. 새 객체로 바꾸면 홈 전체가 다시 그려져, 프로도에게 다가가는 중이면 한 번 끊겨 보였어요.
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+// 폴더를 다시 읽으면 scan.at(읽은 시각)은 늘 바뀌어요. 화면에 쓰지 않는 값이라 견줄 때는 뺍니다.
+const sameRooms = (a: Room[], b: Room[]) => sameJson(a.map((room) => ({ ...room, scan: { ...room.scan, at: 0 } })), b.map((room) => ({ ...room, scan: { ...room.scan, at: 0 } })));
+// 현관은 읽을 때마다 readAt만 바뀌어요. 화면에 쓰지 않는 값이라 견줄 때는 뺍니다.
+const sameDoor = (a: Doorstep, b: Doorstep) => sameJson({ ...a, readAt: null }, { ...b, readAt: null });
+
 const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms.json 폴더1 폴더2…";
 
 // 그 방의 주름관으로 포커스를 옮깁니다. 주름관이 없으면 지도로 들어오는 자리(첫 주름관이나 빈 지도의 버튼)로요.
@@ -77,7 +84,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const load = useCallback(async () => {
     try {
       const list = await listRooms();
-      setRooms(list);
+      setRooms((old) => (old && sameRooms(old, list) ? old : list));
       setLoadFailed(false);
       return list;
     } catch (error) {
@@ -174,7 +181,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   // 켤 때와 창으로 돌아올 때 현관과 방 폴더를 다시 읽어 밖에서 넣은 파일을 보여 줍니다. 권한이 풀린 방은 건너뛰어요(묻는 건 그 방에 들어갔을 때).
   // 창이 보이는 동안에는 현관만 틈틈이 읽어요(작업 중이 아니어도). 방 폴더를 모두 읽는 건 무거워서 돌아올 때만 합니다.
   useEffect(() => {
-    const rereadDoor = () => (isNative() ? refreshDoorstep().then(({ state }) => setDoor(state), (error: unknown) => console.error(error)) : Promise.resolve());
+    const rereadDoor = () => (isNative() ? refreshDoorstep().then(({ state }) => setDoor((old) => (sameDoor(old, state) ? old : state)), (error: unknown) => console.error(error)) : Promise.resolve());
     const reread = async () => {
       if (rereading.current) return;
       rereading.current = true;
@@ -189,7 +196,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     };
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
-      setNow(Date.now());
+      // 날짜 글자만 맞으면 되니 1분 안이면 시계를 그대로 둡니다. 창을 누를 때마다 홈을 다시 그리지 않아요.
+      setNow((old) => (Date.now() - old < 60_000 ? old : Date.now()));
       void reread();
     };
     void reread();
@@ -239,6 +247,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [panelOpen, selectRoom]);
+  // 지도(MapLayers)는 memo라 함수가 그릴 때마다 새로 생기면 매번 다시 그려져요.
+  const openFile = useCallback((roomId: string, thingId: string) => setViewing({ roomId, thingId }), []);
   const focusThing = useCallback((roomId: string, thingId: string) => {
     setSelectedId(roomId);
     setFocusId(thingId);
@@ -447,7 +457,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     focusThing,
     openRoom: onOpen,
     openSweep: () => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요.")),
-    openFile: (roomId, thingId) => setViewing({ roomId, thingId }),
+    openFile,
     openNew: () => setCreating(true),
     openMenu: () => setMenuOpen(true),
     importList: isNative() ? null : () => importInput.current?.click(),

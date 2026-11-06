@@ -43,9 +43,12 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
 const vaseStep = (count: number) => Math.min(220, 1500 / Math.max(1, count));
 const flightMs = 1600;
 const vaseFrom = 150;
-// 고른 뒤: 카메라가 다가가는 동안(styles.css .sky-camera, 1000ms) 프로도가 웅크렸다가, 거의 다 왔을 때 파일을 하나씩 뱉어요.
-const windFrom = 520;
-const windUp = 480;
+// 고른 뒤: 카메라가 다가가고(styles.css .sky-camera, 1000ms), 멈추면 프로도가 웅크렸다가 파일을 하나씩 뱉어요.
+// 다가가는 1초 동안은 카메라만 움직입니다. 웅크리기·표정·뱉기는 카메라가 멈춘 뒤에 시작해요.
+// 전에는 카메라가 멈추는 바로 그 프레임에 뱉기가 시작되고, 다가가는 중에 SVG 머리를 움직여 WebKit에서 한 번 끊겼어요.
+// 멈춘 프레임을 피해 80ms 뒤에 시작합니다. styles.css --dur-focus(1000ms)와 맞춰요.
+const windFrom = 1000 + 80;
+const windUp = 420;
 const spillFrom = windFrom + windUp;
 // 파일이 많아도 다 나오는 데 1.6초를 넘지 않게 간격을 줄여요.
 const spillStepFor = (count: number) => Math.min(110, 1600 / Math.max(1, count));
@@ -98,7 +101,8 @@ function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View)
   if (cards.length && node) {
     const body = node.querySelector(".vase-art");
     const head = node.querySelector(".duct-part-head");
-    add(body, [{ transform: "none", transformOrigin: "50% 90%" }, { transform: "scale(1.05, 0.9)", transformOrigin: "50% 90%", offset: 0.7 }, { transform: "none", transformOrigin: "50% 90%" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
+    // 축(50% 90%)은 styles.css .vase-art에 둡니다. 키프레임에 transform-origin을 넣으면 WebKit이 합성 스레드로 넘기지 못해요.
+    add(body, [{ transform: "none" }, { transform: "scale(1.05, 0.9)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
     add(head, [{ transform: "none" }, { transform: "scale(0.9) rotate(5deg)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
     add(head, [{ transform: "none" }, { transform: "scale(1.14) rotate(-6deg)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
   }

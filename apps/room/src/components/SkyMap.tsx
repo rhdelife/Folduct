@@ -10,10 +10,7 @@ import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model"
 import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useHeroMotion } from "./home/heroMotion";
-
-// 휠: 이만큼 모여야 한 칸 가고, 손을 멈춘 뒤 이만큼 지나야 다음 칸을 받아요.
-const wheelStep = 40;
-const wheelRest = 260;
+import { WheelStepper } from "../domain/wheelStep";
 
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
@@ -159,30 +156,20 @@ export function SkyMap({
       event.preventDefault();
       step.current(event.key);
     };
-    // 휠 한 번 굴림(트랙패드는 한 번 쓸기)에 한 칸만 갑니다. 손을 멈추고 잠시 뒤에 다시 받아요.
-    let sum = 0;
-    let armed = true;
-    let quiet = 0;
+    // 휠 한 칸, 트랙패드 한 번 쓸기마다 한 칸 갑니다(domain/wheelStep.ts). 막혀 있을 때도 흐름은 읽어 둬야
+    // 대화상자를 닫은 뒤 남은 관성을 새 손짓으로 착각하지 않아요.
+    const wheel = new WheelStepper();
     const onWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || blocked(event.target)) return;
-      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-      clearTimeout(quiet);
-      quiet = window.setTimeout(() => {
-        sum = 0;
-        armed = true;
-      }, wheelRest);
-      if (!armed) return;
-      sum += delta;
-      if (Math.abs(sum) < wheelStep) return;
-      armed = false;
-      step.current(sum > 0 ? "ArrowRight" : "ArrowLeft");
+      if (event.ctrlKey) return;
+      const dir = wheel.push(event);
+      if (dir === 0 || blocked(event.target)) return;
+      step.current(dir > 0 ? "ArrowRight" : "ArrowLeft");
     };
     document.addEventListener("keydown", onKey);
     addEventListener("wheel", onWheel, { passive: true });
     return () => {
       document.removeEventListener("keydown", onKey);
       removeEventListener("wheel", onWheel);
-      clearTimeout(quiet);
     };
   }, []);
 
