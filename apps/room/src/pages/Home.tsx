@@ -473,7 +473,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} panelId={panelId} focusId={focusId} panelRef={panel} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} />
+              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} />
             )}
           </div>
         </div>

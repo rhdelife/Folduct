@@ -68,7 +68,7 @@ describe("첫 화면: 주름관 한 줄과 파일 칸", () => {
     }
   });
 
-  it("칸 안에서는 최근에 작업한 파일이 먼저 놓이고, 다 못 놓은 수는 \"+N개 더\"로 남는다", () => {
+  it("칸 안에서는 최근에 작업한 파일이 먼저 놓이고, 다 못 놓은 수는 방 열기 단추에 남는다", () => {
     for (const view of views) {
       const rooms = many(3, 40);
       const { cards, more } = heroLayout(rooms, start, view, aspect);
@@ -86,10 +86,11 @@ describe("첫 화면: 주름관 한 줄과 파일 칸", () => {
     }
   });
 
-  it("몇 장 없는 방은 다 놓이고 \"+N개 더\"가 없다", () => {
+  it("몇 장 없는 방은 다 놓이고, 방마다 칸 아래에 남은 수 0인 방 열기 자리가 있다", () => {
     const { cards, more } = heroLayout(many(3, 4), start, baseView, aspect);
     expect(cards.length).toBe(12);
-    expect(more).toEqual([]);
+    expect(more.map((spot) => spot.count)).toEqual([0, 0, 0]);
+    for (const spot of more) expect(Math.max(...cards.filter((card) => card.room.id === spot.room.id).map((card) => toPx(card, baseView).y))).toBeLessThan(toPx(spot, baseView).y);
   });
 
   it("상자 속·없어진 파일은 놓지 않고, 홈에서 뺀 방과 자리를 넘은 방도 놓지 않는다", () => {

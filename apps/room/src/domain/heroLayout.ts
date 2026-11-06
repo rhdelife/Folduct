@@ -2,8 +2,8 @@ import { lastActivity, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
 import { calendarSpot, hash, homeLimit, labelHeight, roomRadius, roomStars, stageUnit, toSky, vaseHalf, vaseUnit, type Placed, type Star, type View } from "./sky";
 
-// 첫 화면 배치: 주름관이 받침 높이를 맞춰 한 줄로 서고, 파일은 각자의 주름관 아래 칸에 최근 작업 순서로 가지런히 놓입니다.
-// 칸이 차면 남은 수만 "+N개 더"로 알려요. 폭이 모자라면 줄을 하나 더 만들어 아래로 놓습니다(옆으로 밀지 않아요).
+// 첫 화면 배치: 주름관이 받침 높이를 맞춰 한 줄로 섭니다. 평소에는 주름관만 보이고, 고른 방의 파일은 그 주름관 아래 칸에 최근 작업 순서로 가지런히 놓여요.
+// 칸 아래에는 "방 열기" 단추가 붙고, 칸이 차면 남은 수를 함께 알려요. 폭이 모자라면 주름관 줄을 하나 더 만들어 아래로 놓습니다(옆으로 밀지 않아요).
 
 // 이름이 찍히는 가장 작은 종이 폭(글자는 8.5px 아래로 줄지 않아요).
 export const namedPaper = 46;
@@ -13,9 +13,11 @@ export const columnMin = 170;
 const columnMax = 300;
 const edge = 16;
 const columnPad = 18;
-// "+N개 더" 한 줄의 높이(styles.css .room-more)
+// "방 열기 · +N개 더" 한 줄의 높이(styles.css .room-more)
 export const moreHeight = 32;
 const moreWidth = 96;
+// 고른 방 파일 칸의 반쪽 폭. 이웃 주름관은 이름표 위에 있어 칸이 넓어져도 겹치지 않아요.
+const pickedHalf = 360;
 
 export type Card = Star & {
   room: Room;
@@ -26,7 +28,7 @@ export type Card = Star & {
   kick: number;
 };
 export type HeroNode = Placed & { r: number };
-// 칸에 다 못 놓은 파일 수와 그 글자를 놓을 자리(지도 좌표).
+// 파일 칸 아래 "방 열기" 단추 자리(지도 좌표)와 칸에 다 못 놓은 파일 수.
 export type MoreSpot = { room: Room; x: number; y: number; count: number };
 export type HeroLayout = { nodes: HeroNode[]; cards: Card[]; more: MoreSpot[] };
 
@@ -38,7 +40,8 @@ const headerBottom = (view: View) => (view.w < 720 ? 112 : view.w < 1200 ? 100 :
 const doorHeight = 118;
 const doorBottom = (view: View) => headerBottom(view) + doorHeight;
 
-export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, doorOpen = false): HeroLayout {
+// selectedId: 고른 방. 다른 방의 파일은 보이지 않고 일력도 비켜 주니, 그 방은 창 폭을 다 쓰고 일력 자리도 씁니다.
+export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, doorOpen = false, selectedId: string | null = null): HeroLayout {
   const active = rooms.filter((room) => !room.care.done).slice(0, homeLimit);
   if (active.length === 0) return { nodes: [], cards: [], more: [] };
   const unit = stageUnit(view);
@@ -66,21 +69,25 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     const x = (view.w - width * inLine) / 2 + width * (i % perLine + 0.5);
     const lineTop = top + band * line;
     // 받침 높이를 맞춥니다. 작은 주름관은 같은 바닥에 서서 키만 낮아요.
-    const feet = lineTop + tallest * 2;
+    // 평소에는 주름관만 보이니 칸의 위쪽 2/5쯤에 세웁니다. 고르면 그 아래로 파일을 뱉어요.
+    const feet = lineTop + Math.max(tallest * 2, band * 0.42);
     const r = radii[i];
     const at = { x, y: feet - vaseHalf(r) * ductUnit };
     nodes.push({ room, at: toSky(at, view), scale: 1, spread: 0, limit: 0, r });
 
     const bottom = lineTop + band - edge;
-    const span = { left: x - width / 2 + columnPad, right: x + width / 2 - columnPad };
+    const picked = room.id === selectedId;
+    const reach = picked ? Math.min(pickedHalf, across / 2) : width / 2 - columnPad;
+    const span = { left: Math.max(edge, x - reach), right: Math.min(view.w - edge, x + reach) };
     // 왼쪽 아래 일력 높이에 닿는 줄은 일력 오른쪽으로 비켜 놓습니다.
-    const calendarTop = calendar ? calendar.y - calendar.hh - edge : Infinity;
-    const calendarRight = calendar ? calendar.x + calendar.hw + gap : -Infinity;
+    const avoid = calendar && !picked ? calendar : null;
+    const calendarTop = avoid ? avoid.y - avoid.hh - edge : Infinity;
+    const calendarRight = avoid ? avoid.x + avoid.hw + gap : -Infinity;
     const leftAt = (y: number, height: number) => (y + height > calendarTop ? Math.max(span.left, calendarRight) : span.left);
-    // "+N개 더"가 그 높이에 들어갈 자리가 있는지. 일력 옆이 좁으면 그 위로 올려야 해요.
+    // 단추가 그 높이에 들어갈 자리가 있는지. 일력 옆이 좁으면 그 위로 올려야 해요.
     const moreFits = (y: number) => y + moreHeight <= bottom && span.right - leftAt(y, moreHeight) >= moreWidth;
     const stars = roomStars(room, at, 0, now, room.things.length).sort((a, b) => lastActivity(b.thing) - lastActivity(a.thing) || b.thing.size - a.thing.size);
-    // 칸이 낮은 폰에서는 한 줄과 "+N개 더"가 들어가도록 종이를 줄입니다.
+    // 칸이 낮은 폰에서는 한 줄과 단추가 들어가도록 종이를 줄입니다.
     // 반올림으로 1px 넘치지 않게 조금 덜어 둡니다.
     const tallestPaper = Math.max(24, bottom - (feet + label) - gap - moreHeight - 1);
     const sized = stars.map((star) => {
@@ -111,9 +118,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
         left = leftAt(y, row.height);
         row = build(shown, span.right - left);
       }
-      const leftAfter = sized.length - shown - row.items.length;
-      // 뒤에 남는 파일이 있으면 "+N개 더" 자리까지 남겨야 합니다.
-      if (row.items.length === 0 || y + row.height > bottom || (leftAfter > 0 && !moreFits(y + row.height + gap))) break;
+      // 맨 아래 "방 열기" 단추 자리는 늘 남겨 둡니다.
+      if (row.items.length === 0 || !moreFits(y + row.height + gap)) break;
       let cursor = (left + span.right) / 2 - row.width / 2;
       for (const { star, size, height } of row.items) {
         const id = star.thing.id;
@@ -124,7 +130,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
       shown += row.items.length;
       y += row.height + gap;
     }
-    if (shown < sized.length) more.push({ room, ...toSky({ x: (leftAt(y, moreHeight) + span.right) / 2, y: y + moreHeight / 2 }, view), count: sized.length - shown });
+    more.push({ room, ...toSky({ x: (leftAt(y, moreHeight) + span.right) / 2, y: y + moreHeight / 2 }, view), count: sized.length - shown });
   });
   return { nodes, cards, more };
 }

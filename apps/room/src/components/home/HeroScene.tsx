@@ -1,34 +1,23 @@
-import { useEffect, type RefObject } from "react";
 import type { DoorItem } from "../../domain/doorstep";
 import type { WorkLog } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { BrandMark } from "../Icon";
 import { SkyMap } from "../SkyMap";
-import { SkyPanel } from "../SkyPanel";
-import { useBetween, type SceneProps } from "./engine";
+import type { SceneProps } from "./engine";
 import { WorkCalendar } from "./WorkCalendar";
 
 type HeroProps = SceneProps & {
   selectedId: string | null;
-  panelId: string | null;
   focusId: string | null;
-  panelRef: RefObject<HTMLElement | null>;
   doorItems: DoorItem[];
   onDoorMenu: OpenRoomMenu;
   workLog: WorkLog;
 };
 
-// 첫 화면: 방 지도와 고른 방 패널.
-export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, focusId, panelRef, doorItems, onDoorMenu, workLog }: HeroProps) {
+// 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
+export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
-  const panelRoom = rooms.find((room) => room.id === panelId) ?? null;
-
-  // 스크롤해 줄로 가면 고른 방을 닫습니다.
-  const atRest = useBetween(0, 5);
-  useEffect(() => {
-    if (!atRest && selected) actions.selectRoom(null);
-  }, [atRest]);
 
   return (
     <section className="scene scene-hero" aria-label="첫 화면">
@@ -39,7 +28,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
           <button type="button" className="primary big" onClick={actions.openNew}>첫 방 만들기</button>
         </div>
       ) : (
-        <div className={`sky-layout${selected ? " has-panel" : ""}`}>
+        <div className="sky-layout">
           <section className="sky-stage">
             <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} />
             {rooms.every((room) => room.care.done) && (
@@ -49,21 +38,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, panelId, foc
               </div>
             )}
           </section>
-          <aside className={`sky-panel${selected ? " open" : ""}`} ref={panelRef} aria-label="고른 방" inert={!selected}>
-            {panelRoom && (
-              <SkyPanel
-                room={panelRoom}
-                stats={stats}
-                now={now}
-                focusId={focusId}
-                onSelectRoom={actions.selectRoom}
-                onFocusThing={actions.focusThing}
-                onEnter={actions.openRoom}
-                onToggleDone={(id) => actions.toggleDone(id, !panelRoom.care.done)}
-              />
-            )}
-          </aside>
-          {/* 방을 고르면 패널과 겹치니 잠시 비켜 줍니다. */}
+          {/* 프로도를 고르면 그 방만 보이게 현관 줄과 일력은 잠시 비켜 줍니다. */}
           {!selected && <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />}
           {!selected && <WorkCalendar rooms={rooms} log={workLog} now={now} />}
         </div>

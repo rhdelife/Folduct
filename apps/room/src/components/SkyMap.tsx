@@ -7,7 +7,7 @@ import { centerOf, cue } from "./useFrodo";
 import { lastActivity, relativeDay } from "../domain/care";
 import { heroLayout, namedPaper, type Card, type HeroNode, type MoreSpot } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { hash, sky, stageUnit, stepRoom, toPx, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
+import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useHeroMotion } from "./home/heroMotion";
 
@@ -51,7 +51,6 @@ export function SkyMap({
 }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(() => ({ w: window.innerWidth || 1, h: window.innerHeight || 1 }));
-  const [hoverRoom, setHoverRoom] = useState<string | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const closeTimer = useRef<number | undefined>(undefined);
   const tipBox = useRef<HTMLDivElement>(null);
@@ -105,20 +104,24 @@ export function SkyMap({
 
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
   const { ordered, cards, more, ids, camera } = useMemo(() => {
-    const { nodes, cards, more } = heroLayout(rooms, now, view, paperAspect, doorOpen);
-    // 고른 방과 그 파일들이 화면을 채우도록 확대하고 가운데로 옮깁니다. 변환은 CSS가 부드럽게 이어 줍니다.
+    const { nodes, cards, more } = heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId);
+    // 고른 프로도와 뱉은 파일, 방 열기 단추가 한눈에 들어오게 다가갑니다. 변환은 CSS가 부드럽게 이어 줍니다.
     const picked = nodes.find((item) => item.room.id === selectedId);
     let camera: Camera = null;
     if (picked) {
-      const unit = stageUnit(view);
       const center = toPx(picked.at, view);
-      const own = cards.filter((card) => card.room.id === selectedId).map((card) => {
+      const half = vaseHalf(picked.r) * vaseLift * stageUnit(view) * vaseUnit;
+      const opener = more.find((spot) => spot.room.id === selectedId);
+      const xs = [center.x - half, center.x + half];
+      const ys = [center.y + vaseHalf(picked.r) * stageUnit(view) * vaseUnit - 2 * half, opener ? toPx(opener, view).y + 24 : center.y + half];
+      for (const card of cards.filter((item) => item.room.id === selectedId)) {
         const at = toPx(card, view);
-        return Math.hypot(at.x - center.x, at.y - center.y) + card.size * 0.75;
-      });
-      const reach = Math.max(vaseHalf(picked.r) * vaseLift * unit * vaseUnit + 48 * unit, ...own);
-      const zoom = Math.min(2.4, Math.max(1, (0.4 * Math.min(view.w, view.h)) / reach));
-      camera = { zoom, x: focusPoint.x - picked.at.x * zoom, y: focusPoint.y - picked.at.y * zoom };
+        xs.push(at.x - card.size / 2, at.x + card.size / 2);
+      }
+      const box = { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
+      const zoom = Math.min(2.4, Math.max(1, Math.min((0.9 * view.w) / (box.right - box.left), (0.82 * view.h) / (box.bottom - box.top))));
+      const mid = toSky({ x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 }, view);
+      camera = { zoom, x: focusPoint.x - mid.x * zoom, y: focusPoint.y + 30 - mid.y * zoom };
     }
     return { ordered: nodes, cards, more, ids: nodes.map((item) => item.room.id), camera };
   }, [rooms, selectedId, now, view, doorOpen]);
@@ -128,10 +131,12 @@ export function SkyMap({
     if (doorOpen) for (const { room } of ordered) cue(room.id, { face: "lookU", ms: 1200 });
   }, [doorOpen]);
 
-  useHeroMotion(canvas, cards, ordered, view, selectedId);
+  // 평소에는 주름관만 보입니다. 고른 방의 파일만 그 주름관 아래로 나와요.
+  const shown = useMemo(() => cards.filter((card) => card.room.id === selectedId), [cards, selectedId]);
+  const opener = more.find((spot) => spot.room.id === selectedId) ?? null;
+  useHeroMotion(canvas, shown, ordered, view, selectedId);
 
   // 주름관이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
-  if (hoverRoom && !ids.includes(hoverRoom)) setHoverRoom(null);
   if (tip && !ids.includes(tip.room.id)) setTip(null);
 
   // 말풍선은 카메라가 옮긴 뒤의 별 자리에 둡니다. 판 가장자리에서는 안쪽으로 당기고, 위쪽 별은 아래로 뒤집습니다.
@@ -149,26 +154,24 @@ export function SkyMap({
         />
         <MapLayers
           ordered={ordered}
-          cards={cards}
-          more={more}
+          cards={shown}
+          opener={opener}
           unit={stageUnit(view)}
           ids={ids}
           camera={camera}
           stats={stats}
           selectedId={selectedId}
           focusId={focusId}
-          hoverRoom={hoverRoom}
           onSelectRoom={onSelectRoom}
           onOpenRoom={onOpenRoom}
           onFocusThing={onFocusThing}
           onOpenThing={onOpenThing}
           onRoomMenu={onRoomMenu}
-          onHoverRoom={setHoverRoom}
           onShowTip={showTip}
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방으로 들어가요. 메뉴 키로는 홈에서 뺄 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방 파일이 나와요. 한 번 더 누르면 방으로 들어가요. 메뉴 키로는 방 설정을 열 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -194,45 +197,40 @@ export function SkyMap({
 const MapLayers = memo(function MapLayers({
   ordered,
   cards,
-  more,
+  opener,
   unit,
   ids,
   camera,
   stats,
   selectedId,
   focusId,
-  hoverRoom,
   onSelectRoom,
   onOpenRoom,
   onFocusThing,
   onOpenThing,
   onRoomMenu,
-  onHoverRoom,
   onShowTip,
   onHideTip,
   onCloseTip,
 }: {
   ordered: HeroNode[];
   cards: Card[];
-  more: MoreSpot[];
+  opener: MoreSpot | null;
   unit: number;
   ids: string[];
   camera: Camera;
   stats: Map<string, RoomStat>;
   selectedId: string | null;
   focusId: string | null;
-  hoverRoom: string | null;
   onSelectRoom: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
-  onHoverRoom: (id: string | null) => void;
   onShowTip: (tip: Tip) => void;
   onHideTip: () => void;
   onCloseTip: () => void;
 }) {
-  const litId = selectedId ?? hoverRoom;
   // 탭 키로는 지도에 한 번만 들어옵니다. 고른 방이 없으면 첫 방이 들어오는 자리입니다.
   const [lastFocus, setLastFocus] = useState<string | null>(null);
   const tabStop = selectedId ?? (lastFocus && ids.includes(lastFocus) ? lastFocus : ids[0]);
@@ -240,7 +238,7 @@ const MapLayers = memo(function MapLayers({
   function onRoomKey(event: KeyboardEvent<HTMLButtonElement>, id: string) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onOpenRoom(id);
+      pick(id);
       return;
     }
     if (event.key === "Escape") {
@@ -256,6 +254,9 @@ const MapLayers = memo(function MapLayers({
     if (document.querySelector(".sky-panel.open")) onSelectRoom(next);
   }
 
+  // 처음 누르면 그 프로도에게 다가가 파일을 뱉게 하고, 고른 프로도를 한 번 더 누르면 방으로 들어갑니다.
+  const pick = (id: string) => (id === selectedId ? onOpenRoom(id) : onSelectRoom(id));
+
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
   const onPaperUp = (event: PointerEvent, card: Card) => {
@@ -265,18 +266,8 @@ const MapLayers = memo(function MapLayers({
 
   return (
     <div className="sky-camera" style={{ transform: camera ? `translate(${(camera.x / sky.width) * 100}%, ${(camera.y / sky.height) * 100}%) scale(${camera.zoom})` : "none" }}>
-      {/* 선은 비율 좌표라 종이와 어긋나지 않고, 굵기와 점선 간격은 화면 px를 지킵니다. */}
-      <svg className="sky-lines" viewBox={`0 0 ${sky.width} ${sky.height}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
-        {ordered.map(({ room, at }) => (
-          <g key={room.id} className={`links${litId === room.id ? " lit" : ""}`}>
-            {cards.filter((card) => card.room.id === room.id).map((card) => (
-              <line key={card.thing.id} x1={at.x} y1={at.y} x2={card.x} y2={card.y} stroke={kindColors[card.thing.kind]} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-            ))}
-          </g>
-        ))}
-      </svg>
       {/* 종이는 마우스로만 고릅니다. 키보드와 화면 읽기 프로그램은 같은 파일을 오른쪽 목록에서 만납니다. */}
-      <div className={`papers${selectedId ? " faded" : ""}`} aria-hidden="true">
+      <div className="papers" aria-hidden="true">
         {cards.map((card, index) => {
           const own = card.room.id === selectedId;
           const focused = card.thing.id === focusId;
@@ -292,7 +283,7 @@ const MapLayers = memo(function MapLayers({
                 style={{ rotate: `${card.rot}deg` }}
                 onClick={() => {
                   cue(card.room.id, { body: "nod" });
-                  onFocusThing(card.room.id, card.thing.id);
+                  onOpenThing(card.room.id, card.thing.id);
                 }}
                 onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
                 onPointerUp={(event) => onPaperUp(event, card)}
@@ -329,7 +320,7 @@ const MapLayers = memo(function MapLayers({
               tabIndex={room.id === tabStop ? 0 : -1}
               aria-pressed={selectedId === room.id}
               aria-label={`${room.name} 방, ${size}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
-              onClick={() => onOpenRoom(room.id)}
+              onClick={() => pick(room.id)}
               onContextMenu={(event) => {
                 cue(room.id, { body: "tilt", face: "tilt", ms: 720 });
                 menu.onContextMenu(event);
@@ -343,12 +334,10 @@ const MapLayers = memo(function MapLayers({
                 onRoomKey(event, room.id);
               }}
               onMouseEnter={() => {
-                onHoverRoom(room.id);
                 cue(room.id, { body: "wave" });
               }}
               onMouseMove={(event) => cue(room.id, { look: { x: event.clientX, y: event.clientY } })}
               onMouseLeave={() => {
-                onHoverRoom(null);
                 cue(room.id, { look: null });
               }}
             >
@@ -364,12 +353,12 @@ const MapLayers = memo(function MapLayers({
             </button>
           );
         })}
-        {/* 칸에 다 못 놓은 파일 수. 같은 일은 주름관을 눌러도 되니 탭 순서에는 넣지 않아요. */}
-        {more.map(({ room, x, y, count }) => (
-          <button key={room.id} type="button" className="room-more" tabIndex={-1} style={{ left: `${(x / sky.width) * 100}%`, top: `${(y / sky.height) * 100}%` }} aria-label={`${room.name} 파일 ${count}개 더, 방 열기`} onClick={() => onOpenRoom(room.id)} onMouseEnter={() => cue(room.id, { body: "nod" })}>
-            +{count}개 더
+        {/* 고른 방 파일 칸 아래의 방 열기. 칸에 다 못 놓은 파일 수도 함께 알려요. */}
+        {opener && (
+          <button key={opener.room.id} type="button" className="room-more" style={{ left: `${(opener.x / sky.width) * 100}%`, top: `${(opener.y / sky.height) * 100}%` }} onClick={() => onOpenRoom(opener.room.id)} onMouseEnter={() => cue(opener.room.id, { body: "nod" })}>
+            {opener.count > 0 ? `방 열기 · ${opener.count}개 더` : "방 열기"}
           </button>
-        ))}
+        )}
       </div>
     </div>
   );

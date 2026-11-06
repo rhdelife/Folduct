@@ -1,11 +1,11 @@
-import { useLayoutEffect, useRef, type RefObject } from "react";
+import { useLayoutEffect, type RefObject } from "react";
 import { ductLength, ductMouth } from "../../art/duct";
 import { roomUsage } from "../../domain/care";
 import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
 import type { Card, HeroNode } from "../../domain/heroLayout";
 import { range, useEngine } from "./engine";
 
-// 첫 화면의 움직임: 처음 켤 때 주름관이 날아와 서고, 그 입에서 파일이 제 칸으로 나옵니다.
+// 첫 화면의 움직임: 처음 켤 때 주름관이 날아와 서고, 방을 고르면 그 주름관 입에서 파일이 제 칸으로 나옵니다.
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -42,50 +42,50 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
 const vaseStep = (count: number) => Math.min(220, 1500 / Math.max(1, count));
 const flightMs = 1600;
 const vaseFrom = 150;
-const spillOverlap = 300;
+// 고른 뒤 카메라가 다가가는 동안 조금 기다렸다가 뱉기 시작해요.
+const spillFrom = 240;
 const spillStep = 45;
 const spillMs = 760;
-
-type Scene = { root: HTMLElement; cards: Card[]; nodes: HeroNode[]; view: View };
 
 function vaseOf(root: HTMLElement, id: string) {
   return root.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`);
 }
 
-function playEntrance({ root, cards, nodes, view }: Scene): { anims: Animation[]; endsAt: number } {
+type Play = { anims: Animation[]; endsAt: number };
+const player = (anims: Animation[]) => (el: Element | null | undefined, frames: Keyframe[], options: KeyframeAnimationOptions) => {
+  if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
+};
+
+// 처음 켤 때: 주름관이 차례로 날아와 자리를 잡습니다. 파일은 고를 때까지 나오지 않아요.
+function playEntrance(root: HTMLElement, nodes: HeroNode[], view: View): Play {
   const anims: Animation[] = [];
-  const add = (el: Element | null | undefined, frames: Keyframe[], options: KeyframeAnimationOptions) => {
-    if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
-  };
-  // 주름관이 먼저 날아와 자리를 잡고, 그 입에서 파일이 흩어져 나옵니다.
+  const add = player(anims);
   const step = vaseStep(nodes.length);
   const unit = stageUnit(view) * vaseUnit;
-  const landed = new Map<string, number>();
   nodes.forEach(({ room, at, r }, i) => {
     const node = vaseOf(root, room.id);
     const delay = vaseFrom + i * step;
     add(node?.querySelector(".vase-lift"), arrivalFrames(toPx(at, view), vaseHalf(r) * unit, view, flightMs), { duration: flightMs, delay });
     add(node?.querySelector(".vase-tag"), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: delay + flightMs - 200, easing: "ease-out" });
-    landed.set(room.id, delay + flightMs - spillOverlap);
   });
-  let endsAt = vaseFrom + Math.max(0, nodes.length - 1) * step + flightMs;
-  const spilled = new Map<string, number>();
+  return { anims, endsAt: vaseFrom + Math.max(0, nodes.length - 1) * step + flightMs + 100 };
+}
+
+// 고른 방: 주름관 입에서 파일이 한 장씩 튀어나와 아래 칸에 앉습니다. 종이는 그린 순서대로 .paper예요.
+function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View): Play {
+  const anims: Animation[] = [];
+  const add = player(anims);
+  const unit = stageUnit(view) * vaseUnit;
+  const center = toPx(home.at, view);
+  const mouth = ductMouth(home.room.face.shape, ductLength(roomUsage(home.room).totalBytes));
+  const box = vaseHalf(home.r) * unit * 2;
+  const origin = { x: center.x + mouth.x * box, y: center.y + mouth.y * box };
   const papers = [...root.querySelectorAll<HTMLElement>(".paper")];
   cards.forEach((card, index) => {
-    const home = nodes.find((node) => node.room.id === card.room.id);
-    if (!home) return;
     const rest = toPx(card, view);
-    const center = toPx(home.at, view);
-    const mouth = ductMouth(home.room.face.shape, ductLength(roomUsage(home.room).totalBytes));
-    const box = vaseHalf(home.r) * unit * 2;
-    const origin = { x: center.x + mouth.x * box, y: center.y + mouth.y * box };
-    const turn = spilled.get(card.room.id) ?? 0;
-    spilled.set(card.room.id, turn + 1);
-    const delay = (landed.get(card.room.id) ?? 0) + turn * spillStep;
-    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay });
-    endsAt = Math.max(endsAt, delay + spillMs);
+    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay: spillFrom + index * spillStep });
   });
-  return { anims, endsAt: endsAt + 100 };
+  return { anims, endsAt: spillFrom + cards.length * spillStep + spillMs };
 }
 
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
@@ -94,7 +94,6 @@ let entrancePlayed = false;
 export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null) {
   const engine = useEngine();
   // 등장. 휠, 키, 누르기 중 무엇이든 들어오면 바로 끝난 모습으로 갑니다.
-  const settle = useRef<(() => void) | null>(null);
   const hasScene = nodes.length > 0;
   useLayoutEffect(() => {
     if (entrancePlayed || !hasScene) return;
@@ -104,13 +103,12 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     }
     const root = canvas.current!;
     root.classList.add("entering");
-    const { anims, endsAt } = playEntrance({ root, cards, nodes, view });
+    const { anims, endsAt } = playEntrance(root, nodes, view);
     const stop = () => {
       clearTimeout(timer);
       for (const name of inputs) removeEventListener(name, finish, true);
       for (const anim of anims) anim.cancel();
       root.classList.remove("entering");
-      settle.current = null;
     };
     const finish = () => {
       entrancePlayed = true;
@@ -119,8 +117,15 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     const inputs = ["wheel", "keydown", "pointerdown", "touchstart"] as const;
     for (const name of inputs) addEventListener(name, finish, { capture: true, passive: true });
     const timer = setTimeout(finish, endsAt);
-    settle.current = finish;
     // StrictMode의 두 번째 실행에서 다시 틀 수 있게 여기서는 표시하지 않습니다.
     return stop;
   }, [hasScene]);
+
+  // 방을 고를 때마다 그 방 주름관이 파일을 뱉습니다. 다른 방으로 바꾸거나 닫으면 남은 움직임은 멈춰요.
+  useLayoutEffect(() => {
+    const home = nodes.find((node) => node.room.id === selectedId);
+    if (!home || reduced()) return;
+    const { anims } = playSpill(canvas.current!, cards, home, view);
+    return () => anims.forEach((anim) => anim.cancel());
+  }, [selectedId]);
 }
