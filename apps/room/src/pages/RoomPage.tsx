@@ -15,7 +15,7 @@ import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan
 import { clampSpot, freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Spot, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
-import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access } from "../gateways/folder";
+import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
 import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
@@ -34,6 +34,8 @@ const folderIssues = {
   gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록은 그대로예요.",
   other: "폴더를 읽지 못했어요. 목록은 그대로예요.",
 };
+// 창이 보이는 동안 폴더를 다시 읽는 간격(Home.tsx와 같은 값)
+const rereadEveryMs = 15_000;
 // 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
 const stacked = "(max-width: 899.98px)";
 
@@ -62,6 +64,9 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const latest = useRef<Room | null>(null);
   const reading = useRef(false);
   const busyNow = useRef(busy);
+  // 다른 일(옮기기·되돌리기, 플로팅 창의 넣기)이 시작될 때마다 늘어납니다. 그 전에 시작한 조용한 다시 읽기는 버려요.
+  const epoch = useRef(0);
+  if (busy && busy !== busyNow.current) epoch.current += 1;
   busyNow.current = busy;
   const dirty = useRef(false);
   // 파일 열기 요청 번호. 창을 닫거나 다른 파일을 열면 늘어나서, 늦게 끝난 읽기는 버립니다.
@@ -140,6 +145,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     let left = false;
     let stop: (() => void) | undefined;
     void listen(doorChanged, () => {
+      epoch.current += 1;
       flush();
       getRoom(roomId).then(
         (saved) => {
@@ -164,13 +170,18 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     const back = () => {
       if (document.visibilityState !== "visible" || reading.current || busyNow.current) return;
       reading.current = true;
+      const started = epoch.current;
       scanRoomFolder(handle)
         .then(
           (scan) => {
-            if (left || busyNow.current) return;
-            announceNew(scan.files);
-            update((current) => mergeScan(current, scan.files, scan, Date.now()));
+            const current = latest.current;
+            if (left || busyNow.current || epoch.current !== started || !current) return;
             setFolderIssue(null);
+            // 바뀐 게 없으면 저장하지 않아요. 빈 저장이 플로팅 창이 고친 기록을 덮거나 '비웠어요' 알림을 지우지 않게요.
+            const next = mergeScan(current, scan.files, scan, Date.now());
+            if (next.scan.complete === current.scan.complete && next.scan.failed === current.scan.failed && JSON.stringify(next.things) === JSON.stringify(current.things)) return;
+            announceNew(scan);
+            update((latestRoom) => mergeScan(latestRoom, scan.files, scan, Date.now()));
           },
           (error: unknown) => {
             if (!left) setFolderIssue(folderProblem(error));
@@ -182,16 +193,21 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     };
     window.addEventListener("focus", back);
     document.addEventListener("visibilitychange", back);
+    // 창을 띄워 둔 채 Finder에서 넣은 파일도 따라잡게, 보이는 동안 틈틈이 다시 읽습니다. 대화상자가 열려 있으면 닫은 뒤로 미뤄요.
+    const timer = window.setInterval(() => {
+      if (!document.querySelector("dialog[open]")) back();
+    }, rereadEveryMs);
     return () => {
       left = true;
+      window.clearInterval(timer);
       window.removeEventListener("focus", back);
       document.removeEventListener("visibilitychange", back);
     };
   }, [handle, access]);
 
   // 새 파일은 선반으로 들어가서 판만 보면 놓치기 쉬우니 알려 줍니다.
-  function announceNew(files: ScannedFile[]) {
-    const count = latest.current ? newFileCount(latest.current, files) : 0;
+  function announceNew(scan: ScanResult) {
+    const count = latest.current ? newFileCount(latest.current, scan.files, scan) : 0;
     if (count > 0) toast(`새 파일 ${count.toLocaleString("ko-KR")}개가 들어왔어요. 선반에 있어요.`, { label: "선반 보기", run: () => setPanel("shelf") });
   }
 
@@ -266,7 +282,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       const scan = await scanRoomFolder(folder);
       if (left()) return;
       if (!silent) toast(`폴더를 다시 봤어요. 파일 ${scan.files.length.toLocaleString("ko-KR")}개.`);
-      announceNew(scan.files);
+      announceNew(scan);
       update((current) => mergeScan(current, scan.files, scan, Date.now()));
       setFolderIssue(null);
     } catch (error) {

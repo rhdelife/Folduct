@@ -146,12 +146,19 @@ async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], out
   }
   // 2. 최신 기록에 상자 기록이 없는 물건만 moving-in으로 적습니다. 이미 상자에 든 물건은 내려앉히지 않습니다.
   const journaled = new Set<string>();
+  const renamed = new Set<string>();
   await patchThings(roomId, (thing) => {
     const entry = targets.get(thing.id);
-    if (!entry || thing.box || thing.path !== entry.fromPath) return null;
+    if (!entry || thing.box) return null;
+    // 목록을 연 뒤 Finder에서 이름이나 자리가 바뀐 파일은 옮기지 않고, 말없이 빠지지 않게 실패로 알려요.
+    if (thing.path !== entry.fromPath) {
+      renamed.add(thing.id);
+      return null;
+    }
     journaled.add(thing.id);
     return { box: entry };
   });
+  for (const thing of things) if (renamed.has(thing.id)) fail(thing, "정리 목록을 연 뒤 이름이나 자리가 바뀌어서 옮기지 않았어요.");
   // 3. 하나씩 옮깁니다.
   const results = new Map<string, Partial<Thing>>();
   for (const thing of things) {

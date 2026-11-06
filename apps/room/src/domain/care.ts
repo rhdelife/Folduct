@@ -148,8 +148,9 @@ export function roomUsage(room: Pick<Room, "things" | "scan">): RoomUsage {
 export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }, now: number): Room {
   const byPath = new Map(files.map((file) => [file.path, file]));
   const sure = scan.complete && scan.failed === 0;
+  const moved = movedFiles(room, files, scan);
   const used = new Set<string>();
-  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false });
+  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false });
   const things = room.things.map((thing): Thing => {
     const entry = thing.box;
     // 옮기던 중 멈춘 물건은 두 자리 다 이 물건 몫으로 잡아 선반에 중복이 생기지 않게 합니다. 실제 위치는 reconcileBox가 맞춥니다.
@@ -162,9 +163,9 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
     if (entry?.state === "boxed" && !byPath.has(thing.path) && byPath.has(entry.fromPath)) {
       const back = byPath.get(entry.fromPath)!;
       used.add(back.path);
-      return { ...seen(thing, back), path: back.path, box: null };
+      return { ...seen(thing, back), box: null };
     }
-    const found = byPath.get(thing.path);
+    const found = byPath.get(thing.path) ?? moved.get(thing.id);
     if (!found) return sure ? { ...thing, missing: true } : thing;
     used.add(found.path);
     return seen(thing, found);
@@ -183,10 +184,33 @@ export function scanOverlap(room: Room, files: ScannedFile[]): { kept: number; t
   return { kept: present.filter((thing) => paths.has(thing.path)).length, total: present.length };
 }
 
-// 이 방이 아직 모르는 파일의 수. 상자로 옮긴 파일은 원래 자리와 상자 자리 모두 아는 파일로 칩니다.
-export function newFileCount(room: Room, files: Pick<ScannedFile, "path">[]): number {
-  const known = new Set(room.things.flatMap((thing) => [thing.path, ...(thing.box ? [thing.box.fromPath, thing.box.boxPath] : [])]));
-  return files.filter((file) => !known.has(file.path)).length;
+// 상자로 옮긴 파일은 원래 자리와 상자 자리 모두 아는 파일로 칩니다.
+const knownPaths = (room: Room) => new Set(room.things.flatMap((thing) => [thing.path, ...(thing.box ? [thing.box.fromPath, thing.box.boxPath] : [])]));
+
+// 밖에서 이름을 바꾸거나 옮긴 파일 찾기. 빠짐없이 읽은 스캔에서, 이번에 사라진 물건과 새 파일이 크기·고친 시각으로 일대일일 때만 같은 파일로 봅니다.
+// 겹치면 고르지 않아요. 상자 기록이 있는 물건과 상자 폴더의 파일은 잇지 않습니다. 틀려도 기록만 바뀌고 파일은 옮기지 않아요.
+function movedFiles(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }): Map<string, ScannedFile> {
+  const moved = new Map<string, ScannedFile>();
+  if (!scan.complete || scan.failed > 0) return moved;
+  const paths = new Set(files.map((file) => file.path));
+  const known = knownPaths(room);
+  // 빈 파일과 시각을 모르는 파일은 근거가 없습니다.
+  const hasEvidence = (item: Pick<Thing, "size" | "lastModified">) => item.size > 0 && item.lastModified > 0;
+  const same = (a: Pick<Thing, "size" | "lastModified">, b: Pick<Thing, "size" | "lastModified">) => a.size === b.size && a.lastModified === b.lastModified;
+  const gone = room.things.filter((thing) => !thing.box && !thing.missing && hasEvidence(thing) && !paths.has(thing.path));
+  const fresh = files.filter((file) => hasEvidence(file) && !known.has(file.path) && !isInBox(file.path));
+  for (const thing of gone) {
+    const found = fresh.filter((file) => same(file, thing));
+    if (found.length === 1 && gone.filter((other) => same(other, thing)).length === 1) moved.set(thing.id, found[0]);
+  }
+  return moved;
+}
+
+// 이 방이 아직 모르는 파일의 수. 이름만 바뀐 파일은 새 파일이 아닙니다.
+export function newFileCount(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }): number {
+  const known = knownPaths(room);
+  const moved = new Set([...movedFiles(room, files, scan).values()].map((file) => file.path));
+  return files.filter((file) => !known.has(file.path) && !moved.has(file.path)).length;
 }
 
 export function newThing(file: ScannedFile): Thing {

@@ -192,6 +192,16 @@ describe("주간 정리 기록", () => {
     expect(has(raw, "참고/시안.psd")).toBe("원본");
   });
 
+  it("목록을 연 뒤 Finder에서 이름이 바뀐 파일은 옮기지 않고 실패로 알린다", async () => {
+    const raw = seed();
+    const item = thing("참고/시안.psd");
+    store(room([{ ...item, path: "참고/시안-새이름.psd", name: "시안-새이름.psd" }]));
+    const [outcome] = await runSweep([realPlan(room([item]), raw)], new Set([item.id]), now);
+    expect(outcome).toMatchObject({ moved: 0, failures: [{ id: item.id }] });
+    expect(stored().things[0].box).toBeNull();
+    expect(has(raw, "참고/시안.psd")).toBe("원본");
+  });
+
   it("같은 계획으로 두 번 정리해도 상자 안 물건을 내려앉히거나 (2) 이름을 적지 않는다", async () => {
     const raw = seed();
     const item = thing("참고/시안.psd");

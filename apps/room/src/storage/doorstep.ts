@@ -69,8 +69,18 @@ export async function bringIntoRoom(item: DoorItem, room: Room): Promise<{ state
 
 export async function undoBring(item: DoorItem, moved: DoorMove, room: Room): Promise<{ state: Doorstep; error: string | null }> {
   const result = await undoDoorMove(item, moved);
-  // 방에 있던 적 없는 것처럼 뺍니다. 폴더를 다시 읽어 맞추면 '파일 없음' 줄이 남아요.
-  if (!result.error) await patchRoom(room.id, (latest) => ({ ...latest, things: latest.things.filter((thing) => thing.path !== moved.name) })).catch((error: unknown) => console.error(error));
+  // 넣기로 새로 생긴 물건은 방에 있던 적 없는 것처럼 뺍니다. 폴더를 다시 읽어 맞추면 '파일 없음' 줄이 남아요.
+  // 넣기 전부터 있던 물건이 이 파일과 이어졌다면(밖에서 이름을 바꾼 파일) 메모·자리를 지키고 예전 이름의 '파일 없음'으로 돌려놓아요.
+  const before = new Map(room.things.map((thing) => [thing.id, thing]));
+  if (!result.error)
+    await patchRoom(room.id, (latest) => ({
+      ...latest,
+      things: latest.things.flatMap((thing) => {
+        if (thing.path !== moved.name) return [thing];
+        const old = before.get(thing.id);
+        return old ? [{ ...thing, path: old.path, name: old.name, kind: old.kind, missing: true }] : [];
+      }),
+    })).catch((error: unknown) => console.error(error));
   return result;
 }
 

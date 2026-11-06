@@ -268,6 +268,42 @@ describe("다시 보기", () => {
     expect(next.things[0]).toMatchObject({ name: "index.html", kind: "text" });
   });
 
+  describe("Finder에서 이름을 바꾸거나 옮긴 파일", () => {
+    const sure = { complete: true, failed: 0 };
+    const at = (path: string, size = 100, lastModified = 50): ScannedFile => ({ path, name: path.split("/").pop()!, kind: kindOf(path), size, lastModified });
+
+    it("크기와 고친 시각이 하나로 맞으면 같은 물건으로 잇고 자리·고정·메모를 지킨다", () => {
+      const cover = thing({ path: "표지.png", name: "표지.png", size: 100, lastModified: 50, pinned: true, note: "표지" });
+      const data = thing({ path: "데이터.csv", name: "데이터.csv", kind: "table", size: 200, lastModified: 60 });
+      const files = [at("표지-새이름.png"), at("참고/데이터.csv", 200, 60)];
+      const next = mergeScan(room([cover, data]), files, sure, start);
+      expect(next.things).toHaveLength(2);
+      expect(next.things.find((item) => item.id === cover.id)).toMatchObject({ path: "표지-새이름.png", name: "표지-새이름.png", spot: cover.spot, pinned: true, note: "표지", missing: false });
+      expect(next.things.find((item) => item.id === data.id)).toMatchObject({ path: "참고/데이터.csv", missing: false });
+      expect(newFileCount(room([cover, data]), files, sure)).toBe(0);
+    });
+
+    it("짝이 둘 이상이거나, 다 읽지 못했거나, 빈 파일이면 잇지 않는다", () => {
+      const twins = [thing({ path: "a.png", size: 100, lastModified: 50 }), thing({ path: "b.png", size: 100, lastModified: 50 })];
+      const both = mergeScan(room(twins), [at("c.png"), at("d.png")], sure, start);
+      expect(both.things.filter((item) => item.missing)).toHaveLength(2);
+      expect(both.things).toHaveLength(4);
+
+      const one = thing({ path: "a.png", size: 100, lastModified: 50 });
+      expect(mergeScan(room([one]), [at("c.png")], { complete: false, failed: 0 }, start).things).toHaveLength(2);
+      expect(mergeScan(room([one]), [at("c.png")], { complete: true, failed: 1 }, start).things).toHaveLength(2);
+
+      const empty = thing({ path: "빈.txt", size: 0, lastModified: 50 });
+      expect(mergeScan(room([empty]), [at("새.txt", 0)], sure, start).things.find((item) => item.id === empty.id)?.missing).toBe(true);
+    });
+
+    it("상자에 든 물건과 상자 폴더의 파일은 잇지 않는다", () => {
+      const loose = thing({ path: "a.png", size: 100, lastModified: 50 });
+      const next = mergeScan(room([loose]), [at("_Folduct 정리상자/a (2).png")], sure, start);
+      expect(next.things.find((item) => item.id === loose.id)?.missing).toBe(true);
+    });
+  });
+
   it("폴더 겹침은 지금 있는(없어지지도 상자에 들지도 않은) 물건만 센다", () => {
     const things = [thing({ path: "a.png" }), thing({ path: "b.png" }), thing({ path: "c.png", missing: true }), thing({ path: "d.png", box: { state: "virtual", fromPath: "d.png", boxPath: "d.png", at: start } })];
     expect(scanOverlap(room(things), [file("a.png"), file("c.png"), file("d.png"), file("new.png")])).toEqual({ kept: 1, total: 2 });
@@ -278,8 +314,10 @@ describe("새 파일 알림", () => {
   it("방이 모르는 파일만 세고, 상자로 옮긴 파일의 두 자리는 세지 않는다", () => {
     const boxed = thing({ path: "_Folduct 정리상자/b", box: { state: "boxed", fromPath: "b", boxPath: "_Folduct 정리상자/b", at: 0 } as Thing["box"] });
     const known = room([thing({ path: "a" }), boxed]);
-    expect(newFileCount(known, [{ path: "a" }, { path: "b" }, { path: "_Folduct 정리상자/b" }])).toBe(0);
-    expect(newFileCount(known, [{ path: "a" }, { path: "새 파일" }, { path: "새 폴더/또 하나" }])).toBe(2);
+    const at = (path: string): ScannedFile => ({ path, name: path, kind: "text", size: 1, lastModified: 0 });
+    const scan = { complete: true, failed: 0 };
+    expect(newFileCount(known, ["a", "b", "_Folduct 정리상자/b"].map(at), scan)).toBe(0);
+    expect(newFileCount(known, ["a", "새 파일", "새 폴더/또 하나"].map(at), scan)).toBe(2);
   });
 });
 

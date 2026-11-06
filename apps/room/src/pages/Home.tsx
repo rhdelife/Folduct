@@ -32,8 +32,10 @@ const QuickViewer = lazy(() => import("../components/QuickViewer").then((m) => (
 
 // 주간 정리는 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 주간 정리 버튼 글자로 알립니다.
 let sweepChecked = false;
-// 현관 폴더도 앱을 켤 때 한 번만 읽습니다. 방에서 돌아오면 저장된 줄을 그대로 보여 줘요.
+// 현관 폴더를 못 읽었다는 알림은 앱을 켤 때 한 번만 띄웁니다. 그 뒤로는 아래 다시 읽기가 조용히 읽어요.
 let doorChecked = false;
+// 창이 보이는 동안 현관 폴더를 다시 읽는 간격(RoomPage.tsx와 같은 값)
+const rereadEveryMs = 15_000;
 
 const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms.json 폴더1 폴더2…";
 
@@ -169,12 +171,15 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     };
   }, [load, findSweep]);
 
-  // 켤 때와 창으로 돌아올 때 폴더를 다시 읽어 밖에서 넣은 파일을 보여 줍니다. 권한이 풀린 방은 건너뛰어요(묻는 건 그 방에 들어갔을 때).
+  // 켤 때와 창으로 돌아올 때 현관과 방 폴더를 다시 읽어 밖에서 넣은 파일을 보여 줍니다. 권한이 풀린 방은 건너뛰어요(묻는 건 그 방에 들어갔을 때).
+  // 창이 보이는 동안에는 현관만 틈틈이 읽어요(작업 중이 아니어도). 방 폴더를 모두 읽는 건 무거워서 돌아올 때만 합니다.
   useEffect(() => {
+    const rereadDoor = () => (isNative() ? refreshDoorstep().then(({ state }) => setDoor(state), (error: unknown) => console.error(error)) : Promise.resolve());
     const reread = async () => {
       if (rereading.current) return;
       rereading.current = true;
       try {
+        await rereadDoor();
         if ((await refreshRooms(await listRooms())) > 0) await load();
       } catch (error) {
         console.error(error);
@@ -190,7 +195,11 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     void reread();
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible" && !rereading.current) void rereadDoor();
+    }, rereadEveryMs);
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
