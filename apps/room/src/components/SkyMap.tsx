@@ -11,6 +11,10 @@ import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUn
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useHeroMotion } from "./home/heroMotion";
 
+// 휠: 이만큼 모여야 한 칸 가고, 손을 멈춘 뒤 이만큼 지나야 다음 칸을 받아요.
+const wheelStep = 40;
+const wheelRest = 260;
+
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
 
@@ -136,6 +140,52 @@ export function SkyMap({
   const opener = more.find((spot) => spot.room.id === selectedId) ?? null;
   useHeroMotion(canvas, shown, ordered, view, selectedId);
 
+  // 화살표와 휠로 프로도 사이를 옮겨 다닙니다. 옮겨 간 프로도에게 다가가고, 그 프로도가 파일을 뱉어요.
+  const step = useRef<(key: string) => void>(() => {});
+  step.current = (key) => {
+    const next = stepRoom(ids, selectedId, key);
+    if (!next || next === selectedId) return;
+    closeTip();
+    onSelectRoom(next);
+    // Enter를 한 번 더 누르면 그 방으로 들어가도록 포커스도 따라갑니다.
+    canvas.current?.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(next)}"]`)?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    // 대화상자·메뉴가 떠 있거나, 글을 쓰는 중이거나, 옆으로 미는 현관 줄 위에서는 건드리지 않아요.
+    const blocked = (target: EventTarget | null) => document.querySelector("dialog[open], .context-menu") !== null || (target instanceof Element && target.closest("input, textarea, select, [contenteditable], .doorstep") !== null);
+    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !keys.includes(event.key) || blocked(event.target)) return;
+      event.preventDefault();
+      step.current(event.key);
+    };
+    // 휠 한 번 굴림(트랙패드는 한 번 쓸기)에 한 칸만 갑니다. 손을 멈추고 잠시 뒤에 다시 받아요.
+    let sum = 0;
+    let armed = true;
+    let quiet = 0;
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || blocked(event.target)) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      clearTimeout(quiet);
+      quiet = window.setTimeout(() => {
+        sum = 0;
+        armed = true;
+      }, wheelRest);
+      if (!armed) return;
+      sum += delta;
+      if (Math.abs(sum) < wheelStep) return;
+      armed = false;
+      step.current(sum > 0 ? "ArrowRight" : "ArrowLeft");
+    };
+    document.addEventListener("keydown", onKey);
+    addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      removeEventListener("wheel", onWheel);
+      clearTimeout(quiet);
+    };
+  }, []);
+
   // 주름관이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
   if (tip && !ids.includes(tip.room.id)) setTip(null);
 
@@ -171,7 +221,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">화살표로 방을 옮기고 Enter를 누르면 그 방 파일이 나와요. 한 번 더 누르면 방으로 들어가요. 메뉴 키로는 방 설정을 열 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표나 휠로 프로도를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -250,8 +300,8 @@ const MapLayers = memo(function MapLayers({
     if (!next) return;
     event.preventDefault();
     event.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-room-id="${CSS.escape(next)}"]`)?.focus();
-    // 패널이 열려 있으면 고르기도 따라갑니다. 카메라가 그 주름관을 가운데로 데려와 패널 뒤에 숨지 않아요.
-    if (document.querySelector(".sky-panel.open")) onSelectRoom(next);
+    // 고르기도 따라가 그 프로도에게 다가갑니다.
+    onSelectRoom(next);
   }
 
   // 처음 누르면 그 프로도에게 다가가 파일을 뱉게 하고, 고른 프로도를 한 번 더 누르면 방으로 들어갑니다.

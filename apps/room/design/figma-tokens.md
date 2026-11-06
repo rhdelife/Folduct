@@ -180,6 +180,8 @@
 | `motion/ease-settle` | `0.22, 1, 0.36, 1` |  |
 | `motion/ease-fan` | `0.2, 0.8, 0.2, 1` |  |
 | `motion/ease-spring` | `0.3, 1.4, 0.5, 1` |  |
+| `motion/ease-glide` | `0.45, 0, 0.2, 1` |  |
+| `motion/dur-focus` | `1000ms` |  |
 | `motion/ease-suck` | `0.6, 0, 0.9, 0.5` |  |
 
 ## 장면

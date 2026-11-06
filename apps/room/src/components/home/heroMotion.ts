@@ -43,12 +43,15 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
 const vaseStep = (count: number) => Math.min(220, 1500 / Math.max(1, count));
 const flightMs = 1600;
 const vaseFrom = 150;
-// 고른 뒤 카메라가 다가가는 동안 프로도가 웅크렸다가(windUp) 뱉기 시작해요. 몸짓은 styles.css의 frodo-spit과 맞춰요.
-const windFrom = 220;
-const windUp = 300;
+// 고른 뒤: 카메라가 다가가는 동안(styles.css .sky-camera, 1000ms) 프로도가 웅크렸다가, 거의 다 왔을 때 파일을 하나씩 뱉어요.
+const windFrom = 520;
+const windUp = 480;
 const spillFrom = windFrom + windUp;
-const spillStep = 45;
-const spillMs = 760;
+// 파일이 많아도 다 나오는 데 1.6초를 넘지 않게 간격을 줄여요.
+const spillStepFor = (count: number) => Math.min(110, 1600 / Math.max(1, count));
+const spillMs = 1100;
+// 머리를 한 번 부풀렸다 오므리는 데 걸리는 시간. 늘 오므린 채로 끝나 멈출 때 튀지 않아요.
+const puffMs = 560;
 
 function vaseOf(root: HTMLElement, id: string) {
   return root.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`);
@@ -74,8 +77,9 @@ function playEntrance(root: HTMLElement, nodes: HeroNode[], view: View): Play {
   return { anims, endsAt: vaseFrom + Math.max(0, nodes.length - 1) * step + flightMs + 100 };
 }
 
-// 고른 방: 주름관 입에서 파일이 한 장씩 튀어나와 아래 칸에 앉습니다. 종이는 그린 순서대로 .paper예요.
-function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View): Play {
+// 고른 방: 프로도가 웅크렸다가 머리를 부풀리며 파일을 한 장씩 뱉고, 파일은 아래 칸에 앉습니다. 종이는 그린 순서대로 .paper예요.
+// 몸짓도 여기서 직접 틀어요. CSS 클래스로 두면 끝날 때 머리가 부푼 채로 끊겨 튀어 보였어요.
+function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View): Play & { spitting: number } {
   const anims: Animation[] = [];
   const add = player(anims);
   const unit = stageUnit(view) * vaseUnit;
@@ -83,12 +87,22 @@ function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View)
   const mouth = ductMouth(home.room.face.shape, ductLength(roomUsage(home.room).totalBytes));
   const box = vaseHalf(home.r) * unit * 2;
   const origin = { x: center.x + mouth.x * box, y: center.y + mouth.y * box };
+  const step = spillStepFor(cards.length);
   const papers = [...root.querySelectorAll<HTMLElement>(".paper")];
   cards.forEach((card, index) => {
     const rest = toPx(card, view);
-    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay: spillFrom + index * spillStep });
+    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay: spillFrom + index * step });
   });
-  return { anims, endsAt: spillFrom + cards.length * spillStep + spillMs };
+  const spitting = cards.length ? (cards.length - 1) * step + spillMs * 0.6 : 0;
+  const node = vaseOf(root, home.room.id);
+  if (cards.length && node) {
+    const body = node.querySelector(".vase-art");
+    const head = node.querySelector(".duct-part-head");
+    add(body, [{ transform: "none", transformOrigin: "50% 90%" }, { transform: "scale(1.05, 0.9)", transformOrigin: "50% 90%", offset: 0.7 }, { transform: "none", transformOrigin: "50% 90%" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
+    add(head, [{ transform: "none" }, { transform: "scale(0.9) rotate(5deg)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
+    add(head, [{ transform: "none" }, { transform: "scale(1.14) rotate(-6deg)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
+  }
+  return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting };
 }
 
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
@@ -128,13 +142,11 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
   useLayoutEffect(() => {
     const home = nodes.find((node) => node.room.id === selectedId);
     if (!home || reduced()) return;
-    const { anims, endsAt } = playSpill(canvas.current!, cards, home, view);
-    // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 고른 방의 웃는 얼굴로 돌아가요.
+    const { anims, spitting } = playSpill(canvas.current!, cards, home, view);
+    // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 고른 방의 웃는 얼굴로 돌아가요. 뱉을 파일이 없는 방은 웅크리지 않아요.
     const id = home.room.id;
-    const spitting = endsAt - spillFrom - spillMs / 2;
-    // 뱉을 파일이 없는 방은 웅크리지 않아요.
     const timers = cards.length === 0 ? [] : [
-      window.setTimeout(() => cue(id, { body: "spit", bodyMs: windUp + spitting, face: "shut", ms: windUp }), windFrom),
+      window.setTimeout(() => cue(id, { face: "shut", ms: windUp }), windFrom),
       window.setTimeout(() => cue(id, { face: "wide", ms: spitting }), spillFrom),
     ];
     return () => {

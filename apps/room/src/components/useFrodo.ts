@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { lookExpr, type FaceExpr } from "../art/duct";
 
 // 프로도에게 보내는 신호. actor는 방 id, 플로팅 창의 "pet", 도우미 "guide"입니다. 어디서 일어난 일이든 신호만 보내면 해당 프로도가 반응해요.
-export type BodyAct = "wave" | "hop" | "nod" | "tilt" | "stretch" | "rise" | "bye" | "spit";
+export type BodyAct = "wave" | "hop" | "nod" | "tilt" | "stretch" | "rise" | "bye";
 export type Point = { x: number; y: number };
-// bodyMs: 몸짓 길이. 뱉기처럼 길이가 그때그때 다른 몸짓만 줍니다.
-export type Cue = { face?: FaceExpr; ms?: number; body?: BodyAct; bodyMs?: number; look?: Point | null };
+export type Cue = { face?: FaceExpr; ms?: number; body?: BodyAct; look?: Point | null };
 
-const bodyMs: Record<BodyAct, number> = { wave: 950, hop: 560, nod: 420, tilt: 720, stretch: 800, rise: 760, bye: 950, spit: 1200 };
+const bodyMs: Record<BodyAct, number> = { wave: 950, hop: 560, nod: 420, tilt: 720, stretch: 800, rise: 760, bye: 950 };
 const lookDeadZone = 8;
 const replayMs = 3000;
 
@@ -52,7 +51,7 @@ export function useFrodo(actor: string | undefined, mood: FaceExpr) {
     if (!actor) return;
     let faceTimer = 0;
     let bodyTimer = 0;
-    const stop = onCue(actor, ({ face, ms = 700, body: act, bodyMs: actMs, look: at }) => {
+    const stop = onCue(actor, ({ face, ms = 700, body: act, look: at }) => {
       if (face) {
         setFlash(face);
         clearTimeout(faceTimer);
@@ -61,7 +60,7 @@ export function useFrodo(actor: string | undefined, mood: FaceExpr) {
       if (act) {
         setBody(act);
         clearTimeout(bodyTimer);
-        bodyTimer = window.setTimeout(() => setBody(null), actMs ?? bodyMs[act]);
+        bodyTimer = window.setTimeout(() => setBody(null), bodyMs[act]);
       }
       if (at === null) setLook(null);
       else if (at && faceRef.current) {

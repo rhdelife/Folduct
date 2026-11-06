@@ -28,7 +28,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
           <button type="button" className="primary big" onClick={actions.openNew}>첫 방 만들기</button>
         </div>
       ) : (
-        <div className="sky-layout">
+        <div className={`sky-layout${selected ? " focused" : ""}`}>
           <section className="sky-stage">
             <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} />
             {rooms.every((room) => room.care.done) && (
@@ -38,9 +38,11 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
               </div>
             )}
           </section>
-          {/* 프로도를 고르면 그 방만 보이게 현관 줄과 일력은 잠시 비켜 줍니다. */}
-          {!selected && <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />}
-          {!selected && <WorkCalendar rooms={rooms} log={workLog} now={now} />}
+          {/* 프로도를 고르면 그 방만 보이게 현관 줄과 일력은 천천히 비켜 줍니다. 갑자기 빼면 깜빡여 보였어요. 비킨 동안은 눌리지도 않아요. */}
+          <div className="hero-extras" inert={selected ? true : undefined}>
+            <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />
+            <WorkCalendar rooms={rooms} log={workLog} now={now} />
+          </div>
         </div>
       )}
     </section>

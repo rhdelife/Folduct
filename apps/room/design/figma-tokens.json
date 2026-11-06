@@ -743,6 +743,19 @@
         1
       ]
     },
+    "ease-glide": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.45,
+        0,
+        0.2,
+        1
+      ]
+    },
+    "dur-focus": {
+      "$type": "duration",
+      "$value": "1000ms"
+    },
     "ease-suck": {
       "$type": "cubicBezier",
       "$value": [
