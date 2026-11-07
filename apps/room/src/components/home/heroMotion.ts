@@ -75,7 +75,8 @@ function playEntrance(root: HTMLElement, nodes: HeroNode[], view: View): Play {
     const node = vaseOf(root, room.id);
     const delay = vaseFrom + i * step;
     add(node?.querySelector(".vase-lift"), arrivalFrames(toPx(at, view), vaseHalf(r) * unit, view, flightMs), { duration: flightMs, delay });
-    add(node?.querySelector(".vase-tag"), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: delay + flightMs - 200, easing: "ease-out" });
+    // 카드와 바닥 그림자도 이름표와 함께 나타나요. 먼저 깔려 있으면 빈 카드만 1초쯤 보였어요.
+    for (const part of [".room-card", ".room-floor", ".vase-tag"]) add(node?.querySelector(part), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: delay + flightMs - 200, easing: "ease-out" });
   });
   return { anims, endsAt: vaseFrom + Math.max(0, nodes.length - 1) * step + flightMs + 100 };
 }

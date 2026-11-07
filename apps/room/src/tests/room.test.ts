@@ -638,6 +638,15 @@ describe("완료한 프로젝트", () => {
     expect(picked).not.toContain("r0");
   });
 
+  it("샘플은 날짜가 최근이어도 내 방보다 나중에 고른다", () => {
+    const used = (id: string, at: number, source: Room["source"]) => room([thing({ id: `${id}-f`, path: `${id}.txt`, touchedAt: at })], { id, source });
+    const samples = Array.from({ length: 3 }, (_, i) => used(`s${i}`, start + 30 * dayMs, "sample"));
+    const mine = Array.from({ length: 3 }, (_, i) => used(`m${i}`, start + i * dayMs, "input"));
+    const picked = roomsToKeep([...samples, ...mine], [null, null]);
+    expect(picked.slice(0, 3).sort()).toEqual(["m0", "m1", "m2"]);
+    expect(roomsToKeep([...samples, ...mine], ["s2", null])[0]).toBe("s2");
+  });
+
   it("방이 없거나 모두 완료했으면 지도가 빈다", () => {
     expect(layoutRooms([])).toEqual([]);
     expect(layoutRooms([room([], { care: { ...defaultCare, done: true } })])).toEqual([]);

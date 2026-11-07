@@ -16,7 +16,8 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   const [count, setCount] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
   // handle이 있으면 이름만 같은 보기 전용 방이라, 그래도 새 방으로 만들 수 있게 고른 폴더를 들고 있습니다.
-  const [same, setSame] = useState<{ room: Room; handle: FileSystemDirectoryHandle | null } | null>(null);
+  // draft는 브라우저 폴더 입력으로 읽은 것. 경로를 몰라 이름만 같을 수도 있으니, 그래도 새 방으로 만들 수 있게 들고 있습니다.
+  const [same, setSame] = useState<{ room: Room; handle: FileSystemDirectoryHandle | null; draft?: Draft } | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -149,6 +150,14 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     );
   }
 
+  // 브라우저 폴더 입력은 전체 경로를 몰라 같은 폴더인지 못 가립니다. 폴더 이름이 같은 방이 있으면 먼저 묻습니다.
+  async function offerInput(next: Draft) {
+    const rooms = await listRooms().catch(() => []);
+    const named = rooms.find((room) => room.source !== "sample" && room.rootName.normalize("NFC") === next.rootName.normalize("NFC"));
+    if (named) return setSame({ room: named, handle: null, draft: next });
+    ready(next);
+  }
+
   function ready(next: Draft) {
     setDraft(next);
     setName(next.rootName);
@@ -190,10 +199,10 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       <FrodoGuide />
       {same ? (
         <div className="sheet-body">
-          {same.handle ? (
+          {same.handle || same.draft ? (
             <>
               <h2 id="new-room-title">이름이 같은 방이 있어요</h2>
-              <p>‘{same.room.name}’ 방에서 ‘폴더 연결’을 하면 메모와 자리가 이어져요.</p>
+              <p>{same.handle ? `‘${same.room.name}’ 방에서 ‘폴더 연결’을 하면 메모와 자리가 이어져요.` : `같은 폴더라면 ‘${same.room.name}’ 방으로 가세요. 다른 폴더면 새 방으로 만들 수 있어요.`}</p>
             </>
           ) : (
             <>
@@ -202,8 +211,12 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
             </>
           )}
           <div className="row end">
-            {same.handle ? (
-              <button type="button" onClick={() => void scanPicked(same.handle!)}>새 방으로 만들기</button>
+            {same.handle || same.draft ? (
+              <button type="button" onClick={() => {
+                if (same.handle) return void scanPicked(same.handle);
+                setSame(null);
+                ready(same.draft!);
+              }}>새 방으로 만들기</button>
             ) : (
               <button type="button" onClick={onClose}>닫기</button>
             )}
@@ -277,7 +290,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
                   const scan = scanFileList(files);
                   // 같은 폴더를 다시 골라도 onChange가 오도록 비웁니다.
                   event.target.value = "";
-                  ready({ source: "input", rootName: scan.rootName, handle: null, scan });
+                  void offerInput({ source: "input", rootName: scan.rootName, handle: null, scan });
                 }}
               />
             </>

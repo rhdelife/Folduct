@@ -174,9 +174,10 @@ export function calendarSpot(view: View): Box[] {
 // 홈에 둘 수 있는 방의 수. 지금 하는 일만 보여 주려는 약속이에요. 숫자는 여기서만 정합니다.
 export const homeLimit = 5;
 
-// 자리가 모자랄 때 먼저 골라 둘 방. 사용자가 방금 고른 방을 앞세우고, 나머지는 최근에 쓴 순서입니다.
+// 자리가 모자랄 때 먼저 골라 둘 방. 사용자가 방금 고른 방, 내 방, 샘플 순서이고, 같으면 최근에 쓴 순서입니다.
+// 샘플 파일 날짜는 늘 최근이라, 샘플을 띄우기만 해도 내 방이 밀려났어요.
 export function roomsToKeep(active: Room[], prefer: (string | null)[]): string[] {
-  const rank = (room: Room) => (prefer.includes(room.id) ? 1 : 0);
+  const rank = (room: Room) => (prefer.includes(room.id) ? 2 : room.source === "sample" ? 0 : 1);
   return [...active].sort((a, b) => rank(b) - rank(a) || roomLastActivity(b) - roomLastActivity(a)).slice(0, homeLimit).map((room) => room.id);
 }
 

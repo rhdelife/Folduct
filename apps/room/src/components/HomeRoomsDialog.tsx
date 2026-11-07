@@ -43,7 +43,8 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
       >
         <h2 id="home-rooms-title">홈에 둘 방을 골라 주세요</h2>
         <p>홈에는 방을 {homeLimit}개까지 둘 수 있어요. 뺀 방은 메뉴의 방 목록에 있고, 폴더와 파일은 그대로예요.</p>
-        <p role="status"><strong>{shown} / {homeLimit}</strong></p>
+        {/* 다 차면 빈 칸을 막아 두니, 눌러도 왜 안 되는지 여기서 알려요. */}
+        <p role="status"><strong>{shown} / {homeLimit}</strong>{full && " · 다 찼어요. 다른 방을 넣으려면 하나를 먼저 빼 주세요."}</p>
         <section className="sweep-room">
           <ul>
             {rooms.map((room) => {

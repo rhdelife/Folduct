@@ -13,6 +13,7 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
   const [room, setRoom] = useState(initial);
+  const [nameDraft, setNameDraft] = useState(initial.name);
   const [error, setError] = useState<string | null>(null);
   useModal(dialog);
 
@@ -62,7 +63,12 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
         </header>
         {/* 모달이 열려 있으면 페이지 알림이 보이지 않아 오류는 창 안에 보여 줍니다. */}
         {error && <p className="banner danger" role="alert">{error}</p>}
-        <label className="field">방 이름 <input value={room.name} maxLength={40} onChange={(event) => change((current) => ({ ...current, name: event.target.value }))} /></label>
+        {/* 칸이 비어 있는 동안에는 연 때의 이름을 저장해 두고, 칸을 떠나면 그 이름으로 채워요. 빈 이름은 폴더 이름으로 바뀌어 지은 이름이 사라졌어요. */}
+        <label className="field">방 이름 <input value={nameDraft} maxLength={40} onChange={(event) => {
+          setNameDraft(event.target.value);
+          change((current) => ({ ...current, name: event.target.value.trim() || initial.name }));
+        }} onBlur={() => setNameDraft(room.name)} /></label>
+        {!nameDraft.trim() && <p className="soft" role="status">비워 두면 ‘{initial.name}’(으)로 돌아가요.</p>}
         <FacePicker face={room.face} onChange={(face) => {
           change((current) => ({ ...current, face }));
           cue(room.id, { body: "hop" });
