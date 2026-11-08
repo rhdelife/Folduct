@@ -236,6 +236,22 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     update((current) => ({ ...current, things: current.things.map((thing) => (thing.id === id ? { ...thing, ...patch } : thing)) }), touch ? [id] : []);
   }
 
+  // 폴더에서 찾지 못한 파일의 기록만 방에서 뺍니다(T314). 실제 파일은 건드리지 않고, 알림에서 되돌릴 수 있어요.
+  // shortcut: 꾸민 이미지(pic:방:물건)는 되돌리기를 위해 남겨 두고 방을 잊을 때 함께 지워요. 쌓여 문제가 되면 그때 따로 치워요.
+  function forgetThing(id: string) {
+    const current = latest.current?.things ?? [];
+    const at = current.findIndex((thing) => thing.id === id);
+    const gone = current[at];
+    if (!gone?.missing) return;
+    update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
+    setSelectedId(null);
+    heading.current?.focus();
+    toast(`‘${gone.name}’ 기록을 뺐어요. 파일은 건드리지 않았어요.`, {
+      label: "되돌리기",
+      run: () => update((room) => (room.things.some((thing) => thing.id === id) ? room : { ...room, things: [...room.things.slice(0, at), gone, ...room.things.slice(at)] })),
+    });
+  }
+
   // reconcileBox가 맞춘 상자 기록(상자·경로·파일 없음)만 지금 상태로 가져옵니다. 기다리는 동안 쓴 메모·자리는 그대로 둡니다.
   function adoptBox(saved: Room) {
     const byId = new Map(saved.things.map((thing) => [thing.id, thing]));
@@ -529,6 +545,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onOpen={(id) => void openFile(id)}
                 onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
                 onToast={toast}
+                onForget={forgetThing}
               />
             ) : (
               <div>
@@ -636,7 +653,7 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   );
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void }) {
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast, onForget }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void }) {
   const age = thingAge(thing, room.care, room.workDays, now);
   const last = lastActivity(thing);
   return (
@@ -665,6 +682,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
         {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
+        {thing.missing && <button type="button" onClick={() => onForget(thing.id)}>기록 빼기</button>}
       </div>
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />

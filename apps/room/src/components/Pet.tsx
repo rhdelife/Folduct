@@ -39,7 +39,7 @@ export function Pet() {
   const [pet, setPet] = useState<PetSettings>(defaultPet);
   const [asking, setAsking] = useState(false);
   const [door, setDoor] = useState<Doorstep | null>(null);
-  const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { item: DoorItem; moved: DoorMove; room: Room } } | null>(null);
+  const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room } } | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
@@ -179,17 +179,13 @@ export function Pet() {
   // 파일은 '넣기'를 누른 것만 옮깁니다.
   async function bring(items: DoorItem[], target: Room) {
     setFileBusy(true);
-    let last: { item: DoorItem; moved: DoorMove } | null = null;
-    let count = 0;
+    const moves: { item: DoorItem; moved: DoorMove }[] = [];
     let problem: string | null = null;
     try {
       for (const item of items) {
         const { state, moved, error } = await bringIntoRoom(item, target);
         setDoor(state);
-        if (moved) {
-          last = { item, moved };
-          count += 1;
-        }
+        if (moved) moves.push({ item, moved });
         problem ??= error;
       }
     } catch (error) {
@@ -198,9 +194,12 @@ export function Pet() {
     }
     setFileBusy(false);
     tellMain();
-    if (problem) setDone({ text: problem, failed: true });
-    else if (count === 1 && last) setDone({ text: `${target.name} 방으로 옮겼어요.${last.moved.name === last.item.path ? "" : ` 이름이 같아 ${last.moved.name.normalize("NFC")}(으)로 두었어요.`}`, undo: { ...last, room: target } });
-    else setDone({ text: `${target.name} 방으로 ${count}개 옮겼어요.` });
+    // 옮긴 게 있으면 몇 개든 한 번에 되돌릴 수 있어요(T506). 일부만 옮겨졌으면 그 수와 문제를 함께 알려요.
+    const undo = moves.length > 0 ? { moves, room: target } : undefined;
+    const [only] = moves;
+    if (problem) setDone({ text: moves.length > 0 ? `${moves.length}개는 옮겼어요. ${problem}` : problem, failed: true, undo });
+    else if (moves.length === 1) setDone({ text: `${target.name} 방으로 옮겼어요.${only.moved.name === only.item.path ? "" : ` 이름이 같아 ${only.moved.name.normalize("NFC")}(으)로 두었어요.`}`, undo });
+    else setDone({ text: `${target.name} 방으로 ${moves.length}개 옮겼어요.`, undo });
     void loadRooms().catch((error: unknown) => console.error(error));
   }
 
@@ -214,19 +213,29 @@ export function Pet() {
     }
   }
 
-  async function undo({ item, moved, room: target }: { item: DoorItem; moved: DoorMove; room: Room }) {
+  // 넣은 순서의 반대로 하나씩 되돌립니다. 하나가 실패해도 나머지는 계속해요.
+  async function undo({ moves, room: target }: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room }) {
     setDone(null);
-    try {
-      const { state, error } = await undoBring(item, moved, target);
-      // 되돌린 파일을 다시 묻지 않게 줄에서는 빼 둡니다. 원래 폴더에 돌아가 있어요.
-      setDoor(error ? state : await patchDoorstep((latest) => dropItem(latest, item.id)));
-      setDone({ text: error ?? "원래 폴더로 되돌렸어요.", failed: Boolean(error) });
-      tellMain();
-      void loadRooms().catch((reason: unknown) => console.error(reason));
-    } catch (error) {
-      console.error(error);
-      setDone({ text: "되돌리지 못했어요. 폴더 권한을 확인해 주세요.", failed: true });
+    setFileBusy(true);
+    let back = 0;
+    let problem: string | null = null;
+    for (const { item, moved } of [...moves].reverse()) {
+      try {
+        const { state, error } = await undoBring(item, moved, target);
+        // 되돌린 파일을 다시 묻지 않게 줄에서는 빼 둡니다. 원래 폴더에 돌아가 있어요.
+        setDoor(error ? state : await patchDoorstep((latest) => dropItem(latest, item.id)));
+        if (error) problem ??= error;
+        else back += 1;
+      } catch (error) {
+        console.error(error);
+        problem ??= "되돌리지 못했어요. 폴더 권한을 확인해 주세요.";
+      }
     }
+    setFileBusy(false);
+    const all = moves.length > 1 ? `${back}개를 ` : "";
+    setDone(problem ? { text: back > 0 ? `${back}개는 되돌렸어요. ${problem}` : problem, failed: true } : { text: `${all}원래 폴더로 되돌렸어요.` });
+    tellMain();
+    void loadRooms().catch((reason: unknown) => console.error(reason));
   }
 
   async function addFolder() {
@@ -396,7 +405,7 @@ export function Pet() {
       {done && (
         <div className="pet-ask" data-no-drag>
           <p role="status">{done.text}</p>
-          {done.undo && <button type="button" onClick={() => void undo(done.undo!)}>되돌리기</button>}
+          {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
         </div>
       )}
       {working && roomLinked && door && door.folders.length === 0 && isNative() && (
