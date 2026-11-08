@@ -21,10 +21,12 @@ export type Thing = {
   // 방 밖에서 마지막으로 연 시각(macOS Spotlight). 알 수 없으면 null.
   lastUsedAt: number | null;
   missing: boolean;
-  // null이면 아직 선반 위에 있습니다(방 바닥에 놓지 않음).
+  // 예전 바닥 자리. 방 안은 이제 줄(care.ts laneOf)로 보여 줘서 화면은 읽지 않고, 기록만 남겨 둡니다.
   spot: Spot | null;
   note: string;
   touchedAt: number | null;
+  // Folduct가 이 파일을 처음 본 시각. 방을 만들 때 본 파일은 방 만든 시각이에요. 손대지 않은 파일의 '안 쓴 날'은 여기서부터 셉니다.
+  seenAt: number;
   pinned: boolean;
   box: BoxEntry | null;
 };

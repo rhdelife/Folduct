@@ -4,7 +4,7 @@ import { kindOf, newId, type Room, type RoomFace, type Thing } from "../domain/m
 const MB = 1024 ** 2;
 
 // 실제 파일 없이 구경하는 방들. 정리는 Folduct 안에서만 일어납니다.
-// [경로, 크기, 바닥 x(없으면 선반), 바닥 y, 며칠 전 손댐, 이유 메모, 며칠 전 방 밖에서 씀]
+// [경로, 크기, 바닥 x(없으면 막 들어온 새 파일), 바닥 y, 며칠 전 손댐, 이유 메모, 며칠 전 방 밖에서 씀]
 type Item = [path: string, size: number, x: number | null, y: number, daysAgo: number, note: string, usedAgo?: number];
 
 const workshop: Item[] = [
@@ -55,13 +55,16 @@ function build(name: string, items: Item[], workedAgo: number[], face: RoomFace,
     spot: x === null ? null : { x, y },
     note,
     touchedAt: x === null ? null : now - daysAgo * dayMs,
+    // 바닥에 없던 파일은 방을 만든 뒤에 막 들어온 새 파일로 보여 줘요.
+    seenAt: x === null ? now : now - dayMs,
     pinned: false,
     box: null,
   }));
   return {
     id: newId(),
     name,
-    createdAt: now,
+    // 새 파일 줄이 보이게 방은 하루 전에 만든 것으로 둡니다.
+    createdAt: now - dayMs,
     source: "sample",
     rootName: "샘플",
     scan: { complete: true, failed: 0, at: now, freedBytes: 0 },

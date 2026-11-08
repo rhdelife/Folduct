@@ -389,7 +389,7 @@ describe("작업 중인 방으로 가져오기", () => {
   });
 
   it("넣을 때 밖에서 이름을 바꾼 옛 물건과 이어졌다면, 되돌려도 그 물건의 메모와 자리는 남아요", async () => {
-    const old = { id: "old", path: "옛보고서.pdf", name: "옛보고서.pdf", kind: "pdf", size: 10, lastModified: 1, lastUsedAt: null, missing: false, spot: { x: 2, y: 2 }, note: "제출본", touchedAt: null, pinned: true, box: null } as Room["things"][number];
+    const old = { id: "old", path: "옛보고서.pdf", name: "옛보고서.pdf", kind: "pdf", size: 10, lastModified: 1, lastUsedAt: null, missing: false, spot: { x: 2, y: 2 }, note: "제출본", touchedAt: null, seenAt: 1, pinned: true, box: null } as Room["things"][number];
     const before = { ...target, things: [old] };
     disk.patched = before;
     const { moved } = await bringIntoRoom(item, before);

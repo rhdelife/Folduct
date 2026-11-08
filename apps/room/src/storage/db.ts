@@ -259,7 +259,7 @@ export function normalizeRoom(value: unknown): Room {
     createdAt: count(room.createdAt, 0),
     // 그릴 수 없는 물건은 빼고, 종류·크기·시각이 망가진 물건은 고쳐서 살립니다.
     things: Array.isArray(room.things)
-      ? room.things.filter(isThingRecord).map((thing) => ({ ...thing, kind: storedKind(thing.kind, thing.name), size: count(thing.size, 0), lastModified: count(thing.lastModified, 0), lastUsedAt: count(thing.lastUsedAt, null) }))
+      ? room.things.filter(isThingRecord).map((thing) => ({ ...thing, kind: storedKind(thing.kind, thing.name), size: count(thing.size, 0), lastModified: count(thing.lastModified, 0), lastUsedAt: count(thing.lastUsedAt, null), seenAt: count(thing.seenAt, count(room.createdAt, 0)) }))
       : [],
     workDays: Array.isArray(room.workDays) ? room.workDays.filter((day) => typeof day === "string") : [],
     care: normalizeCare(room.care),

@@ -31,14 +31,14 @@ export async function refreshDoorstep(now = Date.now()): Promise<{ state: Doorst
   return { state, failed: reads.length - done.length };
 }
 
-// 더하는 때에 기준을 잡아, 지금부터 생기는 문서만 새 문서가 됩니다. 방 폴더의 새 파일은 이미 그 방 선반에 올라가니 받지 않아요.
+// 더하는 때에 기준을 잡아, 지금부터 생기는 문서만 새 문서가 됩니다. 방 폴더의 새 파일은 이미 그 방 ‘새로 왔어요’ 줄에 서니 받지 않아요.
 export async function addDoorFolder(folder: string): Promise<{ state: Doorstep; error: string | null }> {
   if ((await listRooms()).some((room) => sameFolder(room.origin, folder))) return { state: await getDoorstep(), error: "이미 방으로 연결한 폴더예요." };
   const read = await readDoorFolder(pathSource(folder), undefined);
   return { state: await patchDoorstep((latest) => addFolder(latest, folder, read)), error: null };
 }
 
-// 문서를 방 폴더로 옮깁니다. 방 기록은 고치지 않아요. 방을 열 때 폴더를 다시 읽어 선반에 올립니다.
+// 문서를 방 폴더로 옮깁니다. 방 기록은 고치지 않아요. 방을 열 때 폴더를 다시 읽어 ‘새로 왔어요’ 줄에 세웁니다.
 export async function assignDoorItem(item: DoorItem, folder: string): Promise<{ state: Doorstep; moved: DoorMove | null; error: string | null }> {
   const room = folderMover(folder);
   const name = await freeDoorName(room, item.path);

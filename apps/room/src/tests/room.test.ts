@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, laneOf, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -15,7 +15,7 @@ const MB = 1024 ** 2;
 const start = new Date(2026, 9, 5, 12).getTime();
 
 function thing(patch: Partial<Thing> = {}): Thing {
-  return { id: crypto.randomUUID(), path: "참고/a.png", name: "a.png", kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
+  return { id: crypto.randomUUID(), path: "참고/a.png", name: "a.png", kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, seenAt: start, pinned: false, box: null, ...patch };
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
@@ -64,7 +64,7 @@ describe("방치 판정", () => {
     expect(thingAge(thing({ lastModified: start + 2 * dayMs }), defaultCare, workDays, later).stale).toBe(false);
   });
 
-  it("정리 후보는 바닥에 놓인 오래된 물건뿐이고, 큰 파일이 먼저다", () => {
+  it("정리 후보는 상자 밖 오래된 물건이고(바닥에 놓지 않았던 것도), 큰 파일이 먼저다", () => {
     const small = thing({ size: 10 });
     const large = thing({ size: 1000 });
     const middle = thing({ size: 100 });
@@ -73,8 +73,10 @@ describe("방치 판정", () => {
     const fallen = thing();
     const onShelf = thing({ spot: null });
     const boxed = thing({ box: { state: "virtual", fromPath: "참고/a.png", boxPath: "참고/a.png", at: start } });
-    const candidates = sweepCandidates(room([fallen, onShelf, boxed], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs);
-    expect(candidates.map((item) => item.id)).toEqual([fallen.id]);
+    // 방에서 손댄 적 없는 파일은 처음 본 날부터 세서, 11일째라 아직 후보가 아니에요.
+    const justSeen = thing({ touchedAt: null, seenAt: start + 20 * dayMs });
+    const candidates = sweepCandidates(room([fallen, onShelf, boxed, justSeen], { workDays: [localDay(start + dayMs), localDay(start + 25 * dayMs)] }), start + 31 * dayMs);
+    expect(candidates.map((item) => item.id)).toEqual([fallen.id, onShelf.id]);
     expect(markWorkDay(["2026-10-01"], start)).toEqual(["2026-10-01", "2026-10-05"]);
   });
 });
@@ -99,7 +101,22 @@ describe("방 밖 작업", () => {
     expect(thingAge(item, defaultCare, [localDay(day(1)), localDay(day(5))], day(60))).toEqual({ stale: false, days: 55 });
     // 고친 날도 같은 기준입니다.
     expect(thingAge(thing({ lastModified: day(2) }), defaultCare, [localDay(day(3))], day(32))).toEqual({ stale: true, days: 30 });
-    expect(thingAge(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(60))).toEqual({ stale: false, days: 0 });
+    // 방에서 손대지 않은 파일도 같은 기준이고, 처음 본 날보다 앞으로는 세지 않아요.
+    expect(thingAge(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(60))).toEqual({ stale: true, days: 59 });
+    expect(thingAge(thing({ touchedAt: null, lastModified: day(1), seenAt: day(40) }), defaultCare, [localDay(day(45))], day(60))).toEqual({ stale: false, days: 20 });
+  });
+
+  it("방 안 네 줄: 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자", () => {
+    const r = room([], { workDays: [localDay(day(1)), localDay(day(45))] });
+    const now = day(50);
+    // 방을 만든 뒤에 들어와 아직 열지 않은, 7일 안의 파일만 새 파일이에요.
+    expect(laneOf(thing({ touchedAt: null, seenAt: day(48) }), r, now)).toBe("new");
+    expect(laneOf(thing({ touchedAt: day(49), seenAt: day(48) }), r, now)).toBe("use");
+    expect(laneOf(thing({ touchedAt: null, seenAt: start, lastModified: day(49) }), r, now)).toBe("use");
+    expect(laneOf(thing({ touchedAt: null, seenAt: day(40) }), r, now)).toBe("use");
+    expect(laneOf(thing({ touchedAt: day(2) }), r, now)).toBe("quiet");
+    expect(laneOf(thing({ touchedAt: day(2), pinned: true }), r, now)).toBe("use");
+    expect(laneOf(thing({ touchedAt: day(2), box: { state: "virtual", fromPath: "a", boxPath: "a", at: day(3) } }), r, now)).toBe("box");
   });
 
   it("다시 봐도 마지막 사용 시각은 뒤로 가거나 null로 돌아가지 않는다", () => {

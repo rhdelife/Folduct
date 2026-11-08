@@ -427,7 +427,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       return;
     }
     const renamed = moved.name === item.path ? "" : ` 같은 이름이 있어 ${moved.name.normalize("NFC")}(으)로 두었어요.`;
-    toast(`${room.name} 방으로 옮겼어요.${renamed} 방을 열면 선반에 있어요.`, {
+    toast(`${room.name} 방으로 옮겼어요.${renamed} 방을 열면 ‘새로 왔어요’ 줄에 있어요.`, {
       label: "되돌리기",
       run: () =>
         void undoDoorMove(item, moved)

@@ -3,7 +3,7 @@ import { shortPath } from "../domain/platform";
 import { ObjectShape } from "../art/ObjectShape";
 import { ductLength, kindParts } from "../art/duct";
 import { RoomFaceArt } from "./RoomFace";
-import { lastActivity, relativeDay, thingAge } from "../domain/care";
+import { laneOf, lastActivity, relativeDay, thingAge } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { roomUsage } from "../domain/care";
 import { homeActivity, pickStarThings, progressText, roomActivity, type RoomStat } from "../domain/sky";
@@ -147,7 +147,7 @@ export function SkyPanel({
               <span className="rank-num">
                 <strong>{formatBytes(thing.size)}</strong>
                 <small className={old ? "warn" : ""}>
-                  {thing.box ? "정리 상자" : !thing.spot ? "선반" : old ? `${days}일째 그대로` : "제자리"}
+                  {{ box: "정리 상자", new: "새로 왔어요", quiet: `${days}일째 그대로`, use: "요즘 써요" }[laneOf(thing, room, now)]}
                 </small>
               </span>
             </button>

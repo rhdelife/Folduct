@@ -49,7 +49,7 @@ const now = start + 31 * dayMs;
 const box = "_Folduct 정리상자";
 
 function thing(path: string, patch: Partial<Thing> = {}): Thing {
-  return { id: crypto.randomUUID(), path, name: path.split("/").pop()!, kind: "design", size: 100, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
+  return { id: crypto.randomUUID(), path, name: path.split("/").pop()!, kind: "design", size: 100, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, seenAt: start, pinned: false, box: null, ...patch };
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {

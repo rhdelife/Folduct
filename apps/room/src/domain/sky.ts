@@ -203,11 +203,11 @@ export function layoutRooms(rooms: Room[], view: View = baseView, top = 0): Plac
   return active.map((room, i) => ({ room, at: toSky(items[i], view), scale, spread, limit }));
 }
 
-// 바닥에 놓인 물건부터, 남은 자리는 선반의 큰 파일로 채웁니다. 상자 속·사라진 파일은 하늘에 띄우지 않습니다.
+// 큰 파일부터 띄웁니다(방 안 줄과 같은 순서). 상자 속·사라진 파일은 하늘에 띄우지 않습니다.
 // 오른쪽 목록도 이 물건들을 꼭 넣어, 지도에 뜬 파일마다 목록 줄이 있습니다.
 export function pickStarThings(room: Room, limit: number): Thing[] {
   const live = room.things.filter((thing) => !thing.missing && !thing.box);
-  return [...live.filter((thing) => thing.spot), ...live.filter((thing) => !thing.spot).sort((a, b) => b.size - a.size)].slice(0, limit);
+  return live.sort((a, b) => b.size - a.size).slice(0, limit);
 }
 
 export function roomStars(room: Room, center: Point, spread: number, now: number, limit = 40, scale = 1): Star[] {
@@ -242,9 +242,9 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
   });
 }
 
-// 바닥에 놓인(상자 밖) 물건 중 오래된 것의 수.
+// 상자 밖 물건 중 오래된 것의 수.
 export function staleCount(room: Room, now: number): number {
-  return room.things.filter((thing) => thing.spot && !thing.box && thingAge(thing, room.care, room.workDays, now).stale).length;
+  return room.things.filter((thing) => !thing.box && thingAge(thing, room.care, room.workDays, now).stale).length;
 }
 
 export type RoomProgress = { lastActivityAt: number | null; recentCount: number };

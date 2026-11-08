@@ -1,20 +1,10 @@
-import { useRef, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent } from "react";
-import { ObjectShape, pickArt } from "../art/ObjectShape";
+import { useState, type CSSProperties } from "react";
+import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
-import { objectScale } from "../domain/care";
-import { formatBytes, kindLabels, type Room, type Spot, type Thing } from "../domain/model";
-import { boxSpot, clampSpot, depth, plane, screenDeltaToFloor, toScreen, type PlaneSize } from "../domain/plane";
+import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
+import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { Icon } from "./Icon";
 import { centerOf, cue } from "./useFrodo";
-import { useFitCanvas } from "./useFitScale";
-
-const keyMoves: Record<string, Spot> = { ArrowRight: { x: 0.25, y: 0 }, ArrowLeft: { x: -0.25, y: 0 }, ArrowUp: { x: 0, y: -0.25 }, ArrowDown: { x: 0, y: 0.25 } };
-
-// 벽에 붙은 물건은 이름표가 판 밖으로 잘리지 않게 위나 벽 쪽으로 붙입니다.
-export function tagPlacement(spot: Spot): string | undefined {
-  const parts = [spot.y > 8 && "above", spot.x < 1.2 && "start", spot.x > 8.8 && "end"].filter(Boolean);
-  return parts.length ? parts.join(" ") : undefined;
-}
 
 const boxTones = tonesFrom(boxColor);
 // 상자에 든 종이는 위로 조금 삐져나옵니다. 앞판이 종이를 가려서 상자 안에 든 것처럼 보여요.
@@ -43,180 +33,92 @@ export function CardboardBox({ things }: { things: Thing[] }) {
   );
 }
 
-// 방 안: 창 전체가 바닥이고, 그 위에 파일 종이들이 놓입니다.
-export function RoomScene({
-  room,
-  now,
-  selectedId,
-  onSelect,
-  onOpen,
-  onMove,
-  onOpenBox,
-  onOpenShelf,
-}: {
-  room: Room;
-  now: number;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onOpen: (id: string) => void;
-  // 끄는 동안은 화면에서만 움직이고, 놓는 순간(또는 화살표 키) 한 번만 commit=true로 부릅니다.
-  onMove: (id: string, spot: Spot, commit: boolean) => void;
-  onOpenBox: () => void;
-  onOpenShelf: () => void;
-}) {
-  // 휴대폰 폭에서도 0.55배 밑으로는 줄이지 않습니다(물건 이름이 읽히는 한계). styles.css의 clamp(0.55, …)와 같은 값이에요.
-  const [frame, { scale, width, height }] = useFitCanvas<HTMLDivElement>(plane, 1.3, 0.55);
-  const size: PlaneSize = { width, height };
-  const drag = useRef<{ id: string; x: number; y: number; start: Spot; moved: boolean } | null>(null);
-  const justDragged = useRef(false);
-  const placed = room.things.filter((thing) => thing.spot && !thing.box);
-  const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
-  const boxCount = room.things.filter((thing) => thing.box).length;
-  const boxAt = toScreen(boxSpot, size);
+// 종이를 그리는 크기. 화면에서는 styles.css의 --lane-paper 폭으로 줄이거나 늘립니다.
+const paperPx = 80;
+// 줄마다 처음엔 큰 파일부터 이만큼만, 더 보기를 누르면 shownMost개까지 그립니다(파일 수백 개짜리 폴더).
+const shownAtFirst = 24;
+const shownMost = 200;
 
-  // 끈 거리(판 좌표)를 벽 안쪽 자리로 바꿉니다.
-  const dropSpot = (event: PointerEvent, current: NonNullable<typeof drag.current>) => {
-    const delta = screenDeltaToFloor((event.clientX - current.x) / scale, (event.clientY - current.y) / scale, size);
-    return clampSpot({ x: current.start.x + delta.x, y: current.start.y + delta.y });
+// 방 안: 파일이 왼쪽에서 오른쪽(좁으면 위에서 아래)으로 흐르는 네 줄. 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
+export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: Room; now: number; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+  const [opened, setOpened] = useState<Lane[]>([]);
+  const groups = lanes.map((lane) => ({ lane, things: room.things.filter((thing) => laneOf(thing, room, now) === lane).sort((a, b) => b.size - a.size) }));
+  const titles: Record<Lane, [title: string, note: string, empty: string]> = {
+    new: ["새로 왔어요", "방을 만든 뒤 들어온 파일이에요.", "새 파일이 없어요."],
+    use: ["요즘 써요", "고정한 파일도 여기 머물러요.", "요즘 쓴 파일이 없어요."],
+    quiet: ["잠잠해요", `${room.care.staleAfterDays}일 넘게 안 썼어요. 주간 정리 때 물어볼게요.`, "오래 쉰 파일이 없어요."],
+    box: ["정리 상자", "지우지 않아요. 언제든 제자리로 돌릴 수 있어요.", "상자가 비어 있어요."],
   };
-  const cancelDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!drag.current) return;
-    drag.current = null;
-    event.currentTarget.style.translate = "";
-  };
-
   return (
-    <div className="room-frame" ref={frame}>
-      <div className="room-plane" style={{ width, height, transform: `scale(${scale})`, "--s": scale } as CSSProperties}>
-        <p id="plane-hint" className="sr-only">Enter로 고르고, 화살표로 옮겨요. 고른 물건에서 Enter를 한 번 더 누르면 파일을 열어요.</p>
-        <button type="button" className="shelf-chip" onClick={onOpenShelf}>선반 · 놓지 않은 물건 {shelfCount}</button>
-        {placed.length === 0 && (
-          <div className="plane-empty">
-            <strong>바닥이 비어 있어요</strong>
-            {shelfCount > 0 ? (
-              <>
-                <span>선반에 파일 {shelfCount}개가 있어요. 골라서 방에 놓아 보세요.</span>
-                <button type="button" onClick={onOpenShelf}>선반 열기</button>
-              </>
-            ) : (
-              <span>이 방에 놓을 파일이 아직 없어요.</span>
+    <div className="lanes">
+      <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
+      {groups.map(({ lane, things }) => {
+        const [title, note, empty] = titles[lane];
+        const shown = things.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
+        return (
+          <section key={lane} className={`lane lane-${lane}`} aria-labelledby={`lane-${lane}`}>
+            <div className="lane-head">
+              {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
+              <h2 id={`lane-${lane}`}>{title} <span className="lane-count">{things.length}</span></h2>
+              <p>{things.length ? note : empty}</p>
+            </div>
+            {shown.length > 0 && (
+              <ul className="lane-things">
+                {shown.map((thing, order) => (
+                  <li key={thing.id}>
+                    <LanePaper room={room} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-        )}
-        <button type="button" className="box-spot" style={{ left: boxAt.left, top: boxAt.top, zIndex: depth(boxSpot) }} onClick={onOpenBox} onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })} onPointerLeave={() => cue(room.id, { look: null })} aria-label={`정리 상자, ${boxCount}개 들어 있음`}>
-          <CardboardBox things={room.things.filter((thing) => thing.box)} />
-          <span className="tag"><b>정리 상자</b><span>{boxCount}개</span></span>
-        </button>
-        {placed.map((thing, order) => (
-          <ThingObject
-            key={thing.id}
-            thing={thing}
-            order={order}
-            size={size}
-            selected={thing.id === selectedId}
-            onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
-            onPointerLeave={() => cue(room.id, { look: null })}
-            onPointerDown={(event) => {
-              justDragged.current = false;
-              if (event.button !== 0) return;
-              drag.current = { id: thing.id, x: event.clientX, y: event.clientY, start: thing.spot!, moved: false };
-              event.currentTarget.setPointerCapture(event.pointerId);
-            }}
-            onPointerMove={(event) => {
-              const current = drag.current;
-              if (!current || current.id !== thing.id || event.buttons === 0) return;
-              if (!current.moved && Math.hypot(event.clientX - current.x, event.clientY - current.y) / scale < 4) return;
-              current.moved = true;
-              // 끌려가는 파일을 눈으로 따라갑니다.
-              cue(room.id, { look: { x: event.clientX, y: event.clientY } });
-              // 끄는 동안은 React를 다시 그리지 않고 화면에서만 옮깁니다(판 좌표 px, 벽 안쪽으로 잘라서).
-              const from = toScreen(current.start, size);
-              const to = toScreen(dropSpot(event, current), size);
-              event.currentTarget.style.translate = `${to.left - from.left}px ${to.top - from.top}px`;
-            }}
-            onPointerUp={(event) => {
-              const current = drag.current;
-              drag.current = null;
-              if (!current?.moved) return;
-              justDragged.current = true;
-              onMove(thing.id, dropSpot(event, current), true);
-              event.currentTarget.style.translate = "";
-            }}
-            onPointerCancel={cancelDrag}
-            onLostPointerCapture={cancelDrag}
-            onClick={() => {
-              if (justDragged.current) {
-                justDragged.current = false;
-                return;
-              }
-              onSelect(thing.id);
-            }}
-            onDoubleClick={() => onOpen(thing.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && thing.id === selectedId) {
-                event.preventDefault();
-                onOpen(thing.id);
-                return;
-              }
-              const move = keyMoves[event.key];
-              if (!move) return;
-              event.preventDefault();
-              onMove(thing.id, clampSpot({ x: thing.spot!.x + move.x, y: thing.spot!.y + move.y }), true);
-            }}
-          />
-        ))}
-      </div>
+            {things.length > shown.length &&
+              (opened.includes(lane) ? (
+                <p className="lane-more">큰 파일 {shownMost}개까지만 보여요.</p>
+              ) : (
+                <button type="button" className="lane-more" onClick={() => setOpened([...opened, lane])}>나머지 {(things.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
+              ))}
+          </section>
+        );
+      })}
     </div>
   );
 }
 
-function ThingObject({
-  thing,
-  order,
-  size: planeSize,
-  selected,
-  ...handlers
-}: {
-  thing: Thing;
-  order: number;
-  size: PlaneSize;
-  selected: boolean;
-} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onPointerEnter" | "onPointerLeave" | "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onLostPointerCapture" | "onClick" | "onDoubleClick" | "onKeyDown">) {
-  const at = toScreen(thing.spot!, planeSize);
-  const size = Math.round(60 * objectScale(thing.size));
-  // 종이마다 비율이 달라요. 버튼을 종이에 꼭 맞춰야 이름표와 포커스 테두리가 종이에 붙습니다.
-  const art = pickArt(thing.kind, thing.id);
-  const height = Math.round((size * art.h) / art.w);
-  // 종이마다 아주 살짝 다르게 놓입니다(상태와 헷갈리지 않을 만큼만).
-  const lean = ((thing.id.charCodeAt(0) + thing.id.charCodeAt(thing.id.length - 1)) % 5) - 2;
-  const short = thing.missing ? "파일 없음" : null;
+function LanePaper({ room, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+  const days = lane === "quiet" ? thingAge(thing, room.care, room.workDays, now).days : null;
   return (
     <button
       type="button"
-      className={`thing${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
-      style={{ left: at.left, top: at.top, width: size, height, marginLeft: -size / 2, marginTop: -height / 2, zIndex: depth(thing.spot!) }}
+      className={`lane-paper${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
+      style={{ "--i": Math.min(order, 16) } as CSSProperties}
       data-thing-id={thing.id}
-      data-tag={tagPlacement(thing.spot!)}
       aria-pressed={selected}
-      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${short ? `, ${short}` : ""}${thing.pinned ? ", 고정됨" : ""}`}
-      aria-describedby="plane-hint"
-      {...handlers}
+      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}`}
+      aria-describedby="lanes-hint"
+      onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
+      onPointerLeave={() => cue(room.id, { look: null })}
+      onClick={() => onSelect(thing.id)}
+      onDoubleClick={() => onOpen(thing.id)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" || !selected) return;
+        event.preventDefault();
+        onOpen(thing.id);
+      }}
     >
-      <span className="body" style={{ left: 0, top: 0, width: size, height, rotate: `${lean}deg`, "--i": Math.min(order, 16) } as CSSProperties}>
-        <ObjectShape kind={thing.kind} size={size} name={thing.name} seed={thing.id} />
+      <span className="lane-art">
+        <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} />
+        {/* 고른 파일에는 연필로 동그라미를 칩니다. */}
+        {selected && (
+          <svg className="hand-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path d="M20 12C42 0 82 2 94 30C104 58 84 92 50 96C18 100 0 74 4 44C7 24 26 6 60 5" />
+          </svg>
+        )}
       </span>
-      {/* 고른 물건에는 연필로 동그라미를 칩니다. 그림자 대신이에요. */}
-      {selected && (
-        <svg className="hand-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          <path d="M20 12C42 0 82 2 94 30C104 58 84 92 50 96C18 100 0 74 4 44C7 24 26 6 60 5" />
-        </svg>
-      )}
-      <span className="tag">
-        <b>{thing.name}</b>
-        <span>
-          {thing.pinned && <><Icon name="pin" size={12} /> 고정 · </>}
-          {formatBytes(thing.size)}{short && <em> · {short}</em>}
-        </span>
+      <span className="lane-meta">
+        {thing.pinned && <Icon name="pin" size={12} />}
+        {days !== null && <b>{days}일</b>}
+        {formatBytes(thing.size)}
+        {thing.missing && <em>파일 없음</em>}
       </span>
     </button>
   );

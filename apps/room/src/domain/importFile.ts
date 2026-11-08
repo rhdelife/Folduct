@@ -54,7 +54,7 @@ export function looksDone(files: ScannedFile[], now: number): boolean {
   return now - newest > doneAfterDays * dayMs;
 }
 
-// 빈 바닥보다는 최근에 고친 물건 몇 개를 먼저 들여놓습니다. 나머지는 선반에서 꺼내 놓으면 돼요.
+// 최근에 고친 물건 몇 개는 손댄 것으로 쳐서 ‘요즘 써요’ 줄에 세웁니다. 나머지는 처음 본 날부터 셉니다.
 export function buildRoom(input: {
   name: string;
   source: RoomSource;
@@ -68,7 +68,7 @@ export function buildRoom(input: {
   // 이미 있는 방의 얼굴. 되도록 겹치지 않게 고릅니다.
   taken?: RoomFace[];
 }): Room {
-  const things = input.files.map(newThing);
+  const things = input.files.map((file) => newThing(file, input.now));
   for (const thing of [...things].sort((a, b) => b.lastModified - a.lastModified).slice(0, 6)) {
     thing.spot = freeSpot(things, things.indexOf(thing));
     thing.touchedAt = input.now;

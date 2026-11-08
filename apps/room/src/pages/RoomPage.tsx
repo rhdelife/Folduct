@@ -8,12 +8,11 @@ import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState
 import { FrodoGuide } from "../components/FrodoGuide";
 import { BrandMark, Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
-import { KindLegend, SizeKey } from "../components/KindLegend";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
-import { boxFolderName, firstLine, isInBox, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
-import { clampSpot, freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, type Room, type ScannedFile, type Spot, type Thing } from "../domain/model";
+import { boxFolderName, firstLine, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
+import { freeSpot } from "../domain/plane";
+import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
@@ -22,9 +21,6 @@ import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 
 // 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
-const panels = ["thing", "shelf", "box"] as const;
-type Panel = (typeof panels)[number];
-
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
@@ -37,7 +33,7 @@ const folderIssues = {
 };
 // 창이 보이는 동안 폴더를 다시 읽는 간격(Home.tsx와 같은 값)
 const rereadEveryMs = 15_000;
-// 창이 좁아 서랍이 무대 아래로 쌓이는 폭(styles.css와 같은 값)
+// 창이 좁아 서랍이 줄 아래로 쌓이는 폭(styles.css와 같은 값)
 const stacked = "(max-width: 899.98px)";
 
 // 누른 버튼이 사라질 때는 다음 그림이 그려진 뒤 이어서 볼 곳으로 포커스를 옮깁니다.
@@ -56,7 +52,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [access, setAccess] = useState<Access | "none">("none");
   const [folderIssue, setFolderIssue] = useState<keyof typeof folderIssues | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<Panel>("shelf");
   // 지금 하고 있는 일(폴더 읽기, 옮기기)을 글자로 보여 줍니다. null이면 쉬는 중.
   const [busy, setBusy] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ thingId: string; state: ViewerState } | null>(null);
@@ -206,10 +201,10 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     };
   }, [handle, access]);
 
-  // 새 파일은 선반으로 들어가서 판만 보면 놓치기 쉬우니 알려 줍니다.
+  // 새 파일은 '새로 왔어요' 줄 맨 앞에 서요. 다른 일을 하다 놓치지 않게 알려 줍니다.
   function announceNew(scan: ScanResult) {
     const count = latest.current ? newFileCount(latest.current, scan.files, scan) : 0;
-    if (count > 0) toast(`새 파일 ${count.toLocaleString("ko-KR")}개가 들어왔어요. 선반에 있어요.`, { label: "선반 보기", run: () => setPanel("shelf") });
+    if (count > 0) toast(`새 파일 ${count.toLocaleString("ko-KR")}개가 들어왔어요. ‘새로 왔어요’ 줄에 있어요.`);
   }
 
   // 방에 들어오면 제목으로 포커스를 옮겨, 화면 읽기 프로그램이 어느 방인지 읽게 합니다.
@@ -412,51 +407,12 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       update((current) => ({ ...current, things: current.things.map((thing) => (thing.id === id ? { ...thing, ...result.patch, spot: thing.spot ?? freeSpot(current.things, 3) } : thing)) }), [id]);
       cue(roomId, { body: "wave", face: "happy", ms: 950 });
       toast("제자리로 돌려놓았어요.");
-      focusSoon("#room-drawer h2");
+      focusSoon(thingSelector(id));
     } catch {
       toast("제자리로 옮기지 못했어요. 잠시 뒤 다시 해 주세요.");
     } finally {
       setBusy(null);
     }
-  }
-
-  // 선반의 물건을 빈자리에 놓습니다. 여러 개면 하나씩 빈자리를 찾아 겹치지 않게 놓아요.
-  function place(ids: string[]) {
-    cue(roomId, { body: "hop", face: "happy", ms: 800 });
-    update((current) => {
-      let things = current.things;
-      ids.forEach((id, index) => {
-        const spot = freeSpot(things, things.length + index);
-        things = things.map((thing) => (thing.id === id ? { ...thing, spot } : thing));
-      });
-      return { ...current, things };
-    }, ids);
-  }
-
-  function shelve(thing: Thing) {
-    const spot = thing.spot;
-    cue(roomId, { body: "nod" });
-    patchThing(thing.id, { spot: null }, false);
-    focusSoon("#room-drawer h2");
-    toast("선반에 올려두었어요.", {
-      label: "되돌리기",
-      run: () => {
-        patchThing(thing.id, { spot }, false);
-        setSelectedId(thing.id);
-        setPanel("thing");
-        focusSoon(thingSelector(thing.id));
-      },
-    });
-  }
-
-  function moveTab(event: KeyboardEvent<HTMLDivElement>) {
-    const at = panels.indexOf(panel);
-    const to = ({ ArrowRight: at + 1, ArrowLeft: at - 1 + panels.length, Home: 0, End: panels.length - 1 } as Record<string, number | undefined>)[event.key];
-    if (to === undefined) return;
-    event.preventDefault();
-    const next = panels[to % panels.length];
-    setPanel(next);
-    document.getElementById(`tab-${next}`)?.focus();
   }
 
   if (missing) {
@@ -483,10 +439,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   if (!room) return <main><p className="loading" role="status">방을 불러오는 중…</p></main>;
 
   const usage = roomUsage(room);
-  const selected = room.things.find((thing) => thing.id === selectedId && thing.spot && !thing.box) ?? null;
-  const shelfCount = room.things.filter((thing) => !thing.spot && !thing.box).length;
-  const boxed = room.things.filter((thing) => thing.box);
-  const tabLabels: Record<Panel, string> = { thing: "물건", shelf: `선반 ${shelfCount}`, box: `정리 상자 ${boxed.length}` };
+  const selected = room.things.find((thing) => thing.id === selectedId) ?? null;
 
   return (
     <main className="room-page">
@@ -544,7 +497,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       </div>
 
       <div className="room-body">
-        <section className="room-stage-wrap" aria-label={`${room.name} 방. 물건을 끌거나 화살표 키로 옮길 수 있어요.`}>
+        <section className="room-stage-wrap" aria-label={`${room.name} 방. 파일이 새로 왔어요, 요즘 써요, 잠잠해요, 정리 상자 네 줄로 나뉘어 있어요.`}>
           <div className="room-capacity">
             <Capacity usage={usage} />
           </div>
@@ -554,74 +507,37 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             selectedId={selected?.id ?? null}
             onSelect={(id) => {
               setSelectedId(id);
-              setPanel("thing");
               cue(roomId, { body: "nod" });
-              // 서랍이 무대 아래로 쌓인 좁은 창에서는 고른 결과가 보이게 서랍을 끌어올립니다.
+              // 서랍이 줄 아래로 쌓인 좁은 창에서는 고른 결과가 보이게 서랍을 끌어올립니다.
               if (window.matchMedia(stacked).matches) side.current?.scrollIntoView({ block: "nearest" });
             }}
             onOpen={(id) => void openFile(id)}
-            onMove={(id, spot: Spot, commit) => {
-              patchThing(id, { spot }, commit);
-              if (commit) cue(roomId, { face: "happy", ms: 800, look: null });
-            }}
-            onOpenBox={() => setPanel("box")}
-            onOpenShelf={() => setPanel("shelf")}
           />
-          <div className="legend-strip">
-            <KindLegend kinds={room.things.filter((thing) => thing.spot && !thing.box).map((thing) => thing.kind)} />
-            <SizeKey />
-          </div>
         </section>
 
-        <aside className="side" ref={side}>
-          <div className="tabs" role="tablist" aria-label="방 서랍" onKeyDown={moveTab}>
-            {panels.map((key, at) => (
-              // 고른 탭에서 멀수록 어둡고 뒤로 갑니다(RoomPage.css).
-              <button key={key} id={`tab-${key}`} type="button" role="tab" aria-selected={panel === key} tabIndex={panel === key ? 0 : -1} data-away={Math.abs(at - panels.indexOf(panel))} onClick={() => setPanel(key)}>
-                {tabLabels[key]}
-              </button>
-            ))}
-          </div>
-          <div className="drawer" id="room-drawer" role="tabpanel" aria-labelledby={`tab-${panel}`}>
-            {panel === "thing" &&
-              (selected ? (
-                <ThingPanel
-                  room={room}
-                  thing={selected}
-                  now={now}
-                  folder={access === "granted" ? handle : null}
-                  onPatch={patchThing}
-                  onOpen={(id) => void openFile(id)}
-                  onShelve={shelve}
-                  onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
-                  onToast={toast}
-                />
-              ) : (
-                <div>
-                  <div className="drawer-head">
-                    <h2 tabIndex={-1}>물건</h2>
-                    <p className="soft">방 안 물건을 누르면 여기서 열거나 옮길 수 있어요.</p>
-                  </div>
-                </div>
-              ))}
-            {panel === "shelf" && (
-              <ShelfPanel
-                things={room.things}
+        <aside className="side" ref={side} aria-label="고른 파일">
+          <div className="drawer" id="room-drawer">
+            {selected?.box ? (
+              <BoxThingPanel thing={selected} busy={busy !== null} onRestore={(id) => void restore(id)} onCopy={copy} />
+            ) : selected ? (
+              <ThingPanel
+                room={room}
+                thing={selected}
+                now={now}
+                folder={access === "granted" ? handle : null}
+                onPatch={patchThing}
                 onOpen={(id) => void openFile(id)}
-                onPlace={(id) => {
-                  place([id]);
-                  setSelectedId(id);
-                  setPanel("thing");
-                  focusSoon(thingSelector(id));
-                }}
-                onPlaceMany={(ids) => {
-                  place(ids);
-                  toast(`방에 ${ids.length}개를 놓았어요.`);
-                  focusSoon("#shelf-search");
-                }}
+                onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
+                onToast={toast}
               />
+            ) : (
+              <div>
+                <div className="drawer-head">
+                  <h2 tabIndex={-1}>파일</h2>
+                  <p className="soft">줄 안의 파일을 누르면 여기서 열거나 고정할 수 있어요. 안 쓰는 파일은 저절로 ‘잠잠해요’ 줄로 옮겨 가요.</p>
+                </div>
+              </div>
             )}
-            {panel === "box" && <BoxPanel things={boxed} busy={busy !== null} onRestore={(id) => void restore(id)} onCopy={copy} />}
           </div>
         </aside>
       </div>
@@ -660,13 +576,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     </main>
   );
 }
-
-const nudges: [label: string, glyph: string, dx: number, dy: number][] = [
-  ["왼쪽으로 옮기기", "←", -0.5, 0],
-  ["위로 옮기기", "↑", 0, -0.5],
-  ["아래로 옮기기", "↓", 0, 0.5],
-  ["오른쪽으로 옮기기", "→", 0.5, 0],
-];
 
 // 서랍의 실제 이미지. 읽기만 하고 권한을 묻지 않으며 손댄 것으로 세지 않아요. 읽거나 그리지 못하면(HEIC 등) 조용히 숨깁니다.
 function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
@@ -727,7 +636,7 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   );
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onReveal, onToast }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onShelve: (thing: Thing) => void; onReveal?: (id: string) => void; onToast: (message: string) => void }) {
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void }) {
   const age = thingAge(thing, room.care, room.workDays, now);
   const last = lastActivity(thing);
   return (
@@ -756,98 +665,34 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onShelve, onRev
         {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
-        <button type="button" onClick={() => onShelve(thing)}>선반에 올려두기</button>
       </div>
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />
       </div>
-      {/* 끌기 없이 한 번씩 눌러서도 옮길 수 있게 합니다. */}
-      <div className="row">
-        <span className="soft" id="nudge-label">자리 옮기기</span>
-        <div className="nudge" role="group" aria-labelledby="nudge-label">
-          {nudges.map(([label, glyph, dx, dy]) => (
-            <button key={label} type="button" aria-label={label} title={label} onClick={() => onPatch(thing.id, { spot: clampSpot({ x: thing.spot!.x + dx, y: thing.spot!.y + dy }) })}>{glyph}</button>
-          ))}
+    </div>
+  );
+}
+
+// 정리 상자 줄에서 고른 파일. 상자에 넣은 날과 실제 자리를 보여 주고, 제자리로 돌릴 수 있어요.
+function BoxThingPanel({ thing, busy, onRestore, onCopy }: { thing: Thing; busy: boolean; onRestore: (id: string) => void; onCopy: (path: string) => Promise<boolean> }) {
+  const entry = thing.box!;
+  const note = firstLine(thing.note);
+  return (
+    <div className="thing-panel">
+      <div className="thing-head">
+        <span className="thing-icon"><ObjectShape kind={thing.kind} size={64} name={thing.name} seed={thing.id} /></span>
+        <div>
+          <h2 tabIndex={-1}>{thing.name}</h2>
+          <p className="soft">{kindLabels[thing.kind]} · {formatBytes(thing.size)} · {new Date(entry.at).toLocaleDateString("ko-KR")} 상자에 넣음</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-// 한 번에 '모두 놓기'로 놓는 최대 개수. 방 바닥이 한꺼번에 덮이지 않게 합니다.
-const placeLimit = 24;
-const collator = new Intl.Collator("ko");
-
-// 선반 목록은 이 탭이 열려 있을 때만 거르고 정렬합니다.
-function ShelfPanel({ things, onPlace, onPlaceMany, onOpen }: { things: Thing[]; onPlace: (id: string) => void; onPlaceMany: (ids: string[]) => void; onOpen: (id: string) => void }) {
-  const [query, setQuery] = useState("");
-  const shelf = things.filter((thing) => !thing.spot && !thing.box).sort((a, b) => collator.compare(a.path, b.path));
-  const needle = query.trim().toLowerCase();
-  const shown = needle ? shelf.filter((thing) => thing.path.toLowerCase().includes(needle)) : shelf;
-  return (
-    <div>
-      <div className="drawer-head">
-        <h2 tabIndex={-1}>선반 · 놓지 않은 물건 {shelf.length}</h2>
-        <p className="soft">폴더에 있지만 아직 방 바닥에 놓지 않은 파일이에요. 놓은 물건만 주간 정리 대상이 돼요.</p>
-        <label className="field">찾기 <input id="shelf-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="파일 이름이나 경로" /></label>
-        {needle && shown.length > 0 && (
-          <button type="button" onClick={() => onPlaceMany(shown.slice(0, placeLimit).map((thing) => thing.id))}>
-            {shown.length > placeLimit ? `찾은 ${shown.length}개 중 ${placeLimit}개 놓기` : `찾은 ${shown.length}개 모두 놓기`}
-          </button>
-        )}
+      {note && <p className="note-line">“{note}”</p>}
+      <p className="path">{entry.state === "virtual" ? "Folduct 안에서만 정리됨 · 실제 파일은 그대로" : entry.state === "boxed" ? entry.boxPath : "옮기던 중이에요. 폴더 접근을 허용하면 실제 위치를 확인해요."}</p>
+      <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? `${fileManagerName()}에서` : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
+      <div className="row wrap">
+        <button type="button" className="primary" disabled={busy || entry.state === "moving-in" || entry.state === "moving-out"} onClick={() => onRestore(thing.id)}>제자리로</button>
+        {entry.state === "boxed" && <button type="button" onClick={() => void onCopy(entry.boxPath)}>경로 복사</button>}
       </div>
-      <ul className="list">
-        {shown.slice(0, 200).map((thing) => (
-          <li key={thing.id}>
-            <ObjectShape kind={thing.kind} size={28} seed={thing.id} />
-            <div>
-              <strong>{thing.name}</strong>
-              <span className="soft" title={thing.path}>{formatBytes(thing.size)} · {thing.path}{isInBox(thing.path) && " · 정리 상자 폴더"}{thing.missing && " · 파일 없음"}</span>
-            </div>
-            <div className="col">
-              <button type="button" onClick={() => onPlace(thing.id)}>방에 놓기</button>
-              <button type="button" className="link" onClick={() => onOpen(thing.id)}>열기</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {shown.length > 200 && <p className="soft">처음 200개만 보여요. 찾기로 좁혀 주세요.</p>}
-      {needle && shown.length === 0 && shelf.length > 0 && <p className="soft">‘{query.trim()}’에 맞는 파일이 없어요.</p>}
-      {shelf.length === 0 && <p className="soft">선반이 비었어요. 모든 물건이 방에 나와 있어요.</p>}
-    </div>
-  );
-}
-
-function BoxPanel({ things, busy, onRestore, onCopy }: { things: Thing[]; busy: boolean; onRestore: (id: string) => void; onCopy: (path: string) => Promise<boolean> }) {
-  return (
-    <div>
-      <div className="drawer-head">
-        <h2 tabIndex={-1}>정리 상자 {things.length}</h2>
-        <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? `${fileManagerName()}에서` : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
-      </div>
-      {things.length === 0 ? <p className="soft">상자가 비어 있어요. 주간 정리 때 오래된 물건이 이곳에 모여요.</p> : (
-        <ul className="list">
-          {things.map((thing) => {
-            const entry = thing.box!;
-            const note = firstLine(thing.note);
-            return (
-              <li key={thing.id}>
-                <ObjectShape kind={thing.kind} size={28} seed={thing.id} />
-                <div>
-                  <strong>{thing.name}</strong>
-                  <span className="soft">{formatBytes(thing.size)} · {new Date(entry.at).toLocaleDateString("ko-KR")} 상자에 넣음</span>
-                  {note && <span className="note-line">“{note}”</span>}
-                  <span className="soft">{entry.state === "virtual" ? "Folduct 안에서만 정리됨 · 실제 파일은 그대로" : entry.state === "boxed" ? entry.boxPath : "옮기던 중이에요. 폴더 접근을 허용하면 실제 위치를 확인해요."}</span>
-                </div>
-                <div className="col">
-                  <button type="button" className="primary" disabled={busy || entry.state === "moving-in" || entry.state === "moving-out"} onClick={() => onRestore(thing.id)}>제자리로</button>
-                  {entry.state === "boxed" && <button type="button" onClick={() => void onCopy(entry.boxPath)}>경로 복사</button>}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </div>
   );
 }

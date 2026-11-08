@@ -43,6 +43,12 @@ describe("망가진 기록", () => {
     expect(fixed.things[1]).toMatchObject({ kind: "image", size: 0, lastModified: 0, lastUsedAt: null });
   });
 
+  it("처음 본 시각이 없는 옛 물건은 방을 만든 시각에 본 것으로 채운다(새 파일로 보이지 않게)", () => {
+    const old = { id: "t", path: "a.png", name: "a.png" };
+    const fixed = normalizeRoom({ ...room, things: [old, { ...old, id: "t2", seenAt: 9 }, { ...old, id: "t3", seenAt: "망가짐" }] });
+    expect(fixed.things.map((thing) => thing.seenAt)).toEqual([5, 9, 5]);
+  });
+
   it("이름·시각·칸이 없어도 방을 그릴 수 있다", () => {
     const fixed = normalizeRoom({ id: "r", rootName: "폴더", workDays: ["2026-11-01", 3], things: "망가짐", care: null, scan: null, face: "망가짐" });
     expect(fixed).toMatchObject({ name: "폴더", createdAt: 0, things: [], workDays: ["2026-11-01"], care: { done: false }, scan: { complete: false } });

@@ -55,8 +55,8 @@ export function relativeDay(at: number, now: number): string {
 
 // shortcut: 기기 시계만 믿습니다. 시계가 뒤로 가면 판정이 늦어질 뿐이고, 옮기기 전에는 항상 사용자 확인을 거칩니다.
 export function thingAge(thing: Thing, care: CareSettings, workDays: string[], now: number): { stale: boolean; days: number } {
-  if (thing.touchedAt === null) return { stale: false, days: 0 };
-  const last = lastActivity(thing);
+  // 방에서 손댄 적 없는 파일은 처음 본 날부터 셉니다. 오래된 폴더를 이어도 한꺼번에 오래됨이 되지 않아요.
+  const last = thing.touchedAt === null ? Math.max(lastActivity(thing), thing.seenAt) : lastActivity(thing);
   const days = Math.max(0, Math.floor((now - last) / dayMs));
   if (care.done || thing.pinned || thing.missing || thing.box) return { stale: false, days };
   // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
@@ -69,7 +69,18 @@ export function thingAge(thing: Thing, care: CareSettings, workDays: string[], n
 // 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
 export function sweepCandidates(room: Room, now: number): Thing[] {
   if (room.care.done) return [];
-  return room.things.filter((thing) => thing.spot && thingAge(thing, room.care, room.workDays, now).stale).sort((a, b) => b.size - a.size);
+  return room.things.filter((thing) => thingAge(thing, room.care, room.workDays, now).stale).sort((a, b) => b.size - a.size);
+}
+
+// 방 안 네 줄. 파일은 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자로 흘러갑니다.
+export type Lane = "new" | "use" | "quiet" | "box";
+export const lanes: Lane[] = ["new", "use", "quiet", "box"];
+
+// 새 파일: 방을 만든 뒤에 들어와 아직 방에서 열지 않은, 들어온 지 7일 안의 파일. 잠잠: 주간 정리 후보와 같은 기준이에요.
+export function laneOf(thing: Thing, room: Pick<Room, "care" | "workDays" | "createdAt">, now: number): Lane {
+  if (thing.box) return "box";
+  if (thing.touchedAt === null && thing.seenAt > room.createdAt && withinWeek(thing.seenAt, now)) return "new";
+  return thingAge(thing, room.care, room.workDays, now).stale ? "quiet" : "use";
 }
 
 // 있는 파일 중 마지막 활동. 파일이 없거나 활동을 모르면 0입니다.
@@ -153,7 +164,7 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
   const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false });
   const things = room.things.map((thing): Thing => {
     const entry = thing.box;
-    // 옮기던 중 멈춘 물건은 두 자리 다 이 물건 몫으로 잡아 선반에 중복이 생기지 않게 합니다. 실제 위치는 reconcileBox가 맞춥니다.
+    // 옮기던 중 멈춘 물건은 두 자리 다 이 물건 몫으로 잡아 같은 파일이 두 번 생기지 않게 합니다. 실제 위치는 reconcileBox가 맞춥니다.
     if (entry?.state === "moving-in" || entry?.state === "moving-out") {
       used.add(entry.fromPath);
       used.add(entry.boxPath);
@@ -170,7 +181,7 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
     used.add(found.path);
     return seen(thing, found);
   });
-  for (const file of files) if (!used.has(file.path)) things.push(newThing(file));
+  for (const file of files) if (!used.has(file.path)) things.push(newThing(file, now));
   const before = roomUsage(room).totalBytes;
   const next = { ...room, things, workDays: mergeActivityDays(room.workDays, things, now), scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
   next.scan.freedBytes = Math.max(0, before - roomUsage(next).totalBytes);
@@ -213,6 +224,6 @@ export function newFileCount(room: Room, files: ScannedFile[], scan: { complete:
   return files.filter((file) => !known.has(file.path) && !moved.has(file.path)).length;
 }
 
-export function newThing(file: ScannedFile): Thing {
-  return { id: newId(), path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: file.lastUsedAt ?? null, missing: false, spot: null, note: "", touchedAt: null, pinned: false, box: null };
+export function newThing(file: ScannedFile, now: number): Thing {
+  return { id: newId(), path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: file.lastUsedAt ?? null, missing: false, spot: null, note: "", touchedAt: null, seenAt: now, pinned: false, box: null };
 }

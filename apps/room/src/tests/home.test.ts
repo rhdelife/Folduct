@@ -7,7 +7,7 @@ import { clampMenu, isMenuKey, menuStep, swallowNextClick } from "../components/
 const start = new Date(2026, 9, 5, 12).getTime();
 
 function thing(id: string, patch: Partial<Thing> = {}): Thing {
-  return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, pinned: false, box: null, ...patch };
+  return { id, path: `${id}.png`, name: `${id}.png`, kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, seenAt: start, pinned: false, box: null, ...patch };
 }
 
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
@@ -80,20 +80,20 @@ describe("오른쪽 클릭 메뉴", () => {
 });
 
 describe("지도에 띄울 파일", () => {
-  it("바닥 물건부터, 그다음 선반의 큰 파일 순이고, 사라진 파일과 상자 속 파일은 뺀다", () => {
+  it("큰 파일 순이고(바닥에 놓였던 것도 따로 앞세우지 않아요), 사라진 파일과 상자 속 파일은 뺀다", () => {
     const placed = thing("placed", { size: 1 });
     const big = thing("big", { spot: null, size: 300 });
     const small = thing("small", { spot: null, size: 20 });
     const missing = thing("missing", { missing: true, size: 999 });
     const boxed = thing("boxed", { box: { state: "virtual", fromPath: "a", boxPath: "b", at: start }, size: 999 });
     const r = room([small, missing, placed, boxed, big]);
-    expect(pickStarThings(r, 40).map((item) => item.id)).toEqual(["placed", "big", "small"]);
-    expect(pickStarThings(r, 2).map((item) => item.id)).toEqual(["placed", "big"]);
+    expect(pickStarThings(r, 40).map((item) => item.id)).toEqual(["big", "small", "placed"]);
+    expect(pickStarThings(r, 2).map((item) => item.id)).toEqual(["big", "small"]);
   });
 });
 
 describe("방 정리 상태", () => {
-  it("바닥에 놓인, 상자 밖 물건만 오래됨으로 센다", () => {
+  it("상자 밖 물건만 오래됨으로 센다(바닥에 놓지 않았던 것도)", () => {
     const workDays = [localDay(start + dayMs)];
     const now = start + 31 * dayMs;
     const r = room(
@@ -105,6 +105,6 @@ describe("방 정리 상태", () => {
       ],
       { workDays: [...workDays, localDay(start + 5 * dayMs)] },
     );
-    expect(staleCount(r, now)).toBe(1);
+    expect(staleCount(r, now)).toBe(2);
   });
 });
