@@ -40,6 +40,7 @@ export function versionStem(name: string): string {
 
 const dirOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
 const baseOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+const extOf = (name: string) => (name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "");
 
 // 폴더 열쇠: 버전 번호가 붙은 폴더는 버전 없는 형제 폴더와 같은 자리로 봐요.
 // output/comic, output/comic-rough-marker-v2, output/comic-final-style-v4 → 모두 output/comic. 형제가 없으면 번호 앞까지(x-v1, x-v2 → x).
@@ -64,14 +65,15 @@ function folderKeys(dirs: Iterable<string>): Map<string, string> {
   return keys;
 }
 
-// 두 개 이상인 계열만 돌려줘요(계열 열쇠 → 새것부터 고친 순서). 같은 폴더(또는 버전 형제 폴더)·같은 형식·같은 줄기면 같은 계열이에요.
+// 두 개 이상인 계열만 돌려줘요(계열 열쇠 → 새것부터 고친 순서). 같은 폴더(또는 버전 형제 폴더)·같은 확장자·같은 줄기면 같은 계열이에요.
 // 다른 폴더의 README.md끼리는 묶이지 않아요. 상자에 든 파일은 넣지 않아요.
 export function groupVersions(things: Thing[]): Map<string, Thing[]> {
   const live = things.filter((thing) => !thing.box);
   const folders = folderKeys(live.map((thing) => dirOf(thing.path)));
   const all = new Map<string, Thing[]>();
   for (const thing of live) {
-    const key = `${folders.get(dirOf(thing.path))}\n${thing.kind}\n${versionStem(thing.name)}`;
+    // 형식이 같아도 확장자가 다르면 따로예요(셰이더 한 벌 .vert·.frag, icon.png·icon.ico, 같은 발표의 pptx·pdf).
+    const key = `${folders.get(dirOf(thing.path))}\n${extOf(thing.name)}\n${versionStem(thing.name)}`;
     all.set(key, [...(all.get(key) ?? []), thing]);
   }
   const groups = new Map<string, Thing[]>();

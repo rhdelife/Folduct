@@ -48,6 +48,9 @@ describe("버전 묶기", () => {
       ["deck-v2/a.pptx", "deck-v1/a.pptx"],
     ]);
   });
+  it("확장자가 다르면 묶지 않아요", () => {
+    expect(groupVersions([thing("geo/silhouette.frag", 1, { kind: "text" }), thing("geo/silhouette.vert", 2, { kind: "text" }), thing("icons/icon.png", 1), thing("icons/icon.ico", 2), thing("a/포스터.PNG", 1), thing("a/포스터_최종.png", 2)]).size).toBe(1);
+  });
   it("상자에 든 파일은 묶지 않아요", () => {
     const box = { fromPath: "a/포스터.png" } as unknown as Thing["box"];
     expect(groupVersions([thing("a/포스터.png", 1, { box }), thing("a/포스터_최종.png", 2)]).size).toBe(0);
