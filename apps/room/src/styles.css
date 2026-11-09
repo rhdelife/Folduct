@@ -2,6 +2,11 @@
 /* Hallmark · waive 7b · var(--surface) and --bg stay pure white across panels and the floor · the owner chose the pure white Folduct page over a tinted grey */
 /* Hallmark · waive 80 · div.intro-vase and every room on home are the duct character drawn in code, one figure per room · the duct is Folduct's mascot and stands for the room itself, chosen by the owner, so it is the product and not decoration */
 /* Hallmark · waive 28b · the video sits inside the file viewer dialog, opened on demand below everything, never the first paint · it plays the user's own file and Folduct has no frame of it to use as a poster */
+/* Hallmark · dismissed 3 · .banner.danger sets border-left: 0 further down, so the red stripe never paints */
+/* Hallmark · dismissed 29 · the owner asked for glass panels across the app on 2026-11-05 and the dialog backdrop blur belongs to that look */
+/* Hallmark · dismissed F7 · the pills are the sort and segment controls and the alert dot, and the repeated recipe is the one glass panel the owner chose */
+/* Hallmark · dismissed F24 · every sheet that paints overrides the base: windows set border: 0 and the menu sets box-shadow: none, so the hairline and the wide shadow never meet */
+/* Hallmark · dismissed 70 · the new-room form saves to IndexedDB on this device and the line reports that save; Folduct has no server */
 /* 글꼴은 Tauri 앱이 오프라인에서도 같게 보이도록 public/fonts에 파일로 둡니다(OFL, 라이선스 파일 동봉). 애플 사이트처럼 산세리프 하나로 씁니다. */
 @font-face { font-family: Pretendard; src: url("/fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: swap; }
 
@@ -312,6 +317,11 @@ h3 { font-weight: 700; }
 :where(button, .button):hover:where(:not(:disabled)) { border-color: var(--ink); }
 :where(button, .button):active:where(:not(:disabled)) { transform: translateY(1px); background-color: var(--surface-sunken); }
 :where(button):disabled { opacity: 0.45; background-color: var(--surface-sunken); cursor: not-allowed; }
+/* 손가락으로 누르는 화면에서는 누르는 자리를 44px 이상으로 키워요(Hallmark 앱 화면 기준). 마우스 화면은 그대로예요. */
+@media (pointer: coarse) {
+  :where(button, .button, select, input:not([type="checkbox"], [type="radio"], [type="range"])) { min-height: var(--control-lg); }
+  .home-actions button { min-width: var(--control-lg); }
+}
 :where(button, .button).primary { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
 :where(button, .button).primary:hover:where(:not(:disabled)) { background: var(--ink-hover); border-color: var(--ink-hover); }
 :where(button, .button).primary:active:where(:not(:disabled)) { background: var(--ink-pressed); }
@@ -1336,7 +1346,7 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .door-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 600; color: var(--ink); }
 .door-meta { min-width: 0; flex-wrap: nowrap; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); line-height: var(--lh-sm); font-weight: 400; color: var(--ink-soft); }
 .setting-door { display: grid; gap: var(--space-3); justify-items: start; padding-block: var(--space-3); border-top: 1px solid var(--line); }
-.setting-door strong { display: block; font-size: var(--text-md); line-height: var(--lh-md); }
+.setting-door :is(strong, h3) { display: block; font-size: var(--text-md); line-height: var(--lh-md); }
 .setting-door small { display: block; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .setting-door ul { display: grid; width: 100%; margin: 0; padding: 0; list-style: none; }
 .setting-door li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }

@@ -158,7 +158,7 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
         {isNative() && (
           <section className="setting-door" aria-labelledby="setting-door-title">
             <div>
-              <strong id="setting-door-title">현관</strong>
+              <h3 id="setting-door-title">현관</h3>
               <small>고른 폴더에 새로 생긴 문서를 첫 화면 위쪽에 모아 줘요. 방을 고른 문서만 옮겨요.</small>
             </div>
             {doorstep.folders.length > 0 && (

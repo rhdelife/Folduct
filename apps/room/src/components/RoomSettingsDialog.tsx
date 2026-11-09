@@ -84,7 +84,8 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
             <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
           </div>
         </fieldset>
-        <button type="button" className="danger" onClick={() => void forget()}>이 방을 Folduct에서 지우기 (파일은 그대로)</button>
+        <button type="button" className="danger" aria-describedby="forget-note" onClick={() => void forget()}>Folduct에서 이 방 지우기</button>
+        <p id="forget-note" className="soft">폴더와 파일은 그대로예요. 방 기록만 사라져요.</p>
       </div>
     </dialog>
   );
