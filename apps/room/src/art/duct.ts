@@ -343,10 +343,17 @@ export function drawFaceFrame(frame: number): DuctDrawing {
   return { viewBox: "-22 -18 44 36", items: [{ d: faceOval, tone: "ink" }, ...faceDraw[faceFrames[frame]](pen)] };
 }
 
-// 로고: 프로도 얼굴만. 흰 입구 테를 펜으로 두르고, 어두운 구멍에 기본 표정(base) 눈을 둡니다. 판 가운데에 놓도록 0,0이 얼굴 가운데예요.
+// 로고: 프로도 얼굴만. 치수는 판 824의 황금비 수열 g(n)=824/φⁿ 이에요.
+// 얼굴 폭 g1(좌우 여백 g2/2씩), 높이 g2+g4, 테 두께 g5, 펜 g7, 눈 g5×2g6·사이 g3, 눈높이는 가운데보다 g8 위.
+// 펜이 방 그림과 같은 결로 흔들리게 머리 반지름을 29칸으로 줄여 그리고, viewBox가 판 824 전체예요.
+const phi = (1 + Math.sqrt(5)) / 2;
+const g = (n: number) => 824 / phi ** n;
 export function drawBrandFace(): DuctDrawing {
-  const head = [0, 0, 29, 25];
-  return { viewBox: "-36 -36 72 72", items: [{ d: oval(head), tone: "white" }, ...makePen(1)(oval(head), 2.8), { d: faceOval, tone: "ink" }, ...lookBy(0, 0)] };
+  const u = (px: number) => (px * 29 * 2) / g(1);
+  const rim = [0, 0, u(g(1) / 2), u((g(2) + g(4)) / 2)];
+  const hole = [0, 0, rim[2] - u(g(5)), rim[3] - u(g(5))];
+  const eyes = [-1, 1].map((side) => ({ d: oval([u((side * g(3)) / 2), -u(g(8)), u(g(5) / 2), u(g(6))]), tone: "white" as const }));
+  return { viewBox: `${f1(-u(412))} ${f1(-u(412))} ${f1(u(824))} ${f1(u(824))}`, items: [{ d: oval(rim), tone: "white" }, ...makePen(1)(oval(rim), u(g(7))), { d: oval(hole), tone: "ink" }, ...eyes] };
 }
 
 // 커서가 어느 쪽에 있는지로 볼 곳을 고릅니다. 화면 좌표라 y는 아래가 +예요.
