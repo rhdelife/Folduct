@@ -343,6 +343,12 @@ export function drawFaceFrame(frame: number): DuctDrawing {
   return { viewBox: "-22 -18 44 36", items: [{ d: faceOval, tone: "ink" }, ...faceDraw[faceFrames[frame]](pen)] };
 }
 
+// 로고: 프로도 얼굴만. 흰 입구 테를 펜으로 두르고, 어두운 구멍에 기본 표정(base) 눈을 둡니다. 판 가운데에 놓도록 0,0이 얼굴 가운데예요.
+export function drawBrandFace(): DuctDrawing {
+  const head = [0, 0, 29, 25];
+  return { viewBox: "-36 -36 72 72", items: [{ d: oval(head), tone: "white" }, ...makePen(1)(oval(head), 2.8), { d: faceOval, tone: "ink" }, ...lookBy(0, 0)] };
+}
+
 // 커서가 어느 쪽에 있는지로 볼 곳을 고릅니다. 화면 좌표라 y는 아래가 +예요.
 const lookOrder: FaceExpr[] = ["lookR", "lookDR", "lookD", "lookDL", "lookL", "lookUL", "lookU", "lookUR"];
 export function lookExpr(dx: number, dy: number): FaceExpr {

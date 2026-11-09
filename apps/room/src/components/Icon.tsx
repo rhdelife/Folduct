@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { drawBrandFace } from "../art/duct";
 
 export type IconName = "sweep" | "import" | "pin" | "settings";
 
@@ -18,25 +19,16 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   );
 }
 
-// 빼꼼 프로도 로고(design/logo/folduct-symbol.svg). 판 아래에서 올라온 관이 F의 기둥, 머리로 꺾인 관이 윗줄, 열린 입구로 끝나는 가지가 가운뎃줄이에요.
-// 치수는 판 824의 황금비 수열(824/φⁿ)에서 나오고, 머리는 판의 황금 교차점에 있어요. 색은 흰 판(--surface)과 로고 전용 --brand 둘뿐이에요. size는 높이예요.
-const tube = ["M294.5 984L294.5 489A74.3 74.3 0 0 1 368.8 414.7L560.6 414.7", "M294.5 609.3L489 609.3"];
+// 프로도 얼굴 로고(design/logo/folduct-symbol.svg, scripts/make-logo.mjs). 흰 판 가운데에 방 그림과 같은 펜으로 그린 얼굴 하나예요.
+// 색은 흰 판(--surface)과 로고 전용 --brand 둘뿐이에요. size는 높이예요.
+const face = drawBrandFace();
 export function BrandMark({ size }: { size: number }) {
-  const plate = `brand-plate-${useId()}`;
   return (
     <svg className="mark" viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" focusable="false">
-      <clipPath id={plate}><rect x="100" y="100" width="824" height="824" rx="185" /></clipPath>
       <rect x="100" y="100" width="824" height="824" rx="185" fill="var(--surface)" />
-      <g clipPath={`url(#${plate})`} fill="none">
-        {tube.map((d) => <path key={d} d={d} stroke="var(--brand)" strokeWidth={155.3} />)}
-        {tube.map((d) => <path key={`in${d}`} d={d} stroke="var(--surface)" strokeWidth={120.2} />)}
-        <ellipse cx="489" cy="609.3" rx="28.4" ry="68.9" fill="var(--surface)" stroke="var(--brand)" strokeWidth={17.5} />
-        <ellipse cx="489" cy="609.3" rx="10.8" ry="51.3" fill="var(--brand)" />
-        <ellipse cx="609.3" cy="414.7" rx="97.3" ry="83.7" fill="var(--surface)" stroke="var(--brand)" strokeWidth={17.5} />
-        <ellipse cx="609.3" cy="414.7" rx="68.9" ry="55.3" fill="var(--brand)" />
-        <ellipse cx="572.1" cy="411.7" rx="16.7" ry="20" fill="var(--surface)" />
-        <ellipse cx="646.4" cy="410.7" rx="17.7" ry="21.2" fill="var(--surface)" />
-      </g>
+      <svg x="100" y="100" width="824" height="824" viewBox={face.viewBox}>
+        {face.items.map((item, i) => "d" in item && <path key={i} d={item.d} fill={item.tone === "ink" ? "var(--brand)" : "var(--surface)"} fillRule={item.even ? "evenodd" : undefined} />)}
+      </svg>
       <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="var(--line-strong)" strokeWidth={8} />
     </svg>
   );
