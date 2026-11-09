@@ -15,7 +15,7 @@ export function HomeHeader({ rooms, ready, overdue, newFiles, staleFiles, onWeek
       </div>
       <div className={`home-caption${awake ? " visible" : ""}`}>
         <div className="caption-layer">
-          <strong><Meta items={[`${active.length} ${active.length === 1 ? "Room" : "Rooms"}`, formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))]} /></strong>
+          <strong><Meta items={[`방 ${active.length}개`, formatBytes(active.reduce((sum, room) => sum + roomUsage(room).totalBytes, 0))]} /></strong>
           {/* 할 일이 없으면 둘째 줄을 비웁니다. */}
           {todo.length > 0 && <Meta items={todo} />}
         </div>

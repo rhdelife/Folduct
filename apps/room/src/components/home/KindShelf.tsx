@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ObjectShape } from "../../art/ObjectShape";
+import { fitName, ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
 import { kindShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
@@ -90,6 +90,8 @@ function ShelfPaper({ item, order, folder, onOpen }: { item: ShelfItem; order: n
         <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} picture={own ?? thumb} />
       </span>
       <span className="shelf-meta">
+        {/* 종이 위 이름은 작게 찍혀서, 여기 한 번 더 또렷하게 적어요. 가운데를 줄여 확장자가 남아요. */}
+        <span className="shelf-name">{fitName(thing.name, 6.4)[0]}</span>
         <span className="shelf-room">{room.name}</span>
         {versions > 1 && <b>버전 {versions}</b>}
       </span>
