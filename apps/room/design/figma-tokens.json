@@ -65,6 +65,14 @@
         "$type": "color",
         "$value": "#ffffff"
       },
+      "on-ink-hover": {
+        "$type": "color",
+        "$value": "#ffffff1f"
+      },
+      "on-ink-press": {
+        "$type": "color",
+        "$value": "#ffffff33"
+      },
       "brand": {
         "$type": "color",
         "$value": "#171717"
@@ -780,6 +788,14 @@
     }
   },
   "scene": {
+    "sheet-backdrop": {
+      "$type": "other",
+      "$value": "rgb(27 26 24 / 0.35)"
+    },
+    "sheet-backdrop-soft": {
+      "$type": "other",
+      "$value": "rgb(27 26 24 / 0.18)"
+    },
     "topbar-stacked-h": {
       "$type": "other",
       "$value": "100px"
@@ -947,10 +963,6 @@
     "empty-text": {
       "$type": "other",
       "$value": "max(var(--text-md), var(--hero-type))"
-    },
-    "label-track": {
-      "$type": "other",
-      "$value": "0.158em"
     },
     "punch-col": {
       "$type": "other",

@@ -111,7 +111,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
                 const plan = plans.find((item) => item.room.id === outcome.roomId);
                 return (
                   <li key={outcome.roomId}>
-                    <strong>{outcome.roomName}</strong> — {outcome.skipped ?? `${outcome.moved}개 ${outcome.mode === "virtual" ? "Folduct 안에서 정리 상자에 넣음" : "정리 상자로 옮김"} (${formatBytes(outcome.movedBytes)})`}
+                    <strong>{outcome.roomName}</strong>: {outcome.skipped ?? `${outcome.moved}개 ${outcome.mode === "virtual" ? "Folduct 안에서 정리 상자에 넣음" : "정리 상자로 옮김"} (${formatBytes(outcome.movedBytes)})`}
                     {outcome.skipped && plan && (
                       <div className="row">
                         <button type="button" onClick={() => void sweep([plan], outcome.roomId)} disabled={busy !== null}>{busy === outcome.roomId ? "옮기는 중…" : "권한 다시 요청하고 옮기기"}</button>

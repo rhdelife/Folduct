@@ -42,6 +42,8 @@
 | `color/neutral/line` | `#e6e2db` |  |
 | `color/neutral/line-strong` | `#d2ccc2` |  |
 | `color/neutral/on-ink` | `#ffffff` |  |
+| `color/neutral/on-ink-hover` | `#ffffff1f` |  |
+| `color/neutral/on-ink-press` | `#ffffff33` |  |
 | `color/neutral/brand` | `#171717` |  |
 | `color/neutral/stitch` | `#1b1a1838` |  |
 | `color/neutral/halo` | `{color.lightbox.2}` |  |
@@ -190,6 +192,8 @@
 
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
+| `scene/sheet-backdrop` | `rgb(27 26 24 / 0.35)` |  |
+| `scene/sheet-backdrop-soft` | `rgb(27 26 24 / 0.18)` |  |
 | `scene/topbar-stacked-h` | `100px` |  |
 | `scene/topbar-phone-h` | `112px` |  |
 | `scene/glass-blur` | `blur(24px) saturate(160%)` |  |
@@ -232,7 +236,6 @@
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |
 | `scene/empty-text` | `max(var(--text-md), var(--hero-type))` |  |
-| `scene/label-track` | `0.158em` |  |
 | `scene/punch-col` | `30px` |  |
 | `scene/rank-num-file` | `88px` |  |
 | `scene/rank-num-room` | `124px` |  |

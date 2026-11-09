@@ -28,7 +28,7 @@ function FaceSprite({ slot: [x, y, rx, ry], expr, faceRef }: { slot: DuctFaceSlo
     <>
       {/* 안쪽 svg의 상자는 시트 전체 폭으로 잡혀요. 얼굴 자리는 이 투명한 네모로 잽니다. */}
       <rect ref={faceRef} x={x - rx} y={y - ry} width={rx * 2} height={ry * 2} fill="none" />
-      <svg className="duct-face" x={x - rx} y={y - ry} width={rx * 2} height={ry * 2} viewBox={`${at * faceCell.width} 0 ${faceCell.width} ${faceCell.height}`} preserveAspectRatio="none">
+      <svg className="duct-face" aria-hidden="true" x={x - rx} y={y - ry} width={rx * 2} height={ry * 2} viewBox={`${at * faceCell.width} 0 ${faceCell.width} ${faceCell.height}`} preserveAspectRatio="none">
         <image href={faceSheet} width={faceCell.width * faceFrames.length} height={faceCell.height} />
       </svg>
     </>
