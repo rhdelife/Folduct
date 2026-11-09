@@ -76,12 +76,26 @@ export function sweepCandidates(room: Room, now: number): Thing[] {
 export type Lane = "new" | "use" | "quiet" | "box";
 export const lanes: Lane[] = ["new", "use", "quiet", "box"];
 
-// 새 파일: 방을 만든 뒤에 들어와 아직 방에서 열지 않은, 들어온 지 7일 안의 파일. 잠잠: 주간 정리 후보와 같은 기준이에요.
+// 실제 활동(방 안에서 손댄 때·고친 때·방 밖에서 연 때)에서 지난 날수. Folduct가 처음 본 날은 넣지 않아요.
+export const activityDays = (thing: Pick<Thing, "touchedAt" | "lastModified" | "lastUsedAt">, now: number): number => Math.max(0, Math.floor((now - lastActivity(thing)) / dayMs));
+
+// 새 파일: 방을 만든 뒤에 들어와 아직 방에서 열지 않은, 들어온 지 7일 안의 파일.
+// 잠잠: 실제 활동이 '오래됨 기준'(기본 30일)보다 오래된 파일. 화면은 파일 날짜대로 정직하게 나눠요.
+// 주간 정리 후보(thingAge)는 따로예요. 오래된 폴더를 이은 직후 한꺼번에 옮기자고 하지 않게, 거기서는 처음 본 날부터 세는 보호를 그대로 둬요.
 export function laneOf(thing: Thing, room: Pick<Room, "care" | "workDays" | "createdAt">, now: number): Lane {
   if (thing.box) return "box";
   if (thing.touchedAt === null && thing.seenAt > room.createdAt && withinWeek(thing.seenAt, now)) return "new";
-  return thingAge(thing, room.care, room.workDays, now).stale ? "quiet" : "use";
+  if (room.care.done || thing.pinned || thing.missing) return "use";
+  return activityDays(thing, now) >= room.care.staleAfterDays ? "quiet" : "use";
 }
+
+// 줄 안 순서: 새로 왔어요는 최근에 들어온 것, 요즘 써요는 최근에 쓴 것, 잠잠해요는 가장 오래 쉰 것, 상자는 최근에 넣은 것부터.
+export const laneOrder: Record<Lane, (a: Thing, b: Thing) => number> = {
+  new: (a, b) => b.seenAt - a.seenAt,
+  use: (a, b) => lastActivity(b) - lastActivity(a),
+  quiet: (a, b) => lastActivity(a) - lastActivity(b),
+  box: (a, b) => (b.box?.at ?? 0) - (a.box?.at ?? 0),
+};
 
 // 있는 파일 중 마지막 활동. 파일이 없거나 활동을 모르면 0입니다.
 export function roomLastActivity(room: Pick<Room, "things">): number {

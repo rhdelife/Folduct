@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
-import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
+import { activityDays, lastActivity, laneOf, laneOrder, lanes, relativeDay, type Lane } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
 import { stacksOf } from "../domain/versions";
@@ -41,7 +41,7 @@ export function CardboardBox({ things }: { things: Thing[] }) {
 
 // 종이를 그리는 크기. 화면에서는 styles.css의 --lane-paper 폭으로 줄이거나 늘립니다.
 const paperPx = 80;
-// 줄마다 처음엔 큰 파일부터 이만큼만, 더 보기를 누르면 shownMost개까지 그립니다(파일 수백 개짜리 폴더).
+// 줄마다 처음엔 앞에서부터 이만큼만, 더 보기를 누르면 shownMost개까지 그립니다(파일 수백 개짜리 폴더).
 const shownAtFirst = 24;
 const shownMost = 200;
 
@@ -58,7 +58,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   // 같은 파일을 여러 번 저장한 계열은 최신본 한 장만 그 줄에 두고, 옛 버전은 그 뒤에 겹쳐요(서랍의 버전 기록에서 찾아요). 찾는 중에는 모두 풀어요.
   const stacks = useMemo(() => stacksOf(room.things), [room.things]);
   const groups = lanes.map((lane) => {
-    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) && (!only || only.has(thing.id)) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) && (!only || only.has(thing.id)) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : laneOrder[lane]);
     return { lane, things, ...(searching ? { front: things, piles: [] } : splitLane(things)) };
   });
   // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.
@@ -75,9 +75,10 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
     if (farLane) setOpened((now) => (now.includes(farLane) ? now : [...now, farLane]));
   }, [selectedId, farLane]);
   const titles: Record<Lane, [title: string, note: string, empty: string]> = {
-    new: ["새로 왔어요", "방을 만든 뒤 들어온 파일이에요.", "새 파일이 없어요."],
-    use: ["요즘 써요", "고정한 파일도 여기 머물러요.", "요즘 쓴 파일이 없어요."],
-    quiet: ["잠잠해요", `${room.care.staleAfterDays}일 넘게 안 썼어요. 주간 정리 때 물어볼게요.`, "오래 쉰 파일이 없어요."],
+    // 줄 기준을 숫자로 적어요. '쓴 때'는 방 안에서 열거나 고른 때, 고친 때, 맥에서 방 밖으로 연 때 중 가장 늦은 때예요(care.ts laneOf).
+    new: ["새로 왔어요", "방을 만든 뒤 들어와 아직 안 연 파일이에요. 7일이 지나면 다음 줄로 가요.", "방을 만든 뒤 들어온 파일이 7일 동안 여기 머물러요."],
+    use: ["요즘 써요", `${room.care.staleAfterDays}일 안에 쓰거나 고친 파일이에요. 최근 것부터 놓여요.`, `${room.care.staleAfterDays}일 안에 쓴 파일이 없어요.`],
+    quiet: ["잠잠해요", `${room.care.staleAfterDays}일 넘게 쓰지도 고치지도 않았어요. 오래 쉰 것부터 놓여요. 주간 정리는 방을 만든 지 ${room.care.staleAfterDays}일 지난 파일부터 물어봐요.`, `${room.care.staleAfterDays}일 넘게 쉰 파일이 없어요.`],
     box: ["정리 상자", "지우지 않아요. 언제든 제자리로 돌릴 수 있어요.", "상자가 비어 있어요."],
   };
   return (
@@ -106,7 +107,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
             )}
             {front.length > shown.length &&
               (opened.includes(lane) ? (
-                <p className="lane-more">{searching ? `찾은 파일 중 ${shownMost}개까지만 보여요. 더 좁혀 주세요.` : `큰 파일 ${shownMost}개까지만 보여요.`}</p>
+                <p className="lane-more">{searching ? `찾은 파일 중 ${shownMost}개까지만 보여요. 더 좁혀 주세요.` : `앞에서 ${shownMost}개까지만 보여요. 나머지는 이름으로 찾아 주세요.`}</p>
               ) : (
                 <button type="button" className="lane-more" onClick={() => setOpened([...opened, lane])}>나머지 {(front.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
               ))}
@@ -148,7 +149,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
                     </ul>
                     {open.things.length > shownAtFirst &&
                       (openPile?.all ? (
-                        open.things.length > shownMost && <p className="lane-more">큰 파일 {shownMost}개까지만 보여요.</p>
+                        open.things.length > shownMost && <p className="lane-more">앞에서 {shownMost}개까지만 보여요.</p>
                       ) : (
                         <button
                           type="button"
@@ -201,7 +202,9 @@ function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: 
 
 // stack이 있으면 이 파일은 그 계열의 최신본이에요. 옛 버전 두 장을 뒤에 겹쳐 그리고 버전 수를 적어요.
 function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; stack?: Thing[]; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
-  const days = lane === "quiet" ? thingAge(thing, room.care, room.workDays, now).days : null;
+  // 종이 아래 날짜: 새 파일은 들어온 날, 잠잠한 파일은 쉰 날수, 나머지는 마지막으로 쓴 날. 상자는 서랍에서 보여요.
+  const days = lane === "quiet" ? activityDays(thing, now) : null;
+  const when = lane === "new" ? `${relativeDay(thing.seenAt, now)} 들어옴` : lane === "use" ? relativeDay(lastActivity(thing), now) : null;
   const self = useRef<HTMLButtonElement>(null);
   // 직접 고른 그림이 있으면 그게 먼저라, 파일은 읽지 않아요.
   const own = usePicture(thing.id);
@@ -215,7 +218,7 @@ function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onS
       style={{ "--i": Math.min(order, 16) } as CSSProperties}
       data-thing-id={thing.id}
       aria-pressed={selected}
-      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}${stack ? `, 버전 ${stack.length}개 중 최신` : ""}`}
+      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${when ? `, ${when}` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}${stack ? `, 버전 ${stack.length}개 중 최신` : ""}`}
       aria-describedby="lanes-hint"
       onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
       onPointerLeave={() => cue(room.id, { look: null })}
@@ -242,7 +245,8 @@ function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onS
       <span className="lane-meta">
         {thing.pinned && <Icon name="pin" size={12} />}
         {stack && <b>버전 {stack.length}</b>}
-        {days !== null && <b>{days}일</b>}
+        {days !== null && <b>{days}일째</b>}
+        {when && <span>{when}</span>}
         {formatBytes(thing.size)}
         {thing.missing && <em>파일 없음</em>}
       </span>

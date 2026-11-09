@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, laneOf, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, laneOf, laneOrder, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -106,6 +106,19 @@ describe("방 밖 작업", () => {
     expect(thingAge(thing({ touchedAt: null, lastModified: day(1), seenAt: day(40) }), defaultCare, [localDay(day(45))], day(60))).toEqual({ stale: false, days: 20 });
   });
 
+  it("오래된 폴더로 방을 막 만들어도 오래 쉰 파일은 바로 잠잠해요에 보이고, 주간 정리는 아직 묻지 않아요", () => {
+    const made = day(100);
+    const r = room([], { createdAt: made, workDays: [localDay(made)] });
+    const old = thing({ touchedAt: null, seenAt: made, lastModified: day(0) });
+    expect(laneOf(old, r, made + dayMs)).toBe("quiet");
+    expect(thingAge(old, r.care, r.workDays, made + dayMs).stale).toBe(false);
+    expect(laneOf(thing({ touchedAt: null, seenAt: made, lastModified: day(95) }), r, made + dayMs)).toBe("use");
+  });
+  it("줄 안 순서: 요즘 써요는 최근 것, 잠잠해요는 오래 쉰 것부터", () => {
+    const things = [thing({ id: "a", touchedAt: day(3) }), thing({ id: "b", touchedAt: day(9) }), thing({ id: "c", touchedAt: day(1) })];
+    expect([...things].sort(laneOrder.use).map((item) => item.id)).toEqual(["b", "a", "c"]);
+    expect([...things].sort(laneOrder.quiet).map((item) => item.id)).toEqual(["c", "a", "b"]);
+  });
   it("방 안 네 줄: 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자", () => {
     const r = room([], { workDays: [localDay(day(1)), localDay(day(45))] });
     const now = day(50);
@@ -113,7 +126,11 @@ describe("방 밖 작업", () => {
     expect(laneOf(thing({ touchedAt: null, seenAt: day(48) }), r, now)).toBe("new");
     expect(laneOf(thing({ touchedAt: day(49), seenAt: day(48) }), r, now)).toBe("use");
     expect(laneOf(thing({ touchedAt: null, seenAt: start, lastModified: day(49) }), r, now)).toBe("use");
-    expect(laneOf(thing({ touchedAt: null, seenAt: day(40) }), r, now)).toBe("use");
+    // 줄은 실제 날짜로 나눠요. 방을 만든 뒤 처음 봤어도 고친 지 오래면 잠잠해요(주간 정리 후보는 아직 아니에요).
+    expect(laneOf(thing({ touchedAt: null, seenAt: day(40) }), r, now)).toBe("quiet");
+    expect(thingAge(thing({ touchedAt: null, seenAt: day(40) }), r.care, r.workDays, now).stale).toBe(false);
+    // 홈에서 뺀 방은 잠잠해요로 보내지 않아요.
+    expect(laneOf(thing({ touchedAt: day(2) }), { ...r, care: { ...r.care, done: true } }, now)).toBe("use");
     expect(laneOf(thing({ touchedAt: day(2) }), r, now)).toBe("quiet");
     expect(laneOf(thing({ touchedAt: day(2), pinned: true }), r, now)).toBe("use");
     expect(laneOf(thing({ touchedAt: day(2), box: { state: "virtual", fromPath: "a", boxPath: "a", at: day(3) } }), r, now)).toBe("box");

@@ -30,7 +30,7 @@ function pileLabel(key: string): string {
   return folders.slice(Math.max(0, folders.findIndex(isBackFolder) - 1)).join("/");
 }
 
-// 줄 하나를 앞줄(사람이 찾는 파일)과 더미로 나눕니다. 고정한 파일은 늘 앞줄이에요. 들어온 순서(크기순)를 지키고, 더미는 큰 것부터예요.
+// 줄 하나를 앞줄(사람이 찾는 파일)과 더미로 나눕니다. 고정한 파일은 늘 앞줄이에요. 들어온 순서(줄마다 정한 날짜순)를 지키고, 더미는 큰 것부터예요.
 export function splitLane(things: Thing[]): { front: Thing[]; piles: Pile[] } {
   const front: Thing[] = [];
   const piles = new Map<string, Pile>();
