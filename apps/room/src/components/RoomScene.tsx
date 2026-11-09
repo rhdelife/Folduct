@@ -2,8 +2,9 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
 import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
-import { formatBytes, kindLabels, matchesName, type Room, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
+import { isSearching, matchesPath, searchOrder } from "../domain/search";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { useThumb } from "../storage/thumbs";
@@ -50,9 +51,11 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
   // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
+  // 찾는 중에는 폴더 이름까지 보고, 더미를 풀어 찾은 파일을 모두 앞줄에 둬요. 이름이 맞는 파일·맨 위에 가까운 파일이 먼저예요.
+  const searching = isSearching(query);
   const groups = lanes.map((lane) => {
-    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && matchesName(thing.name, query)).sort((a, b) => b.size - a.size);
-    return { lane, things, ...splitLane(things) };
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (!searching || matchesPath(thing, query))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
+    return { lane, things, ...(searching ? { front: things, piles: [] } : splitLane(things)) };
   });
   // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.
   // 화면에 그리기 전에 펼쳐야 RoomPage의 focusSoon(다음 프레임)이 그 파일을 찾아요. 펼친 뒤 사용자가 접으면 다시 펼치지 않아요.
@@ -62,6 +65,11 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
   useLayoutEffect(() => {
     if (holderId) setOpenPile((now) => (now?.id === holderId && (now.all || !holderFar) ? now : { id: holderId, all: holderFar }));
   }, [selectedId, holderId, holderFar]);
+  // 고른 파일이 앞줄에서 처음 보이는 수보다 뒤에 있으면(찾는 중이거나 상자에서 돌려놓은 파일) 그 줄을 펼쳐 보이게 하고 포커스가 가게 해요.
+  const farLane = selectedId === null ? undefined : groups.find(({ front }) => front.findIndex((thing) => thing.id === selectedId) >= shownAtFirst)?.lane;
+  useLayoutEffect(() => {
+    if (farLane) setOpened((now) => (now.includes(farLane) ? now : [...now, farLane]));
+  }, [selectedId, farLane]);
   const titles: Record<Lane, [title: string, note: string, empty: string]> = {
     new: ["새로 왔어요", "방을 만든 뒤 들어온 파일이에요.", "새 파일이 없어요."],
     use: ["요즘 써요", "고정한 파일도 여기 머물러요.", "요즘 쓴 파일이 없어요."],
@@ -81,7 +89,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
             <div className="lane-head">
               {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
               <h2 id={`lane-${lane}`}>{title} <span className="lane-count">{things.length}</span></h2>
-              <p>{things.length ? note : query.trim() ? "맞는 이름이 없어요." : empty}</p>
+              <p>{things.length ? note : searching ? "맞는 파일이 없어요." : empty}</p>
             </div>
             {shown.length > 0 && (
               <ul className="lane-things">
@@ -94,7 +102,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
             )}
             {front.length > shown.length &&
               (opened.includes(lane) ? (
-                <p className="lane-more">큰 파일 {shownMost}개까지만 보여요.</p>
+                <p className="lane-more">{searching ? `찾은 파일 중 ${shownMost}개까지만 보여요. 더 좁혀 주세요.` : `큰 파일 ${shownMost}개까지만 보여요.`}</p>
               ) : (
                 <button type="button" className="lane-more" onClick={() => setOpened([...opened, lane])}>나머지 {(front.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
               ))}

@@ -517,7 +517,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         <section className="room-stage-wrap" aria-label={`${room.name} 방. 파일이 새로 왔어요, 요즘 써요, 잠잠해요, 정리 상자 네 줄로 나뉘어 있어요.`}>
           <div className="room-capacity">
             {room.things.length > 0 && (
-              <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름으로 찾기" aria-label="이 방에서 파일 이름으로 찾기" />
+              <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름이나 폴더로 찾기" aria-label="이 방에서 파일 이름이나 폴더 이름으로 찾기" />
             )}
             <Capacity usage={usage} />
           </div>
