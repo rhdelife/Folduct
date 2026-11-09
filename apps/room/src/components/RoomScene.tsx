@@ -1,9 +1,12 @@
-import { useLayoutEffect, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
 import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
-import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, matchesName, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
+import type { Folder } from "../gateways/native";
+import { usePicture } from "../storage/pictures";
+import { useThumb } from "../storage/thumbs";
 import { Icon } from "./Icon";
 import { centerOf, cue } from "./useFrodo";
 
@@ -41,13 +44,14 @@ const shownAtFirst = 24;
 const shownMost = 200;
 
 // 방 안: 파일이 왼쪽에서 오른쪽(좁으면 위에서 아래)으로 흐르는 네 줄. 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
-export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: Room; now: number; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+// folder는 읽어도 되는 방 폴더예요(권한 없음·샘플이면 null). query가 있으면 이름이 맞는 파일만 남겨요.
+export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOpen }: { room: Room; now: number; folder: Folder | null; query: string; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   const [opened, setOpened] = useState<Lane[]>([]);
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
   // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
   const groups = lanes.map((lane) => {
-    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane).sort((a, b) => b.size - a.size);
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && matchesName(thing.name, query)).sort((a, b) => b.size - a.size);
     return { lane, things, ...splitLane(things) };
   });
   // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.
@@ -77,13 +81,13 @@ export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: R
             <div className="lane-head">
               {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
               <h2 id={`lane-${lane}`}>{title} <span className="lane-count">{things.length}</span></h2>
-              <p>{things.length ? note : empty}</p>
+              <p>{things.length ? note : query.trim() ? "맞는 이름이 없어요." : empty}</p>
             </div>
             {shown.length > 0 && (
               <ul className="lane-things">
                 {shown.map((thing, order) => (
                   <li key={thing.id}>
-                    <LanePaper room={room} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                    <LanePaper room={room} folder={folder} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
                   </li>
                 ))}
               </ul>
@@ -126,7 +130,7 @@ export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: R
                     <ul className="lane-things">
                       {open.things.slice(0, openPile?.all ? shownMost : shownAtFirst).map((thing, order) => (
                         <li key={thing.id}>
-                          <LanePaper room={room} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                          <LanePaper room={room} folder={folder} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
                         </li>
                       ))}
                     </ul>
@@ -177,11 +181,17 @@ function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: 
   );
 }
 
-function LanePaper({ room, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+function LanePaper({ room, folder, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   const days = lane === "quiet" ? thingAge(thing, room.care, room.workDays, now).days : null;
+  const self = useRef<HTMLButtonElement>(null);
+  // 직접 고른 그림이 있으면 그게 먼저라, 파일은 읽지 않아요.
+  const own = usePicture(thing.id);
+  const thumb = useThumb(self, own ? null : folder, thing);
   return (
     <button
+      ref={self}
       type="button"
+      title={thing.name}
       className={`lane-paper${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
       style={{ "--i": Math.min(order, 16) } as CSSProperties}
       data-thing-id={thing.id}
@@ -199,7 +209,7 @@ function LanePaper({ room, thing, lane, now, order, selected, onSelect, onOpen }
       }}
     >
       <span className="lane-art">
-        <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} />
+        <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} picture={own ?? thumb} />
         {/* 고른 파일에는 연필로 동그라미를 칩니다. */}
         {selected && (
           <svg className="hand-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">

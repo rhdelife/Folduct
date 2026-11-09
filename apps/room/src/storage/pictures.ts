@@ -65,7 +65,8 @@ export const pictureMaxPixels = 50_000_000;
 
 export class PictureError extends Error {}
 
-async function shrink(file: File): Promise<StoredPicture> {
+// 방 안 미리보기(storage/thumbs.ts)도 같은 길로 줄여요. max만 더 작아요.
+export async function shrink(file: File, max = pictureSide): Promise<StoredPicture> {
   if (file.size > pictureSourceLimit) throw new PictureError("이미지가 너무 커요. 40MB까지 고를 수 있어요.");
   const source = URL.createObjectURL(file);
   try {
@@ -77,7 +78,7 @@ async function shrink(file: File): Promise<StoredPicture> {
       image.src = source;
     });
     if (image.naturalWidth * image.naturalHeight > pictureMaxPixels) throw new PictureError("이미지가 너무 커요. 더 작은 이미지를 골라 주세요.");
-    const { width, height } = fitWithin(image.naturalWidth, image.naturalHeight);
+    const { width, height } = fitWithin(image.naturalWidth, image.naturalHeight, max);
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;

@@ -52,6 +52,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [access, setAccess] = useState<Access | "none">("none");
   const [folderIssue, setFolderIssue] = useState<keyof typeof folderIssues | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   // 지금 하고 있는 일(폴더 읽기, 옮기기)을 글자로 보여 줍니다. null이면 쉬는 중.
   const [busy, setBusy] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ thingId: string; state: ViewerState } | null>(null);
@@ -515,11 +516,16 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       <div className="room-body">
         <section className="room-stage-wrap" aria-label={`${room.name} 방. 파일이 새로 왔어요, 요즘 써요, 잠잠해요, 정리 상자 네 줄로 나뉘어 있어요.`}>
           <div className="room-capacity">
+            {room.things.length > 0 && (
+              <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름으로 찾기" aria-label="이 방에서 파일 이름으로 찾기" />
+            )}
             <Capacity usage={usage} />
           </div>
           <RoomScene
             room={room}
             now={now}
+            folder={room.source === "handle" && access === "granted" ? handle : null}
+            query={query}
             selectedId={selected?.id ?? null}
             onSelect={(id) => {
               setSelectedId(id);

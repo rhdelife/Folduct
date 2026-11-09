@@ -105,3 +105,9 @@ export function isSafeRelativePath(value: string): boolean {
 export function newId(): string {
   return crypto.randomUUID();
 }
+
+// 방 안 이름 찾기. 맥 파일 이름의 풀어쓴 한글(NFD)과 대소문자를 가리지 않고, 빈칸으로 나눈 낱말이 모두 들어 있어야 맞아요.
+export function matchesName(name: string, query: string): boolean {
+  const target = name.normalize("NFC").toLowerCase();
+  return query.normalize("NFC").toLowerCase().split(/\s+/).every((word) => target.includes(word));
+}
