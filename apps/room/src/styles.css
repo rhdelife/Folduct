@@ -924,6 +924,18 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 /* 서랍 내용은 회색 폴더 위에 놓은 흰 종이 한 장입니다. */
 .drawer > div { gap: var(--space-4); }
 .drawer > .thing-panel { padding: var(--space-4); background: var(--bg); }
+/* 버전 기록: 새것부터 시간순. 길면 서랍 안에서 스크롤해요. 지금 보는 버전은 굵은 글자와 테두리로 표시해요. */
+.drawer > .version-log { display: grid; gap: var(--space-2); padding: var(--space-4); background: var(--bg); }
+.version-log h3 { margin: 0; font-size: var(--text-sm); }
+.version-log ol { display: grid; gap: var(--space-1); max-height: calc(var(--space-12) * 6); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.version-row { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); width: 100%; padding: var(--space-2); border: var(--room-hair) solid transparent; border-radius: var(--radius-sm); background: none; text-align: left; }
+.version-row[aria-current="true"] { border-color: var(--ink); }
+.version-art { flex: none; width: var(--space-10); }
+.version-art .object { display: block; width: 100%; height: auto; }
+.version-text { display: grid; min-width: 0; font-size: var(--text-xs); color: var(--ink-caption); }
+.version-text b { overflow: hidden; font-size: var(--text-sm); font-weight: 500; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; }
+.version-row[aria-current="true"] .version-text b { font-weight: 700; }
+.version-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 목록 서랍은 표처럼 칸들만 폴더 위에 놓입니다. 머리글도, 맺음말도 칸 하나예요. */
 .drawer-head, .drawer > div:not(.thing-panel) > p { padding: var(--space-3); background: var(--bg); }
 .drawer-head { display: grid; gap: var(--space-2); }
@@ -977,7 +989,7 @@ button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
 .lane-piles-head { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; color: var(--ink-caption); }
 .lane-piles-head span { margin-left: var(--space-1); font-weight: 500; font-variant-numeric: tabular-nums; }
 .lane-piles > .lane-things, .lane-pile-open .lane-things { --lane-paper: calc(var(--space-8) * 2); }
-.lane-pile .lane-art > .object { position: relative; }
+.lane-pile .lane-art > .object, .lane-stack .lane-art > .object { position: relative; }
 .lane-pile-under { position: absolute; inset: 0; }
 .lane-pile-under-1 { translate: 9% -7%; rotate: 6deg; }
 .lane-pile-under-2 { translate: -8% -4%; rotate: -7deg; }

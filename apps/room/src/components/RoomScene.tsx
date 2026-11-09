@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
 import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
+import { groupVersions } from "../domain/versions";
 import { isSearching, matchesPath, searchOrder } from "../domain/search";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
@@ -53,8 +54,19 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
   // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
   // 찾는 중에는 폴더 이름까지 보고, 더미를 풀어 찾은 파일을 모두 앞줄에 둬요. 이름이 맞는 파일·맨 위에 가까운 파일이 먼저예요.
   const searching = isSearching(query);
+  // 같은 파일을 여러 번 저장한 계열은 최신본 한 장만 그 줄에 두고, 옛 버전은 그 뒤에 겹쳐요(서랍의 버전 기록에서 찾아요). 찾는 중에는 모두 풀어요.
+  const stacks = useMemo(() => {
+    const top = new Map<string, Thing[]>();
+    const under = new Set<string>();
+    for (const list of groupVersions(room.things).values()) {
+      top.set(list[0].id, list);
+      // 고정한 파일은 옛 버전이어도 줄에 그대로 둬요(자동 생성 더미와 같아요).
+      for (const old of list.slice(1)) if (!old.pinned) under.add(old.id);
+    }
+    return { top, under };
+  }, [room.things]);
   const groups = lanes.map((lane) => {
-    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (!searching || matchesPath(thing, query))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
     return { lane, things, ...(searching ? { front: things, piles: [] } : splitLane(things)) };
   });
   // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.
@@ -95,7 +107,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
               <ul className="lane-things">
                 {shown.map((thing, order) => (
                   <li key={thing.id}>
-                    <LanePaper room={room} folder={folder} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                    <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
                   </li>
                 ))}
               </ul>
@@ -138,7 +150,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
                     <ul className="lane-things">
                       {open.things.slice(0, openPile?.all ? shownMost : shownAtFirst).map((thing, order) => (
                         <li key={thing.id}>
-                          <LanePaper room={room} folder={folder} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                          <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
                         </li>
                       ))}
                     </ul>
@@ -189,7 +201,8 @@ function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: 
   );
 }
 
-function LanePaper({ room, folder, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+// stack이 있으면 이 파일은 그 계열의 최신본이에요. 옛 버전 두 장을 뒤에 겹쳐 그리고 버전 수를 적어요.
+function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; stack?: Thing[]; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   const days = lane === "quiet" ? thingAge(thing, room.care, room.workDays, now).days : null;
   const self = useRef<HTMLButtonElement>(null);
   // 직접 고른 그림이 있으면 그게 먼저라, 파일은 읽지 않아요.
@@ -200,11 +213,11 @@ function LanePaper({ room, folder, thing, lane, now, order, selected, onSelect, 
       ref={self}
       type="button"
       title={thing.name}
-      className={`lane-paper${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
+      className={`lane-paper${stack ? " lane-stack" : ""}${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
       style={{ "--i": Math.min(order, 16) } as CSSProperties}
       data-thing-id={thing.id}
       aria-pressed={selected}
-      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}`}
+      aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}${stack ? `, 버전 ${stack.length}개 중 최신` : ""}`}
       aria-describedby="lanes-hint"
       onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
       onPointerLeave={() => cue(room.id, { look: null })}
@@ -217,6 +230,9 @@ function LanePaper({ room, folder, thing, lane, now, order, selected, onSelect, 
       }}
     >
       <span className="lane-art">
+        {stack?.slice(1, 3).map((old, at) => (
+          <span key={old.id} className={`lane-pile-under lane-pile-under-${at + 1}`} aria-hidden="true"><ObjectShape kind={old.kind} size={paperPx} seed={old.id} /></span>
+        ))}
         <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} picture={own ?? thumb} />
         {/* 고른 파일에는 연필로 동그라미를 칩니다. */}
         {selected && (
@@ -227,6 +243,7 @@ function LanePaper({ room, folder, thing, lane, now, order, selected, onSelect, 
       </span>
       <span className="lane-meta">
         {thing.pinned && <Icon name="pin" size={12} />}
+        {stack && <b>버전 {stack.length}</b>}
         {days !== null && <b>{days}일</b>}
         {formatBytes(thing.size)}
         {thing.missing && <em>파일 없음</em>}

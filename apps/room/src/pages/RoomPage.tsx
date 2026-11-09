@@ -10,6 +10,7 @@ import { BrandMark, Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
 import { useToast } from "../components/Toast";
+import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
@@ -542,6 +543,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {selected?.box ? (
               <BoxThingPanel thing={selected} busy={busy !== null} onRestore={(id) => void restore(id)} onCopy={copy} />
             ) : selected ? (
+              <>
               <ThingPanel
                 room={room}
                 thing={selected}
@@ -553,6 +555,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onToast={toast}
                 onForget={forgetThing}
               />
+              <VersionLog room={room} thing={selected} folder={access === "granted" ? handle : null} now={now} onPick={setSelectedId} />
+              </>
             ) : (
               <div>
                 <div className="drawer-head">
