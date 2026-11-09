@@ -28,6 +28,8 @@ const doneShownMs = 20_000;
 const petPx = 104;
 // 커서를 읽는 주기. 앱이 뒤에 있으면 창에 호버가 오지 않아 위치를 직접 읽습니다.
 const cursorEveryMs = 150;
+// styles.css의 pet-untuck(--dur-3)보다 조금 길게 기다린 뒤 창 크기를 다시 맞춰요.
+const untuckMs = 400;
 const glanceEveryMs = 9_000;
 
 // 앱 화면과 따로 늘 떠 있는 작은 창. 주름관은 지금 하는 프로젝트이고, 자세가 지금 상태를 말해요. 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
@@ -36,6 +38,8 @@ export function Pet() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
+  // 메뉴 막대 아이콘으로 들어가거나(tuck) 나오는(untuck) 중. 창은 Rust가 미끄러뜨리고, 여기서는 프로도를 줄였다 키워요.
+  const [motion, setMotion] = useState<"tuck" | "untuck" | null>(null);
   const [pet, setPet] = useState<PetSettings>(defaultPet);
   const [asking, setAsking] = useState(false);
   const [door, setDoor] = useState<Doorstep | null>(null);
@@ -314,9 +318,9 @@ export function Pet() {
     };
   }, [working]);
 
-  // 투명한 자리도 클릭을 막으니 창을 내용에 딱 맞춥니다.
+  // 투명한 자리도 클릭을 막으니 창을 내용에 딱 맞춥니다. 줄었다 커지는 동안은 줄어든 크기를 재지 않아요.
   useLayoutEffect(() => {
-    if (!isNative() || !root.current) return;
+    if (!isNative() || !root.current || motion) return;
     const { width, height } = root.current.getBoundingClientRect();
     getCurrentWindow().setSize(new LogicalSize(Math.ceil(width), Math.ceil(height))).catch((error: unknown) => console.error(error));
   });
@@ -344,13 +348,49 @@ export function Pet() {
     invoke("show_main").catch((error: unknown) => console.error(error));
   }
 
-  function hide() {
+  // 숨기면 메뉴 막대 아이콘으로 들어가고, 아이콘을 누르면 다시 나와요. 앱의 환경설정 스위치도 따라오게 알려요.
+  function showOrHide(hidden: boolean, fromIcon = false) {
     setMenuOpen(false);
-    const next = { ...pet, hidden: true };
+    const next = { ...pet, hidden };
     setPet(next);
-    savePetSettings(next).catch((error: unknown) => console.error(error));
-    setPetVisible(false).catch((error: unknown) => console.error(error));
+    void (async () => {
+      try {
+        await savePetSettings(next);
+        await setPetVisible(!hidden, fromIcon);
+        await emit(petSettingsChanged);
+      } catch (error) {
+        console.error(error);
+      }
+    })();
   }
+  const hide = () => showOrHide(true);
+  // 들어가던 중에 다른 길(환경설정)로 다시 켜져도 프로도가 사라진 채로 남지 않게 합니다.
+  useEffect(() => {
+    if (!pet.hidden) setMotion((now) => (now === "tuck" ? null : now));
+  }, [pet.hidden]);
+
+  // 메뉴 막대 아이콘을 누르거나 그 메뉴에서 고르면 Rust가 알려 줍니다. 설정이 바뀔 때마다 새 설정으로 다시 들어요.
+  const toggleFromTray = useRef(showOrHide);
+  toggleFromTray.current = showOrHide;
+  useEffect(() => {
+    if (!isNative()) return;
+    let left = false;
+    const stops: (() => void)[] = [];
+    const add = (stop: () => void) => (left ? stop() : stops.push(stop));
+    void listen<boolean>("tray-pet", (event) => toggleFromTray.current(!event.payload, true)).then(add);
+    // 나오는 동작은 시간으로 끝냅니다. 움직임 줄이기에서는 애니메이션이 아예 돌지 않아 끝났다는 신호가 오지 않아요.
+    let settle = 0;
+    void listen<"tuck" | "untuck">("pet-motion", (event) => {
+      window.clearTimeout(settle);
+      setMotion(event.payload);
+      if (event.payload === "untuck") settle = window.setTimeout(() => setMotion((now) => (now === "untuck" ? null : now)), untuckMs);
+    }).then(add);
+    return () => {
+      left = true;
+      window.clearTimeout(settle);
+      for (const stop of stops) stop();
+    };
+  }, []);
 
   const choices = rooms.filter((item) => !item.care.done);
   const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
@@ -358,7 +398,7 @@ export function Pet() {
   const state = session ? session.status : "off";
   const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   return (
-    <main ref={root} className={`pet pet-${state}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
+    <main ref={root} className={`pet pet-${state}${motion ? ` pet-${motion}` : ""}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
       if (press.current) cue("pet", { body: "hop" });
       press.current = null;
     }}>

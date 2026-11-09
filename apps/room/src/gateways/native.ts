@@ -18,7 +18,8 @@ export const doorChanged = "door-changed";
 export const sessionEnded = "session-ended";
 export const workLogged = "work-logged";
 
-export const setPetVisible = (visible: boolean): Promise<void> => invoke("set_pet_visible", { visible });
+// fromIcon: 메뉴 막대 아이콘을 눌러 부른 때. 프로도가 그 아이콘 아래로 내려와요.
+export const setPetVisible = (visible: boolean, fromIcon = false): Promise<void> => invoke("set_pet_visible", { visible, fromIcon });
 
 
 const notFound = () => new DOMException("없음", "NotFoundError");

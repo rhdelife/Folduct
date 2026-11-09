@@ -1116,6 +1116,11 @@ html[data-window="pet"] body::after { display: none; }
 .pet { box-sizing: border-box; width: var(--pet-w); padding: var(--space-2); display: grid; justify-items: center; gap: var(--space-2); cursor: grab; -webkit-user-select: none; user-select: none; }
 :where(button).pet-vase { min-height: 0; padding: 0; border: 0; background: none; cursor: grab; }
 :where(button).pet-vase:hover:not(:disabled), :where(button).pet-vase:active:not(:disabled) { background: none; transform: none; }
+/* 메뉴 막대 아이콘으로 들어가고 나와요. 창은 Rust가 아이콘 쪽으로 옮기고(--dur-3과 같은 320ms), 여기서는 위 가운데로 줄였다 키워요. */
+.pet-tuck { transform-origin: 50% 0; animation: pet-tuck var(--dur-3) var(--ease-suck) forwards; }
+.pet-untuck { transform-origin: 50% 0; animation: pet-untuck var(--dur-3) var(--ease-spring); }
+@keyframes pet-tuck { to { transform: scale(0.15); opacity: 0; } }
+@keyframes pet-untuck { from { transform: scale(0.15); opacity: 0; } }
 .pet-pose { display: block; transform-origin: 50% 90%; animation: duct-pose var(--dur-3) var(--ease-spring); }
 .pet-pose > svg { display: block; width: var(--pet-vase); height: var(--pet-vase); overflow: visible; transform-origin: 50% 90%; animation: duct-breathe 2400ms ease-in-out infinite alternate; }
 .pet-working .pet-pose > svg { animation-duration: 1600ms; }

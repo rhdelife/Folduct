@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { removeFolder, type Doorstep } from "../domain/doorstep";
+import { trayPlaceName } from "../domain/platform";
 import { askChoices, defaultPet, type PetSettings } from "../domain/session";
 import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible } from "../gateways/native";
 import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn } from "../storage/db";
@@ -26,8 +27,18 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
     });
   }, [onError]);
 
+  // 플로팅 창이나 메뉴 막대 아이콘에서 숨기고 꺼내도 스위치가 따라와요. 묵은 값으로 덮어쓰지 않게 바뀔 때마다 다시 읽어요.
   useEffect(() => {
-    if (isNative()) getPetSettings().then(setPet, (error: unknown) => console.error(error));
+    if (!isNative()) return;
+    let left = false;
+    let stop: (() => void) | undefined;
+    const read = () => getPetSettings().then((saved) => !left && setPet(saved), (error: unknown) => console.error(error));
+    void read();
+    void listen(petSettingsChanged, () => void read()).then((unlisten) => (left ? unlisten() : (stop = unlisten)));
+    return () => {
+      left = true;
+      stop?.();
+    };
   }, []);
 
   function changePet(next: PetSettings) {
@@ -126,7 +137,7 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
             <label className="setting-row">
               <span>
                 <strong>플로팅 창</strong>
-                <small>어느 창에서든 작업을 시작하고 멈출 수 있게 작은 창을 띄워요.</small>
+                <small>어느 창에서든 작업을 시작하고 멈출 수 있게 작은 창을 띄워요. 끄면 {trayPlaceName()} 아이콘으로 들어가고, 아이콘을 누르면 다시 나와요.</small>
               </span>
               <input type="checkbox" role="switch" checked={!pet.hidden} onChange={(event) => changePet({ ...pet, hidden: !event.target.checked })} />
             </label>

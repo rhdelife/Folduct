@@ -11,6 +11,10 @@ export const currentOs = (): Os => osOf(typeof navigator === "undefined" ? "" : 
 const fileManagers: Record<Os, string> = { mac: "Finder", windows: "파일 탐색기", linux: "파일 관리자" };
 export const fileManagerName = (os = currentOs()): string => fileManagers[os];
 
+// 숨긴 플로팅 창이 들어가는 아이콘 자리. Linux 데스크톱은 알림 영역이 없을 수도 있어요.
+const trayPlaces: Record<Os, string> = { mac: "메뉴 막대", windows: "알림 영역", linux: "알림 영역" };
+export const trayPlaceName = (os = currentOs()): string => trayPlaces[os];
+
 const permissionHints: Record<Os, string> = {
   mac: "시스템 설정 > 개인정보 보호 및 보안 > 파일 및 폴더에서 허용해 주세요.",
   windows: "폴더 속성의 보안 탭과 Windows 보안의 ‘제어된 폴더 액세스’를 확인해 주세요.",

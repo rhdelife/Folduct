@@ -1,6 +1,11 @@
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-use tauri::{AppHandle, Manager, Runtime, WindowEvent};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::time::Duration;
+use tauri::image::Image;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewWindow, WindowEvent};
 use tauri_plugin_fs::FsExt;
 
 // 사용자가 고른 폴더(런타임 fs 스코프) 안의 경로만 받습니다. 스코프는 심볼릭 링크와 '..'를 풀어서 비교합니다.
@@ -33,15 +38,208 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
   }
 }
 
+// 메뉴 막대 아이콘. 숨긴 플로팅 창(프로도)은 이 아이콘으로 들어가고, 아이콘을 누르면 아래로 다시 나와요.
+const TRAY: &str = "folduct";
+const PET_GAP: f64 = 6.0;
+const GLIDE_STEPS: u32 = 20;
+const GLIDE_FRAME: Duration = Duration::from_millis(16);
+
+// tucked: 프로도가 아이콘으로 들어가 있어 나올 때 아이콘 아래에 세워야 하는지. turn: 보이기·숨기기를 부를 때마다 늘어, 늦게 끝난 미끄러짐을 멈춰요.
+struct PetTray<R: Runtime> {
+  toggle: MenuItem<R>,
+  tucked: AtomicBool,
+  turn: AtomicU32,
+}
+
+// 창 자리를 셈하는 단위. macOS는 전역 포인트예요. 디스플레이마다 배율이 달라 물리 픽셀로는 화면들이 하나로 이어지지 않아요.
+// Windows·Linux는 전역 물리 픽셀을 그대로 씁니다.
+const POINTS: bool = cfg!(target_os = "macos");
+
+// 메뉴 막대 아이콘이 놓인 창의 배율. 아이콘 자리는 이 배율을 곱한 물리 픽셀로 와요.
+#[cfg(target_os = "macos")]
+fn tray_scale<R: Runtime>(app: &AppHandle<R>) -> Option<f64> {
+  use std::ffi::{c_char, c_void};
+  #[link(name = "objc")]
+  unsafe extern "C" {
+    fn sel_registerName(name: *const c_char) -> *const c_void;
+    fn objc_msgSend();
+  }
+  app.tray_by_id(TRAY)?
+    .with_inner_tray_icon(|inner| {
+      let item = inner.ns_status_item()?;
+      unsafe {
+        let send_id: extern "C" fn(*const c_void, *const c_void) -> *const c_void = std::mem::transmute(objc_msgSend as *const ());
+        let send_f64: extern "C" fn(*const c_void, *const c_void) -> f64 = std::mem::transmute(objc_msgSend as *const ());
+        let button = send_id((&*item as *const _) as *const c_void, sel_registerName(c"button".as_ptr()));
+        let window = if button.is_null() { button } else { send_id(button, sel_registerName(c"window".as_ptr())) };
+        if window.is_null() {
+          return None;
+        }
+        let scale = send_f64(window, sel_registerName(c"backingScaleFactor".as_ptr()));
+        (scale > 0.0).then_some(scale)
+      }
+    })
+    .ok()
+    .flatten()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn tray_scale<R: Runtime>(_: &AppHandle<R>) -> Option<f64> {
+  Some(1.0)
+}
+
+// 메뉴 막대 아이콘의 화면 자리(x, y, 너비, 높이)를 셈 단위로. 아이콘이 없거나 자리를 모르는 곳(Linux)에서는 None이에요.
+fn tray_rect<R: Runtime>(app: &AppHandle<R>) -> Option<(f64, f64, f64, f64)> {
+  let rect = app.tray_by_id(TRAY)?.rect().ok()??;
+  let unit = tray_scale(app)?;
+  let at = rect.position.to_physical::<f64>(unit);
+  let size = rect.size.to_physical::<f64>(unit);
+  let unit = if POINTS { unit } else { 1.0 };
+  (size.width > 0.0).then_some((at.x / unit, at.y / unit, size.width / unit, size.height / unit))
+}
+
+// 아이콘이 있는 화면의 자리를 셈 단위로. 못 찾으면 주 화면이에요.
+fn screen_by_icon<R: Runtime>(pet: &WebviewWindow<R>, icon: (f64, f64, f64, f64)) -> (f64, f64, f64, f64) {
+  let (cx, cy) = (icon.0 + icon.2 / 2.0, icon.1 + icon.3 / 2.0);
+  let bounds = |m: &tauri::Monitor| {
+    let unit = if POINTS { m.scale_factor() } else { 1.0 };
+    (m.position().x as f64 / unit, m.position().y as f64 / unit, m.size().width as f64 / unit, m.size().height as f64 / unit)
+  };
+  let monitors = pet.available_monitors().unwrap_or_default();
+  monitors
+    .iter()
+    .map(bounds)
+    .find(|&(x, y, w, h)| cx >= x && cx < x + w && cy >= y && cy < y + h)
+    .or_else(|| pet.primary_monitor().ok().flatten().map(|m| bounds(&m)))
+    .unwrap_or((0.0, 0.0, f64::MAX, f64::MAX))
+}
+
+// 플로팅 창의 자리·크기를 셈 단위로 읽고 옮깁니다.
+fn pet_unit<R: Runtime>(pet: &WebviewWindow<R>) -> f64 {
+  if POINTS { pet.scale_factor().unwrap_or(1.0) } else { 1.0 }
+}
+
+fn pet_at<R: Runtime>(pet: &WebviewWindow<R>) -> Option<(f64, f64)> {
+  let at = pet.outer_position().ok()?;
+  let unit = pet_unit(pet);
+  Some((at.x as f64 / unit, at.y as f64 / unit))
+}
+
+fn put_pet<R: Runtime>(pet: &WebviewWindow<R>, (x, y): (f64, f64)) {
+  let _ = if POINTS { pet.set_position(tauri::LogicalPosition::new(x, y)) } else { pet.set_position(tauri::PhysicalPosition::new(x, y)) };
+}
+
+// 아이콘 아래 가운데에 세웁니다. 아이콘이 화면 아래쪽에 있으면(Windows 작업 표시줄) 위에 세워요. 화면 밖으로는 나가지 않아요.
+fn spot_by_icon(icon: (f64, f64, f64, f64), pet: (f64, f64), screen: (f64, f64, f64, f64), gap: f64) -> (f64, f64) {
+  let ((ix, iy, iw, ih), (pw, ph), (sx, sy, sw, sh)) = (icon, pet, screen);
+  let x = (ix + iw / 2.0 - pw / 2.0).clamp(sx, (sx + sw - pw).max(sx));
+  let y = if iy + ih / 2.0 < sy + sh / 2.0 { iy + ih + gap } else { iy - ph - gap };
+  (x, y.clamp(sy, (sy + sh - ph).max(sy)))
+}
+
+// 창을 조금씩 옮깁니다. 그사이 다시 보이기·숨기기를 누르면 멈추고, 숨기러 간 길이었으면 끝에서 창을 감춰요.
+// 출발점은 받아서 씁니다. 방금 옮기라고 한 자리가 아직 창에 반영되지 않았을 수 있어요.
+fn glide<R: Runtime>(pet: WebviewWindow<R>, from: (f64, f64), to: (f64, f64), hide_after: bool) {
+  let turn = pet.state::<PetTray<R>>().turn.load(Ordering::SeqCst);
+  std::thread::spawn(move || {
+    let still = || pet.state::<PetTray<R>>().turn.load(Ordering::SeqCst) == turn;
+    for step in 1..=GLIDE_STEPS {
+      if !still() {
+        return;
+      }
+      let t = step as f64 / GLIDE_STEPS as f64;
+      let eased = if hide_after { t * t } else { 1.0 - (1.0 - t) * (1.0 - t) };
+      put_pet(&pet, (from.0 + (to.0 - from.0) * eased, from.1 + (to.1 - from.1) * eased));
+      std::thread::sleep(GLIDE_FRAME);
+    }
+    if hide_after && still() {
+      let _ = pet.hide();
+    }
+  });
+}
+
+// 로고(design/logo/folduct-symbol.svg)를 36px로 그린 RGBA 날 픽셀이에요. 흰 판이 있어 어두운·밝은 메뉴 막대 모두에서 보여요.
+// PNG를 풀려면 image 크레이트가 더 들어와서 날 픽셀로 둡니다. 로고를 바꾸면 이 파일도 다시 내보내요.
+const TRAY_LOGO: &[u8] = include_bytes!("../icons/tray-logo.rgba");
+
+// 메뉴 글자를 지금 상태에 맞춥니다.
+fn mark_tray<R: Runtime>(app: &AppHandle<R>, out: bool) {
+  if let Some(tray) = app.try_state::<PetTray<R>>() {
+    let _ = tray.toggle.set_text(if out { "플로팅 창 숨기기" } else { "플로팅 창 보이기" });
+  }
+}
+
+// 아이콘이나 메뉴로 보이기·숨기기를 부르면 플로팅 창에 맡깁니다. 숨김 설정 저장과 애니메이션은 그 창이 해요.
+fn ask_pet_toggle<R: Runtime>(app: &AppHandle<R>) {
+  if let Some(pet) = app.get_webview_window("pet") {
+    let _ = app.emit_to("pet", "tray-pet", !pet.is_visible().unwrap_or(false));
+  }
+}
+
+fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+  let toggle = MenuItem::with_id(app, "pet", "플로팅 창 보이기", true, None::<&str>)?;
+  let open = MenuItem::with_id(app, "main", "Folduct 열기", true, None::<&str>)?;
+  let quit = MenuItem::with_id(app, "quit", "끝내기", true, None::<&str>)?;
+  let menu = Menu::with_items(app, &[&toggle, &open, &PredefinedMenuItem::separator(app)?, &quit])?;
+  TrayIconBuilder::with_id(TRAY)
+    .icon(Image::new(TRAY_LOGO, 36, 36))
+    .tooltip("Folduct")
+    .menu(&menu)
+    // 누르면 프로도가 나오거나 들어가고, 메뉴는 오른쪽 클릭으로 열어요.
+    .show_menu_on_left_click(false)
+    .on_menu_event(|app, event| match event.id.as_ref() {
+      "pet" => ask_pet_toggle(app),
+      "main" => show_main_window(app),
+      "quit" => app.exit(0),
+      _ => {}
+    })
+    .on_tray_icon_event(|tray, event| {
+      if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+        ask_pet_toggle(tray.app_handle());
+      }
+    })
+    .build(app)?;
+  app.manage(PetTray { toggle, tucked: AtomicBool::new(false), turn: AtomicU32::new(0) });
+  Ok(())
+}
+
 // 숨김 설정을 읽은 뒤에 띄우려고 처음에는 숨겨 둡니다. 띄워도 사용자가 쓰던 메인 창의 포커스는 뺏지 않아요.
+// 메뉴 막대 아이콘이 있으면 숨길 때 그 아이콘으로 미끄러져 들어가고, 다시 띄울 때 아이콘 아래로 내려와요.
 #[tauri::command]
-fn set_pet_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
+fn set_pet_visible<R: Runtime>(app: AppHandle<R>, visible: bool, from_icon: Option<bool>) -> Result<(), String> {
   let pet = app.get_webview_window("pet").ok_or("플로팅 창이 없어요.")?;
+  let tray = app.try_state::<PetTray<R>>();
+  if let Some(tray) = &tray {
+    tray.turn.fetch_add(1, Ordering::SeqCst);
+  }
+  mark_tray(&app, visible);
+  let icon = tray_rect(&app);
+  let size = pet.outer_size().map_err(|e| e.to_string())?;
+  let unit = pet_unit(&pet);
+  let (pw, ph) = (size.width as f64 / unit, size.height as f64 / unit);
   if !visible {
+    if let (Some(tray), Some((ix, iy, iw, ih)), Some(from), true) = (&tray, icon, pet_at(&pet), pet.is_visible().unwrap_or(false)) {
+      tray.tucked.store(true, Ordering::SeqCst);
+      let _ = app.emit_to("pet", "pet-motion", "tuck");
+      glide(pet, from, (ix + iw / 2.0 - pw / 2.0, iy + ih / 2.0), true);
+      return Ok(());
+    }
     return pet.hide().map_err(|e| e.to_string());
   }
   let main = app.get_webview_window("main").filter(|window| window.is_focused().unwrap_or(false));
-  pet.show().map_err(|e| e.to_string())?;
+  // 아이콘에서 나오는 때: 아이콘으로 들어가 있었거나, 아이콘을 눌러 불렀을 때(숨긴 채 켠 뒤 처음 부를 때도요).
+  let tucked = tray.as_ref().is_some_and(|tray| tray.tucked.swap(false, Ordering::SeqCst));
+  match icon.filter(|_| tucked || from_icon == Some(true)) {
+    Some(icon) => {
+      let to = spot_by_icon(icon, (pw, ph), screen_by_icon(&pet, icon), PET_GAP * if POINTS { 1.0 } else { pet.scale_factor().unwrap_or(1.0) });
+      let from = (to.0, icon.1 + icon.3 / 2.0);
+      put_pet(&pet, from);
+      let _ = app.emit_to("pet", "pet-motion", "untuck");
+      pet.show().map_err(|e| e.to_string())?;
+      glide(pet, from, to, false);
+    }
+    None => pet.show().map_err(|e| e.to_string())?,
+  }
   if let Some(main) = main {
     let _ = main.set_focus();
   }
@@ -270,6 +468,10 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file])
     .setup(|_app| {
+      // 아이콘을 못 만들어도(알림 영역이 없는 데스크톱 등) 앱은 그대로 씁니다. 숨긴 프로도는 환경설정에서 다시 켜요.
+      if let Err(error) = build_tray(_app.handle()) {
+        eprintln!("메뉴 막대 아이콘을 만들지 못했어요: {error}");
+      }
       if let Some(pet) = _app.get_webview_window("pet") {
         place_pet_top_right(&pet);
         #[cfg(target_os = "macos")]
@@ -298,6 +500,19 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn pet_lands_by_the_tray_icon_inside_the_screen() {
+    let screen = (0.0, 0.0, 2880.0, 1800.0);
+    // macOS 메뉴 막대: 아이콘 바로 아래 가운데.
+    assert_eq!(spot_by_icon((2000.0, 0.0, 44.0, 48.0), (400.0, 360.0), screen, 12.0), (1822.0, 60.0));
+    // 오른쪽 끝 아이콘이라도 화면 밖으로 나가지 않아요.
+    assert_eq!(spot_by_icon((2860.0, 0.0, 20.0, 48.0), (400.0, 360.0), screen, 12.0).0, 2480.0);
+    // Windows 작업 표시줄(아래): 아이콘 위에 세워요.
+    assert_eq!(spot_by_icon((2000.0, 1760.0, 40.0, 40.0), (400.0, 360.0), screen, 12.0), (1820.0, 1388.0));
+    // 창보다 좁은 화면이어도 왼쪽 위 끝에 붙고 터지지 않아요.
+    assert_eq!(spot_by_icon((10.0, 0.0, 20.0, 20.0), (400.0, 360.0), (0.0, 0.0, 300.0, 200.0), 6.0), (0.0, 0.0));
+  }
   use serde_json::{Value, json};
   use tauri::test::MockRuntime;
 
