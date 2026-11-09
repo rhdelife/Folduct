@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { mainHue, type Hue } from "../domain/hue";
 import type { Room, Thing } from "../domain/model";
 import { folderAccess, readFolderFile, type Folder } from "../gateways/native";
 import { roomFolder } from "./box";
@@ -17,6 +18,8 @@ const rawEnds = ["dng", "cr2", "cr3", "nef", "arw", "raw"];
 
 // null은 읽거나 그리지 못한 파일이에요. 다시 시도하지 않고 기본 그림으로 둬요.
 const made = new Map<string, string | null>();
+// 미리보기에서 뽑은 가장 넓은 색. 글자 몇 개라 버리지 않아요. null은 색을 못 읽은 이미지예요.
+const huesMade = new Map<string, Hue | null>();
 const pending = new Set<string>();
 const queue: (() => Promise<void>)[] = [];
 let running = 0;
@@ -40,8 +43,9 @@ export function coverOf(room: Pick<Room, "things">): Thing | null {
 // 파일을 고치면 수정 시각이 바뀌어 새로 읽어요.
 const keyOf = (thing: Thing) => `${thing.id}:${thing.lastModified}`;
 
-function remember(key: string, url: string | null) {
+function remember(key: string, url: string | null, hue: Hue | null) {
   made.set(key, url);
+  huesMade.set(key, hue);
   for (const [old, oldUrl] of made) {
     if (made.size <= keep) break;
     made.delete(old);
@@ -61,19 +65,34 @@ function pump() {
   }
 }
 
-function request(key: string, read: () => Promise<File>) {
-  if (made.has(key) || pending.has(key)) return;
+// 24×24로 한 번 더 줄여 화소를 세요.
+async function hueFrom(blob: Blob): Promise<Hue | null> {
+  const bitmap = await createImageBitmap(blob, { resizeWidth: 24, resizeHeight: 24 });
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 24;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context?.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return context ? mainHue(context.getImageData(0, 0, 24, 24).data) : null;
+}
+
+function request(key: string, read: () => Promise<File>, force = false) {
+  // 미리보기를 버렸어도 색을 이미 알면, 색만 원할 때는 다시 읽지 않아요.
+  if (made.has(key) || pending.has(key) || (!force && huesMade.has(key))) return;
   pending.add(key);
   queue.push(async () => {
     let url: string | null = null;
+    let hue: Hue | null = null;
     try {
       const small = await shrink(await read(), thumbSide);
-      url = URL.createObjectURL(new Blob([small.bytes], { type: small.type }));
+      const blob = new Blob([small.bytes], { type: small.type });
+      url = URL.createObjectURL(blob);
+      hue = await hueFrom(blob).catch(() => null);
     } catch {
       // HEIC를 못 그리는 화면, 깨진 파일, 그사이 사라진 파일. 기본 그림으로 둬요.
     }
     pending.delete(key);
-    remember(key, url);
+    remember(key, url, hue);
   });
   pump();
 }
@@ -96,7 +115,7 @@ export function useThumb(ref: RefObject<Element | null>, folder: Folder | null, 
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         observer.disconnect();
-        request(key, () => readFolderFile(folder, path));
+        request(key, () => readFolderFile(folder, path), true);
       },
       { rootMargin: "200px" },
     );
@@ -104,6 +123,20 @@ export function useThumb(ref: RefObject<Element | null>, folder: Folder | null, 
     return () => observer.disconnect();
   }, [ref, wanted, folder, key, path]);
   return url;
+}
+
+// 색으로 볼 때만 켜요(on). 화면 밖 이미지도 3장씩 읽어 색을 세요. hues는 이미지 id → 색이고, 아직 못 읽은 이미지는 빠져요. total은 색을 읽을 수 있는 이미지 수예요.
+export function useHues(folder: Folder | null, things: Thing[], on: boolean): { hues: Map<string, Hue | null>; total: number } {
+  const all = folder ? things.filter((thing) => !thing.box && canThumb(thing)) : [];
+  const images = on ? all : [];
+  const version = useSyncExternalStore(subscribe, () => huesMade.size, () => 0);
+  useEffect(() => {
+    if (folder) for (const thing of images) request(keyOf(thing), () => readFolderFile(folder, thing.path));
+  }, [folder, images.map(keyOf).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const found = new Map<string, Hue | null>();
+  for (const thing of images) if (huesMade.has(keyOf(thing))) found.set(thing.id, huesMade.get(keyOf(thing))!);
+  void version;
+  return { hues: found, total: all.length };
 }
 
 // 권한을 묻지 않고 지금 읽을 수 있는 방 폴더들(방 id → 폴더). 샘플 방이나 브라우저에서 권한이 없는 방은 빠져요.

@@ -47,17 +47,18 @@ const shownMost = 200;
 
 // 방 안: 파일이 왼쪽에서 오른쪽(좁으면 위에서 아래)으로 흐르는 네 줄. 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
 // folder는 읽어도 되는 방 폴더예요(권한 없음·샘플이면 null). query가 있으면 이름이 맞는 파일만 남겨요.
-export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOpen }: { room: Room; now: number; folder: Folder | null; query: string; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+// only가 있으면(색으로 보기) 그 파일만 남기고, 찾을 때처럼 더미와 버전 겹침을 풀어요.
+export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   const [opened, setOpened] = useState<Lane[]>([]);
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
   // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
   // 찾는 중에는 폴더 이름까지 보고, 더미를 풀어 찾은 파일을 모두 앞줄에 둬요. 이름이 맞는 파일·맨 위에 가까운 파일이 먼저예요.
-  const searching = isSearching(query);
+  const searching = isSearching(query) || only !== null;
   // 같은 파일을 여러 번 저장한 계열은 최신본 한 장만 그 줄에 두고, 옛 버전은 그 뒤에 겹쳐요(서랍의 버전 기록에서 찾아요). 찾는 중에는 모두 풀어요.
   const stacks = useMemo(() => stacksOf(room.things), [room.things]);
   const groups = lanes.map((lane) => {
-    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) && (!only || only.has(thing.id)) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
     return { lane, things, ...(searching ? { front: things, piles: [] } : splitLane(things)) };
   });
   // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.

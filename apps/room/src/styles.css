@@ -915,6 +915,8 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .room-capacity .capacity p { font-weight: 500; color: var(--ink-soft); }
 /* 방 안 이름 찾기. 용량 줄 왼쪽에 두고, 좁은 창에서는 줄 폭만큼 줄어요. */
 .room-search { flex: 0 1 calc(var(--space-12) * 5); min-width: 0; margin-right: var(--space-4); border-radius: var(--radius-pill); font-size: var(--text-sm); }
+/* 이미지를 색으로 모아 보기(Eagle의 색 거르기처럼). 색 이름은 글자로만 써요. */
+.room-hue { flex: 0 1 auto; min-width: 0; margin-right: var(--space-4); border-radius: var(--radius-pill); font-size: var(--text-sm); }
 
 
 /* 종이가 위에서 내려앉습니다(새로 왔어요 줄). */
