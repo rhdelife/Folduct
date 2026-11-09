@@ -59,7 +59,7 @@ function settle(tx: IDBTransaction): Promise<void> {
   });
 }
 
-async function run<T>(store: string, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest): Promise<T> {
+export async function run<T>(store: string, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest): Promise<T> {
   const db = await open();
   const tx = db.transaction(store, mode);
   const request = action(tx.objectStore(store));
@@ -106,6 +106,7 @@ export async function forgetRoom(id: string): Promise<void> {
   await run("handles", "readwrite", (store) => store.delete(id));
   await deleteRoomMark(id);
   await run("meta", "readwrite", (store) => store.delete(roomPictures(id)));
+  await run("meta", "readwrite", (store) => store.delete(IDBKeyRange.bound(`ai:${id}:`, `ai:${id}:\uffff`)));
 }
 
 // 파일마다 사용자가 고른 그림. 방 기록을 자주 저장하니 무거운 그림은 따로, 저장소를 새로 만들지 않고 meta에 `pic:<방 id>:<물건 id>` 키로 둡니다.

@@ -564,6 +564,19 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .list button { min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
 .list .col .link { min-height: 0; padding: 0 2px; font-size: var(--text-xs); }
 .note-line { color: var(--ink-soft); font-style: italic; font-size: var(--text-sm); }
+/* 파일 상세 아래 AI 요약. 색 없이 굵기와 선으로만 나눠요(색은 파일 형식 몫). */
+.ai-note { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.ai-note h3 { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
+.ai-summary { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink); }
+.ai-judge { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.ai-judge div { display: flex; gap: var(--space-1); }
+.ai-judge dt { color: var(--ink-soft); }
+.ai-judge dd { margin: 0; font-weight: 700; color: var(--ink); }
+.ai-reason { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.ai-meta, .ai-hint, .ai-status { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.ai-note button { justify-self: start; }
+.setting-key { padding-bottom: var(--space-3); }
+.setting-key small { color: var(--ink-soft); font-weight: 400; }
 
 fieldset { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4) var(--space-4); margin: 0; display: grid; gap: var(--space-2); }
 legend { font-weight: 700; font-size: var(--text-sm); padding: 0 var(--space-1); }

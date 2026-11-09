@@ -9,6 +9,7 @@ import { FrodoGuide } from "../components/FrodoGuide";
 import { BrandMark, Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
+import { AiNotePanel } from "../components/AiNotePanel";
 import { useToast } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
@@ -677,6 +678,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
       </div>
       {folder && previewMode(thing) === "image" && !thing.missing && thing.size <= imageLimit && <ThingImage folder={folder} thing={thing} />}
       <p className="path">{thing.path}</p>
+      {isNative() && <AiNotePanel key={thing.id} room={room} thing={thing} folder={folder} />}
       <p className={`state${age.stale ? " state-stale" : ""}`}>
         {thing.missing ? "폴더에서 찾지 못했어요."
           : thing.pinned ? "고정한 물건이라 정리 후보가 되지 않아요."

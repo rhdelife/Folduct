@@ -6,6 +6,7 @@ import { askChoices, defaultPet, type PetSettings } from "../domain/session";
 import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible } from "../gateways/native";
 import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn } from "../storage/db";
 import { addDoorFolder } from "../storage/doorstep";
+import { AiSettingsRows } from "./AiSettingsRows";
 import { FrodoGuide } from "./FrodoGuide";
 import { replayIntroEvent } from "./Intro";
 import { useModal } from "./useModal";
@@ -152,6 +153,8 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
             </label>
           </>
         )}
+        {/* AI 요약은 데스크톱 앱에서만 켜요. 웹 빌드는 CSP가 없어 키를 둘 곳으로 맞지 않아요. */}
+        {isNative() && <AiSettingsRows onError={onError} />}
         {isNative() && (
           <section className="setting-door" aria-labelledby="setting-door-title">
             <div>

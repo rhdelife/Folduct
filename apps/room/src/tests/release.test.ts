@@ -15,11 +15,12 @@ describe("배포 설정", () => {
     expect(/^version = "(.+)"$/m.exec(cargo)?.[1]).toBe(pkg.version);
   });
 
-  it("CSP는 인라인·eval·외부 접속을 열지 않는다", () => {
-    expect(csp).not.toMatch(/unsafe-inline|unsafe-eval|https?:\/\/(?!ipc\.localhost)|\*/);
+  // 외부 접속은 AI 요약(사용자가 켜고 파일마다 누를 때만)의 api.anthropic.com 하나뿐이에요.
+  it("CSP는 인라인·eval을 열지 않고, 외부 접속은 Anthropic API 하나만 열어요", () => {
+    expect(csp).not.toMatch(/unsafe-inline|unsafe-eval|https?:\/\/(?!ipc\.localhost|api\.anthropic\.com[;\s])|\*/);
     expect(directive("default-src")).toBe("default-src 'self'");
     expect(directive("object-src")).toBe("object-src 'none'");
-    expect(directive("connect-src")).toBe("connect-src ipc: http://ipc.localhost");
+    expect(directive("connect-src")).toBe("connect-src ipc: http://ipc.localhost https://api.anthropic.com");
   });
 
   it("지우기·쓰기 권한이 없다", () => {
