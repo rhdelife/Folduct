@@ -1,4 +1,5 @@
-// 로고 파일 세 개를 만듭니다: design/logo/folduct-symbol.svg, design/logo/app-icon.svg, public/favicon.svg. 그림은 art/duct.ts의 drawBrandFace예요.
+// 로고 파일을 만듭니다: design/logo/folduct-symbol.svg, design/logo/app-icon.svg, public/favicon.svg, 메뉴 막대 아이콘 src-tauri/icons/tray-logo.rgba(36px 날 RGBA). 그림은 art/duct.ts의 drawBrandFace예요.
+// shortcut: 메뉴 막대 아이콘은 macOS의 Chrome으로 그려 픽셀을 읽어요(make-duct-sprite.mjs와 같은 방식). 다른 환경이면 Chrome 경로만 바꾸면 돼요.
 // 앱 아이콘은 이어서 돌립니다: npx tauri icon design/logo/app-icon.svg
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -20,4 +21,15 @@ const svg = (box) => `<!-- 프로도 얼굴 로고. scripts/make-logo.mjs 가 �
 writeFileSync(join(root, "design/logo/folduct-symbol.svg"), svg("100 100 824 824"));
 writeFileSync(join(root, "public/favicon.svg"), svg("100 100 824 824"));
 writeFileSync(join(root, "design/logo/app-icon.svg"), svg("0 0 1024 1024"));
-console.log("로고 세 개를 만들었어요");
+
+// 메뉴 막대 아이콘: 18pt × 2배 = 36px. 캔버스에 그려 픽셀을 글자로 꺼내요.
+const size = 36;
+const page = join(work, "tray.html");
+const src = `data:image/svg+xml;base64,${Buffer.from(svg("100 100 824 824")).toString("base64")}`;
+writeFileSync(page, `<!doctype html><body><script>const i=new Image();i.onload=()=>{const c=document.createElement("canvas");c.width=c.height=${size};const x=c.getContext("2d");x.drawImage(i,0,0,${size},${size});const d=x.getImageData(0,0,${size},${size}).data;let s="";for(const b of d)s+=String.fromCharCode(b);const p=document.createElement("pre");p.id="out";p.textContent=btoa(s);document.body.append(p)};i.src="${src}";</script></body>`);
+const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const dom = execFileSync(chrome, ["--headless=new", "--disable-gpu", "--virtual-time-budget=3000", `--user-data-dir=${join(work, "profile")}`, "--dump-dom", pathToFileURL(page).href], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+const rgba = Buffer.from(dom.match(/<pre id="out">([^<]+)<\/pre>/)[1], "base64");
+if (rgba.length !== size * size * 4) throw new Error(`메뉴 막대 아이콘 크기가 달라요: ${rgba.length}`);
+writeFileSync(join(root, "src-tauri/icons/tray-logo.rgba"), rgba);
+console.log("로고 파일 네 개를 만들었어요");
