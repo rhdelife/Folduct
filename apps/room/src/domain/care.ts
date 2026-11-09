@@ -181,7 +181,7 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
     used.add(found.path);
     return seen(thing, found);
   });
-  for (const file of files) if (!used.has(file.path)) things.push(newThing(file, now));
+  for (const file of files) if (!used.has(file.path)) things.push(lateFind(room, file, scan) ? { ...newThing(file, now), seenAt: room.createdAt } : newThing(file, now));
   const before = roomUsage(room).totalBytes;
   const next = { ...room, things, workDays: mergeActivityDays(room.workDays, things, now), scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
   next.scan.freedBytes = Math.max(0, before - roomUsage(next).totalBytes);
@@ -221,7 +221,13 @@ function movedFiles(room: Room, files: ScannedFile[], scan: { complete: boolean;
 export function newFileCount(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }): number {
   const known = knownPaths(room);
   const moved = new Set([...movedFiles(room, files, scan).values()].map((file) => file.path));
-  return files.filter((file) => !known.has(file.path) && !moved.has(file.path)).length;
+  return files.filter((file) => !known.has(file.path) && !moved.has(file.path) && !lateFind(room, file, scan)).length;
+}
+
+// 다 읽지 못한 큰 방에서, 방을 만들기 전부터 있던 파일이 이제야 읽힌 경우. 새로 들어온 게 아니니 '새로 왔어요'와 새 파일 알림에서 빼요.
+// (읽는 순서가 바뀌거나 한도 안쪽이 달라지면 생겨요.) 큰 방에 오래된 날짜로 옮겨 넣은 파일도 같이 빠지는 건 감수해요.
+function lateFind(room: Room, file: ScannedFile, scan: { complete: boolean }): boolean {
+  return !scan.complete && file.lastModified > 0 && file.lastModified < room.createdAt;
 }
 
 export function newThing(file: ScannedFile, now: number): Thing {

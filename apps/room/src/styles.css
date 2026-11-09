@@ -964,6 +964,20 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .lane-new .lane-art { animation: room-paper-drop 520ms var(--ease-settle) backwards; animation-delay: calc(var(--i) * 60ms); }
 .lane-more { justify-self: start; margin: 0; font-size: var(--text-xs); color: var(--ink-caption); }
 button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
+/* 자동으로 생긴 파일 더미: 줄 끝, 가는 선 아래에 작게 둬요. 색은 종이(형식) 몫이고, 더미는 겹친 모양과 개수로 말해요. */
+.lane-piles { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: var(--room-hair) solid var(--room-line); }
+.lane-piles-head { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; color: var(--ink-caption); }
+.lane-piles-head span { margin-left: var(--space-1); font-weight: 500; font-variant-numeric: tabular-nums; }
+.lane-piles > .lane-things, .lane-pile-open .lane-things { --lane-paper: calc(var(--space-8) * 2); }
+.lane-pile .lane-art > .object { position: relative; }
+.lane-pile-under { position: absolute; inset: 0; }
+.lane-pile-under-1 { translate: 9% -7%; rotate: 6deg; }
+.lane-pile-under-2 { translate: -8% -4%; rotate: -7deg; }
+.lane-pile[aria-expanded="true"] .lane-meta { color: var(--ink); }
+.lane-pile-open { display: grid; gap: var(--space-3); padding: var(--space-3); border: var(--room-hair) solid var(--room-line-strong); border-radius: var(--room-radius); }
+.lane-pile-open-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.lane-pile-open-head h3 { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.lane-pile-open-head button { flex: none; min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
 @media (hover: hover) and (pointer: fine) {
   .lane-paper:hover .lane-art { translate: 0 calc(var(--space-1) * -1); }
 }

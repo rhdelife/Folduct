@@ -1,8 +1,9 @@
-import { useState, type CSSProperties } from "react";
+import { useLayoutEffect, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
 import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
+import { splitLane, type Pile } from "../domain/pile";
 import { Icon } from "./Icon";
 import { centerOf, cue } from "./useFrodo";
 
@@ -42,7 +43,21 @@ const shownMost = 200;
 // 방 안: 파일이 왼쪽에서 오른쪽(좁으면 위에서 아래)으로 흐르는 네 줄. 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
 export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: Room; now: number; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   const [opened, setOpened] = useState<Lane[]>([]);
-  const groups = lanes.map((lane) => ({ lane, things: room.things.filter((thing) => laneOf(thing, room, now) === lane).sort((a, b) => b.size - a.size) }));
+  // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
+  const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
+  // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
+  const groups = lanes.map((lane) => {
+    const things = room.things.filter((thing) => laneOf(thing, room, now) === lane).sort((a, b) => b.size - a.size);
+    return { lane, things, ...splitLane(things) };
+  });
+  // 고른 파일이 더미 안에 있으면 그 더미를 펼쳐요. 상자에서 돌려놓았거나 줄이 바뀐 파일도 보이고, 포커스가 그 파일로 갈 수 있어요.
+  // 화면에 그리기 전에 펼쳐야 RoomPage의 focusSoon(다음 프레임)이 그 파일을 찾아요. 펼친 뒤 사용자가 접으면 다시 펼치지 않아요.
+  const holder = selectedId === null ? undefined : groups.flatMap(({ lane, piles }) => piles.map((pile) => ({ id: `${lane}:${pile.key}`, pile }))).find(({ pile }) => pile.things.some((thing) => thing.id === selectedId));
+  const holderId = holder?.id ?? null;
+  const holderFar = holder ? holder.pile.things.findIndex((thing) => thing.id === selectedId) >= shownAtFirst : false;
+  useLayoutEffect(() => {
+    if (holderId) setOpenPile((now) => (now?.id === holderId && (now.all || !holderFar) ? now : { id: holderId, all: holderFar }));
+  }, [selectedId, holderId, holderFar]);
   const titles: Record<Lane, [title: string, note: string, empty: string]> = {
     new: ["새로 왔어요", "방을 만든 뒤 들어온 파일이에요.", "새 파일이 없어요."],
     use: ["요즘 써요", "고정한 파일도 여기 머물러요.", "요즘 쓴 파일이 없어요."],
@@ -52,9 +67,11 @@ export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: R
   return (
     <div className="lanes">
       <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
-      {groups.map(({ lane, things }) => {
+      {groups.map(({ lane, things, front, piles }) => {
         const [title, note, empty] = titles[lane];
-        const shown = things.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
+        const shown = front.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
+        const piled = things.length - front.length;
+        const open = piles.find((pile) => openPile?.id === `${lane}:${pile.key}`);
         return (
           <section key={lane} className={`lane lane-${lane}`} aria-labelledby={`lane-${lane}`}>
             <div className="lane-head">
@@ -71,16 +88,92 @@ export function RoomScene({ room, now, selectedId, onSelect, onOpen }: { room: R
                 ))}
               </ul>
             )}
-            {things.length > shown.length &&
+            {front.length > shown.length &&
               (opened.includes(lane) ? (
                 <p className="lane-more">큰 파일 {shownMost}개까지만 보여요.</p>
               ) : (
-                <button type="button" className="lane-more" onClick={() => setOpened([...opened, lane])}>나머지 {(things.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
+                <button type="button" className="lane-more" onClick={() => setOpened([...opened, lane])}>나머지 {(front.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
               ))}
+            {piles.length > 0 && (
+              <div className="lane-piles">
+                <p className="lane-piles-head">자동으로 생긴 파일 <span>{piles.length}묶음 · {piled.toLocaleString("ko-KR")}개</span></p>
+                <ul className="lane-things">
+                  {piles.map((pile) => {
+                    const id = `${lane}:${pile.key}`;
+                    return (
+                      <li key={pile.key}>
+                        <PileCard id={id} pile={pile} open={open === pile} onToggle={() => setOpenPile(open === pile ? null : { id, all: false })} />
+                      </li>
+                    );
+                  })}
+                </ul>
+                {open && (
+                  <div className="lane-pile-open" role="group" aria-label={`${open.label} 묶음 안`}>
+                    <div className="lane-pile-open-head">
+                      <h3 title={open.key}>{open.label} <span className="lane-count">{open.things.length.toLocaleString("ko-KR")}</span></h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const id = `${lane}:${open.key}`;
+                          setOpenPile(null);
+                          // 접기 단추가 사라지니 포커스를 그 더미로 돌려놓아요.
+                          requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-pile-id="${CSS.escape(id)}"]`)?.focus());
+                        }}
+                      >
+                        접기
+                      </button>
+                    </div>
+                    <ul className="lane-things">
+                      {open.things.slice(0, openPile?.all ? shownMost : shownAtFirst).map((thing, order) => (
+                        <li key={thing.id}>
+                          <LanePaper room={room} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                        </li>
+                      ))}
+                    </ul>
+                    {open.things.length > shownAtFirst &&
+                      (openPile?.all ? (
+                        open.things.length > shownMost && <p className="lane-more">큰 파일 {shownMost}개까지만 보여요.</p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="lane-more"
+                          onClick={() => {
+                            const next = open.things[shownAtFirst];
+                            setOpenPile({ id: `${lane}:${open.key}`, all: true });
+                            // 단추가 사라지니 새로 보인 첫 파일로 포커스를 옮겨요.
+                            requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-thing-id="${CSS.escape(next.id)}"]`)?.focus());
+                          }}
+                        >
+                          나머지 {(open.things.length - shownAtFirst).toLocaleString("ko-KR")}개도 보기
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         );
       })}
     </div>
+  );
+}
+
+// 더미 한 장: 큰 파일 세 장을 겹쳐 쌓고 맨 위 종이에 마지막 폴더 이름을 찍어요(긴 경로는 종이에 안 들어가요). 누르면 그 줄 아래에 펼쳐져요.
+function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: boolean; onToggle: () => void }) {
+  const [top, ...under] = pile.things.slice(0, 3);
+  return (
+    <button type="button" className="lane-paper lane-pile" data-pile-id={id} aria-expanded={open} aria-label={`${pile.label} 묶음, 자동으로 생긴 파일 ${pile.things.length}개, ${formatBytes(pile.size)}`} onClick={onToggle}>
+      <span className="lane-art">
+        {under.map((thing, at) => (
+          <span key={thing.id} className={`lane-pile-under lane-pile-under-${at + 1}`} aria-hidden="true"><ObjectShape kind={thing.kind} size={paperPx} seed={thing.id} /></span>
+        ))}
+        <ObjectShape kind={top.kind} size={paperPx} name={pile.key.split("/").pop()} seed={top.id} />
+      </span>
+      <span className="lane-meta">
+        <b>{pile.things.length.toLocaleString("ko-KR")}개</b>
+        {formatBytes(pile.size)}
+      </span>
+    </button>
   );
 }
 

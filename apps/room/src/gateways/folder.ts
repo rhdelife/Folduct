@@ -1,6 +1,7 @@
 import { isNewName, isPartialFile, type DoorRead } from "../domain/doorstep";
 import { isSafeRelativePath, kindOf, type ScannedFile } from "../domain/model";
 import { osErrorKind } from "../domain/platform";
+import { isMachineFolder } from "../domain/pile";
 
 declare global {
   interface FileSystemDirectoryHandle {
@@ -88,8 +89,19 @@ export function handleSource(handle: FileSystemDirectoryHandle): DirectorySource
   };
 }
 
+const readOrder = (entry: { name: string; kind: "file" | "directory" }): number => (entry.kind === "file" ? 0 : isMachineFolder(entry.name) ? 2 : 1);
+
 export async function scanFolder(source: DirectorySource, onProgress?: (count: number) => void): Promise<ScanResult> {
   const result: ScanResult = { files: [], failed: 0, complete: true, note: null };
+  // 자동 생성 폴더(tmp·target 같은)는 어느 깊이에 있든 바로 들어가지 않고 미뤄 뒀다가, 나머지를 다 읽은 뒤에 읽어요.
+  // apps/…/src-tauri/target 같은 깊은 빌드 폴더가 한도를 먼저 채워 옆 폴더의 결과물을 못 읽는 일을 막아요.
+  const later: { parent: DirectorySource; name: string; path: string; level: number }[] = [];
+  const full = () => {
+    if (result.files.length < scanLimits.files) return false;
+    result.complete = false;
+    result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
+    return true;
+  };
   async function walk(dir: DirectorySource, parent: string, level: number): Promise<void> {
     let listing: { name: string; kind: "file" | "directory" }[] = [];
     try {
@@ -100,14 +112,12 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
       result.failed += 1;
       return;
     }
+    // 한 폴더 안에서는 파일 → 보통 폴더 → 자동 생성 폴더(tmp·build 같은) 순서로 읽어요. 한도(파일 수)가 차도 맨 위 결과물은 먼저 들어와요.
+    listing = listing.sort((a, b) => readOrder(a) - readOrder(b));
     for (const entry of listing) {
       if (isExcludedName(entry.name)) continue;
       // 폴더로 내려가기 전에 봐야, 한도를 채운 뒤 남은 폴더를 더 읽지 않습니다. 위 단계도 다음 항목에서 바로 멈춥니다.
-      if (result.files.length >= scanLimits.files) {
-        result.complete = false;
-        result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
-        return;
-      }
+      if (full()) return;
       // 한글 이름은 NFC로 맞춰, 가져오기 스크립트(Node)가 읽은 경로와 같게 비교합니다.
       const name = entry.name.normalize("NFC");
       const path = parent ? `${parent}/${name}` : name;
@@ -115,6 +125,10 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
         if (level >= scanLimits.depth) {
           result.complete = false;
           result.note = `깊이 ${scanLimits.depth}을 넘는 폴더는 넣지 않았어요.`;
+          continue;
+        }
+        if (isMachineFolder(entry.name)) {
+          later.push({ parent: dir, name: entry.name, path, level: level + 1 });
           continue;
         }
         try {
@@ -134,6 +148,15 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
     }
   }
   await walk(source, "", 0);
+  // 미룬 폴더 안에서 또 만난 자동 생성 폴더는 줄 끝에 더해져 같은 차례로 읽혀요.
+  for (let at = 0; at < later.length && !full(); at += 1) {
+    const { parent, name, path, level } = later[at];
+    try {
+      await walk(await parent.directory(name), path, level);
+    } catch {
+      result.failed += 1;
+    }
+  }
   return result;
 }
 
@@ -163,8 +186,13 @@ export async function readDoorFolder(source: DirectorySource, seen: string[] | u
 // 폴더 고르기를 못 쓰는 브라우저(Safari·Firefox)는 <input webkitdirectory>로 받습니다. 파일 이동은 못 합니다.
 export function scanFileList(list: FileList): ScanResult & { rootName: string } {
   const result: ScanResult & { rootName: string } = { files: [], failed: 0, complete: true, note: null, rootName: "" };
-  for (const file of Array.from(list)) {
+  // 폴더를 고를 때와 같은 순서: 얕은 파일부터, 자동 생성 폴더 안은 맨 나중에요. 한도가 차도 맨 위 결과물이 먼저 들어와요.
+  const files = Array.from(list).map((file) => {
     const parts = (file.webkitRelativePath || file.name).normalize("NFC").split("/").filter(Boolean);
+    return { file, parts, rank: (parts.slice(1, -1).some(isMachineFolder) ? scanLimits.depth + 2 : 0) + parts.length };
+  });
+  files.sort((a, b) => a.rank - b.rank);
+  for (const { file, parts } of files) {
     if (!result.rootName) result.rootName = parts[0] ?? file.name;
     const relative = parts.slice(1);
     if (relative.length === 0 || relative.some(isExcludedName)) continue;

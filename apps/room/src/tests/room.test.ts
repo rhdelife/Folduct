@@ -149,6 +149,16 @@ describe("방 밖 작업", () => {
     expect(built.things[0].lastUsedAt).toBe(day(2));
   });
 
+  it("다 읽지 못한 큰 방에서 방을 만들기 전 파일이 이제야 읽히면 새 파일로 치지 않아요", () => {
+    const partial = { complete: false, failed: 0 };
+    const files = [scanned("옛 결과물.pdf", start - 5000), scanned("오늘 받은.pdf", start + 1000)];
+    expect(newFileCount(room([]), files, partial)).toBe(1);
+    expect(newFileCount(room([]), files, sure)).toBe(2);
+    const merged = mergeScan(room([]), files, partial, start + 2000);
+    expect(merged.things.map((item) => laneOf(item, merged, start + 3000))).toEqual(["use", "new"]);
+    expect(mergeScan(room([]), files, sure, start + 2000).things.map((item) => item.seenAt)).toEqual([start + 2000, start + 2000]);
+  });
+
   it("다른 파일을 밖에서 쓴 날이 있으면 그대로인 물건은 오래됨이 된다", () => {
     const still = thing({ path: "a" });
     const next = mergeScan(room([still]), [scanned("a", 0), scanned("b", day(4), day(5))], sure, day(8));
@@ -384,7 +394,7 @@ describe("폴더 읽기", () => {
       },
     });
     const result = await scanFolder(source([{ name: ".DS_Store" }, { name: "node_modules", children: [{ name: "x.js" }] }, { name: "영상", children: [{ name: "a.mov", size: GB }] }, { name: "메모.md", size: 3 }]));
-    expect(result.files.map((file) => [file.path, file.kind, file.size])).toEqual([["영상/a.mov", "video", GB], ["메모.md", "text", 3]]);
+    expect(result.files.map((file) => [file.path, file.kind, file.size])).toEqual([["메모.md", "text", 3], ["영상/a.mov", "video", GB]]);
     expect(result.complete).toBe(true);
   });
 
