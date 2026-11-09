@@ -5,6 +5,7 @@ import { ContextMenu } from "../components/ContextMenu";
 import { createEngine, EngineContext, type HomeActions } from "../components/home/engine";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
+import { KindShelf } from "../components/home/KindShelf";
 import { Icon } from "../components/Icon";
 import { FrodoGuide } from "../components/FrodoGuide";
 import { NewRoomDialog } from "../components/NewRoomDialog";
@@ -62,6 +63,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
+  const shelf = useRef<HTMLElement>(null);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
   // 방에서 돌아오면 패널 없이 주름관을 고르는 첫 화면으로 옵니다.
@@ -261,12 +263,9 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   useEffect(() => {
     if (ready && returnTo) landFocus(returnTo);
   }, [ready]);
-  useEffect(() => {
-    if (ready) return engine.attach();
-  }, [engine, ready]);
-
-  // 홈은 주름관이 한 줄로 선 한 화면이라 스크롤로 넘어갈 곳이 없습니다.
-  // shortcut: 두 번째 화면을 없애면서 엔진은 늘 잠가 두었어요. 다시 넘길 화면이 생기지 않으면 engine.ts와 useBetween 쓰임을 걷어내요.
+  // 홈은 이제 진짜 스크롤로 아래 형식별 칸까지 내려가요. 예전 두 번째 화면용 엔진은 잠가 두고 입력도 받지 않아요.
+  // 붙이면 세로 휠·손가락·화살표를 먼저 가져가 페이지가 내려가지 않아요.
+  // shortcut: 엔진(engine.ts)은 pos 0에 멈춘 채 남아 있어요. 쓰는 곳(heroMotion·Home의 goTo)을 정리할 때 함께 걷어내요.
   useEffect(() => engine.lock(true), [engine]);
 
   // 줄로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
@@ -488,7 +487,14 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
               <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} />
             )}
           </div>
+          {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}
+          {rooms && rooms.some((room) => !room.care.done && room.things.length > 0) && !selected && (
+            <button type="button" className="shelf-hint" onClick={() => shelf.current?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}>
+              형식별로 보기 <span aria-hidden="true">↓</span>
+            </button>
+          )}
         </div>
+        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openFile} />}
       </EngineContext.Provider>
       {!isNative() && (
         <input

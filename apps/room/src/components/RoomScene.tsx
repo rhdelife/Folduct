@@ -4,7 +4,7 @@ import { boxColor, tonesFrom } from "../art/palette";
 import { laneOf, lanes, thingAge, type Lane } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
-import { groupVersions } from "../domain/versions";
+import { stacksOf } from "../domain/versions";
 import { isSearching, matchesPath, searchOrder } from "../domain/search";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
@@ -55,16 +55,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
   // 찾는 중에는 폴더 이름까지 보고, 더미를 풀어 찾은 파일을 모두 앞줄에 둬요. 이름이 맞는 파일·맨 위에 가까운 파일이 먼저예요.
   const searching = isSearching(query);
   // 같은 파일을 여러 번 저장한 계열은 최신본 한 장만 그 줄에 두고, 옛 버전은 그 뒤에 겹쳐요(서랍의 버전 기록에서 찾아요). 찾는 중에는 모두 풀어요.
-  const stacks = useMemo(() => {
-    const top = new Map<string, Thing[]>();
-    const under = new Set<string>();
-    for (const list of groupVersions(room.things).values()) {
-      top.set(list[0].id, list);
-      // 고정한 파일은 옛 버전이어도 줄에 그대로 둬요(자동 생성 더미와 같아요).
-      for (const old of list.slice(1)) if (!old.pinned) under.add(old.id);
-    }
-    return { top, under };
-  }, [room.things]);
+  const stacks = useMemo(() => stacksOf(room.things), [room.things]);
   const groups = lanes.map((lane) => {
     const things = room.things.filter((thing) => laneOf(thing, room, now) === lane && (searching ? matchesPath(thing, query) : !stacks.under.has(thing.id))).sort(searching ? searchOrder(query) : (a, b) => b.size - a.size);
     return { lane, things, ...(searching ? { front: things, piles: [] } : splitLane(things)) };

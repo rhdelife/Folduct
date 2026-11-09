@@ -11,10 +11,9 @@ import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUn
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useHeroMotion } from "./home/heroMotion";
 import { WheelStepper } from "../domain/wheelStep";
-import { folderAccess, type Folder } from "../gateways/native";
-import { roomFolder } from "../storage/box";
+import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
-import { coverOf, useThumb } from "../storage/thumbs";
+import { coverOf, useReadableFolders, useThumb } from "../storage/thumbs";
 
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
@@ -153,19 +152,22 @@ export function SkyMap({
   };
   useEffect(() => {
     // 대화상자·메뉴가 떠 있거나, 글을 쓰는 중이거나, 옆으로 미는 현관 줄 위에서는 건드리지 않아요.
-    const blocked = (target: EventTarget | null) => document.querySelector("dialog[open], .context-menu") !== null || (target instanceof Element && target.closest("input, textarea, select, [contenteditable], .doorstep") !== null);
+    // 아래 형식별 칸으로 내려가 있을 때도 건드리지 않아요. 그때 화살표와 휠은 페이지를 움직여요.
+    const away = () => (document.querySelector(".home")?.scrollTop ?? 0) > innerHeight / 3;
+    const blocked = (target: EventTarget | null) => away() || document.querySelector("dialog[open], .context-menu") !== null || (target instanceof Element && target.closest("input, textarea, select, [contenteditable], .doorstep, .kind-shelves") !== null);
     const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
     const onKey = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !keys.includes(event.key) || blocked(event.target)) return;
       event.preventDefault();
       step.current(event.key);
     };
-    // 휠 한 칸, 트랙패드 한 번 쓸기마다 한 칸 갑니다(domain/wheelStep.ts). 막혀 있을 때도 흐름은 읽어 둬야
+    // 좌우 쓸기(트랙패드)·Shift+휠 한 번마다 한 칸 갑니다(domain/wheelStep.ts). 세로 휠은 페이지를 아래 형식별 칸으로 내려요.
+    // 막혀 있을 때도 흐름은 읽어 둬야
     // 대화상자를 닫은 뒤 남은 관성을 새 손짓으로 착각하지 않아요.
     const wheel = new WheelStepper();
     const onWheel = (event: WheelEvent) => {
       if (event.ctrlKey) return;
-      const dir = wheel.push(event);
+      const dir = wheel.push({ deltaX: event.deltaX, deltaY: 0, deltaMode: event.deltaMode, timeStamp: event.timeStamp });
       if (dir === 0 || blocked(event.target)) return;
       step.current(dir > 0 ? "ArrowRight" : "ArrowLeft");
     };
@@ -212,7 +214,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">화살표나 휠로 프로도를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표나 좌우로 쓸어서 프로도를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -409,24 +411,6 @@ const MapLayers = memo(function MapLayers({
     </div>
   );
 });
-
-// 권한을 묻지 않고 지금 읽을 수 있는 방 폴더들(방 id → 폴더). 샘플 방이나 브라우저에서 권한이 없는 방은 빠져요.
-function useReadableFolders(rooms: Room[]): Map<string, Folder> {
-  const [folders, setFolders] = useState(() => new Map<string, Folder>());
-  const key = rooms.map((room) => `${room.id}:${room.source}:${room.origin ?? ""}`).join();
-  useEffect(() => {
-    let live = true;
-    const readable = async (room: Room) => {
-      const found = await roomFolder(room).catch(() => null);
-      return found && (await folderAccess(found).catch(() => "unknown")) === "granted" ? ([room.id, found] as const) : null;
-    };
-    void Promise.all(rooms.map(readable)).then((list) => live && setFolders(new Map(list.filter((entry) => entry !== null))));
-    return () => {
-      live = false;
-    };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  return folders;
-}
 
 // 방의 대표 이미지 한 장을 받침 옆에 기대 세워요. 이름만으로 방을 찾지 않게, 방에서 가장 최근의 그림을 보여 줍니다.
 // 그림을 읽기 전이거나 읽을 수 없으면 아무것도 그리지 않아요.

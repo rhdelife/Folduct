@@ -1,6 +1,7 @@
-import { useEffect, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
 import type { Room, Thing } from "../domain/model";
-import { readFolderFile, type Folder } from "../gateways/native";
+import { folderAccess, readFolderFile, type Folder } from "../gateways/native";
+import { roomFolder } from "./box";
 import { pictureSourceLimit, shrink } from "./pictures";
 
 // 방 안 이미지 종이에 끼울 진짜 미리보기. 화면에 들어온 종이만 읽고, 앱을 켠 동안 메모리에만 둬요.
@@ -103,4 +104,22 @@ export function useThumb(ref: RefObject<Element | null>, folder: Folder | null, 
     return () => observer.disconnect();
   }, [ref, wanted, folder, key, path]);
   return url;
+}
+
+// 권한을 묻지 않고 지금 읽을 수 있는 방 폴더들(방 id → 폴더). 샘플 방이나 브라우저에서 권한이 없는 방은 빠져요.
+export function useReadableFolders(rooms: Room[]): Map<string, Folder> {
+  const [folders, setFolders] = useState(() => new Map<string, Folder>());
+  const key = rooms.map((room) => `${room.id}:${room.source}:${room.origin ?? ""}`).join();
+  useEffect(() => {
+    let live = true;
+    const readable = async (room: Room) => {
+      const found = await roomFolder(room).catch(() => null);
+      return found && (await folderAccess(found).catch(() => "unknown")) === "granted" ? ([room.id, found] as const) : null;
+    };
+    void Promise.all(rooms.map(readable)).then((list) => live && setFolders(new Map(list.filter((entry) => entry !== null))));
+    return () => {
+      live = false;
+    };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return folders;
 }

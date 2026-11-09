@@ -83,3 +83,14 @@ export function groupVersions(things: Thing[]): Map<string, Thing[]> {
 
 // 이 파일이 든 계열. 혼자면 undefined예요.
 export const seriesOf = (things: Thing[], thing: Thing): Thing[] | undefined => [...groupVersions(things).values()].find((list) => list.some((item) => item.id === thing.id));
+
+// 줄에 놓을 때: 계열마다 최신본(top: 최신본 id → 계열)만 두고 옛 버전(under)은 그 뒤에 숨겨요. 고정한 옛 버전은 숨기지 않아요.
+export function stacksOf(things: Thing[]): { top: Map<string, Thing[]>; under: Set<string> } {
+  const top = new Map<string, Thing[]>();
+  const under = new Set<string>();
+  for (const list of groupVersions(things).values()) {
+    top.set(list[0].id, list);
+    for (const old of list.slice(1)) if (!old.pinned) under.add(old.id);
+  }
+  return { top, under };
+}
