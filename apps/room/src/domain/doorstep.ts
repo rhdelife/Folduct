@@ -23,10 +23,8 @@ export function isPartialFile(name: string): boolean {
 
 // 시각이 아니라 이름으로 가립니다. 옛 날짜를 달고 들어온 복사본도 잡고, 전부터 있던 파일을 고친 것은 새 문서로 치지 않아요.
 // 처음 읽는 폴더(seen 없음)는 기준만 잡습니다. 다운로드 폴더 전체가 새 문서가 되면 안 되니까요.
-// 폴더를 읽을 때는 Set으로 넘겨요. 배열이면 이름마다 처음부터 훑어서 파일이 많을수록 느려집니다.
-export function isNewName(name: string, seen: string[] | ReadonlySet<string> | undefined): boolean {
-  if (seen === undefined) return false;
-  return Array.isArray(seen) ? !seen.includes(name) : !(seen as ReadonlySet<string>).has(name);
+export function isNewName(name: string, seen: ReadonlySet<string> | undefined): boolean {
+  return seen !== undefined && !seen.has(name);
 }
 
 // 읽은 결과를 합칩니다. 그사이 빠진 폴더는 무시하고, 폴더에서 사라진 문서는 줄에서도 뺍니다.

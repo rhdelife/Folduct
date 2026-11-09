@@ -7,6 +7,7 @@ import { allowRooms, folderName, isNative, pickParent, pickRoomFolder, sameFolde
 import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
 import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
+import { toggled } from "./sets";
 
 type Draft = { source: RoomSource; rootName: string; handle: FileSystemDirectoryHandle | null; origin?: string; scan: ScanResult };
 
@@ -240,12 +241,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
                       <input
                         type="checkbox"
                         checked={chosen.has(folder.path)}
-                        onChange={(event) => setChosen((current) => {
-                          const next = new Set(current);
-                          if (event.target.checked) next.add(folder.path);
-                          else next.delete(folder.path);
-                          return next;
-                        })}
+                        onChange={(event) => setChosen((current) => toggled(current, [folder.path], event.target.checked))}
                       />
                       <span className="name">{folder.name}</span>
                       {old && <span className="soft">{old.source === "handle" ? "이미 방 있음 · 다시 봐요" : `‘${old.name}’ 방과 이어요`}</span>}

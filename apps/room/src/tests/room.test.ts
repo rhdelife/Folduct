@@ -5,7 +5,7 @@ import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane"
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
 import { previewMode } from "../components/FileViewer";
-import { clusterSpread, hash, homeActivity, homeLimit, layoutRooms, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
+import { clusterSpread, hash, homeActivity, homeLimit, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
 import { kindParts } from "../art/duct";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
 import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
@@ -462,6 +462,10 @@ describe("정리 상자 폴더 이동", () => {
     await moveFile(root, "참고/시안.psd", "_Folduct 정리상자/참고/시안.psd");
     raw.dirs.get("참고")!.files.set("시안.psd", "새 파일");
     expect(await freeBoxPath(root, "참고/시안.psd")).toBe("_Folduct 정리상자/참고/시안 (2).psd");
+    // 한 묶음에서 이미 잡은 이름은 디스크에 없어도 피해요(boxRoom이 쓰는 방식).
+    const reserved = new Set<string>();
+    expect(await freeBoxPath(root, "참고/새.psd", reserved)).toBe("_Folduct 정리상자/참고/새.psd");
+    expect(await freeBoxPath(root, "참고/새.psd", reserved)).toBe("_Folduct 정리상자/참고/새 (2).psd");
     expect(await moveFile(root, "_Folduct 정리상자/참고/시안.psd", "참고/시안.psd")).toMatchObject({ ok: false, reason: "occupied" });
     expect(raw.dirs.get("참고")!.files.get("시안.psd")).toBe("새 파일");
   });
@@ -642,18 +646,6 @@ describe("완료한 프로젝트", () => {
     expect(sweepCandidates(finished, start + 31 * dayMs)).toEqual([]);
   });
 
-  it("홈에서 뺀 방은 지도에 놓지 않고, 자리를 넘은 방도 놓지 않으며, 모두 판 안에 놓는다", () => {
-    const rooms = Array.from({ length: 43 }, (_, i) => room([], { id: `r${i}`, care: { ...defaultCare, done: i >= 12 } }));
-    const placed = layoutRooms(rooms);
-    expect(placed.map((p) => p.room.id)).toEqual(rooms.slice(0, homeLimit).map((r) => r.id));
-    for (const p of placed) {
-      expect(p.at.x).toBeGreaterThanOrEqual(40);
-      expect(p.at.x).toBeLessThanOrEqual(sky.width - 40);
-      expect(p.at.y).toBeGreaterThanOrEqual(40);
-      expect(p.at.y).toBeLessThanOrEqual(sky.height - 40);
-    }
-  });
-
   it("자리가 모자라면 방금 고른 방을 앞세우고, 나머지는 최근에 쓴 순서로 고른다", () => {
     const used = (id: string, at: number) => room([thing({ id: `${id}-f`, path: `${id}.txt`, touchedAt: at })], { id });
     const rooms = [used("옛날", start), ...Array.from({ length: homeLimit }, (_, i) => used(`r${i}`, start + (i + 1) * dayMs))];
@@ -674,10 +666,6 @@ describe("완료한 프로젝트", () => {
     expect(roomsToKeep([...samples, ...mine], ["s2", null])[0]).toBe("s2");
   });
 
-  it("방이 없거나 모두 완료했으면 지도가 빈다", () => {
-    expect(layoutRooms([])).toEqual([]);
-    expect(layoutRooms([room([], { care: { ...defaultCare, done: true } })])).toEqual([]);
-  });
 });
 
 describe("파일 열기", () => {

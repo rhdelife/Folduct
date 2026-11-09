@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, lastActivity } from "../domain/care";
 import { heroLayout, moreHeight, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
-import { baseView, calendarSpot, homeLimit, layoutRooms, roomRadius, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
+import { baseView, calendarSpot, homeLimit, stageUnit, toPx, vaseHalf, vaseUnit, type Box, type View } from "../domain/sky";
 import { arrivalFrames, spillFrames } from "../components/home/heroMotion";
 
 const start = Date.UTC(2026, 0, 5, 12);
@@ -145,31 +145,6 @@ describe("일력 자리", () => {
   it("일력을 숨기는 창에서는 자리를 비우지 않는다", () => {
     expect(calendarSpot({ w: 375, h: 812 })).toEqual([]);
     expect(calendarSpot({ w: 720, h: 520 })).toEqual([]);
-  });
-});
-
-describe("방 자리", () => {
-  const spots = (count: number, view: View) => layoutRooms(many(count, 1), view).map((p) => ({ p, at: toPx(p.at, view) }));
-
-  it("하나면 가운데, 둘이면 양옆이다", () => {
-    for (const view of views) {
-      expect(spots(1, view)[0].at.x).toBeCloseTo(view.w / 2, 0);
-      const [a, b] = spots(2, view);
-      expect(a.at.x).toBeLessThan(view.w / 2);
-      expect(b.at.x).toBeGreaterThan(view.w / 2);
-    }
-  });
-
-  it("방이 자리만큼 차도 주름관끼리 겹치지 않는다", () => {
-    for (const view of views) {
-      for (const count of [3, 4, homeLimit]) {
-        const unit = stageUnit(view) * vaseUnit;
-        const list = spots(count, view).map(({ p, at }) => ({ ...at, half: vaseHalf(roomRadius(p.room, p.scale)) * unit }));
-        list.forEach((a, i) => {
-          list.slice(i + 1).forEach((b) => expect(Math.abs(a.x - b.x) < a.half + b.half && Math.abs(a.y - b.y) < a.half + b.half, `${view.w} 방${count}`).toBe(false));
-        });
-      }
-    }
   });
 });
 

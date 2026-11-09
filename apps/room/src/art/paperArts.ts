@@ -314,8 +314,8 @@ const audio: PaperArt[] = [
 
 /* ── 디자인: 분홍 ── */
 // 받침점(px,py) 기준으로 a도 돌린 칩 꼭짓점: 로컬 x는 좌우, y는 위(-)로.
-const chip = (px: number, py: number, a: number, pts: [number, number][]) => { const r = (a * Math.PI) / 180; return poly(pts.map(([x, y]): [number, number] => [Math.round((px + x * Math.cos(r) - y * Math.sin(r)) * 10) / 10, Math.round((py + x * Math.sin(r) + y * Math.cos(r)) * 10) / 10]), true); };
-const star = (cx: number, cy: number, ro: number, ri: number) => poly(Array.from({ length: 10 }, (_, i) => { const a = (-90 + i * 36) * Math.PI / 180; const r = i % 2 ? ri : ro; return [Math.round((cx + r * Math.cos(a)) * 10) / 10, Math.round((cy + r * Math.sin(a)) * 10) / 10] as [number, number]; }), true);
+const chip = (px: number, py: number, a: number, pts: [number, number][]) => { const r = (a * Math.PI) / 180; return poly(pts.map(([x, y]): [number, number] => [r1(px + x * Math.cos(r) - y * Math.sin(r)), r1(py + x * Math.sin(r) + y * Math.cos(r))]), true); };
+const star = (cx: number, cy: number, ro: number, ri: number) => poly(Array.from({ length: 10 }, (_, i) => { const a = (-90 + i * 36) * Math.PI / 180; const r = i % 2 ? ri : ro; return [r1(cx + r * Math.cos(a)), r1(cy + r * Math.sin(a))] as [number, number]; }), true);
 const design: PaperArt[] = [
   { id: "palette", w: 112, h: 100, slot: { x: 16, y: 56, w: 46, h: 30, fill: "ink", on: "pale", center: true }, parts: [
     { d: "M56 6C86 6 106 24 104 50C102 68 88 72 78 64C70 58 62 64 66 76C70 90 58 94 46 92C20 88 6 70 8 48C10 22 30 6 56 6Z", fill: "pale" },

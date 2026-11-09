@@ -76,6 +76,8 @@ export function Pet() {
     setRooms(list);
     return list;
   }, []);
+  // 방 목록을 다시 읽어요. 못 읽어도 지금 보이는 목록을 그대로 두고 기록만 남겨요.
+  const reloadRooms = useCallback(() => void loadRooms().catch((error: unknown) => console.error(error)), [loadRooms]);
 
   useEffect(() => {
     void (async () => {
@@ -163,9 +165,9 @@ export function Pet() {
 
   // 앱에서 방을 고치거나 지울 수 있어 틈틈이 다시 읽습니다. 작업하던 방을 지우거나 홈에서 빼면 작업도 끝나요. 그때까지의 시간은 일력에 남아요.
   useEffect(() => {
-    const timer = window.setInterval(() => void loadRooms().catch((error: unknown) => console.error(error)), watchEveryMs);
+    const timer = window.setInterval(reloadRooms, watchEveryMs);
     return () => window.clearInterval(timer);
-  }, [loadRooms]);
+  }, [reloadRooms]);
   useEffect(() => {
     if (session && !rooms.some((item) => item.id === session.roomId && !item.care.done)) change(null);
   }, [rooms, session, change]);
@@ -204,7 +206,7 @@ export function Pet() {
     if (problem) setDone({ text: moves.length > 0 ? `${moves.length}개는 옮겼어요. ${problem}` : problem, failed: true, undo });
     else if (moves.length === 1) setDone({ text: `${target.name} 방으로 옮겼어요.${only.moved.name === only.item.path ? "" : ` 이름이 같아 ${only.moved.name.normalize("NFC")}(으)로 두었어요.`}`, undo });
     else setDone({ text: `${target.name} 방으로 ${moves.length}개 옮겼어요.`, undo });
-    void loadRooms().catch((error: unknown) => console.error(error));
+    reloadRooms();
   }
 
   // 현관 줄에서만 뺍니다. 파일은 폴더에 그대로 있어요.
@@ -239,7 +241,7 @@ export function Pet() {
     const all = moves.length > 1 ? `${back}개를 ` : "";
     setDone(problem ? { text: back > 0 ? `${back}개는 되돌렸어요. ${problem}` : problem, failed: true } : { text: `${all}원래 폴더로 되돌렸어요.` });
     tellMain();
-    void loadRooms().catch((reason: unknown) => console.error(reason));
+    reloadRooms();
   }
 
   async function addFolder() {
@@ -262,7 +264,7 @@ export function Pet() {
 
   // 앱에서 방 이름이나 얼굴을 바꿨을 수 있어 돌아올 때마다 다시 읽습니다. 다른 곳을 누르면 메뉴를 닫아요.
   useEffect(() => {
-    const onFocus = () => void loadRooms().catch((error: unknown) => console.error(error));
+    const onFocus = reloadRooms;
     const onBlur = () => setMenuOpen(false);
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
@@ -270,7 +272,7 @@ export function Pet() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("blur", onBlur);
     };
-  }, [loadRooms]);
+  }, [reloadRooms]);
 
   // 프로도가 커서를 눈으로 따라가고, 창에 들어오면 손을 흔듭니다. 멈춤 상태에서는 자고 있어요.
   const sleeping = session?.status === "paused";
@@ -326,7 +328,7 @@ export function Pet() {
   });
 
   function openMenu() {
-    if (!menuOpen) void loadRooms().catch((error: unknown) => console.error(error));
+    if (!menuOpen) reloadRooms();
     setMenuOpen(!menuOpen);
   }
 

@@ -5,6 +5,7 @@ import { homeLimit, roomsToKeep } from "../domain/sky";
 import { RankVase } from "./SkyPanel";
 import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
+import { toggled } from "./sets";
 
 // 홈 자리보다 방이 많아지면 뜹니다. 새 방, 다시 올리기, 가져오기, 예전 기록이 모두 이 창 하나로 옵니다.
 export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[]; prefer: (string | null)[]; now: number; onKeep: (keep: Set<string>) => Promise<void> }) {
@@ -14,12 +15,7 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
   useModal(dialog);
 
   function toggle(id: string, on: boolean) {
-    setKeep((current) => {
-      const next = new Set(current);
-      if (on) next.add(id);
-      else next.delete(id);
-      return next;
-    });
+    setKeep((current) => toggled(current, [id], on));
   }
 
   async function submit() {

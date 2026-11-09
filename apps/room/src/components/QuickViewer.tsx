@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { markWorkDay } from "../domain/care";
 import type { Room, Thing } from "../domain/model";
 import { shortPath } from "../domain/platform";
+import { isNotFound } from "../gateways/mover";
 import { askFolder, folderAccess, openInApp, readFolderFile, type Folder } from "../gateways/native";
 import { roomFolder } from "../storage/box";
 import { patchRoom } from "../storage/db";
@@ -50,7 +51,7 @@ export function QuickViewer({ room, thing, onClose, onToRoom, onError }: { room:
         setState({ status: "ready", file: await readFolderFile(found, thing.path) });
         touch();
       } catch (error) {
-        const missing = error instanceof DOMException && (error.name === "NotFoundError" || error.name === "TypeMismatchError");
+        const missing = isNotFound(error);
         // 브라우저는 클릭 없이 권한을 묻지 못합니다. 다시 시도 버튼이 그 클릭이 돼요.
         if (error instanceof DOMException && error.name === "SecurityError") return setState({ status: "denied" });
         setState({ status: "error", message: missing ? "폴더에서 이 파일을 찾지 못했어요. 옮겨졌거나 지워졌다면 방에서 ‘폴더 다시 보기’로 목록을 맞춰 주세요." : "파일을 열지 못했어요. 다른 앱이 쓰고 있는지 확인해 주세요." });

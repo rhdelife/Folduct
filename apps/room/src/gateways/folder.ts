@@ -18,6 +18,9 @@ export type AccessMode = "read" | "readwrite";
 export type Access = "granted" | "prompt" | "denied" | "unknown";
 
 export const scanLimits = { files: 1000, depth: 10 };
+// 다 읽지 못했을 때 방에 남기는 말. 폴더를 고를 때와 폴더를 통째로 받을 때가 같은 말을 쓰게 한곳에 둬요(테스트가 한도를 바꿔도 맞게 함수로).
+const filesNote = () => `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
+const depthNote = () => `깊이 ${scanLimits.depth}을 넘는 폴더는 넣지 않았어요.`;
 
 export type ScanResult = { files: ScannedFile[]; failed: number; complete: boolean; note: string | null };
 
@@ -99,7 +102,7 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
   const full = () => {
     if (result.files.length < scanLimits.files) return false;
     result.complete = false;
-    result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
+    result.note = filesNote();
     return true;
   };
   async function walk(dir: DirectorySource, parent: string, level: number): Promise<void> {
@@ -124,7 +127,7 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
       if (entry.kind === "directory") {
         if (level >= scanLimits.depth) {
           result.complete = false;
-          result.note = `깊이 ${scanLimits.depth}을 넘는 폴더는 넣지 않았어요.`;
+          result.note = depthNote();
           continue;
         }
         if (isBackFolder(entry.name)) {
@@ -198,12 +201,12 @@ export function scanFileList(list: FileList): ScanResult & { rootName: string } 
     if (relative.length === 0 || relative.some(isExcludedName)) continue;
     if (relative.length - 1 > scanLimits.depth) {
       result.complete = false;
-      result.note = `깊이 ${scanLimits.depth}을 넘는 폴더는 넣지 않았어요.`;
+      result.note = depthNote();
       continue;
     }
     if (result.files.length >= scanLimits.files) {
       result.complete = false;
-      result.note = `파일 ${scanLimits.files.toLocaleString("ko-KR")}개까지만 방에 들였어요.`;
+      result.note = filesNote();
       break;
     }
     result.files.push({ path: relative.join("/"), name: parts[parts.length - 1], kind: kindOf(file.name), size: file.size, lastModified: file.lastModified });

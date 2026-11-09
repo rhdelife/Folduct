@@ -33,11 +33,14 @@ export async function fileExists(root: MoveDirectory, path: string): Promise<boo
   }
 }
 
-export async function freeBoxPath(root: MoveDirectory, fromPath: string): Promise<string | null> {
+// 상자 안 빈 이름. 원래 하위 경로를 상자 안에서도 유지하고, 디스크에 있는 이름과 이번 묶음에서 이미 잡은 이름(reserved)은 피해요.
+export async function freeBoxPath(root: MoveDirectory, fromPath: string, reserved?: Set<string>): Promise<string | null> {
   for (let attempt = 1; attempt <= 50; attempt += 1) {
     const candidate = boxPathCandidate(fromPath, attempt);
     if (!isSafeRelativePath(candidate)) return null;
-    if (!(await fileExists(root, candidate))) return candidate;
+    if (reserved?.has(candidate) || (await fileExists(root, candidate))) continue;
+    reserved?.add(candidate);
+    return candidate;
   }
   return null;
 }
@@ -102,7 +105,8 @@ async function walk(root: MoveDirectory, parts: string[], create: boolean): Prom
   return directory;
 }
 
-function isNotFound(error: unknown): boolean {
+// 파일·폴더가 없을 때 브라우저와 Tauri가 주는 오류. 판정만 해서 폴더에 할 수 있는 일은 늘지 않아요.
+export function isNotFound(error: unknown): boolean {
   return error instanceof DOMException && (error.name === "NotFoundError" || error.name === "TypeMismatchError");
 }
 

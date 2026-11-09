@@ -37,75 +37,6 @@ export const toSky = (point: Point, view: View): Point => ({ x: (point.x / view.
 
 export type Box = { x: number; y: number; hw: number; hh: number };
 
-// 겹치면 겹침이 작은 쪽으로 밀어냅니다. 난수 없이 순서대로 돌아 같은 입력이면 늘 같은 자리입니다. 묶음 전체가 무대를 고르게 채우게 pad만큼 부풀려 밀다가 마지막엔 실제 크기로 맞춥니다.
-export type Movable = Box & { minX: number; maxX: number; minY: number; maxY: number; dy?: number };
-export function relaxBoxes(items: Movable[], fixed: Box[], { pad = 0, gap = 0, passes = 90 }: { pad?: number; gap?: number; passes?: number } = {}): void {
-  // a를 b 밖으로 밀 거리. 겹침이 작은 쪽으로, 정확히 같은 자리면 번호로 방향을 정합니다.
-  const push = (dx: number, dy: number, reachX: number, reachY: number, tie: number): [number, number] => {
-    const ox = reachX - Math.abs(dx);
-    const oy = reachY - Math.abs(dy);
-    if (ox <= 0 || oy <= 0) return [0, 0];
-    const away = (delta: number) => (delta === 0 ? (tie % 2 ? 1 : -1) : Math.sign(delta));
-    return ox < oy ? [away(dx) * ox, 0] : [0, away(dy) * oy];
-  };
-  const inflated = Math.floor(passes * 0.7);
-  for (let pass = 0; pass < passes; pass += 1) {
-    const room = (pass < inflated ? pad * 2 : 0) + gap;
-    for (let i = 0; i < items.length; i += 1) {
-      const a = items[i];
-      for (let j = i + 1; j < items.length; j += 1) {
-        const b = items[j];
-        const [mx, my] = push(a.x - b.x, a.y + (a.dy ?? 0) - b.y - (b.dy ?? 0), a.hw + b.hw + room, a.hh + b.hh + room, i + j);
-        a.x += mx / 2;
-        a.y += my / 2;
-        b.x -= mx / 2;
-        b.y -= my / 2;
-      }
-    }
-    for (let i = 0; i < items.length; i += 1) {
-      const a = items[i];
-      a.x = clamp(a.x, a.minX, a.maxX);
-      a.y = clamp(a.y, a.minY, a.maxY);
-      // 고정된 것은 가장자리 제한보다 먼저입니다. 머리글이나 주름관 위로 올라가느니 가장자리 밖으로 조금 나가요.
-      for (const box of fixed) {
-        const [mx, my] = push(a.x - box.x, a.y + (a.dy ?? 0) - box.y, a.hw + box.hw + gap, a.hh + box.hh + gap, i);
-        a.x += mx;
-        a.y += my;
-      }
-    }
-  }
-}
-
-// 밀어내기가 두 장애물 사이에서 맴돈 상자는 둘레를 넓혀 가며 가장 가까운 빈자리로 옮깁니다. 겹침이 남지 않게 하는 마지막 단계예요.
-export function settleBoxes(items: Movable[], fixed: Box[], gap: number, step: number): Set<Movable> {
-  const stuck = new Set<Movable>();
-  const hits = (a: Movable, x: number, y: number, b: Box, by: number, room: number) => Math.abs(x - b.x) < a.hw + b.hw + room && Math.abs(y - by) < a.hh + b.hh + room;
-  const free = (index: number, x: number, y: number) => {
-    const a = items[index];
-    const cy = y + (a.dy ?? 0);
-    if (fixed.some((box) => hits(a, x, cy, box, box.y, gap))) return false;
-    return !items.some((b, j) => j !== index && hits(a, x, cy, b, b.y + (b.dy ?? 0), gap));
-  };
-  items.forEach((a, index) => {
-    if (a.x >= a.minX && a.x <= a.maxX && a.y >= a.minY && a.y <= a.maxY && free(index, a.x, a.y)) return;
-    stuck.add(a);
-    for (let ring = 1; ring < 80; ring += 1) {
-      const spokes = 12 + ring * 2;
-      for (let spoke = 0; spoke < spokes; spoke += 1) {
-        const angle = (spoke / spokes) * 2 * Math.PI + index;
-        const x = a.x + Math.cos(angle) * ring * step;
-        const y = a.y + Math.sin(angle) * ring * step;
-        if (x < a.minX || x > a.maxX || y < a.minY || y > a.maxY || !free(index, x, y)) continue;
-        a.x = x;
-        a.y = y;
-        stuck.delete(a);
-        return;
-      }
-    }
-  });
-  return stuck;
-}
-
 // 방 자리. 주름관이 판 가운데를 물결처럼 가로지릅니다. 좁은 창에서는 둘씩 줄을 지어요. 많으면 해바라기로 채웁니다.
 export function roomSpots(count: number, view: View = baseView): Point[] {
   const { w, h } = view;
@@ -153,13 +84,6 @@ export const vaseUnit = 1.28;
 // 방 이름표 자리(주름관 아래). roomStars의 첫 자리 잡기에만 쓰는 어림값이고, 겹침은 heroLayout이 실제 이름으로 다시 봅니다.
 export const labelHalfWidth = 100;
 export const labelHeight = 60;
-// 이름표 폭의 절반. 글자 폭을 재지 않고 어림합니다(한글 1em, 그 밖 0.6em). 최대 폭은 CSS --room-label-max와 같아요.
-export function labelHalf(name: string, view: View): number {
-  const chars = Array.from(name).reduce((sum, char) => sum + (char.charCodeAt(0) > 0x2e7f ? 1 : 0.6), 0);
-  // 아래 줄(용량과 상태)이 이름보다 길 때가 많아 최소 폭을 넉넉히 둡니다.
-  return Math.min(Math.max(view.w * 0.22, 144) / 2, Math.max((chars * 13) / 2, 78));
-}
-
 export function starRadius(bytes: number, scale = 1): number {
   return (4 + 8 * sizeRatio(bytes)) * scale;
 }
@@ -179,28 +103,6 @@ export const homeLimit = 5;
 export function roomsToKeep(active: Room[], prefer: (string | null)[]): string[] {
   const rank = (room: Room) => (prefer.includes(room.id) ? 2 : room.source === "sample" ? 0 : 1);
   return [...active].sort((a, b) => rank(b) - rank(a) || roomLastActivity(b) - roomLastActivity(a)).slice(0, homeLimit).map((room) => room.id);
-}
-
-// 지도에는 홈에 둔 방만 놓고, 서로 밀어내 겹치지 않게 합니다. 자리를 넘은 방은 고르는 창이 떠 있는 동안에만 생겨요.
-export function layoutRooms(rooms: Room[], view: View = baseView, top = 0): Placed[] {
-  const active = rooms.filter((room) => !room.care.done).slice(0, homeLimit);
-  const scale = 1;
-  const spread = clusterSpread(active.length);
-  const limit = 40;
-  const perUnit = stageUnit(view) * vaseUnit;
-  const margin = 8 * stageUnit(view);
-  const items = roomSpots(active.length, view).map((spot, i): Movable => {
-    const half = vaseHalf(roomRadius(active[i], scale)) * perUnit;
-    const { x, y } = toPx(spot, view);
-    // 이름표까지 한 덩어리로 밀어냅니다. 이름표 글자는 판을 따라 줄지 않으니 작은 화면에서도 실제 높이만큼은 비워 둡니다.
-    const label = Math.max(labelHeight * stageUnit(view), 48);
-    const hw = Math.max(half, labelHalf(active[i].name, view));
-    const hh = half + label / 2;
-    return { x, y, hw, hh, dy: label / 2, minX: Math.min(view.w / 2, hw + margin), maxX: Math.max(view.w / 2, view.w - hw - margin), minY: Math.min(view.h / 2, Math.max(72 * stageUnit(view), 72, top) + half), maxY: Math.max(view.h / 2, view.h - hh * 2 - margin + half) };
-  });
-  relaxBoxes(items, calendarSpot(view), { gap: margin, passes: 40 });
-  settleBoxes(items, calendarSpot(view), margin / 2, 12 * stageUnit(view));
-  return active.map((room, i) => ({ room, at: toSky(items[i], view), scale, spread, limit }));
 }
 
 // 큰 파일부터 띄웁니다(방 안 줄과 같은 순서). 상자 속·사라진 파일은 하늘에 띄우지 않습니다.

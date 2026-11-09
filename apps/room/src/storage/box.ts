@@ -1,7 +1,7 @@
-import { boxPathCandidate, mergeScan, sweepCandidates } from "../domain/care";
-import { isSafeRelativePath, type BoxEntry, type Room, type Thing } from "../domain/model";
+import { mergeScan, sweepCandidates } from "../domain/care";
+import type { BoxEntry, Room, Thing } from "../domain/model";
 import { fileManagerName } from "../domain/platform";
-import { fileExists, moveFile, type MoveDirectory } from "../gateways/mover";
+import { fileExists, freeBoxPath, moveFile, type MoveDirectory } from "../gateways/mover";
 import { askFolder, canMoveIn, folderAccess, folderMover, folderSource, isNative, scanRoomFolder, type Folder } from "../gateways/native";
 import { getHandle, listRooms, patchRoom, setLastSweepAt } from "./db";
 
@@ -140,7 +140,7 @@ async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], out
   const reserved = new Set<string>();
   const targets = new Map<string, BoxEntry>();
   for (const thing of things) {
-    const boxPath = await reserveBoxPath(root, thing.path, reserved).catch(() => null);
+    const boxPath = await freeBoxPath(root, thing.path, reserved).catch(() => null);
     if (boxPath) targets.set(thing.id, { state: "moving-in", fromPath: thing.path, boxPath, at: now });
     else fail(thing, "상자 안에 둘 이름을 정하지 못했어요.");
   }
@@ -176,18 +176,6 @@ async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], out
   // 4. 결과를 한 번에 적습니다. 그사이 다른 쪽이 맞춘 기록은 그대로 둡니다.
   if (results.size === 0) return;
   await patchThings(roomId, (thing) => (thing.box?.state === "moving-in" && thing.box.boxPath === targets.get(thing.id)?.boxPath ? (results.get(thing.id) ?? null) : null));
-}
-
-// 원래 하위 경로를 상자 안에서도 유지하고, 디스크에 있거나 이번 묶음에서 이미 잡은 이름은 피합니다.
-async function reserveBoxPath(root: MoveDirectory, fromPath: string, reserved: Set<string>): Promise<string | null> {
-  for (let attempt = 1; attempt <= 50; attempt += 1) {
-    const candidate = boxPathCandidate(fromPath, attempt);
-    if (!isSafeRelativePath(candidate)) return null;
-    if (reserved.has(candidate) || (await fileExists(root, candidate))) continue;
-    reserved.add(candidate);
-    return candidate;
-  }
-  return null;
 }
 
 // 방 폴더 자체를 못 읽으면(옮겨짐·드라이브 분리·권한) 파일이 두 자리 모두 없어 보여서, 맞추기 전에 확인합니다.

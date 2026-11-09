@@ -8,6 +8,7 @@ import { setLastSweepAt } from "../storage/db";
 import { FrodoGuide } from "./FrodoGuide";
 import { cue } from "./useFrodo";
 import { useModal } from "./useModal";
+import { toggled } from "./sets";
 
 // 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
 export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
@@ -69,14 +70,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
   }
 
   function toggle(ids: string[], on: boolean) {
-    setSelected((current) => {
-      const next = new Set(current);
-      for (const id of ids) {
-        if (on) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
+    setSelected((current) => toggled(current, ids, on));
   }
 
   const permits = isNative() ? 0 : plans.filter((plan) => plan.mode === "real" && plan.candidates.some((thing) => selected.has(thing.id))).length;
