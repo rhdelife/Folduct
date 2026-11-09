@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore, type RefObject } from "react";
-import type { Thing } from "../domain/model";
+import type { Room, Thing } from "../domain/model";
 import { readFolderFile, type Folder } from "../gateways/native";
 import { pictureSourceLimit, shrink } from "./pictures";
 
@@ -24,6 +24,16 @@ const listeners = new Set<() => void>();
 export function canThumb(thing: Pick<Thing, "kind" | "name" | "size" | "missing">): boolean {
   const end = thing.name.slice(thing.name.lastIndexOf(".") + 1).toLowerCase();
   return thing.kind === "image" && !thing.missing && thing.size > 0 && thing.size <= pictureSourceLimit && !rawEnds.includes(end);
+}
+
+// 방의 대표 이미지: 고정한 이미지 중 가장 최근에 고친 것, 없으면 가장 최근에 고친 이미지. 상자에 든 파일과 사라진 파일은 빼요.
+export function coverOf(room: Pick<Room, "things">): Thing | null {
+  let best: Thing | null = null;
+  for (const thing of room.things) {
+    if (thing.box || !canThumb(thing)) continue;
+    if (!best || (thing.pinned !== best.pinned ? thing.pinned : thing.lastModified > best.lastModified)) best = thing;
+  }
+  return best;
 }
 
 // 파일을 고치면 수정 시각이 바뀌어 새로 읽어요.

@@ -460,6 +460,11 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .vase-lift { transform-origin: 50% 100%; transition: transform var(--dur-focus) var(--ease-glide), opacity var(--dur-focus) var(--ease-glide); }
 .vase-float { transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; animation-delay: calc(var(--phase) * -10s); }
 .vase-art { width: 100%; height: 100%; overflow: visible; }
+/* 방의 대표 이미지: 받침 오른쪽에 비스듬히 기대 선 사진 한 장. 숨쉬기(.vase-float) 밖에 있어 흔들리지 않아요. */
+.room-cover { position: absolute; left: 64%; bottom: 0; display: block; width: 44%; rotate: 8deg; transform-origin: 50% 100%; pointer-events: none; }
+.room-cover .object { display: block; width: 100%; height: auto; }
+/* 좁은 화면에서는 고른 방이 화면을 거의 채워서, 사진을 몸 쪽으로 붙여 잘리지 않게 해요. */
+@media (max-width: 719.98px) { .room-cover { left: 54%; width: 38%; } }
 /* 주름관 그림의 색. 받침은 방 색, 들고 있는 종이는 파일 형식 색이고 없으면 흰색이에요. */
 .duct-ink { fill: var(--ink); }
 .duct-white { fill: var(--surface); }
@@ -695,6 +700,7 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .sky-canvas.entering .paper { will-change: transform, opacity; }
 .paper-art { display: block; width: 100%; height: 100%; pointer-events: auto; cursor: pointer; transition: scale var(--dur-2) var(--ease-standard), translate var(--dur-2) var(--ease-standard), opacity var(--dur-3) var(--ease-standard); }
 .paper-art .object { display: block; overflow: visible; }
+.paper-thumb { display: block; width: 100%; height: 100%; }
 .sky-canvas.entering .paper-art { pointer-events: none; }
 .paper.focused .paper-art { scale: 1.08; }
 .paper-pulse { position: absolute; inset: calc(var(--space-2) * -1); border: 2px solid; border-radius: 50%; pointer-events: none; }

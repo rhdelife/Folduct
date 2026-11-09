@@ -11,6 +11,10 @@ import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUn
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { useHeroMotion } from "./home/heroMotion";
 import { WheelStepper } from "../domain/wheelStep";
+import { folderAccess, type Folder } from "../gateways/native";
+import { roomFolder } from "../storage/box";
+import { usePicture } from "../storage/pictures";
+import { coverOf, useThumb } from "../storage/thumbs";
 
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
@@ -294,6 +298,7 @@ const MapLayers = memo(function MapLayers({
   // 처음 누르면 그 프로도에게 다가가 파일을 뱉게 하고, 고른 프로도를 한 번 더 누르면 방으로 들어갑니다.
   const pick = (id: string) => (id === selectedId ? onOpenRoom(id) : onSelectRoom(id));
 
+  const folders = useReadableFolders(ordered.map((node) => node.room));
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
   const onPaperUp = (event: PointerEvent, card: Card) => {
@@ -335,7 +340,7 @@ const MapLayers = memo(function MapLayers({
                 }}
               >
                 {focused && <span className="paper-pulse pulse" style={{ borderColor: kindColors[card.thing.kind] }} />}
-                <ObjectShape kind={card.thing.kind} size={card.size} name={card.thing.name} seed={card.thing.id} nameFrom={namedPaper} />
+                <PaperShape card={card} folder={folders.get(card.room.id) ?? null} />
               </div>
             </div>
           );
@@ -382,6 +387,7 @@ const MapLayers = memo(function MapLayers({
               <span className="room-card" aria-hidden="true" />
               <span className="room-floor" aria-hidden="true" />
               <span className="vase-lift">
+                <RoomCover room={room} folder={folders.get(room.id) ?? null} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit * 0.44) / 4) * 4} />
                 <span className="vase-float">
                   <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" actor={room.id} mood={selectedId === room.id ? "happy" : selectedId ? "shut" : "base"} />
                 </span>
@@ -403,3 +409,52 @@ const MapLayers = memo(function MapLayers({
     </div>
   );
 });
+
+// 권한을 묻지 않고 지금 읽을 수 있는 방 폴더들(방 id → 폴더). 샘플 방이나 브라우저에서 권한이 없는 방은 빠져요.
+function useReadableFolders(rooms: Room[]): Map<string, Folder> {
+  const [folders, setFolders] = useState(() => new Map<string, Folder>());
+  const key = rooms.map((room) => `${room.id}:${room.source}:${room.origin ?? ""}`).join();
+  useEffect(() => {
+    let live = true;
+    const readable = async (room: Room) => {
+      const found = await roomFolder(room).catch(() => null);
+      return found && (await folderAccess(found).catch(() => "unknown")) === "granted" ? ([room.id, found] as const) : null;
+    };
+    void Promise.all(rooms.map(readable)).then((list) => live && setFolders(new Map(list.filter((entry) => entry !== null))));
+    return () => {
+      live = false;
+    };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return folders;
+}
+
+// 방의 대표 이미지 한 장을 받침 옆에 기대 세워요. 이름만으로 방을 찾지 않게, 방에서 가장 최근의 그림을 보여 줍니다.
+// 그림을 읽기 전이거나 읽을 수 없으면 아무것도 그리지 않아요.
+function RoomCover({ room, folder, px }: { room: Room; folder: Folder | null; px: number }) {
+  const cover = useMemo(() => coverOf(room), [room.things]); // eslint-disable-line react-hooks/exhaustive-deps
+  return cover ? <CoverPaper thing={cover} folder={folder} px={px} /> : null;
+}
+
+function CoverPaper({ thing, folder, px }: { thing: Thing; folder: Folder | null; px: number }) {
+  const self = useRef<HTMLSpanElement>(null);
+  const own = usePicture(thing.id);
+  const thumb = useThumb(self, own ? null : folder, thing);
+  const url = own ?? thumb;
+  return (
+    <span ref={self} className="room-cover" aria-hidden="true">
+      {url && <ObjectShape kind={thing.kind} size={px} seed={thing.id} picture={url} />}
+    </span>
+  );
+}
+
+// 고른 방 아래에 놓인 파일 종이. 이미지면 진짜 미리보기를 끼워요(방 안과 같은 캐시).
+function PaperShape({ card, folder }: { card: Card; folder: Folder | null }) {
+  const self = useRef<HTMLSpanElement>(null);
+  const own = usePicture(card.thing.id);
+  const thumb = useThumb(self, own ? null : folder, card.thing);
+  return (
+    <span ref={self} className="paper-thumb">
+      <ObjectShape kind={card.thing.kind} size={card.size} name={card.thing.name} seed={card.thing.id} nameFrom={namedPaper} picture={own ?? thumb} />
+    </span>
+  );
+}
