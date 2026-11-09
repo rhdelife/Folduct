@@ -657,7 +657,8 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   /* 좁아서 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
   .home-actions b { display: inline-block; width: var(--space-2); height: var(--space-2); margin-left: var(--space-1); overflow: hidden; border-radius: var(--radius-pill); background: var(--ink); font-size: 0; }
   .home-actions b::before { content: none; }
-  .caption-layer { left: calc(var(--gutter) + var(--space-8) + var(--space-2)); right: calc(var(--space-12) * 2 + var(--space-6)); grid-template-columns: minmax(0, 1fr); font-size: var(--text-xs); line-height: var(--lh-xs); }
+  /* 버튼 넷이 폭을 거의 다 써서, 요약은 로고·버튼 줄 아래 둘째 줄로 내려요(머리 높이 --topbar-phone-h 안). */
+  .caption-layer { left: var(--gutter); right: var(--gutter); top: var(--space-10); translate: 0 -25%; grid-template-columns: minmax(0, 1fr); font-size: var(--text-xs); line-height: var(--lh-xs); }
   .caption-layer strong { font-size: var(--text-md); line-height: var(--lh-md); }
   /* 길어져도 한 줄로 끊습니다. 접히면 아래 쪽 이동에 닿아요. */
   .caption-layer :is(strong, span) { overflow: hidden; text-overflow: ellipsis; }
