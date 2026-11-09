@@ -1,7 +1,7 @@
 import { isNewName, isPartialFile, type DoorRead } from "../domain/doorstep";
 import { isSafeRelativePath, kindOf, type ScannedFile } from "../domain/model";
 import { osErrorKind } from "../domain/platform";
-import { isMachineFolder } from "../domain/pile";
+import { isBackFolder } from "../domain/pile";
 
 declare global {
   interface FileSystemDirectoryHandle {
@@ -89,11 +89,11 @@ export function handleSource(handle: FileSystemDirectoryHandle): DirectorySource
   };
 }
 
-const readOrder = (entry: { name: string; kind: "file" | "directory" }): number => (entry.kind === "file" ? 0 : isMachineFolder(entry.name) ? 2 : 1);
+const readOrder = (entry: { name: string; kind: "file" | "directory" }): number => (entry.kind === "file" ? 0 : isBackFolder(entry.name) ? 2 : 1);
 
 export async function scanFolder(source: DirectorySource, onProgress?: (count: number) => void): Promise<ScanResult> {
   const result: ScanResult = { files: [], failed: 0, complete: true, note: null };
-  // 자동 생성 폴더(tmp·target 같은)는 어느 깊이에 있든 바로 들어가지 않고 미뤄 뒀다가, 나머지를 다 읽은 뒤에 읽어요.
+  // 자동 생성·보관 폴더(tmp·target·_archive 같은)는 어느 깊이에 있든 바로 들어가지 않고 미뤄 뒀다가, 나머지를 다 읽은 뒤에 읽어요.
   // apps/…/src-tauri/target 같은 깊은 빌드 폴더가 한도를 먼저 채워 옆 폴더의 결과물을 못 읽는 일을 막아요.
   const later: { parent: DirectorySource; name: string; path: string; level: number }[] = [];
   const full = () => {
@@ -112,7 +112,7 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
       result.failed += 1;
       return;
     }
-    // 한 폴더 안에서는 파일 → 보통 폴더 → 자동 생성 폴더(tmp·build 같은) 순서로 읽어요. 한도(파일 수)가 차도 맨 위 결과물은 먼저 들어와요.
+    // 한 폴더 안에서는 파일 → 보통 폴더 → 자동 생성·보관 폴더(tmp·build·_archive 같은) 순서로 읽어요. 한도(파일 수)가 차도 맨 위 결과물은 먼저 들어와요.
     listing = listing.sort((a, b) => readOrder(a) - readOrder(b));
     for (const entry of listing) {
       if (isExcludedName(entry.name)) continue;
@@ -127,7 +127,7 @@ export async function scanFolder(source: DirectorySource, onProgress?: (count: n
           result.note = `깊이 ${scanLimits.depth}을 넘는 폴더는 넣지 않았어요.`;
           continue;
         }
-        if (isMachineFolder(entry.name)) {
+        if (isBackFolder(entry.name)) {
           later.push({ parent: dir, name: entry.name, path, level: level + 1 });
           continue;
         }
@@ -189,7 +189,7 @@ export function scanFileList(list: FileList): ScanResult & { rootName: string } 
   // 폴더를 고를 때와 같은 순서: 얕은 파일부터, 자동 생성 폴더 안은 맨 나중에요. 한도가 차도 맨 위 결과물이 먼저 들어와요.
   const files = Array.from(list).map((file) => {
     const parts = (file.webkitRelativePath || file.name).normalize("NFC").split("/").filter(Boolean);
-    return { file, parts, rank: (parts.slice(1, -1).some(isMachineFolder) ? scanLimits.depth + 2 : 0) + parts.length };
+    return { file, parts, rank: (parts.slice(1, -1).some(isBackFolder) ? scanLimits.depth + 2 : 0) + parts.length };
   });
   files.sort((a, b) => a.rank - b.rank);
   for (const { file, parts } of files) {

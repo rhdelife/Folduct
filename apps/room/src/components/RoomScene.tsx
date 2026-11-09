@@ -120,7 +120,7 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
               ))}
             {piles.length > 0 && (
               <div className="lane-piles">
-                <p className="lane-piles-head">자동으로 생긴 파일 <span>{piles.length}묶음 · {piled.toLocaleString("ko-KR")}개</span></p>
+                <p className="lane-piles-head">{pileHeading(piles)} <span>{piles.length}묶음 · {piled.toLocaleString("ko-KR")}개</span></p>
                 <ul className="lane-things">
                   {piles.map((pile) => {
                     const id = `${lane}:${pile.key}`;
@@ -182,11 +182,17 @@ export function RoomScene({ room, now, folder, query, selectedId, onSelect, onOp
   );
 }
 
+// 줄 끝 더미들의 머리말. 자동 생성 폴더(tmp·build)와 보관 폴더(_archive·backup) 중 무엇이 있는지 말해요.
+function pileHeading(piles: Pile[]): string {
+  const archive = piles.filter((pile) => pile.archive).length;
+  return archive === 0 ? "자동으로 생긴 파일" : archive === piles.length ? "보관 폴더" : "자동으로 생긴 파일·보관 폴더";
+}
+
 // 더미 한 장: 큰 파일 세 장을 겹쳐 쌓고 맨 위 종이에 마지막 폴더 이름을 찍어요(긴 경로는 종이에 안 들어가요). 누르면 그 줄 아래에 펼쳐져요.
 function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: boolean; onToggle: () => void }) {
   const [top, ...under] = pile.things.slice(0, 3);
   return (
-    <button type="button" className="lane-paper lane-pile" data-pile-id={id} aria-expanded={open} aria-label={`${pile.label} 묶음, 자동으로 생긴 파일 ${pile.things.length}개, ${formatBytes(pile.size)}`} onClick={onToggle}>
+    <button type="button" className="lane-paper lane-pile" data-pile-id={id} aria-expanded={open} aria-label={`${pile.label} 묶음, ${pile.archive ? "보관 폴더 파일" : "자동으로 생긴 파일"} ${pile.things.length}개, ${formatBytes(pile.size)}`} onClick={onToggle}>
       <span className="lane-art">
         {under.map((thing, at) => (
           <span key={thing.id} className={`lane-pile-under lane-pile-under-${at + 1}`} aria-hidden="true"><ObjectShape kind={thing.kind} size={paperPx} seed={thing.id} /></span>

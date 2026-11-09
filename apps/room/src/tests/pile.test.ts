@@ -14,13 +14,23 @@ describe("자동 생성 파일 더미", () => {
     expect(pileKey("tmp/pdfs/rt89/page-001.png")).toBe("tmp/pdfs/rt89");
     expect(pileKey("tmp/pdfs/rt5_rt10/qa/a.png")).toBe("tmp/pdfs/rt5_rt10");
     expect(pileKey("tmp/pdfs/cover.png")).toBe("tmp/pdfs");
-    expect(pileKey("_archive/memory-desk/apps/desktop/src-tauri/target/debug/deps/libx-ab12.rmeta")).toBe("_archive/memory-desk/apps/desktop/src-tauri/target/debug/deps");
+    expect(pileKey("memory-desk/apps/desktop/src-tauri/target/debug/deps/libx-ab12.rmeta")).toBe("memory-desk/apps/desktop/src-tauri/target/debug/deps");
     expect(pileKey("assets/generated/last-supper-v3-dramatic.png")).toBe("assets/generated");
     expect(pileKey("Build/out.txt")).toBe("Build");
   });
 
+  it("보관 폴더(_archive·backup·old)는 그 안의 프로젝트 하나가 더미 하나예요", () => {
+    expect(pileKey("_archive/memory-desk/apps/desktop/src/App.tsx")).toBe("_archive/memory-desk");
+    expect(pileKey("_archive/memory-desk/apps/desktop/src-tauri/target/debug/deps/x.rmeta")).toBe("_archive/memory-desk");
+    expect(pileKey("_archive/README.md")).toBe("_archive");
+    expect(pileKey("Backup/2025/a.psd")).toBe("Backup/2025");
+    expect(pileKey("docs/old/기획_v1.pdf")).toBe("docs/old");
+    const { piles } = splitLane([thing("_archive/design-sprint/index.html"), thing("tmp/a.png")]);
+    expect(piles.map((pile) => [pile.label, pile.archive]).sort()).toEqual([["_archive/design-sprint", true], ["tmp", false]]);
+  });
+
   it("맨 위 결과물과 output·exports 폴더는 앞줄이에요", () => {
-    for (const path of ["RT4_시험대비_강의노트.pdf", "README.md", "output/posters/x.png", "exports/instagram/post-01.png", "tmp.md", "notes/temporary/a.md"]) expect(pileKey(path), path).toBeNull();
+    for (const path of ["RT4_시험대비_강의노트.pdf", "README.md", "output/posters/x.png", "exports/instagram/post-01.png", "tmp.md", "notes/temporary/a.md", "archive.zip", "golden/a.png", "older-notes/a.md"]) expect(pileKey(path), path).toBeNull();
   });
 
   it("줄을 앞줄과 더미로 나누고, 고정한 파일은 더미 안에 있어도 앞줄에 나와요", () => {
@@ -32,7 +42,7 @@ describe("자동 생성 파일 더미", () => {
   });
 
   it("이름표는 자동 생성 폴더 바로 위 폴더부터 보여 줘요", () => {
-    const { piles } = splitLane([thing("_archive/memory-desk/apps/desktop/src-tauri/target/debug/deps/a.rmeta"), thing("tools/target/debug/deps/b.rmeta")]);
+    const { piles } = splitLane([thing("memory-desk/apps/desktop/src-tauri/target/debug/deps/a.rmeta"), thing("tools/target/debug/deps/b.rmeta")]);
     expect(piles.map((pile) => pile.label).sort()).toEqual(["src-tauri/target/debug/deps", "tools/target/debug/deps"]);
     expect(splitLane([thing("tmp/pdfs/rt89/p.png")]).piles[0].label).toBe("tmp/pdfs/rt89");
   });
