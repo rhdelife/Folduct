@@ -26,12 +26,12 @@ export function WorkCalendar({ rooms, log, now }: { rooms: Room[]; log: WorkLog;
           <div key={month}>
             {days.map((day, at) => {
               const ms = work.days.get(day);
-              return <i key={day} className={ms ? "on" : day < today ? "past" : undefined} title={ms ? `${month + 1}월 ${at + 1}일 · ${formatWork(ms)}` : undefined} />;
+              return <i key={day} className={ms ? "on" : day < today ? "past" : undefined} title={ms ? `${month + 1}월 ${at + 1}일, ${formatWork(ms)}` : undefined} />;
             })}
           </div>
         ))}
       </div>
-      <p className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(" · ") : "플로팅 창에서 작업을 시작하면 쌓여요."}</p>
+      <p className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(", ") : "플로팅 창에서 작업을 시작하면 쌓여요."}</p>
     </section>
   );
 }

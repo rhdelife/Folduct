@@ -5,6 +5,7 @@ import { currentOs } from "../domain/platform";
 import { canPickFolder } from "../gateways/folder";
 import { isNative } from "../gateways/native";
 import { useModal } from "./useModal";
+import { Meta } from "./Meta";
 
 export type ViewerState =
   | { status: "loading" }
@@ -96,7 +97,7 @@ export function FileViewer({
           <ObjectShape kind={thing.kind} size={40} name={thing.name} seed={thing.id} />
           <div>
             <h2 id="viewer-title">{thing.name}</h2>
-            <p className="soft">{kindLabels[thing.kind]} · {formatBytes(state.status === "ready" ? state.file.size : thing.size)} · {thing.path}</p>
+            <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(state.status === "ready" ? state.file.size : thing.size), thing.path]} /></p>
           </div>
           <button type="button" onClick={onClose}>닫기</button>
         </header>

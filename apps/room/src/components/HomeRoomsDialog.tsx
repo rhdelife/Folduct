@@ -6,6 +6,7 @@ import { RankVase } from "./SkyPanel";
 import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
+import { Meta } from "./Meta";
 
 // 홈 자리보다 방이 많아지면 뜹니다. 새 방, 다시 올리기, 가져오기, 예전 기록이 모두 이 창 하나로 옵니다.
 export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[]; prefer: (string | null)[]; now: number; onKeep: (keep: Set<string>) => Promise<void> }) {
@@ -40,7 +41,7 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
         <h2 id="home-rooms-title">홈에 둘 방을 골라 주세요</h2>
         <p>홈에는 방을 {homeLimit}개까지 둘 수 있어요. 뺀 방은 메뉴의 방 목록에 있고, 폴더와 파일은 그대로예요.</p>
         {/* 다 차면 빈 칸을 막아 두니, 눌러도 왜 안 되는지 여기서 알려요. */}
-        <p role="status"><strong>{shown} / {homeLimit}</strong>{full && " · 다 찼어요. 다른 방을 넣으려면 하나를 먼저 빼 주세요."}</p>
+        <p role="status"><strong>{shown} / {homeLimit}</strong>{full && " 다 찼어요. 다른 방을 넣으려면 하나를 먼저 빼 주세요."}</p>
         <section className="sweep-room">
           <ul>
             {rooms.map((room) => {
@@ -51,7 +52,7 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
                     <input type="checkbox" checked={keep.has(room.id)} disabled={saving || (full && !keep.has(room.id))} onChange={(event) => toggle(room.id, event.target.checked)} />
                     <RankVase room={room} partial={!roomUsage(room).exact} />
                     <span className="name">{room.name}</span>
-                    <span className="soft">{formatBytes(roomUsage(room).totalBytes)}{last > 0 ? ` · 마지막 작업 ${relativeDay(last, now)}` : ""}</span>
+                    <Meta className="soft" items={[formatBytes(roomUsage(room).totalBytes), last > 0 && `마지막 작업 ${relativeDay(last, now)}`]} />
                   </label>
                 </li>
               );

@@ -8,6 +8,7 @@ import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
 import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
+import { Meta } from "./Meta";
 
 type Draft = { source: RoomSource; rootName: string; handle: FileSystemDirectoryHandle | null; origin?: string; scan: ScanResult };
 
@@ -227,7 +228,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       ) : parent && step !== "scanning" ? (
         <form className="sheet-body" onSubmit={(event) => void createMany(event)}>
           <h2 id="new-room-title">방으로 만들 폴더를 고르세요</h2>
-          <p className="soft">‘{folderName(parent.path)}’ 안의 폴더 {parent.folders.length}개 · 고른 폴더만 읽어요</p>
+          <p className="soft">‘{folderName(parent.path)}’ 안의 폴더 {parent.folders.length}개. 고른 폴더만 읽어요.</p>
           <div className="row">
             <button type="button" onClick={() => setChosen(chosen.size === parent.folders.length ? new Set() : new Set(parent.folders.map((folder) => folder.path)))}>{chosen.size === parent.folders.length ? "모두 풀기" : "모두 고르기"}</button>
           </div>
@@ -244,7 +245,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
                         onChange={(event) => setChosen((current) => toggled(current, [folder.path], event.target.checked))}
                       />
                       <span className="name">{folder.name}</span>
-                      {old && <span className="soft">{old.source === "handle" ? "이미 방 있음 · 다시 봐요" : `‘${old.name}’ 방과 이어요`}</span>}
+                      {old && <span className="soft">{old.source === "handle" ? "이미 방이 있어요. 다시 봐요." : `‘${old.name}’ 방과 이어요`}</span>}
                     </label>
                   </li>
                 );
@@ -310,7 +311,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       ) : (
         <form className="sheet-body" onSubmit={(event) => void create(event)}>
           <h2 id="new-room-title">이 폴더로 방을 만들까요?</h2>
-          <p>‘{draft.rootName}’ · 물건 {draft.scan.files.length.toLocaleString("ko-KR")}개 · {formatBytes(total)}{draft.scan.complete && draft.scan.failed === 0 ? "" : " (최소)"}</p>
+          <p><Meta items={[`‘${draft.rootName}’`, `물건 ${draft.scan.files.length.toLocaleString("ko-KR")}개`, `${formatBytes(total)}${draft.scan.complete && draft.scan.failed === 0 ? "" : " (최소)"}`]} /></p>
           {draft.scan.note && <p className="soft">{draft.scan.note}</p>}
           {draft.scan.failed > 0 && <p className="soft">읽지 못한 항목 {draft.scan.failed}개는 빼고 들였어요.</p>}
           {draft.source === "input" && <p className="soft">이 브라우저에서는 폴더 안 파일을 옮기지 못해요. 정리 상자는 Folduct 안에서만 쓰여요.</p>}

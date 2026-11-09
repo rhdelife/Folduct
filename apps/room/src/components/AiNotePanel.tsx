@@ -66,7 +66,7 @@ export function AiNotePanel({ room, thing, folder }: { room: Room; thing: Thing;
             <div><dt>제안</dt><dd>{note.advice}</dd></div>
           </dl>
           <p className="ai-reason">{note.reason}</p>
-          <p className="ai-meta">{readLabels[note.read]} {new Date(note.at).toLocaleDateString("ko-KR")}{aiNoteStale(note, thing) && " · 그 뒤로 파일이 바뀌었어요."}</p>
+          <p className="ai-meta">{readLabels[note.read]} {new Date(note.at).toLocaleDateString("ko-KR")}{aiNoteStale(note, thing) && ". 그 뒤로 파일이 바뀌었어요."}</p>
         </>
       ) : (
         <p className="ai-meta">{plan === "none" ? "파일 이름·위치·크기와 같은 폴더의 다른 파일 이름(40개까지)만 Anthropic에 보내요." : "이 파일 내용과 이름·위치, 같은 폴더의 다른 파일 이름(40개까지)을 Anthropic에 보내 요약을 받아요."}</p>

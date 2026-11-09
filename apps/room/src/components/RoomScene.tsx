@@ -11,6 +11,7 @@ import { usePicture } from "../storage/pictures";
 import { useThumb } from "../storage/thumbs";
 import { Icon } from "./Icon";
 import { centerOf, cue } from "./useFrodo";
+import { Meta } from "./Meta";
 
 const boxTones = tonesFrom(boxColor);
 // 상자에 든 종이는 위로 조금 삐져나옵니다. 앞판이 종이를 가려서 상자 안에 든 것처럼 보여요.
@@ -113,7 +114,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
               ))}
             {piles.length > 0 && (
               <div className="lane-piles">
-                <p className="lane-piles-head">{pileHeading(piles)} <span>{piles.length}묶음 · {piled.toLocaleString("ko-KR")}개</span></p>
+                <p className="lane-piles-head">{pileHeading(piles)} <Meta items={[`${piles.length}묶음`, `${piled.toLocaleString("ko-KR")}개`]} /></p>
                 <ul className="lane-things">
                   {piles.map((pile) => {
                     const id = `${lane}:${pile.key}`;

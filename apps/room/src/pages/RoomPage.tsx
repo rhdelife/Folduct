@@ -23,6 +23,7 @@ import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { useHues } from "../storage/thumbs";
 import { hues as hueNames, type Hue } from "../domain/hue";
+import { Meta } from "../components/Meta";
 
 // 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
@@ -479,7 +480,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         <div className="topnav-title">
           <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" actor={room.id} mood={saveError || folderIssue ? "worried" : selected?.missing ? "wide" : room.care.done ? "shut" : "base"} />
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
-          <p className="eyebrow">{room.source === "sample" ? "샘플 방" : room.source === "input" ? `${room.rootName} · 보기 전용` : `${room.rootName} 폴더`}{room.care.done ? " · 완료" : ""}</p>
+          <p className="eyebrow"><Meta items={[room.source === "sample" ? "샘플 방" : room.source === "input" ? room.rootName : `${room.rootName} 폴더`, room.source === "input" && "보기 전용", room.care.done && "홈에서 뺌"]} /></p>
         </div>
         <div className="row">
           <div aria-live="polite">{busy && <span className="scanning">{busy}</span>}</div>
@@ -690,7 +691,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
         <span className="thing-icon"><ObjectShape kind={thing.kind} size={64} name={thing.name} seed={thing.id} /></span>
         <div>
           <h2 tabIndex={-1}>{thing.name}</h2>
-          <p className="soft">{kindLabels[thing.kind]} · {formatBytes(thing.size)} · 고친 날 {new Date(thing.lastModified).toLocaleDateString("ko-KR")}{thing.lastUsedAt !== null && ` · 마지막 사용 ${new Date(thing.lastUsedAt).toLocaleDateString("ko-KR")}`}</p>
+          <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(thing.size), `고친 날 ${new Date(thing.lastModified).toLocaleDateString("ko-KR")}`, thing.lastUsedAt !== null && `마지막 사용 ${new Date(thing.lastUsedAt).toLocaleDateString("ko-KR")}`]} /></p>
         </div>
       </div>
       {folder && previewMode(thing) === "image" && !thing.missing && thing.size <= imageLimit && <ThingImage folder={folder} thing={thing} />}
@@ -730,11 +731,11 @@ function BoxThingPanel({ thing, busy, onRestore, onCopy }: { thing: Thing; busy:
         <span className="thing-icon"><ObjectShape kind={thing.kind} size={64} name={thing.name} seed={thing.id} /></span>
         <div>
           <h2 tabIndex={-1}>{thing.name}</h2>
-          <p className="soft">{kindLabels[thing.kind]} · {formatBytes(thing.size)} · {new Date(entry.at).toLocaleDateString("ko-KR")} 상자에 넣음</p>
+          <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(thing.size), `${new Date(entry.at).toLocaleDateString("ko-KR")} 상자에 넣음`]} /></p>
         </div>
       </div>
       {note && <p className="note-line">“{note}”</p>}
-      <p className="path">{entry.state === "virtual" ? "Folduct 안에서만 정리됨 · 실제 파일은 그대로" : entry.state === "boxed" ? entry.boxPath : "옮기던 중이에요. 폴더 접근을 허용하면 실제 위치를 확인해요."}</p>
+      <p className="path">{entry.state === "virtual" ? "Folduct 안에서만 정리했어요. 실제 파일은 그대로예요." : entry.state === "boxed" ? entry.boxPath : "옮기던 중이에요. 폴더 접근을 허용하면 실제 위치를 확인해요."}</p>
       <p className="soft">Folduct는 파일을 지우지 않아요. 필요 없으면 {isNative() ? `${fileManagerName()}에서` : "폴더에서 직접"} 정리 상자 폴더(<code>{boxFolderName}</code>)를 비워 주세요.</p>
       <div className="row wrap">
         <button type="button" className="primary" disabled={busy || entry.state === "moving-in" || entry.state === "moving-out"} onClick={() => onRestore(thing.id)}>제자리로</button>

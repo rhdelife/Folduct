@@ -16,6 +16,7 @@ import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patc
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt } from "./RoomFace";
 import { cue } from "./useFrodo";
+import { Meta } from "./Meta";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
@@ -423,7 +424,7 @@ export function Pet() {
           <p className="pet-status" role="status">
             <strong>{working ? "작업 중" : "멈춤"}</strong>
             <time>{formatWorked(workedTime(session, now))}</time>
-            {room && <small>{roomLinked ? room.name : `${room.name} · 파일 연결 안 됨`}</small>}
+            {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
           </p>
           <button type="button" className="pet-toggle" data-no-drag onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>
             {working ? "멈춤" : "다시 시작"}

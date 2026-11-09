@@ -9,6 +9,7 @@ import { FrodoGuide } from "./FrodoGuide";
 import { cue } from "./useFrodo";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
+import { Meta } from "./Meta";
 
 // 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
 export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
@@ -93,7 +94,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
     >
       <FrodoGuide />
       <div className="sheet-body">
-        <h2 id="sweep-title">이번 주 정리 · {week}</h2>
+        <h2 id="sweep-title">이번 주 정리 <span className="sweep-week">{week}</span></h2>
         {stopped ? (
           <>
             <p className="error" role="alert">정리하다 멈췄어요. 이미 옮긴 파일은 상자에 있어요.</p>
@@ -166,7 +167,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
                             <input type="checkbox" checked={selected.has(thing.id)} onChange={(event) => toggle([thing.id], event.target.checked)} />
                             <ObjectShape kind={thing.kind} size={24} seed={thing.id} />
                             <span className="name">{thing.name}</span>
-                            <span className="soft">{thingAge(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로 · {formatBytes(thing.size)}</span>
+                            <Meta className="soft" items={[`${thingAge(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로`, formatBytes(thing.size)]} />
                           </label>
                           {note && <p className="note-line">“{note}”</p>}
                         </li>

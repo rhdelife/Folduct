@@ -6,6 +6,7 @@ import { seriesOf } from "../domain/versions";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { useThumb } from "../storage/thumbs";
+import { Meta } from "./Meta";
 
 // 서랍 아래 버전 기록: 같은 계열 파일을 새것부터 시간순으로 늘어놓아요. 누르면 그 버전이 서랍에 열려요.
 export function VersionLog({ room, thing, folder, now, onPick }: { room: Room; thing: Thing; folder: Folder | null; now: number; onPick: (id: string) => void }) {
@@ -44,7 +45,7 @@ function VersionRow({ item, folderName, latest, current, folder, now, onPick }: 
       <span className="version-art"><ObjectShape kind={item.kind} size={40} seed={item.id} picture={own ?? thumb} /></span>
       <span className="version-text">
         <b>{item.name}</b>
-        <span>{when(item.lastModified, now)} · {formatBytes(item.size)}{latest && " · 최신"}</span>
+        <Meta items={[when(item.lastModified, now), formatBytes(item.size), latest && "최신"]} />
         {folderName && <span className="version-folder">{folderName}</span>}
       </span>
     </button>

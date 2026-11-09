@@ -4,6 +4,7 @@ import { doorTitle, newestFirst, type DoorItem } from "../domain/doorstep";
 import { formatBytes } from "../domain/model";
 import { folderName } from "../gateways/native";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
+import { Meta } from "./Meta";
 
 // 현관: 첫 화면 위쪽의 새 문서 1열. 터치에는 오른쪽 클릭이 없어서 그냥 눌러도 같은 메뉴가 열립니다.
 export function DoorstepRow({ items, now, onMenu }: { items: DoorItem[]; now: number; onMenu: OpenRoomMenu }) {
@@ -28,7 +29,7 @@ export function DoorstepRow({ items, now, onMenu }: { items: DoorItem[]; now: nu
             >
               <ObjectShape kind={item.kind} size={32} seed={item.id} />
               <span className="door-name">{item.name}</span>
-              <span className="door-meta">{formatBytes(item.size)} · {relativeDay(item.lastModified, now)}</span>
+              <Meta className="door-meta" items={[formatBytes(item.size), relativeDay(item.lastModified, now)]} />
             </button>
           </li>
         ))}

@@ -6,6 +6,7 @@ import { kindShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
 import { useReadableFolders, useThumb } from "../../storage/thumbs";
+import { Meta } from "../Meta";
 
 // 칸마다 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -51,7 +52,7 @@ function ShelfRow({ shelf, folders, onOpenFile }: { shelf: Shelf; folders: Map<s
       <div className="kind-shelf-head">
         <span className="kind-dot" style={{ background: color }} aria-hidden="true" />
         <h3 id={id}>{shelf.label}</h3>
-        <span className="kind-shelf-count">{shelf.items.length.toLocaleString("ko-KR")}개 · {formatBytes(shelf.size)}</span>
+        <Meta className="kind-shelf-count" items={[`${shelf.items.length.toLocaleString("ko-KR")}개`, formatBytes(shelf.size)]} />
       </div>
       <ul className="kind-shelf-things">
         {shown.map((item, order) => (
@@ -81,7 +82,7 @@ function ShelfPaper({ item, order, folder, onOpen }: { item: ShelfItem; order: n
       type="button"
       className="shelf-paper"
       style={{ "--i": Math.min(order, 16) } as CSSProperties}
-      title={`${thing.name} · ${room.name}`}
+      title={`${thing.name} (${room.name} 방)`}
       aria-label={`${thing.name}, ${room.name} 방, ${formatBytes(thing.size)}${versions > 1 ? `, 버전 ${versions}개 중 최신` : ""}`}
       onClick={onOpen}
     >

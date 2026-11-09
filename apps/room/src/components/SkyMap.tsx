@@ -14,6 +14,7 @@ import { WheelStepper } from "../domain/wheelStep";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { coverOf, useReadableFolders, useThumb } from "../storage/thumbs";
+import { Meta } from "./Meta";
 
 // 방을 고르면 카메라가 지도 한가운데로 그 방을 끌어옵니다. 패널이 열린 만큼 지도 전체는 CSS가 옆으로 비켜 줍니다.
 const focusPoint = { x: sky.width / 2, y: sky.height / 2 };
@@ -225,7 +226,7 @@ export function SkyMap({
             onMouseLeave={hideTip}
           >
             <strong>{tip.star.thing.name}</strong>
-            <span>{tip.room.name} · {kindLabels[tip.star.thing.kind]} · {formatBytes(tip.star.thing.size)}</span>
+            <Meta items={[tip.room.name, kindLabels[tip.star.thing.kind], formatBytes(tip.star.thing.size)]} />
             <span>{relativeDay(lastActivity(tip.star.thing), now)} 작업</span>
             {tip.star.stale && <em>{tip.star.days}일째 그대로</em>}
             {laneOf(tip.star.thing, tip.room, now) === "new" && <em className="calm">새로 왔어요</em>}
@@ -396,7 +397,7 @@ const MapLayers = memo(function MapLayers({
               </span>
               <span className="vase-tag">
                 <span className="room-label">{room.name}</span>
-                <span className="room-sub">{size}{stale > 0 && <b> · 안 쓴 파일 {stale}개</b>}</span>
+                <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
               </span>
             </button>
           );
@@ -404,7 +405,7 @@ const MapLayers = memo(function MapLayers({
         {/* 고른 방 파일 칸 아래의 방 열기. 칸에 다 못 놓은 파일 수도 함께 알려요. */}
         {opener && (
           <button key={opener.room.id} type="button" className="room-more" style={{ left: `${(opener.x / sky.width) * 100}%`, top: `${(opener.y / sky.height) * 100}%` }} onClick={() => onOpenRoom(opener.room.id)} onMouseEnter={() => cue(opener.room.id, { body: "nod" })}>
-            {opener.count > 0 ? `방 열기 · ${opener.count}개 더` : "방 열기"}
+            {opener.count > 0 ? <Meta items={["방 열기", `${opener.count}개 더`]} /> : "방 열기"}
           </button>
         )}
       </div>
