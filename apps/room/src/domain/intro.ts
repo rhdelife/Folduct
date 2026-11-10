@@ -3,8 +3,8 @@ import type { Kind, Room, Thing } from "./model";
 import { hash } from "./sky";
 
 // 인트로의 시간표(ms). 종이가 다 날아드는 시간은 styles.css의 --intro-fly·--intro-stagger와 맞춰 둡니다.
-// rise는 CSS --intro-rise(1300ms)보다 짧아요. 프로도가 아직 보일 때 걷히기 시작해야 집이 아래에서 비쳐 올라와 빈 화면이 생기지 않아요.
-export const introMs = { gather: 3300, fill: 2400, rise: 900, leave: 600 };
+// leave는 CSS --intro-leave와 같아요. 색이 다 차면 그 자리에서 집 화면으로 디졸브돼요.
+export const introMs = { gather: 3300, fill: 2400, leave: 900 };
 
 // 파일을 먹는 순서: [스프라이트 프레임, ms]. 입을 벌려 종이가 다 들어올 때까지 꿈틀대며 받아먹고, 씹고, 꿀꺽 삼켜 제자리로 돌아옵니다. 다 더하면 introMs.gather예요.
 const gobble: [number, number][] = [[5, 74], [6, 73], [7, 73], [8, 73], [9, 74], [10, 73]];

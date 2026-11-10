@@ -162,8 +162,7 @@
   --intro-fly: 900ms;
   --intro-stagger: 110ms;
   --intro-fill: 2000ms;
-  --intro-rise: 1300ms;
-  --intro-leave: 600ms;
+  --intro-leave: 900ms;
 
   color: var(--ink);
   background: var(--bg);
@@ -1266,7 +1265,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 /* ══ 인트로 ══ */
 /* 흩어진 종이 → 주름관 입으로 날아듦 → 주름이 형식별 색으로 물듦 → 주름관이 올라가고 집이 드러남. */
 .intro { --mouth: calc((var(--intro-vase) + var(--intro-foot)) * -0.5 + var(--intro-vase) * 0.324); --mouth-x: calc(var(--intro-vase) * 0.096); position: fixed; inset: 0; z-index: var(--z-intro); display: grid; place-items: center; overflow: hidden; background: var(--lightbox); -webkit-user-select: none; user-select: none; }
-.intro.leaving { opacity: 0; pointer-events: none; transition: opacity var(--intro-leave) ease-out; }
+.intro.leaving { opacity: 0; pointer-events: none; transition: opacity var(--intro-leave) var(--ease-standard); }
 .intro-papers { position: absolute; inset: 0; pointer-events: none; }
 /* 자리는 --x(vw)·--y(vh)가 정하고, 안쪽 판이 살짝 흔들립니다. */
 .intro-paper { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), 0) rotate(var(--rot)) scale(var(--intro-paper-scale)); animation: intro-drop var(--intro-fly) var(--ease-settle) backwards; animation-delay: calc(var(--i) * 60ms); }
@@ -1275,15 +1274,11 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 .intro:not(.phase-scatter) .intro-papers { z-index: 1; }
 .intro:not(.phase-scatter) .intro-paper { animation: intro-gather var(--intro-fly) var(--ease-suck) forwards; animation-delay: calc(var(--i) * var(--intro-stagger)); }
 .intro-center { position: relative; display: grid; justify-items: center; }
-.intro-vase-lift { position: relative; transition: transform var(--intro-rise) ease-in, opacity var(--intro-rise) ease-in; }
+.intro-vase-lift { position: relative; }
 /* 무대 카드: 프로도 뒤 흰 면. 올라갈 때는 프로도만 떠나고 카드는 사라져요. */
-.intro-card { position: absolute; top: calc(var(--space-4) * -1); left: 50%; width: calc(var(--intro-vase) * 1.15); height: calc(var(--intro-vase) + var(--space-8)); translate: -50% 0; border-radius: var(--radius-xl); background: var(--surface); transition: opacity var(--intro-rise) ease-in; }
-.phase-rise .intro-card { opacity: 0; }
 /* 받침 아래 그림자. 받침은 그림 왼쪽(판 폭의 0.32)에 서 있고 바닥은 판 높이의 0.92예요(art/duct.ts의 stand). */
 .intro-floor { position: absolute; left: calc(var(--intro-vase) * 0.316); top: calc(var(--intro-vase) * 0.92); width: calc(var(--intro-vase) * 0.45); height: var(--space-3); translate: -50% -50%; border-radius: 50%; background: var(--glass-wash-strong); }
 /* 다 끝난 자세(done)는 받침이 가운데 쪽(0.43)에 있어요. */
-.phase-rise .intro-floor { left: calc(var(--intro-vase) * 0.426); }
-.phase-rise .intro-vase-lift { transform: translate3d(0, -100dvh, 0); }
 .intro-vase { position: relative; width: var(--intro-vase); height: var(--intro-vase); transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
 /* 주름은 받침부터 차례로 물듭니다. */
 .intro-sprite { position: absolute; left: 0; top: 50%; width: 100%; aspect-ratio: 136 / 130; overflow: hidden; translate: 0 -50%; visibility: hidden; }
@@ -1296,7 +1291,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 }
 /* 색 주름 묶음을 아래에서 위로 걷어 올립니다. 게이지처럼 천천히 시작해 끝에서 가만히 멈춰요. */
 .intro-band { clip-path: inset(100% 0 0 0); }
-.phase-fill .intro-band, .phase-rise .intro-band { animation: intro-fill var(--intro-fill) var(--ease-standard) forwards; }
+.phase-fill .intro-band { animation: intro-fill var(--intro-fill) var(--ease-standard) forwards; }
 .intro-foot { display: grid; align-content: start; justify-items: center; gap: var(--space-2); height: var(--intro-foot); padding-top: var(--space-8); text-align: center; }
 /* 진행 막대 세 칸. 찬 칸은 잉크, 빈 칸은 선 색이에요. */
 .intro-steps { display: flex; gap: var(--space-1); margin: 0 0 var(--space-1); padding: 0; list-style: none; }
@@ -1323,10 +1318,9 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 /* 움직임을 줄인 사람에게는 날아드는 움직임 없이 장면만 바꿉니다. */
 @media (prefers-reduced-motion: reduce) {
   .intro-paper, .intro-paper-art, .intro-vase, :is(.intro-copy, .intro-note) span { animation: none; }
-  .intro-steps li, .intro-card { transition: none; }
+  .intro-steps li { transition: none; }
   .intro:not(.phase-scatter) .intro-paper { animation: none; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
-  .phase-fill .intro-band, .phase-rise .intro-band { animation: none; clip-path: none; }
-  .phase-rise .intro-vase-lift { transform: none; }
+  .phase-fill .intro-band { animation: none; clip-path: none; }
 }
 
 /* ── 환경설정 ── */

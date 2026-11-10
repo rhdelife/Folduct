@@ -9,23 +9,21 @@ import { listRooms } from "../storage/db";
 import { sampleRooms } from "../storage/sample";
 import { PoseArt } from "./RoomFace";
 
-type Phase = "scatter" | "gather" | "fill" | "rise";
+type Phase = "scatter" | "gather" | "fill";
 
 const copy: Record<Phase, string> = {
   scatter: "파일이 흩어져 있어요.",
   gather: "하나씩 꿀꺽 삼켜요.",
   fill: "색은 형식, 길이는 용량이에요.",
-  rise: "이제 방으로 가요.",
 };
-const nextPhase = { gather: "fill", fill: "rise" } as const;
-// 세 칸 진행 막대: 흩어짐 → 삼킴 → 색. 올라갈 때는 다 찬 채로 둡니다.
-const stepOf: Record<Phase, number> = { scatter: 1, gather: 2, fill: 3, rise: 3 };
+// 세 칸 진행 막대: 흩어짐 → 삼킴 → 색.
+const stepOf: Record<Phase, number> = { scatter: 1, gather: 2, fill: 3 };
 // 그림이 차지하는 폭. 화면마다 달라 선 굵기가 무난한 값으로 둡니다.
 const introPx = 240;
 // 환경설정의 다시 보기가 보내고 App이 받습니다. 환경설정은 집 안에 있어 App까지 이벤트로 알려요.
 export const replayIntroEvent = "folduct-replay-intro";
 
-// 앱을 켤 때 한 번, 흩어진 파일을 주름관이 받아먹고 집 화면으로 들어갑니다. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
+// 앱을 켤 때 한 번, 흩어진 파일을 주름관이 다 받아먹으면 화면이 그대로 집으로 디졸브돼요. onLeave부터 집이 아래에 깔리고, onDone에 걷힙니다.
 export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave: () => void; onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("scatter");
   const [things, setThings] = useState<Thing[] | null>(null);
@@ -47,7 +45,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
       return () => clearTimeout(timer);
     }
     if (phase === "scatter") return;
-    const timer = setTimeout(() => (phase === "rise" ? onLeave() : setPhase(nextPhase[phase])), introMs[phase]);
+    const timer = setTimeout(() => (phase === "fill" ? onLeave() : setPhase("fill")), introMs[phase]);
     return () => clearTimeout(timer);
   }, [phase, leaving, onLeave, onDone]);
 
@@ -87,8 +85,6 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
             ))}
           </div>
           <div className="intro-center">
-            {/* 프로도가 빈 판에 떠 있지 않게 카드와 바닥 그림자 위에 세웁니다. 홈의 방 카드와 같은 면이에요. */}
-            <span className="intro-card" aria-hidden="true" />
             <div className="intro-vase-lift">
               <span className="intro-floor" aria-hidden="true" />
               <div className="intro-vase">
@@ -96,7 +92,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
                 <div className="intro-sprite" aria-hidden="true">
                   <img ref={sprite} src={eatSheet} alt="" style={{ width: `${eatFrameCount * 100}%` }} onLoad={(event) => void event.currentTarget.decode().catch(() => undefined)} />
                 </div>
-                <PoseArt pose={phase === "rise" ? "done" : "idle"} parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
+                <PoseArt pose="idle" parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
               </div>
             </div>
             <div className="intro-foot">
