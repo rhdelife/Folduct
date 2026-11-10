@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { ductLength, kindParts } from "../art/duct";
+import { roomUsage } from "../domain/care";
 import type { CareSettings, Room } from "../domain/model";
 import { forgetRoom, patchRoom } from "../storage/db";
 import { FacePicker } from "./RoomFace";
@@ -15,6 +17,8 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
   const [nameDraft, setNameDraft] = useState(initial.name);
   const [error, setError] = useState<string | null>(null);
   useModal(dialog);
+  // 고르기 칸의 프로도도 방 화면처럼 용량만큼 길고, 다 읽은 방이면 형식 색 주름을 입어요.
+  const usage = roomUsage(room);
 
   function change(mutate: (room: Room) => Room) {
     setRoom(mutate);
@@ -67,7 +71,7 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
           change((current) => ({ ...current, name: event.target.value.trim() || initial.name }));
         }} onBlur={() => setNameDraft(room.name)} /></label>
         {!nameDraft.trim() && <p className="soft" role="status">비워 두면 ‘{initial.name}’(으)로 돌아가요.</p>}
-        <FacePicker face={room.face} onChange={(face) => {
+        <FacePicker face={room.face} length={ductLength(usage.totalBytes)} parts={usage.exact ? kindParts(room.things) : []} onChange={(face) => {
           change((current) => ({ ...current, face }));
           cue(room.id, { body: "hop" });
         }} />

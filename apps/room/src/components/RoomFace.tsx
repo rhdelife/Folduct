@@ -90,15 +90,15 @@ export function PoseArt({ pose, parts = [], px, foot, paper, band, className, ac
 
 const pickerPx = 64;
 
-// 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다.
-export function FacePicker({ face, onChange }: { face: RoomFace; onChange: (face: RoomFace) => void }) {
+// 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다. 모양만 바꿔 보여 주고, 길이와 주름 색은 그 방의 용량·형식 그대로예요.
+export function FacePicker({ face, length, parts, onChange }: { face: RoomFace; length: number; parts: Parts; onChange: (face: RoomFace) => void }) {
   return (
     <fieldset className="face-picker">
       <legend>방 얼굴</legend>
       <div className="face-options" role="group" aria-label="주름관 모양">
         {Array.from({ length: ductShapeCount }, (_, shape) => (
           <button key={shape} type="button" className="face-option" aria-label={`모양 ${shape + 1}`} aria-pressed={face.shape === shape} onClick={() => onChange({ ...face, shape })}>
-            <RoomFaceArt face={{ ...face, shape }} px={pickerPx} className="face-art" />
+            <RoomFaceArt face={{ ...face, shape }} length={length} parts={parts} px={pickerPx} className="face-art" />
           </button>
         ))}
       </div>

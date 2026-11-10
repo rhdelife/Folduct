@@ -378,11 +378,17 @@ const roomLines = [
 const roomPaths = roomLines.map((line) => resample(flatten(line)[0].pts, false, 2).out);
 export const ductShapeCount = roomLines.length;
 const shortest = 0.34;
-
+// 길이는 용량만 뜻해요. 선마다 길이가 달라 비율로 자르면 같은 용량도 모양 따라 길이가 달랐어요.
+// 그래서 가장 짧은 선의 길이를 끝으로 두고, 어느 모양이든 같은 점 수(점 간격이 같아 같은 길이)만큼 잘라요.
+const reach = Math.min(...roomPaths.map((path) => path.length)) - 1;
+export function ductReach(length: number): number {
+  const level = Math.min(1, Math.max(0, length));
+  return Math.max(8, Math.round(reach * (shortest + (1 - shortest) * level)));
+}
 function roomSpec(shape: number, length: number): Spec {
   const level = Math.min(1, Math.max(0, length));
   const path = roomPaths[shape % ductShapeCount];
-  const points = path.slice(0, Math.max(8, Math.round((path.length - 1) * (shortest + (1 - shortest) * level))) + 1);
+  const points = path.slice(0, ductReach(level) + 1);
   const end = points[points.length - 1];
   const back = points[points.length - 5];
   const span = Math.hypot(end[0] - back[0], end[1] - back[1]) || 1;

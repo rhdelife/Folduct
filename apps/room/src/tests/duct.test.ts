@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import faces from "../art/duct-faces.png?inline";
 import { cue, onCue, type Cue } from "../components/useFrodo";
-import { drawFaceFrame, drawPose, drawRoom, faceCell, faceFrames, lookExpr, poseFace, ductIndex, ductLayers, ductLength, ductMouth, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
+import { drawFaceFrame, drawPose, drawRoom, faceCell, faceFrames, lookExpr, poseFace, ductIndex, ductLayers, ductLength, ductMouth, ductReach, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
 
 const pieces = (drawing: DuctDrawing): DuctPiece[] => drawing.items.flatMap((item) => ("parts" in item ? item.parts.filter((part): part is DuctPiece => "d" in part) : [item]));
 const allPoses: DuctPose[] = ["idle", "watch", "offer", "move", "done", "rest", "shock"];
@@ -72,6 +72,13 @@ describe("주름관 그림", () => {
     expect(ductLength(80 * 1024 * 1024)).toBeLessThan(ductLength(4 * GB));
     expect(ductLength(4 * GB)).toBeLessThan(ductLength(38 * GB));
     expect(ductLength(1024 * GB)).toBe(1);
+  });
+
+  it("몸 길이는 용량으로만 정해지고 모양이 바뀌어도 같아요", () => {
+    expect(ductReach(0)).toBeLessThan(ductReach(0.5));
+    expect(ductReach(0.5)).toBeLessThan(ductReach(1));
+    // 어느 모양이든 끝까지 자라도 선을 넘지 않아요(넘으면 모양마다 잘리는 길이가 달라져요).
+    for (let shape = 0; shape < ductShapeCount; shape++) expect(drawRoom(shape, 1, { px: 120 }).items.length).toBeGreaterThan(0);
   });
 
   it("같은 방은 늘 같은 모양이고 여덟 모양에 흩어져요", () => {
