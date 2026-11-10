@@ -785,6 +785,19 @@
         0.9,
         0.5
       ]
+    },
+    "dur-drawer": {
+      "$type": "duration",
+      "$value": "640ms"
+    },
+    "ease-drawer": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.32,
+        0.72,
+        0,
+        1
+      ]
     }
   },
   "scene": {

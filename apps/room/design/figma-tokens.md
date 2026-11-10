@@ -186,6 +186,8 @@
 | `motion/ease-glide` | `0.45, 0, 0.2, 1` |  |
 | `motion/dur-focus` | `1000ms` |  |
 | `motion/ease-suck` | `0.6, 0, 0.9, 0.5` |  |
+| `motion/dur-drawer` | `640ms` |  |
+| `motion/ease-drawer` | `0.32, 0.72, 0, 1` |  |
 
 ## 장면
 집 화면 장면들이 쓰는 값이에요. 색은 `color`, 나머지는 `other`로 넣었어요.
