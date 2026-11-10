@@ -998,21 +998,31 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
   .drawer { overflow: visible; }
 }
 
-/* ── 줄: 파일이 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자로 흘러갑니다. 넓으면 네 칸, 좁으면 위아래 네 줄이에요. ── */
+/* ── 줄: 파일이 1 새로 왔어요 → 2 요즘 써요 → 3 잠잠해요 → 4 정리 상자로 흘러갑니다. 줄은 위아래로 쌓고, 넓으면 왼쪽에 번호·제목, 오른쪽에 파일이 놓여요. ── */
 .room-stage-wrap { container-type: inline-size; }
-.lanes { --lane-paper: calc(var(--space-10) * 2); flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: stretch; padding-bottom: var(--space-6); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.lane { position: relative; display: grid; align-content: start; gap: var(--space-4); min-width: 0; padding: var(--space-4) var(--space-5) var(--space-6); }
-.lane + .lane { border-left: var(--room-hair) solid var(--room-line); }
-/* 줄 사이 꺾쇠가 파일이 흘러가는 쪽을 가리켜요. */
-.lane + .lane::before { content: ""; position: absolute; left: 0; top: var(--space-6); width: var(--space-3); height: var(--space-3); border-top: var(--room-hair) solid var(--ink-faint); border-right: var(--room-hair) solid var(--ink-faint); background: var(--bg); translate: -50% 0; rotate: 45deg; }
-.lane-box { border-left: 0; border-radius: var(--room-radius); background: var(--ground); }
-.lane-box::before { background: var(--ground); }
+.lanes { --lane-paper: calc(var(--space-10) * 2); --lane-label: calc(var(--space-12) * 4); flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-bottom: var(--space-6); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lane { position: relative; display: grid; grid-template-columns: var(--lane-label) minmax(0, 1fr); align-items: start; gap: var(--space-3) var(--space-6); min-width: 0; padding: var(--space-5) var(--space-5) var(--space-6); }
+.lane + .lane { border-top: var(--room-hair) solid var(--room-line); }
+.lane-body { display: grid; align-content: start; gap: var(--space-4); min-width: 0; }
+/* 빈 줄은 제목 한 줄만 남겨 얇게 접어요. */
+.lane-empty { padding-block: var(--space-3); }
+.lane-empty .lane-body { display: none; }
+.lane-empty .lane-head h2 { color: var(--ink-caption); }
+.lane-empty:not(.lane-box) .lane-head { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4); }
+.lane-no { display: inline-grid; place-items: center; flex: none; min-width: var(--space-6); height: var(--space-6); border: var(--room-hair) solid var(--ink); border-radius: var(--radius-pill); font-size: var(--text-xs); line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lane-empty .lane-no { border-color: var(--line-strong); }
+.lane-box { margin-top: var(--space-3); border-radius: var(--room-radius); background: var(--ground); }
+.lane + .lane-box { border-top: 0; }
+.lane-box .lane-head { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-5); }
+.lane-box .lane-head > :not(.lane-box-art) { grid-column: 2; }
 .lane-head { display: grid; gap: var(--space-1); }
 .lane-head h2 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; color: var(--ink); }
 .lane-count { font-size: var(--text-sm); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
 .lane-head p { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-caption); }
-.lane-box-art { position: relative; display: block; width: var(--space-12); height: var(--space-12); }
-.lane-things { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-5) var(--space-4); margin: 0; padding: 0; list-style: none; }
+.lane-box-art { position: relative; display: block; grid-row: span 2; width: var(--space-12); height: var(--space-12); }
+/* 줄마다 한 줄짜리 띠예요. 파일이 많아도 아래 줄을 밀어내지 않고 옆으로 밀어 봐요. */
+.lane-things { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-5) var(--space-4); overflow-x: auto; margin: calc(var(--space-5) * -1) calc(var(--space-3) * -1) 0; padding: var(--space-5) var(--space-3) var(--space-3); list-style: none; scrollbar-width: thin; }
+.lane-things > li { flex: none; }
 .lane-box .lane-things { --lane-paper: calc(var(--space-8) * 2); }
 .lane-paper { display: grid; justify-items: center; gap: var(--space-2); width: var(--lane-paper); min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; cursor: pointer; }
 .lane-paper:hover:not(:disabled), .lane-paper:active:not(:disabled) { background: none; transform: none; }
@@ -1060,16 +1070,12 @@ button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
 .mini-lane-title b { font-weight: 700; color: var(--ink); }
 .mini-lane-things { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .mini-lane-things .object { flex: none; }
-/* 좁으면 네 줄을 위아래로 쌓고, 줄 안은 옆으로 밀어 봐요. */
+/* 좁으면 번호·제목을 파일 위로 올려요. */
 @container (max-width: 759.98px) {
   .lanes { --lane-paper: calc(var(--space-8) * 2); display: block; }
-  .lane { padding: var(--space-4) 0; }
-  .lane + .lane { border-left: 0; border-top: var(--room-hair) solid var(--room-line); }
-  .lane + .lane::before { left: var(--space-6); top: 0; translate: 0 -50%; rotate: 135deg; }
-  .lane-box { margin-top: var(--space-4); padding: var(--space-4); border-top: 0; }
-  .lane-box::before { content: none; }
-  .lane-things { flex-wrap: nowrap; overflow-x: auto; padding: var(--space-5) var(--space-3) var(--space-3); margin: calc(var(--space-5) * -1) calc(var(--space-3) * -1) 0; scrollbar-width: thin; }
-  .lane-things > li { flex: none; }
+  .lane { grid-template-columns: minmax(0, 1fr); padding: var(--space-4) 0; }
+  .lane-box { padding: var(--space-4); }
+  .lane-empty { padding-block: var(--space-3); }
 }
 
 .thing-icon { width: auto; height: auto; background: none; border: 0; border-radius: 0; rotate: -2deg; }

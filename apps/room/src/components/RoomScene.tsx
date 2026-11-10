@@ -46,7 +46,7 @@ const paperPx = 80;
 const shownAtFirst = 24;
 const shownMost = 200;
 
-// 방 안: 파일이 왼쪽에서 오른쪽(좁으면 위에서 아래)으로 흐르는 네 줄. 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
+// 방 안: 파일이 1→4로 흐르는 네 줄을 위아래로 쌓아요(왼쪽에 번호·제목, 오른쪽에 파일). 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
 // folder는 읽어도 되는 방 폴더예요(권한 없음·샘플이면 null). query가 있으면 이름이 맞는 파일만 남겨요.
 // only가 있으면(색으로 보기) 그 파일만 남기고, 찾을 때처럼 더미와 버전 겹침을 풀어요.
 export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
@@ -85,18 +85,21 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   return (
     <div className="lanes">
       <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
-      {groups.map(({ lane, things, front, piles }) => {
+      {groups.map(({ lane, things, front, piles }, index) => {
         const [title, note, empty] = titles[lane];
         const shown = front.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
         const piled = things.length - front.length;
         const open = piles.find((pile) => openPile?.id === `${lane}:${pile.key}`);
         return (
-          <section key={lane} className={`lane lane-${lane}`} aria-labelledby={`lane-${lane}`}>
+          // 빈 줄은 한 줄로 얇게 접어 파일이 있는 줄이 먼저 보여요.
+          <section key={lane} className={`lane lane-${lane}${things.length ? "" : " lane-empty"}`} aria-labelledby={`lane-${lane}`}>
             <div className="lane-head">
               {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
-              <h2 id={`lane-${lane}`}>{title} <span className="lane-count">{things.length}</span></h2>
+              {/* 줄 순서(파일이 흘러가는 차례)를 번호로 보여 줘요. 줄은 넷이라 5단계를 넘지 않아요. */}
+              <h2 id={`lane-${lane}`}><span className="lane-no">{index + 1}</span>{" "}{title} <span className="lane-count">{things.length}</span></h2>
               <p>{things.length ? note : searching ? "맞는 파일이 없어요." : empty}</p>
             </div>
+            <div className="lane-body">
             {shown.length > 0 && (
               <ul className="lane-things">
                 {shown.map((thing, order) => (
@@ -169,6 +172,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
                 )}
               </div>
             )}
+            </div>
           </section>
         );
       })}
