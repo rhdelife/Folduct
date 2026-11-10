@@ -8,112 +8,134 @@ import { usePicture } from "../../storage/pictures";
 import { useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 
-// 서랍마다 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
+// 폴더마다 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
 const shownMost = 120;
 const paperPx = 80;
+// 장면을 넘긴 뒤 휠이 이만큼 멈출 때까지는 트랙패드 관성으로 보고 삼켜요.
+const quietMs = 300;
 
-const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-// 열린 서랍의 앞판이 화면 위로 밀려 올라갔으면 다시 보이게 내려 줘요(위 서랍이 닫히며 줄어든 만큼).
-const bringIntoView = (front: HTMLElement | null) => {
-  if (front && front.getBoundingClientRect().top < 0) front.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
-};
+const tabId = (shelf: Shelf) => `kind-tab-${shelf.kinds[0]}`;
+const panelId = (shelf: Shelf) => `kind-folder-${shelf.kinds[0]}`;
 
-// 홈 아래: 홈에 둔 방들의 파일을 형식마다 서랍 하나에 모아요. 서랍은 한 번에 하나만 열려요.
+// 홈 아래 한 장면: 홈에 둔 방들의 파일을 형식마다 폴더 하나에 모은 서랍이에요.
+// 위에 엇갈려 꽂힌 탭을 누르면 그 형식 폴더가 앞으로 나와요. 한 번에 한 폴더만 앞에 있어요.
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
 export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void }>(function KindShelf({ rooms, onOpenFile }, ref) {
   const shelves = useMemo(() => kindShelves(rooms, colorGroups), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
-  const [open, setOpen] = useState<string | null>(null);
-  if (shelves.length === 0) return null;
+  const [picked, setPicked] = useState<string | null>(null);
+  const tabs = useRef<HTMLDivElement>(null);
+  const self = useRef<HTMLElement | null>(null);
+  const shown = shelves.length > 0;
+  // 집 화면과 이 장면은 휠 한 칸·한 번 쓸기에 한 장면씩 넘어가요. CSS scroll-snap 만으로는 휠 한 칸이 제자리로 튕겨 돌아와서 여기서 넘겨요.
+  // 폴더 안에 더 내릴 파일이 있으면 그 폴더가 먼저 내려가요.
+  useEffect(() => {
+    const section = self.current;
+    const scroller = section?.closest<HTMLElement>(".home");
+    if (!section || !scroller) return;
+    let quietUntil = 0;
+    const onWheel = (event: WheelEvent) => {
+      const target = event.target as Element;
+      if (event.ctrlKey || event.shiftKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY) || target.closest("dialog, .context-menu")) return;
+      if (event.timeStamp < quietUntil) {
+        quietUntil = event.timeStamp + quietMs;
+        event.preventDefault();
+        return;
+      }
+      const folder = target.closest<HTMLElement>(".kind-folder");
+      if (folder && (event.deltaY > 0 ? folder.scrollTop + folder.clientHeight < folder.scrollHeight - 1 : folder.scrollTop > 0)) return;
+      const top = scroller.scrollTop;
+      const to = event.deltaY > 0 ? (top < section.offsetTop - 1 ? section.offsetTop : null) : top > 1 ? 0 : null;
+      if (to === null) return;
+      event.preventDefault();
+      quietUntil = event.timeStamp + quietMs;
+      scroller.scrollTo({ top: to, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    };
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  }, [shown]);
+  if (!shown) return null;
+  const front = shelves.find((shelf) => shelf.label === picked) ?? shelves[0];
   const total = shelves.reduce((sum, shelf) => sum + shelf.items.length, 0);
-  // 앞판 사이를 위·아래 화살표, Home·End 로 옮겨 다녀요.
-  const moveFocus = (event: KeyboardEvent<HTMLDivElement>) => {
-    const fronts = [...event.currentTarget.querySelectorAll<HTMLButtonElement>(".kind-drawer-front")];
-    const at = fronts.indexOf(event.target as HTMLButtonElement);
-    if (at < 0) return;
-    const next = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: fronts.length - 1 }[event.key];
+  const pick = (shelf: Shelf, focus: boolean) => {
+    setPicked(shelf.label);
+    const tab = tabs.current?.querySelector<HTMLButtonElement>(`#${tabId(shelf)}`);
+    if (focus) tab?.focus();
+    tab?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
+  // 탭 사이는 좌우 화살표와 Home·End 로 옮기고, 옮긴 탭의 폴더가 바로 앞으로 나와요(ARIA 탭 패턴).
+  const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const at = shelves.indexOf(front);
+    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: shelves.length - 1 }[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    fronts[(next + fronts.length) % fronts.length].focus();
+    pick(shelves[(next + shelves.length) % shelves.length], true);
   };
   return (
-    <section ref={ref} className="kind-shelves" aria-labelledby="kind-shelves-title">
+    <section
+      ref={(element) => {
+        self.current = element;
+        if (typeof ref === "function") ref(element);
+        else if (ref) ref.current = element;
+      }}
+      className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
         <h2 id="kind-shelves-title">형식별로 보기</h2>
-        <p>홈에 둔 방의 파일 {total.toLocaleString("ko-KR")}개를 종류대로 서랍에 모았어요. 버전이 여럿인 파일은 최신본만 보여요.</p>
+        <p>홈에 둔 방의 파일 {total.toLocaleString("ko-KR")}개를 종류대로 폴더에 모았어요. 버전이 여럿인 파일은 최신본만 보여요.</p>
       </header>
-      <div className="kind-drawers" onKeyDown={moveFocus}>
-        {shelves.map((shelf) => (
-          <Drawer key={shelf.label} shelf={shelf} open={open === shelf.label} onToggle={() => setOpen(open === shelf.label ? null : shelf.label)} onClose={() => setOpen(null)} folders={folders} onOpenFile={onOpenFile} />
-        ))}
+      <div className="kind-cabinet">
+        <div ref={tabs} className="kind-tabs" role="tablist" aria-label="파일 형식" onKeyDown={onKey}>
+          {shelves.map((shelf, order) => {
+            const on = shelf === front;
+            return (
+              <button
+                key={shelf.label}
+                type="button"
+                role="tab"
+                id={tabId(shelf)}
+                className="kind-tab"
+                style={{ "--i": order } as CSSProperties}
+                aria-selected={on}
+                aria-controls={panelId(shelf)}
+                tabIndex={on ? 0 : -1}
+                onClick={() => pick(shelf, false)}
+              >
+                <span className="kind-dot" style={{ background: colorGroups.find((group) => group.label === shelf.label)?.color }} aria-hidden="true" />
+                {shelf.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* key 로 폴더를 바꿔 끼워서, 바꿀 때마다 새 폴더가 뒤에서 올라오는 움직임이 다시 돌아요. */}
+        <KindFolder key={front.label} shelf={front} folders={folders} onOpenFile={onOpenFile} />
       </div>
     </section>
   );
 });
 
-type DrawerProps = { shelf: Shelf; open: boolean; onToggle: () => void; onClose: () => void; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void };
-
-export function Drawer({ shelf, open, onToggle, onClose, folders, onOpenFile }: DrawerProps) {
-  const front = useRef<HTMLButtonElement>(null);
-  // 처음 열 때 종이를 그려요. 닫힌 서랍의 썸네일을 미리 읽지 않고, 한 번 연 뒤엔 닫히는 동안에도 남아 있어요.
-  const [filled, setFilled] = useState(open);
+export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void }) {
   const [all, setAll] = useState(false);
-  const id = `kind-drawer-${shelf.kinds[0]}`;
-  const color = colorGroups.find((group) => group.label === shelf.label)?.color;
-  useEffect(() => {
-    if (!open) return;
-    setFilled(true);
-    // 움직임을 줄이면 미끄러짐이 없어 transitionend 가 오지 않아요. 그래서 바로 맞춰요.
-    if (reducedMotion()) requestAnimationFrame(() => bringIntoView(front.current));
-  }, [open]);
   const shown = shelf.items.slice(0, all ? shownMost : shownAtFirst);
   return (
-    <div
-      className={`kind-drawer${open ? " open" : ""}`}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape" || !open) return;
-        event.stopPropagation();
-        onClose();
-        front.current?.focus();
-      }}
-    >
-      <h3 className="kind-drawer-title">
-        <button ref={front} type="button" id={`${id}-front`} className="kind-drawer-front" aria-expanded={open} aria-controls={`${id}-body`} onClick={onToggle}>
-          <span className="kind-dot" style={{ background: color }} aria-hidden="true" />
-          <span className="kind-drawer-label">{shelf.label}</span>
-          <Meta className="kind-drawer-count" items={[`${shelf.items.length.toLocaleString("ko-KR")}개`, formatBytes(shelf.size)]} />
-          <span className="kind-drawer-pull" aria-hidden="true" />
-        </button>
-      </h3>
-      <div
-        id={`${id}-body`}
-        className="kind-drawer-body"
-        role="region"
-        aria-labelledby={`${id}-front`}
-        inert={!open}
-        onTransitionEnd={(event) => open && event.target === event.currentTarget && event.propertyName === "grid-template-rows" && bringIntoView(front.current)}
-      >
-        <div className="kind-drawer-tray">
-          {filled && (
-            <>
-              <ul className="kind-drawer-things">
-                {shown.map((item, order) => (
-                  <li key={item.thing.id}>
-                    <ShelfPaper item={item} order={order} folder={folders.get(item.room.id) ?? null} onOpen={() => onOpenFile(item.room.id, item.thing.id)} />
-                  </li>
-                ))}
-              </ul>
-              {shelf.items.length > shown.length &&
-                (all ? (
-                  <p className="kind-drawer-more">최근 {shownMost}개까지만 보여요. 나머지는 방 안에서 찾아 주세요.</p>
-                ) : (
-                  <button type="button" className="kind-drawer-more" onClick={() => setAll(true)}>나머지 {(shelf.items.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
-                ))}
-            </>
-          )}
-        </div>
+    <div id={panelId(shelf)} className="kind-folder" role="tabpanel" aria-labelledby={tabId(shelf)} tabIndex={0}>
+      <div className="kind-folder-head">
+        <h3>{shelf.label}</h3>
+        <Meta className="kind-folder-count" items={[`${shelf.items.length.toLocaleString("ko-KR")}개`, formatBytes(shelf.size)]} />
       </div>
+      <ul className="kind-folder-things">
+        {shown.map((item, order) => (
+          <li key={item.thing.id}>
+            <ShelfPaper item={item} order={order} folder={folders.get(item.room.id) ?? null} onOpen={() => onOpenFile(item.room.id, item.thing.id)} />
+          </li>
+        ))}
+      </ul>
+      {shelf.items.length > shown.length &&
+        (all ? (
+          <p className="kind-folder-more">최근 {shownMost}개까지만 보여요. 나머지는 방 안에서 찾아 주세요.</p>
+        ) : (
+          <button type="button" className="kind-folder-more" onClick={() => setAll(true)}>나머지 {(shelf.items.length - shown.length).toLocaleString("ko-KR")}개도 보기</button>
+        ))}
     </div>
   );
 }
