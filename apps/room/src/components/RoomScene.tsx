@@ -75,18 +75,13 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   useLayoutEffect(() => {
     if (farLane) setOpened((now) => (now.includes(farLane) ? now : [...now, farLane]));
   }, [selectedId, farLane]);
-  const titles: Record<Lane, [title: string, note: string, empty: string]> = {
-    // 줄 기준을 숫자로 적어요. '쓴 때'는 방 안에서 열거나 고른 때, 고친 때, 맥에서 방 밖으로 연 때 중 가장 늦은 때예요(care.ts laneOf).
-    new: ["새로 왔어요", "들어온 지 7일 안, 아직 안 연 파일이에요.", "방을 만든 뒤 들어온 파일이 7일 동안 여기 머물러요."],
-    use: ["요즘 써요", `${room.care.staleAfterDays}일 안에 쓰거나 고쳤어요. 최근 것부터예요.`, `${room.care.staleAfterDays}일 안에 쓴 파일이 없어요.`],
-    quiet: ["잠잠해요", `${room.care.staleAfterDays}일 넘게 그대로예요. 주간 정리는 방을 만든 지 ${room.care.staleAfterDays}일 뒤부터 물어봐요.`, `${room.care.staleAfterDays}일 넘게 쉰 파일이 없어요.`],
-    box: ["정리 상자", "지우지 않아요. 언제든 제자리로 돌릴 수 있어요.", "상자가 비어 있어요."],
-  };
+  // 줄은 번호·제목·개수만으로 읽혀요. 줄을 나누는 기준은 care.ts laneOf에 있어요.
+  const titles: Record<Lane, string> = { new: "새로 왔어요", use: "요즘 써요", quiet: "잠잠해요", box: "정리 상자" };
   return (
     <div className="lanes">
       <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
       {groups.map(({ lane, things, front, piles }, index) => {
-        const [title, note, empty] = titles[lane];
+        const title = titles[lane];
         const shown = front.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
         const piled = things.length - front.length;
         const open = piles.find((pile) => openPile?.id === `${lane}:${pile.key}`);
@@ -97,7 +92,6 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
               {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
               {/* 줄 순서(파일이 흘러가는 차례)를 번호로 보여 줘요. 줄은 넷이라 5단계를 넘지 않아요. */}
               <h2 id={`lane-${lane}`}><span className="lane-no">{index + 1}</span>{" "}{title} <span className="lane-count">{things.length}</span></h2>
-              <p>{things.length ? note : searching ? "맞는 파일이 없어요." : empty}</p>
             </div>
             <div className="lane-body">
             {shown.length > 0 && (
