@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { lookExpr, type FaceExpr } from "../art/duct";
 
-// 프로도에게 보내는 신호. actor는 방 id, 플로팅 창의 "pet", 도우미 "guide"입니다. 어디서 일어난 일이든 신호만 보내면 해당 프로도가 반응해요.
+// 프로도에게 보내는 신호. actor는 방 id, 플로팅 창의 "pet"입니다. 어디서 일어난 일이든 신호만 보내면 해당 프로도가 반응해요.
 export type BodyAct = "wave" | "hop" | "nod" | "tilt" | "stretch" | "rise" | "bye";
 export type Point = { x: number; y: number };
 export type Cue = { face?: FaceExpr; ms?: number; body?: BodyAct; look?: Point | null };

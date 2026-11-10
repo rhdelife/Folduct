@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import type { CareSettings, Room } from "../domain/model";
 import { forgetRoom, patchRoom } from "../storage/db";
-import { FrodoGuide } from "./FrodoGuide";
 import { FacePicker } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { useModal } from "./useModal";
@@ -55,7 +54,6 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
         if (pressedOutside.current && event.target === event.currentTarget) onClose();
       }}
     >
-      <FrodoGuide />
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="room-settings-title">방 설정</h2>

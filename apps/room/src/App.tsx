@@ -1,6 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { Intro, replayIntroEvent } from "./components/Intro";
-import { useGuideEvents } from "./components/FrodoGuide";
 import { isNative } from "./gateways/native";
 import { Home } from "./pages/Home";
 import { getIntroOn } from "./storage/db";
@@ -63,7 +62,6 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
-  useGuideEvents();
   // 주간 정리 창이 인트로 위에 뜨지 않게, 집은 인트로가 걷힐 때부터 그립니다.
   const homeReady = intro === "leaving" || intro === "off";
   return (

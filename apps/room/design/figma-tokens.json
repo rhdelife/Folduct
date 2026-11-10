@@ -888,13 +888,9 @@
       "$type": "other",
       "$value": "2000ms"
     },
-    "intro-rise": {
-      "$type": "other",
-      "$value": "1300ms"
-    },
     "intro-leave": {
       "$type": "other",
-      "$value": "600ms"
+      "$value": "900ms"
     },
     "hero-type": {
       "$type": "other",
@@ -943,10 +939,6 @@
     "room-head-duct": {
       "$type": "other",
       "$value": "56px"
-    },
-    "frodo-guide": {
-      "$type": "other",
-      "$value": "64px"
     },
     "weekly-w": {
       "$type": "other",

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
-import { cue } from "./useFrodo";
 
 export type ToastAction = { label: string; run: () => void };
 type ToastItem = { id: number; message: string; action?: ToastAction };
@@ -17,7 +16,6 @@ export function toastMs(message: string, hasAction: boolean) {
 export function useToast() {
   const [current, setCurrent] = useState<ToastItem | null>(null);
   const toast = useCallback((message: string, action?: ToastAction) => {
-    cue("guide", { body: "nod" });
     setCurrent({ id: ++nextId, message, action });
   }, []);
   // 이미 다른 알림으로 바뀌었으면 그대로 둡니다.

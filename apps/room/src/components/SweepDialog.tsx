@@ -5,7 +5,6 @@ import { formatBytes, type Room } from "../domain/model";
 import { isNative } from "../gateways/native";
 import { answerDoneOffer, runSweep, type SweepOutcome, type SweepPlan } from "../storage/box";
 import { setLastSweepAt } from "../storage/db";
-import { FrodoGuide } from "./FrodoGuide";
 import { cue } from "./useFrodo";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
@@ -92,7 +91,6 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
         else void later();
       }}
     >
-      <FrodoGuide />
       <div className="sheet-body">
         <h2 id="sweep-title">이번 주 정리 <span className="sweep-week">{week}</span></h2>
         {stopped ? (

@@ -3,7 +3,6 @@ import { relativeDay, roomLastActivity, roomUsage } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { homeLimit, roomsToKeep } from "../domain/sky";
 import { RankVase } from "./SkyPanel";
-import { FrodoGuide } from "./FrodoGuide";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
 import { Meta } from "./Meta";
@@ -30,7 +29,6 @@ export function HomeRoomsDialog({ rooms, prefer, now, onKeep }: { rooms: Room[];
   const shown = rooms.filter((room) => keep.has(room.id)).length;
   return (
     <dialog ref={dialog} className="sheet" aria-labelledby="home-rooms-title" onCancel={(event) => event.preventDefault()}>
-      <FrodoGuide />
       <form
         className="sheet-body"
         onSubmit={(event) => {

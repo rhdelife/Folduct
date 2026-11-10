@@ -194,7 +194,6 @@
   /* 방 머리의 주름관 */
   --room-head-duct: 56px;
   /* 메뉴와 대화창 곁의 도우미 프로도. */
-  --frodo-guide: 64px;
 
   /* 주간 정리 */
   --weekly-w: min(55vw, 760px);
@@ -1253,12 +1252,6 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 @keyframes frodo-wave-l { from { transform: rotate(0deg); } to { transform: rotate(55deg); } }
 @keyframes frodo-nod { 40% { transform: translateY(6%) rotate(5deg); } 100% { transform: none; } }
 @keyframes frodo-tilt { 30%, 70% { transform: rotate(-11deg); } 100% { transform: none; } }
-/* 도우미는 창 구석에 서 있어 무엇도 가로막지 않습니다. 폰 폭에는 자리가 없고 호버도 없어 두지 않아요. */
-.frodo-guide { position: fixed; right: var(--space-4); bottom: var(--space-2); z-index: var(--hero-tip-z); width: var(--frodo-guide); height: var(--frodo-guide); pointer-events: none; }
-.frodo-guide svg:not(.duct-face) { display: block; width: 100%; height: 100%; overflow: visible; }
-@media (max-width: 719.98px) {
-  .frodo-guide { display: none; }
-}
 @media (prefers-reduced-motion: reduce) {
   svg.frodo-hop, svg.frodo-stretch, svg.frodo-rise, .duct-part-head, .duct-part-armL, .duct-part-armR { animation: none; }
 }

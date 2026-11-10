@@ -11,7 +11,7 @@
 ## 디자인 규칙
 - 색·글자 크기·간격·모서리·그림자는 styles.css :root 토큰만 쓴다. 헥스·px 직접 입력 금지.
 - 새 토큰이 필요하면 :root 에 추가하고 `node apps/room/scripts/export-figma-tokens.mjs` 로 apps/room/design/ 을 다시 만든다.
-- 주름관은 방 하나만 뜻한다. 전체 파일이나 형식 묶음에는 쓰지 않는다(인트로와 작업 전 플로팅 창, 로고, 어느 방에도 속하지 않은 조작에 반응하는 작은 도우미 프로도는 예외). 몸은 apps/room/src/art/duct.ts 에서 코드로, 표정과 인트로는 스프라이트 시트(scripts/make-duct-sprite.mjs)로 만든다.
+- 주름관은 방 하나만 뜻한다. 전체 파일이나 형식 묶음에는 쓰지 않는다(인트로와 작업 전 플로팅 창, 로고는 예외). 몸은 apps/room/src/art/duct.ts 에서 코드로, 표정과 인트로는 스프라이트 시트(scripts/make-duct-sprite.mjs)로 만든다.
 - 색은 파일 형식에만 쓴다(apps/room/src/art/palette.ts). 상태는 잉크·굵은 글자·모양으로, 상태 색은 패널·배너에만. 예외는 로고 전용 --brand, 그리고 방 얼굴의 받침 색 --face-1~8(주름관 받침과 작은 실루엣, 얼굴 고르기에만).
 - 글꼴은 산세리프(Pretendard) 하나. 애플 사이트처럼 깔끔하게, 세리프를 다시 넣지 않는다. 로고는 흰 판 가운데에 프로도 얼굴(흰 입구 테 + 검은 구멍 + 흰 눈)을 방 그림과 같은 펜으로 그린 심볼(art/duct.ts drawBrandFace, 판 824의 황금비 치수, scripts/make-logo.mjs)만 쓰고 글자를 붙이지 않는다.
 - --ink-faint 는 선·눈금 전용. 글자 대비는 4.5:1 이상.

@@ -217,8 +217,7 @@
 | `scene/intro-fly` | `900ms` |  |
 | `scene/intro-stagger` | `110ms` |  |
 | `scene/intro-fill` | `2000ms` |  |
-| `scene/intro-rise` | `1300ms` |  |
-| `scene/intro-leave` | `600ms` |  |
+| `scene/intro-leave` | `900ms` |  |
 | `scene/hero-type` | `max(2.22vw, 3vh)` |  |
 | `scene/hero-layer-z` | `40` |  |
 | `scene/hero-tip-z` | `50` |  |
@@ -231,7 +230,6 @@
 | `scene/cal-gap` | `2px` |  |
 | `scene/cal-w` | `217px` |  |
 | `scene/room-head-duct` | `56px` |  |
-| `scene/frodo-guide` | `64px` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |

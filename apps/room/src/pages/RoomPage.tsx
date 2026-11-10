@@ -5,7 +5,6 @@ import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
 import { RoomFaceArt } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
-import { FrodoGuide } from "../components/FrodoGuide";
 import { BrandMark, Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
@@ -470,7 +469,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   return (
     <main className="room-page">
-      <FrodoGuide />
       <header className="topnav">
         <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
           <BrandMark size={32} />
