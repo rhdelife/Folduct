@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { eatFrameCount, kindParts, kindSummary } from "../art/duct";
+import { eatFrameCount, kindParts } from "../art/duct";
 import eatSheet from "../art/duct-eat.png";
 import { eatKeyframes, eatTimeline, introMs, introPapers, introThings } from "../domain/intro";
 import type { Thing } from "../domain/model";
@@ -69,7 +69,6 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
 
   const papers = useMemo(() => introPapers(things ?? []), [things]);
   const parts = useMemo(() => kindParts(things ?? []), [things]);
-  const note = phase === "gather" ? `파일 ${papers.length}개` : phase === "fill" && parts.length ? kindSummary(parts) : null;
 
   return (
     <section className={`intro phase-${phase}${leaving ? " leaving" : ""}`} aria-label="Folduct 인트로" aria-hidden={leaving || undefined}>
@@ -100,7 +99,6 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
                 {[1, 2, 3].map((step) => <li key={step} className={step <= stepOf[phase] ? "on" : undefined} />)}
               </ol>
               <p className="intro-copy" role="status"><span key={phase}>{copy[phase]}</span></p>
-              {note && <p className="intro-note"><span key={phase}>{note}</span></p>}
               {phase === "scatter" && (
                 <button
                   type="button"

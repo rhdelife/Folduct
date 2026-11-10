@@ -1298,9 +1298,8 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 .intro-steps li { width: var(--space-6); height: var(--space-1); border-radius: var(--radius-pill); background: var(--line-strong); transition: background-color var(--dur-3) var(--ease-standard); }
 .intro-steps li.on { background: var(--ink); }
 .intro-copy { margin: 0; color: var(--ink); font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 700; letter-spacing: -0.01em; }
-.intro-note { margin: 0; color: var(--ink-caption-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .intro-foot .primary { margin-top: var(--space-2); }
-:is(.intro-copy, .intro-note) span { display: block; animation: fade-in var(--dur-3) var(--ease-standard); }
+.intro-copy span { display: block; animation: fade-in var(--dur-3) var(--ease-standard); }
 /* 종이가 뒤로 지나가도 글자가 읽히도록 바탕을 깝니다. */
 :where(button).quiet.intro-skip { position: absolute; top: var(--chrome-y); right: calc(var(--chrome-x) - var(--space-3)); translate: 0 -50%; background: var(--bg); color: var(--ink-caption); font-size: var(--text-md); font-weight: 500; }
 @keyframes intro-drop { from { opacity: 0; transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh - 6vh), 0) rotate(calc(var(--rot) - 12deg)) scale(var(--intro-paper-scale)); } }
@@ -1317,7 +1316,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 }
 /* 움직임을 줄인 사람에게는 날아드는 움직임 없이 장면만 바꿉니다. */
 @media (prefers-reduced-motion: reduce) {
-  .intro-paper, .intro-paper-art, .intro-vase, :is(.intro-copy, .intro-note) span { animation: none; }
+  .intro-paper, .intro-paper-art, .intro-vase, .intro-copy span { animation: none; }
   .intro-steps li { transition: none; }
   .intro:not(.phase-scatter) .intro-paper { animation: none; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
   .phase-fill .intro-band { animation: none; clip-path: none; }
