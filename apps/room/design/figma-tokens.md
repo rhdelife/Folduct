@@ -235,6 +235,17 @@
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |
+| `scene/hue-red` | `#e5484d` |  |
+| `scene/hue-orange` | `#f5822a` |  |
+| `scene/hue-yellow` | `#f5c518` |  |
+| `scene/hue-green` | `#3fa35b` |  |
+| `scene/hue-blue` | `#3b82f6` |  |
+| `scene/hue-purple` | `#8b5cf6` |  |
+| `scene/hue-pink` | `#ec6fa8` |  |
+| `scene/hue-brown` | `#8b5e3c` |  |
+| `scene/hue-white` | `#ffffff` |  |
+| `scene/hue-gray` | `#9a9a96` |  |
+| `scene/hue-black` | `#1c1c1c` |  |
 | `scene/empty-text` | `max(var(--text-md), var(--hero-type))` |  |
 | `scene/punch-col` | `30px` |  |
 | `scene/rank-num-file` | `88px` |  |

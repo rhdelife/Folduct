@@ -21,7 +21,8 @@ import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { useHues } from "../storage/thumbs";
-import { hues as hueNames, type Hue } from "../domain/hue";
+import type { Hue } from "../domain/hue";
+import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
 
 // 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
@@ -57,7 +58,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [folderIssue, setFolderIssue] = useState<keyof typeof folderIssues | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  // 색으로 보기: 고르는 칸에 처음 손이 가면(hueOn) 이미지 색을 읽기 시작해요.
+  // 색으로 보기: 색 네모에 처음 손이 가거나 색을 고르면 이미지 색을 읽기 시작해요.
   const [hue, setHue] = useState<Hue | "">("");
   const [hueOn, setHueOn] = useState(false);
   // 지금 하고 있는 일(폴더 읽기, 옮기기)을 글자로 보여 줍니다. null이면 쉬는 중.
@@ -66,7 +67,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [now, setNow] = useState(() => Date.now());
   const { toast, toastRegion } = useToast();
   const readable = room?.source === "handle" && access === "granted" ? handle : null;
-  const { hues, total: imageCount } = useHues(readable, room?.things ?? [], hueOn);
+  const { hues, total: imageCount } = useHues(readable, room?.things ?? [], hueOn || hue !== "");
   const latest = useRef<Room | null>(null);
   const reading = useRef(false);
   const busyNow = useRef(busy);
@@ -527,15 +528,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {room.things.length > 0 && (
               <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름이나 폴더로 찾기" aria-label="이 방에서 파일 이름이나 폴더 이름으로 찾기" />
             )}
-            {imageCount > 0 && (
-              <select className="room-hue" value={hue} onFocus={() => setHueOn(true)} onPointerDown={() => setHueOn(true)} onChange={(event) => setHue(event.target.value as Hue | "")} aria-label="이미지를 색으로 모아 보기">
-                <option value="">{hueOn && hues.size < imageCount ? `색 읽는 중 ${hues.size}/${imageCount}` : "모든 색"}</option>
-                {hueNames.map((name) => {
-                  const count = [...hues.values()].filter((found) => found === name).length;
-                  return <option key={name} value={name} disabled={hues.size === imageCount && count === 0}>{hueOn ? `${name} ${count}` : name}</option>;
-                })}
-              </select>
-            )}
+            {imageCount > 0 && <HueSwatches value={hue} found={hues} total={imageCount} onReach={() => setHueOn(true)} onPick={setHue} />}
             <Capacity usage={usage} />
           </div>
           <RoomScene

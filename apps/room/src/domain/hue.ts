@@ -1,8 +1,22 @@
 // Eagle처럼 이미지마다 많이 쓴 색을 뽑아, 색을 하나 고르면 그 색 이미지만 모아 봐요.
-// 색 이름은 글자로만 보여 줘요. Folduct에서 칠하는 색은 파일 형식 몫이고, 이미지의 색은 미리보기 자체가 보여 줘요.
+// 고르는 칸만 실제 색 네모로 보여 줘요(HueSwatches). 그 밖에 Folduct에서 칠하는 색은 파일 형식 몫이에요.
 
 export const hues = ["빨강", "주황", "노랑", "초록", "파랑", "보라", "분홍", "갈색", "흰색", "회색", "검정"] as const;
 export type Hue = (typeof hues)[number];
+
+export const hueColors: Record<Hue, string> = {
+  빨강: "var(--hue-red)",
+  주황: "var(--hue-orange)",
+  노랑: "var(--hue-yellow)",
+  초록: "var(--hue-green)",
+  파랑: "var(--hue-blue)",
+  보라: "var(--hue-purple)",
+  분홍: "var(--hue-pink)",
+  갈색: "var(--hue-brown)",
+  흰색: "var(--hue-white)",
+  회색: "var(--hue-gray)",
+  검정: "var(--hue-black)",
+};
 
 const plain = new Set<Hue>(["흰색", "회색", "검정"]);
 

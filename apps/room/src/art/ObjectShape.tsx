@@ -178,7 +178,7 @@ export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56, pict
   const unit = Math.max(8.5, 5.7 + size * 0.05) * perPixel;
   const named = full && Boolean(name) && size >= nameFrom;
   // 세로로 긴 종이는 이름 두 줄, 가로로 긴 종이는 한 줄. 그림이 종이의 절반 아래로 줄지 않게 띠는 40%까지만.
-  const band = named ? Math.min(base.h * 0.4, unit * 1.24 * (base.h > base.w ? 2 : 1) + unit * 0.6) : 0;
+  const band = named ? Math.min(base.h * 0.4, unit * 1.24 * (base.h > base.w ? 2 : 1) + Math.max(unit * 0.6, 6)) : 0;
   const pictured = pictureUrl ? pictureArt(base, band) : null;
   const art = pictured?.art ?? base;
   const frame = pictured?.frame;

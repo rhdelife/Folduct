@@ -41,7 +41,7 @@ export function CardboardBox({ things }: { things: Thing[] }) {
 }
 
 // 종이를 그리는 크기. 화면에서는 styles.css의 --lane-paper 폭으로 줄이거나 늘립니다.
-const paperPx = 80;
+const paperPx = 120;
 // 줄마다 처음엔 앞에서부터 이만큼만, 더 보기를 누르면 shownMost개까지 그립니다(파일 수백 개짜리 폴더).
 const shownAtFirst = 24;
 const shownMost = 200;

@@ -965,6 +965,50 @@
       "$type": "other",
       "$value": "0.5px"
     },
+    "hue-red": {
+      "$type": "color",
+      "$value": "#e5484d"
+    },
+    "hue-orange": {
+      "$type": "color",
+      "$value": "#f5822a"
+    },
+    "hue-yellow": {
+      "$type": "color",
+      "$value": "#f5c518"
+    },
+    "hue-green": {
+      "$type": "color",
+      "$value": "#3fa35b"
+    },
+    "hue-blue": {
+      "$type": "color",
+      "$value": "#3b82f6"
+    },
+    "hue-purple": {
+      "$type": "color",
+      "$value": "#8b5cf6"
+    },
+    "hue-pink": {
+      "$type": "color",
+      "$value": "#ec6fa8"
+    },
+    "hue-brown": {
+      "$type": "color",
+      "$value": "#8b5e3c"
+    },
+    "hue-white": {
+      "$type": "color",
+      "$value": "#ffffff"
+    },
+    "hue-gray": {
+      "$type": "color",
+      "$value": "#9a9a96"
+    },
+    "hue-black": {
+      "$type": "color",
+      "$value": "#1c1c1c"
+    },
     "empty-text": {
       "$type": "other",
       "$value": "max(var(--text-md), var(--hero-type))"

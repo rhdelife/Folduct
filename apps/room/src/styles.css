@@ -214,6 +214,18 @@
   --face-6: #1f5f6b;
   --face-7: #8a4b2a;
   --face-8: #3f3f46;
+  /* 이미지 색 거르기의 네모(HueSwatches)에만 씁니다. */
+  --hue-red: #e5484d;
+  --hue-orange: #f5822a;
+  --hue-yellow: #f5c518;
+  --hue-green: #3fa35b;
+  --hue-blue: #3b82f6;
+  --hue-purple: #8b5cf6;
+  --hue-pink: #ec6fa8;
+  --hue-brown: #8b5e3c;
+  --hue-white: #ffffff;
+  --hue-gray: #9a9a96;
+  --hue-black: #1c1c1c;
 
 
   /* 마무리·메뉴·패널 */
@@ -334,8 +346,8 @@ h3 { font-weight: 700; }
 :where(button).danger:hover:where(:not(:disabled)) { border-color: transparent; background: var(--status-danger-bg); }
 :where(button, .button).big { min-height: var(--control-lg); padding: 0 var(--space-6); font-size: var(--text-md); }
 /* 켜고 끄는 버튼은 회색 판과 체크로만 눌림을 보여줍니다. 꽉 찬 잉크는 화면마다 하나뿐인 primary의 몫입니다. */
-:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node) { background: var(--surface-selected); border-color: var(--ink); color: var(--ink); }
-:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node)::before { content: "✓"; content: "✓" / ""; }
+:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node, .room-hue-swatch) { background: var(--surface-selected); border-color: var(--ink); color: var(--ink); }
+:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node, .room-hue-swatch)::before { content: "✓"; content: "✓" / ""; }
 
 /* 여러 개 중 하나를 고르는 칸(정렬, 라디오 묶음) */
 .sort, .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: 100%; padding: 2px; border-radius: var(--radius-pill); background: var(--surface-sunken); }
@@ -717,7 +729,7 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .drawer { max-height: none; }
 }
 @media (forced-colors: active) {
-  .object { forced-color-adjust: none; }
+  .object, .room-hue-swatch::before { forced-color-adjust: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -944,18 +956,31 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 /* ── 몸: 바닥 전체와 그 위에 뜬 폴더. 물건은 폴더 왼쪽까지만 놓여 가려지지 않아요. ── */
 .room-body { position: relative; flex: 1 1 auto; display: block; width: 100%; min-height: 0; max-width: none; margin: 0; }
 .room-stage-wrap { position: absolute; inset: 0 calc(var(--rail-w) + var(--space-6)) 0 0; display: flex; flex-direction: column; }
-.room-capacity { display: flex; align-items: center; min-height: var(--room-tab-h); max-width: none; margin: 0; }
+.room-capacity { display: flex; flex-wrap: wrap; align-items: center; row-gap: var(--space-2); min-height: var(--room-tab-h); max-width: none; margin: 0; }
 .room-capacity .capacity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
 .room-capacity .capacity p { font-weight: 500; color: var(--ink-soft); }
 /* 방 안 이름 찾기. 용량 줄 왼쪽에 두고, 좁은 창에서는 줄 폭만큼 줄어요. */
 .room-search { flex: 0 1 calc(var(--space-12) * 5); min-width: 0; min-height: var(--control-md); margin-right: var(--space-4); border-radius: var(--radius-pill); font-size: var(--text-sm); }
-/* 이미지를 색으로 모아 보기(Eagle의 색 거르기처럼). 색 이름은 글자로만 써요. */
-.room-hue { flex: 0 1 auto; min-width: 0; margin-right: var(--space-4); border-radius: var(--radius-pill); font-size: var(--text-sm); }
+/* 이미지를 색으로 모아 보는 네모 줄(Eagle의 색 거르기처럼). 누르는 칸 안에 네모가 있어서 고른 테두리가 옆 칸을 밀지 않아요. */
+.room-hue { position: relative; flex: 0 1 auto; display: flex; flex-wrap: wrap; min-width: 0; margin-right: var(--space-4); }
+.room-hue-swatch { display: grid; place-items: center; width: var(--control-sm); height: var(--control-sm); min-height: 0; padding: 0; border: 0; border-radius: var(--radius-xs); background: none; transform: none; }
+.room-hue-swatch:hover:not(:disabled), .room-hue-swatch:active:not(:disabled) { background: none; transform: none; }
+.room-hue-swatch::before { content: ""; width: var(--space-5); height: var(--space-5); border-radius: var(--radius-xs); background: var(--swatch); box-shadow: inset 0 0 0 var(--room-hair) var(--ink-faint); }
+.room-hue-swatch:not([aria-disabled="true"]):hover::before { scale: 1.15; }
+.room-hue-swatch[aria-pressed="true"]::before { box-shadow: inset 0 0 0 var(--room-hair) var(--ink-faint), 0 0 0 calc(var(--space-1) / 2) var(--bg), 0 0 0 var(--space-1) var(--ink); }
+.room-hue-swatch[aria-disabled="true"] { cursor: default; }
+.room-hue-swatch[aria-disabled="true"]::before { opacity: 0.25; }
+/* 색을 읽는 동안 네모 줄 아래로 잉크 선이 차올라요. */
+.room-hue-read { position: absolute; inset: auto 0 calc(var(--space-1) * -1); height: calc(var(--space-1) / 2); background: var(--ink); transform-origin: left; scale: var(--read) 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .room-hue-swatch::before { transition: scale var(--dur-1) var(--ease-standard); }
+}
 
 
 /* 종이가 위에서 내려앉습니다(새로 왔어요 줄). */
 @keyframes room-paper-drop { from { translate: 0 calc(var(--space-8) * -1); opacity: 0; } }
-.hand-ring { position: absolute; inset: -20% -16%; width: 132%; height: 124%; overflow: visible; pointer-events: none; }
+/* 동그라미가 종이 크기와 함께 커지면 줄 위쪽에서 잘려요. 위·옆 여유는 고정이에요. */
+.hand-ring { position: absolute; top: calc(var(--space-4) * -1); left: calc(var(--space-3) * -1); width: calc(100% + var(--space-3) * 2); height: calc(104% + var(--space-4)); overflow: visible; pointer-events: none; }
 .hand-ring path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 /* 연필이 지나가듯 왼쪽부터 드러납니다. 선 길이는 화면 배율마다 달라 대시로는 맞출 수 없어요. */
 .hand-ring { animation: room-ring-draw 360ms var(--ease-fan) backwards; }
@@ -1003,7 +1028,7 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 
 /* ── 줄: 파일이 1 새로 왔어요 → 2 요즘 써요 → 3 잠잠해요 → 4 정리 상자로 흘러갑니다. 줄은 위아래로 쌓고, 넓으면 왼쪽에 번호·제목, 오른쪽에 파일이 놓여요. ── */
 .room-stage-wrap { container-type: inline-size; }
-.lanes { --lane-paper: calc(var(--space-10) * 2); --lane-label: calc(var(--space-12) * 4); flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-bottom: var(--space-6); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lanes { --lane-paper: clamp(calc(var(--space-12) * 2), 14cqw, calc(var(--space-10) * 4)); --lane-small: calc(var(--lane-paper) * 0.8); --lane-label: calc(var(--space-12) * 4); flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-bottom: var(--space-6); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .lane { position: relative; display: grid; grid-template-columns: var(--lane-label) minmax(0, 1fr); align-items: start; gap: var(--space-3) var(--space-6); min-width: 0; padding: var(--space-5) var(--space-5) var(--space-6); }
 .lane + .lane { border-top: var(--room-hair) solid var(--room-line); }
 .lane-body { display: grid; align-content: start; gap: var(--space-4); min-width: 0; }
@@ -1024,7 +1049,7 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 /* 줄마다 한 줄짜리 띠예요. 파일이 많아도 아래 줄을 밀어내지 않고 옆으로 밀어 봐요. */
 .lane-things { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-5) var(--space-4); overflow-x: auto; margin: calc(var(--space-5) * -1) calc(var(--space-3) * -1) 0; padding: var(--space-5) var(--space-3) var(--space-3); list-style: none; scrollbar-width: thin; }
 .lane-things > li { flex: none; }
-.lane-box .lane-things { --lane-paper: calc(var(--space-8) * 2); }
+.lane-box .lane-things { --lane-paper: var(--lane-small); }
 .lane-paper { display: grid; justify-items: center; gap: var(--space-2); width: var(--lane-paper); min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; cursor: pointer; }
 .lane-paper:hover:not(:disabled), .lane-paper:active:not(:disabled) { background: none; transform: none; }
 .lane-paper:focus-visible { outline-offset: var(--space-1); }
@@ -1046,7 +1071,7 @@ button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
 .lane-piles { display: grid; gap: var(--space-3); padding-top: var(--space-4); border-top: var(--room-hair) solid var(--room-line); }
 .lane-piles-head { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; color: var(--ink-caption); }
 .lane-piles-head > .meta { margin-left: var(--space-2); font-weight: 500; font-variant-numeric: tabular-nums; }
-.lane-piles > .lane-things, .lane-pile-open .lane-things { --lane-paper: calc(var(--space-8) * 2); }
+.lane-piles > .lane-things, .lane-pile-open .lane-things { --lane-paper: var(--lane-small); }
 .lane-pile .lane-art > .object, .lane-stack .lane-art > .object { position: relative; }
 .lane-pile-under { position: absolute; inset: 0; }
 .lane-pile-under-1 { translate: 9% -7%; rotate: 6deg; }
@@ -1073,7 +1098,7 @@ button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
 .mini-lane-things .object { flex: none; }
 /* 좁으면 번호·제목을 파일 위로 올려요. */
 @container (max-width: 759.98px) {
-  .lanes { --lane-paper: calc(var(--space-8) * 2); display: block; }
+  .lanes { --lane-paper: calc(var(--space-12) * 2); --lane-small: var(--lane-paper); display: block; }
   .lane { grid-template-columns: minmax(0, 1fr); padding: var(--space-4) 0; }
   .lane-box { padding: var(--space-4); }
   .lane-empty { padding-block: var(--space-3); }
@@ -1383,7 +1408,7 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 :where(button).quiet, :where(button).danger, :where(button).link, :where(.topnav > .row, .viewer-head) :where(button) { background: transparent; box-shadow: none; }
 :where(button).quiet:hover:where(:not(:disabled)) { background: var(--glass-wash); }
 :where(button).danger:hover:where(:not(:disabled)) { background: var(--status-danger-bg); }
-:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node) { background: var(--button-bg-pressed); box-shadow: none; }
+:where(button)[aria-pressed="true"]:not(.lane-paper, .room-node, .room-hue-swatch) { background: var(--button-bg-pressed); box-shadow: none; }
 :where(.room-page, .page-status, dialog.sheet:not(.menu)) :where(button, .button) { border-width: 0; }
 input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :where(.room-page, dialog.sheet:not(.menu)) :where(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select) { border: 0; border-radius: var(--radius-sm); background: var(--glass-wash); }
 .seg, .sort, .room-page .seg, dialog.sheet:not(.menu) .seg { border-radius: var(--radius-pill); background: var(--glass-wash); }

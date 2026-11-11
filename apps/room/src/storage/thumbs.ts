@@ -8,8 +8,8 @@ import { pictureSourceLimit, shrink } from "./pictures";
 // 방 안 이미지 종이에 끼울 진짜 미리보기. 화면에 들어온 종이만 읽고, 앱을 켠 동안 메모리에만 둬요.
 // 읽기만 해요. 사용자 폴더에 쓰지 않고, 권한을 묻지 않고, 손댄 것으로 세지 않아요.
 
-// 80px 종이를 크게 키우거나 2배 화면에서 봐도 뭉개지지 않을 만큼.
-export const thumbSide = 240;
+// 가장 큰 줄 종이(160px)를 2배 화면에서 봐도 뭉개지지 않을 만큼.
+export const thumbSide = 360;
 // shortcut: 오래 만든 것부터 버리는 단순한 상한이라, 아주 큰 방에서 화면에 있던 그림이 기본 그림으로 돌아갈 수 있어요. 그게 보이면 화면에 있는 것을 빼고 버리게 바꿔요.
 const keep = 400;
 const atOnce = 3;
