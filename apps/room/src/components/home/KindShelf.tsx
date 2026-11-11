@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { fitName, ObjectShape } from "../../art/ObjectShape";
+import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
 import { kindShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
@@ -11,10 +11,9 @@ import { Meta } from "../Meta";
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
 const shownMost = 120;
-const paperPx = 80;
-// 열린 서랍 안에 보이는 종이 수와 크기.
-const peekCount = 4;
-const peekPx = 40;
+// 열린 서랍 안에 앞뒤로 겹쳐 꽂힌 종이 수.
+const peekCount = 5;
+const cardArtPx = 40;
 // 장면을 넘긴 뒤 휠이 이만큼 멈출 때까지는 트랙패드 관성으로 보고 삼켜요.
 const quietMs = 300;
 const slipId = "kind-slip";
@@ -107,7 +106,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" tabIndex={-1} data-open={open !== null} inert={open === null}>
           {listed && (
             // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 종이가 다시 내려앉아요.
-            <div key={listed.label} className="kind-slip-paper">
+            <div key={listed.label} className="kind-slip-paper" style={{ "--kind": colorOf(listed) } as CSSProperties}>
               <div className="kind-folder-head">
                 <h3 id="kind-slip-title">
                   <span className="kind-dot" style={{ background: colorOf(listed) }} aria-hidden="true" />
@@ -138,16 +137,14 @@ function Drawer({ shelf, on, onToggle }: { shelf: Shelf; on: boolean; onToggle: 
         aria-label={`${shelf.label} 서랍, ${shelf.items.length.toLocaleString("ko-KR")}개, ${formatBytes(shelf.size)}`}
         onClick={onToggle}
       >
-        {/* 속: 위에서 내려다본 서랍 벽과 바닥, 그리고 바닥에서 튀어 오르는 종이. 닫혀 있으면 앞판 윗변 아래로 접혀 안 보여요. */}
+        {/* 속: 위에서 내려다본 서랍 벽과 바닥, 그리고 앞뒤로 줄지어 꽂힌 종이(형식 색 색인 탭). 뒤 종이일수록 위로 고개를 내밀어요. 닫혀 있으면 앞판 윗변 아래로 접혀 안 보여요. */}
         <span className="kind-drawer-inside" aria-hidden="true">
           <span className="kind-drawer-walls">
             <span className="kind-drawer-floor" />
           </span>
           <span className="kind-drawer-papers">
-            {shelf.items.slice(0, peekCount).map((item, order) => (
-              <span key={item.thing.id} className="kind-drawer-peek" style={{ "--i": order } as CSSProperties}>
-                <ObjectShape kind={item.thing.kind} size={peekPx} seed={item.thing.id} picture={null} />
-              </span>
+            {shelf.items.slice(0, peekCount).map((item, order, peeks) => (
+              <span key={item.thing.id} className="kind-drawer-sheet" style={{ "--i": order, "--back": peeks.length - 1 - order } as CSSProperties} />
             ))}
           </span>
         </span>
@@ -164,7 +161,7 @@ function Drawer({ shelf, on, onToggle }: { shelf: Shelf; on: boolean; onToggle: 
   );
 }
 
-// 목록 종이 몸: 파일이 많으면 여기서 내려요.
+// 목록 종이 몸: 파일 카드가 위아래로 겹쳐 쌓여 있고, 파일이 많으면 여기서 내려요.
 export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void }) {
   const [all, setAll] = useState(false);
   const shown = shelf.items.slice(0, all ? shownMost : shownAtFirst);
@@ -203,13 +200,15 @@ function ShelfPaper({ item, order, folder, onOpen }: { item: ShelfItem; order: n
       onClick={onOpen}
     >
       <span className="shelf-art">
-        <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} picture={own ?? thumb} />
+        <ObjectShape kind={thing.kind} size={cardArtPx} seed={thing.id} picture={own ?? thumb} />
       </span>
+      {/* 카드 윗줄(이름·방)은 다음 카드에 가려지지 않는 자리에 있어요. */}
       <span className="shelf-meta">
-        {/* 종이 위 이름은 작게 찍혀서, 여기 한 번 더 또렷하게 적어요. 가운데를 줄여 확장자가 남아요. */}
-        <span className="shelf-name">{fitName(thing.name, 6.4)[0]}</span>
-        <span className="shelf-room">{room.name}</span>
-        {versions > 1 && <b>버전 {versions}</b>}
+        <span className="shelf-name-row">
+          <span className="shelf-name">{thing.name}</span>
+          {versions > 1 && <b>버전 {versions}</b>}
+        </span>
+        <span className="shelf-room">{room.name} · {formatBytes(thing.size)}</span>
       </span>
     </button>
   );

@@ -1491,11 +1491,12 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-drawer-walls { position: absolute; inset: 0; clip-path: polygon(6% 100%, 94% 100%, 100% 100%, 0 100%); background: var(--line-strong); }
 .kind-drawer[data-open="true"] .kind-drawer-walls { clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); }
 .kind-drawer-floor { position: absolute; inset: var(--space-1) 8% 0; clip-path: polygon(2% 0, 98% 0, 100% 100%, 0 100%); background: var(--surface-sunken); }
-/* 종이: 바닥 아래로 잘려 숨어 있다가, 열리면 차례로 튀어 올라 서랍 위로 고개를 내밀어요. */
-.kind-drawer-papers { position: absolute; inset: auto 14% 0; display: flex; align-items: flex-end; justify-content: center; gap: var(--space-1); clip-path: inset(-300% -50% 0 -50%); }
-.kind-drawer-peek { display: block; flex: 0 1 var(--space-10); min-width: 0; translate: 0 110%; }
-.kind-drawer-peek .object { display: block; width: 100%; height: auto; overflow: visible; }
-.kind-drawer[data-open="true"] .kind-drawer-peek { translate: 0 0; }
+/* 종이: 앞뒤로 줄지어 꽂힌 서류예요. 뒤 종이일수록 높이 서서 앞 종이 위로 윗변과 형식 색 색인 탭이 보여요.
+   바닥 아래로 잘려 숨어 있다가 열리면 뒤에서부터 차례로 올라와요. 높이와 올라선 만큼은 속 높이에 비례해요(종이 60%, 한 장 뒤마다 12% = 종이 높이의 20%). */
+.kind-drawer-papers { position: absolute; inset: auto 11% 0; height: 100%; clip-path: inset(-300% -50% 0 -50%); }
+.kind-drawer-sheet { position: absolute; left: 0; right: 0; bottom: calc(var(--back) * 12%); height: 60%; scale: calc(1 - var(--back) * 0.035) 1; border: var(--room-hair) solid var(--line-strong); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--surface); translate: 0 calc(100% + var(--back) * 20% + var(--space-3)); }
+.kind-drawer-sheet::before { content: ""; position: absolute; bottom: 100%; left: calc(6% + var(--i) * 17%); width: 22%; height: var(--space-2); border: var(--room-hair) solid var(--line-strong); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--kind); }
+.kind-drawer[data-open="true"] .kind-drawer-sheet { translate: 0 0; }
 /* 목록 종이: 넓으면 오른쪽 칸에 세워 두고, 칸이 벌어지는 동안 오른쪽에서 밀려 들어와요. 그림자가 잘리지 않게 칸이 바깥 여백까지 덮어요. */
 .kind-slip { display: grid; justify-items: end; min-width: 0; min-height: 0; overflow: hidden; margin: calc(var(--space-4) * -1) calc(var(--gutter) * -1) calc(var(--space-4) * -1) 0; padding: var(--space-4) var(--gutter) var(--space-4) 0; }
 .kind-slip:focus-visible { outline: none; }
@@ -1507,17 +1508,27 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-folder-count { font-size: var(--text-xs); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
 .kind-slip-close { margin-left: auto; font-size: var(--text-sm); }
 .kind-dot { flex: none; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-pill); }
-.kind-folder { display: grid; align-content: start; gap: var(--space-4); min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-.kind-folder-things { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-10) * 2), 1fr)); justify-items: center; align-items: end; gap: var(--space-5) var(--space-4); margin: 0; padding: var(--space-1) 0 0; list-style: none; }
-.shelf-paper { display: grid; justify-items: center; gap: var(--space-2); width: calc(var(--space-10) * 2); min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; cursor: pointer; }
-.shelf-paper:hover:not(:disabled), .shelf-paper:active:not(:disabled) { background: none; transform: none; }
-.shelf-art { display: block; width: 100%; transition: translate var(--dur-1) var(--ease-standard); }
+.kind-folder { display: grid; align-content: start; gap: var(--space-4); min-height: 0; overflow-y: auto; scrollbar-width: thin; scroll-padding-block: var(--space-4); }
+/* 파일 카드: 위아래로 겹쳐 쌓인 색인 카드예요. 카드마다 윗줄(그림·이름·방)만 보이고 아래는 다음 카드에 덮여요.
+   마우스를 올리거나 포커스가 가면 그 카드가 살짝 빠져나와 다 보여요. 왼쪽 띠는 형식 색이에요. */
+/* 위·오른쪽 여백은 빠져나온 카드(--space-2)와 포커스 테(4px)가 스크롤 상자에 잘리지 않을 만큼이에요. */
+.kind-folder-things { display: grid; margin: 0; padding: var(--space-4) var(--space-4) var(--space-2) 0; list-style: none; }
+.kind-folder-things li { display: grid; }
+.kind-folder-things li + li { margin-top: calc(var(--space-6) * -1); }
+.shelf-paper { position: relative; display: grid; grid-template-columns: var(--space-10) minmax(0, 1fr); align-items: start; gap: var(--space-3); width: 100%; min-height: calc(var(--space-10) * 2); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3); border: var(--room-hair) solid var(--line-strong); border-left: var(--space-1) solid var(--kind); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); text-align: left; white-space: normal; transform: none; }
+.kind-folder-things li:nth-child(even) .shelf-paper { translate: var(--space-1) 0; }
+/* 카드가 빠져나가도 원래 자리(왼쪽·아래 --space-2)를 계속 덮는 투명한 손잡이 자리예요. 없으면 가장자리에서 hover 가 켜졌다 꺼졌다 하며 떨려요. */
+.kind-folder-things .shelf-paper::before { content: ""; position: absolute; inset: 0 0 calc(var(--space-3) * -1) calc(var(--space-3) * -1); }
+.kind-folder-things li > .shelf-paper:hover:not(:disabled), .kind-folder-things li > .shelf-paper:focus-visible { z-index: 1; border-color: var(--ink); border-left-color: var(--kind); translate: var(--space-2) calc(var(--space-2) * -1); box-shadow: var(--shadow-2); }
+.shelf-paper:active:not(:disabled) { transform: none; background: var(--surface); }
+.shelf-art { display: block; width: 100%; }
 .shelf-art .object { display: block; width: 100%; height: auto; overflow: visible; }
-.shelf-paper:hover .shelf-art { translate: 0 calc(var(--space-1) * -1); }
-.shelf-meta { display: grid; justify-items: center; max-width: 100%; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-caption); }
-.shelf-meta b { color: var(--ink); }
-.shelf-name { max-width: 100%; overflow: hidden; white-space: nowrap; color: var(--ink); }
-.shelf-room { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.shelf-meta { display: grid; min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-caption); }
+.shelf-meta b { font-weight: 600; color: var(--ink); }
+.shelf-name-row { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.shelf-name-row b { flex: none; }
+.shelf-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
+.shelf-room { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .kind-folder-more { justify-self: start; font-size: var(--text-sm); }
 p.kind-folder-more { color: var(--ink-caption); }
 /* 좁으면 서랍장은 두 줄, 목록 종이는 아래에서 올라와 서랍장 위에 덮여요. */
@@ -1541,13 +1552,15 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-drawer { transition: opacity var(--dur-3) var(--ease-settle), filter var(--dur-3) var(--ease-settle); }
   .kind-drawer-front { transition: translate var(--dur-3) var(--ease-settle), scale var(--dur-3) var(--ease-settle), box-shadow var(--dur-3) var(--ease-settle), border-color var(--dur-2) var(--ease-standard); }
   .kind-drawer-walls { transition: clip-path var(--dur-3) var(--ease-settle); }
-  .kind-drawer-peek { transition: translate var(--dur-2) var(--ease-standard); }
-  .kind-drawer[data-open="true"] .kind-drawer-peek { transition: translate var(--dur-3) var(--ease-spring); transition-delay: calc(var(--dur-1) + var(--i) * 45ms); }
+  .kind-drawer-sheet { transition: translate var(--dur-2) var(--ease-standard); }
+  .kind-drawer[data-open="true"] .kind-drawer-sheet { transition: translate var(--dur-3) var(--ease-spring); transition-delay: calc(var(--dur-1) + var(--i) * 45ms); }
   .kind-slip-paper { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-3) var(--ease-standard); }
   .kind-slip[data-open="true"] .kind-slip-paper { transition-delay: var(--dur-1); }
-  .kind-slip-paper .shelf-art { animation: room-paper-drop var(--dur-drawer) var(--ease-settle) backwards; animation-delay: calc(var(--dur-2) + var(--i) * 35ms); }
+  .shelf-paper { transition: translate var(--dur-2) var(--ease-settle), box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-1) var(--ease-standard); }
+  .kind-slip-paper .shelf-paper { animation: kind-card-in var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-1) + var(--i) * 30ms); }
   @supports (animation-timeline: view()) {
     .kind-cabinet-wrap { animation: kind-cabinet-in linear both; animation-timeline: --kind-scene; animation-range: entry 0% entry 100%; }
   }
 }
+@keyframes kind-card-in { from { translate: 0 calc(var(--space-6) * -1); opacity: 0; } }
 @keyframes kind-cabinet-in { from { translate: 0 var(--space-12); scale: 0.96; opacity: 0.3; } }

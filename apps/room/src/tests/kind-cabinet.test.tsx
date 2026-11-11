@@ -15,6 +15,6 @@ describe("형식별 서랍장", () => {
     expect(html).toMatch(/class="kind-slip"[^>]*inert=""/);
     expect(html).not.toContain("shelf-paper");
     // 서랍 속에는 그 형식 종이가 몇 장 들어 있어요(이미지 2장, PDF 1장).
-    expect(html.match(/class="kind-drawer-peek"/g)).toHaveLength(3);
+    expect(html.match(/class="kind-drawer-sheet"/g)).toHaveLength(3);
   });
 });
