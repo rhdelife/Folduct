@@ -179,7 +179,7 @@ function layerColorAt(layers: DuctLayer[], at: number): string | null {
 
 const armEnd = (d: string): Pt => (d.match(/-?\d*\.?\d+/g) ?? []).slice(-2).map(Number) as Pt;
 
-function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = false }: { w: number; layers?: DuctLayer[]; moving?: boolean; seed?: number; live?: boolean }): DuctDrawing["items"] {
+function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = false, flow = false }: { w: number; layers?: DuctLayer[]; moving?: boolean; seed?: number; live?: boolean; flow?: boolean }): DuctDrawing["items"] {
   const pen = makePen(seed);
   const { L, R, body } = tube(spec);
   const items: DuctDrawing["items"] = [];
@@ -204,8 +204,12 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = fal
     }
   } else {
     items.push({ d: body, tone: "white" });
+    // 인트로에서 색이 관을 따라 흐르도록 얇게 썹니다. 다음 조각이 한 칸 겹쳐 조각 사이 틈이 안 보여요.
+    for (let i = 0; flow && layers.length && i < last; i += 1) {
+      items.push({ d: poly([...L.slice(i, i + 3), ...R.slice(i, i + 3).reverse()]), tone: "layer", color: layerColorAt(layers, (i + 0.5) / last)!, i, n: last });
+    }
     let from = 0;
-    layers.forEach(({ color, share }, i) => {
+    (flow ? [] : layers).forEach(({ color, share }, i) => {
       const isLast = i === layers.length - 1;
       const to = isLast ? last : Math.min(last, from + Math.round(last * share));
       if (to > from) items.push({ d: poly([...L.slice(from, Math.min(last, to + 1) + 1), ...R.slice(from, Math.min(last, to + 1) + 1).reverse()]), tone: "layer", color, i, n: layers.length });
@@ -269,8 +273,8 @@ const poses: Record<DuctPose, Spec> = {
   shock: { ...stand, line: "M42 108C42 90 40 74 32 60C28 52 26 48 24 44", head: [26, 34, 27, 23], inner: [26, 34, 20, 16], eyes: [[18, 33], [35, 32]], face: "wide", foot: "M18 106L66 106L68 114L16 114Z", arms: ["M26 76C16 70 8 62 2 62", "M56 78C68 72 78 62 84 50"], ticks: ["M64 18L72 12", "M68 34L78 32"] },
 };
 
-export function drawPose(pose: DuctPose, { px, layers, live }: { px: number; layers?: DuctLayer[]; live?: boolean }): DuctDrawing {
-  return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move", live }) };
+export function drawPose(pose: DuctPose, { px, layers, live, flow }: { px: number; layers?: DuctLayer[]; live?: boolean; flow?: boolean }): DuctDrawing {
+  return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move", live, flow }) };
 }
 
 // ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──

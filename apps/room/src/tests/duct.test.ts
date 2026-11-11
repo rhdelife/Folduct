@@ -58,6 +58,12 @@ describe("주름관 그림", () => {
     const painted = pieces(drawRoom(0, 0.8, { px: 120, layers })).filter((piece) => piece.tone === "layer");
     expect(painted.map((piece) => piece.color)).toEqual(layers.map((layer) => layer.color));
     expect(pieces(drawRoom(0, 0.8, { px: 120 })).some((piece) => piece.tone === "layer")).toBe(false);
+    // 인트로의 색은 받침에서 머리 쪽으로 차례가 매겨진 조각이고, 형식 순서대로 칠해져요.
+    const flow = pieces(drawPose("idle", { px: 240, layers, flow: true })).filter((piece) => piece.tone === "layer");
+    expect(flow.map((piece) => piece.i)).toEqual(flow.map((_, at) => at));
+    expect(flow.every((piece) => piece.n === flow.length)).toBe(true);
+    expect([...new Set(flow.map((piece) => piece.color))]).toEqual(layers.map((layer) => layer.color));
+    expect(pieces(drawPose("idle", { px: 240, flow: true })).some((piece) => piece.tone === "layer")).toBe(false);
   });
 
   it("아주 작으면 실루엣으로 그리고, 크면 선을 얇게 그려요", () => {

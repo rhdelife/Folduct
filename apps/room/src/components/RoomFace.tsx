@@ -37,8 +37,6 @@ function FaceSprite({ slot: [x, y, rx, ry], expr, faceRef }: { slot: DuctFaceSlo
 
 function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string; expr?: FaceExpr; faceRef?: RefObject<SVGRectElement | null>; body?: BodyAct | null }) {
   const classes = [className, body && `frodo-${body}`].filter(Boolean).join(" ") || undefined;
-  // band가 있으면 색 주름을 한 묶음으로 둡니다. 묶음 전체를 한 번에 가려야 받침부터 끊김 없이 차올라요.
-  const bands = band ? drawing.items.filter((item): item is DuctPiece => "tone" in item && item.tone === "layer") : [];
   return (
     <svg className={classes} viewBox={drawing.viewBox} aria-hidden="true" focusable="false" style={{ "--duct-foot": foot, "--duct-paper": paper } as CSSProperties}>
       {drawing.items.map((item, at) =>
@@ -46,11 +44,7 @@ function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body }:
           <g key={at} transform={item.transform} className={item.part ? `duct-part-${item.part}` : item.rib === undefined ? undefined : "duct-rib"} style={groupStyle(item)}>
             {item.parts.map((part, inner) => ("face" in part ? <FaceSprite key={inner} slot={part.face} expr={expr ?? "base"} faceRef={faceRef} /> : <Piece key={inner} piece={part} band={band} />))}
           </g>
-        ) : item === bands[0] ? (
-          <g key={at} className={band}>
-            {bands.map((piece, inner) => <Piece key={inner} piece={piece} />)}
-          </g>
-        ) : bands.includes(item) ? null : (
+        ) : (
           <Piece key={at} piece={item} band={band} />
         ),
       )}
@@ -83,7 +77,8 @@ export function RoomFaceArt({ face, parts = [], length = 0.7, px, className, act
 export function PoseArt({ pose, parts = [], px, foot, paper, band, className, actor, mood = "base" }: { pose: DuctPose; parts?: Parts; px: number; foot?: string; paper?: string; band?: string; className?: string; actor?: string; mood?: FaceExpr }) {
   const key = partsKey(parts);
   const live = Boolean(actor);
-  const drawing = useMemo(() => drawPose(pose, { px, layers: ductLayers(parts), live }), [pose, px, key, live]); // eslint-disable-line react-hooks/exhaustive-deps
+  const flow = Boolean(band);
+  const drawing = useMemo(() => drawPose(pose, { px, layers: ductLayers(parts), live, flow }), [pose, px, key, live, flow]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(actor, mood);
   return <DuctArt drawing={drawing} className={className} foot={foot} paper={paper} band={band} expr={expr} faceRef={faceRef} body={body} />;
 }

@@ -1290,9 +1290,9 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   .phase-gather .intro-sprite { visibility: visible; }
   .phase-gather .vase-art { visibility: hidden; }
 }
-/* 색 주름 묶음을 아래에서 위로 걷어 올립니다. 게이지처럼 천천히 시작해 끝에서 가만히 멈춰요. */
-.intro-band { clip-path: inset(100% 0 0 0); }
-.phase-fill .intro-band { animation: intro-fill var(--intro-fill) var(--ease-standard) forwards; }
+/* 관을 얇게 썬 조각이 받침부터 머리까지 차례로 물들어, 색이 굽은 관을 따라 흘러요. */
+.intro-band { opacity: 0; }
+.phase-fill .intro-band { animation: intro-fill var(--dur-2) var(--ease-standard) calc(var(--i) / var(--n) * var(--intro-fill)) forwards; }
 .intro-foot { display: grid; align-content: start; justify-items: center; gap: var(--space-2); height: var(--intro-foot); padding-top: var(--space-8); text-align: center; }
 /* 진행 막대 세 칸. 찬 칸은 잉크, 빈 칸은 선 색이에요. */
 .intro-steps { display: flex; gap: var(--space-1); margin: 0 0 var(--space-1); padding: 0; list-style: none; }
@@ -1310,7 +1310,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   82% { opacity: 1; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 200deg)) scale(0.42); }
   to { opacity: 0; transform: translate3d(var(--mouth-x), var(--mouth), 0) rotate(calc(var(--rot) + 280deg)) scale(0.06); }
 }
-@keyframes intro-fill { to { clip-path: inset(0 0 0 0); } }
+@keyframes intro-fill { to { opacity: 1; } }
 @media (max-width: 719.98px) {
   .intro { --intro-paper-scale: 0.72; }
   :where(button).quiet.intro-skip { right: var(--space-2); font-size: var(--text-sm); }
@@ -1320,7 +1320,7 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   .intro-paper, .intro-paper-art, .intro-vase, .intro-copy span { animation: none; }
   .intro-steps li { transition: none; }
   .intro:not(.phase-scatter) .intro-paper { animation: none; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
-  .phase-fill .intro-band { animation: none; clip-path: none; }
+  .phase-fill .intro-band { animation: none; opacity: 1; }
 }
 
 /* ── 환경설정 ── */
