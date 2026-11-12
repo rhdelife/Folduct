@@ -184,9 +184,6 @@
   /* 홈 위 방 카드: 한 장의 가장 큰 폭과 그림 크기. 줄 높이는 domain/heroLayout.ts shelfHeight와 맞춰요. */
   --shelf-card-max: 160px;
   --shelf-cover: 36px;
-  /* 먹은 방 색이 차기 시작하는 때와 다 차는 데 걸리는 시간. heroMotion.ts의 flyMs+gulpMs+growMs와 맞춰요. */
-  --feed-at: 1160ms;
-  --feed-fill: 900ms;
 
   /* 플로팅 창 */
   --pet-w: 216px;
@@ -504,9 +501,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .sky-canvas.growing .frodo-home { clip-path: inset(-100vh -100vw 0 -100vw); }
 .frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
 .sky-canvas.growing .frodo-lift { will-change: translate; }
-/* 먹은 방의 파일 형식 색이 받침에서 머리 쪽으로 차요. 다 솟은 뒤(--feed-at, heroMotion의 flyMs+gulpMs+growMs)부터 --feed-fill 동안 조각마다 차례로 나타나요.
-   먹은 방이 바뀌면 그림을 새로 그려(StackArt key) 처음부터 다시 차요. */
-.feed-band { animation: fade-in var(--dur-2) var(--ease-standard) backwards; animation-delay: calc(var(--feed-at) + var(--i) / var(--n) * var(--feed-fill)); }
 /* 색 띠만 가리킬 수 있어요(나머지 몸은 지나가요). 올리면 그 형식의 비율을 보여 줘요(.band-tip). */
 .frodo-home .feed-band { pointer-events: visiblePainted; cursor: default; }
 .band-tip { position: absolute; z-index: var(--hero-tip-z); margin: 0; padding: var(--space-1) var(--space-2); translate: var(--space-3) calc(-100% - var(--space-2)); border-radius: var(--radius-md); background: var(--ink); color: var(--on-ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 600; white-space: nowrap; pointer-events: none; }
@@ -517,7 +511,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .vase-art { transform-origin: 50% 90%; }
 .vase-float { transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
 .vase-art { width: 100%; height: 100%; overflow: visible; }
-.frodo-floor { position: absolute; left: 22%; bottom: 6%; width: 40%; height: var(--space-2); translate: 0 50%; border-radius: 50%; background: var(--glass-wash-strong); }
 /* 방 카드의 그림: 가장 최근 사진, 없으면 첫 파일의 종이. */
 .room-cover { display: block; flex: none; width: var(--shelf-cover); rotate: -4deg; pointer-events: none; }
 .room-cover .object { display: block; width: 100%; height: auto; }
@@ -1344,7 +1337,6 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
   .intro-steps li { transition: none; }
   .intro:not(.phase-scatter) .intro-paper { animation: none; opacity: 0; transition: opacity var(--dur-3) var(--ease-standard); }
   .phase-fill .intro-band { animation: none; opacity: 1; }
-  .feed-band { animation: none; }
 }
 
 /* ── 환경설정 ── */

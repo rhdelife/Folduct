@@ -11,7 +11,7 @@ import { sky, stepRoom, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { awayFromHome } from "./home/engine";
-import { useHeroMotion } from "./home/heroMotion";
+import { fillMs, useHeroMotion } from "./home/heroMotion";
 import { AxisWindow, axisMs, WheelStepper } from "../domain/wheelStep";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
@@ -370,8 +370,8 @@ const MapLayers = memo(function MapLayers({
   const [bandTip, setBandTip] = useState<{ room: string; x: number; y: number; text: string } | null>(null);
   const showBand = (event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as Element;
-    // 아직 차오르기 전(보이지 않는) 조각은 가리키지 않은 것으로 쳐요.
-    const part = target.classList.contains("feed-band") && Number(getComputedStyle(target).opacity) > 0.5 ? parts.find((item) => item.color === target.getAttribute("fill")) : undefined;
+    // 아직 차오르지 않은 색은 가림에 잘려 가리켜지지 않아요.
+    const part = target.classList.contains("feed-band") ? parts.find((item) => item.color === target.getAttribute("fill")) : undefined;
     if (!part || !picked) return setBandTip(null);
     const total = parts.reduce((sum, item) => sum + item.size, 0);
     const share = Math.round((part.size / total) * 100);
@@ -428,10 +428,9 @@ const MapLayers = memo(function MapLayers({
       <div className="sky-rooms">
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)}>
-            <span className="frodo-floor" />
             <span className="frodo-lift">
               <span className="vase-float">
-                <StackArt key={picked?.id ?? "hungry"} lengths={lengths} parts={parts} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} />
+                <StackArt key={picked?.id ?? "hungry"} lengths={lengths} parts={parts} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} wipeMs={fillMs} />
               </span>
             </span>
           </div>

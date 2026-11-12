@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useMemo, type CSSProperties, type RefObject } from "react";
+import { useId, useMemo, type CSSProperties, type RefObject } from "react";
 import { drawPose, drawRoom, drawStack, ductLayers, ductShapeCount, ductSilhouetteUnder, faceCell, faceFrames, type DuctDrawing, type DuctFaceSlot, type DuctGroup, type DuctPiece, type DuctPose, type FaceExpr } from "../art/duct";
 import faceSheet from "../art/duct-faces.png";
 import { faceColors, faceColorVar } from "../domain/face";
@@ -8,13 +8,14 @@ import { useFrodo, type BodyAct } from "./useFrodo";
 
 type Parts = { label: string; color: string; size: number }[];
 
-function Piece({ piece, band }: { piece: DuctPiece; band?: string }) {
+function Piece({ piece, band, clip }: { piece: DuctPiece; band?: string; clip?: string }) {
   const layer = piece.tone === "layer";
   return (
     <path
       className={layer && band ? `duct-layer ${band}` : `duct-${piece.tone}`}
       d={piece.d}
       fill={piece.color}
+      clipPath={layer ? clip : undefined}
       fillRule={piece.even ? "evenodd" : undefined}
       style={layer ? ({ "--i": piece.i, "--n": piece.n } as CSSProperties) : undefined}
     />
@@ -35,17 +36,33 @@ function FaceSprite({ slot: [x, y, rx, ry], expr, faceRef }: { slot: DuctFaceSlo
   );
 }
 
-function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string; expr?: FaceExpr; faceRef?: RefObject<SVGRectElement | null>; body?: BodyAct | null }) {
+// wipeMs: 칠한 색을 가림 네모 하나로 받침에서 머리까지 걷어 올려 보여 줘요. 처음엔 다 보이고, 움직임은 heroMotion이 네모를 비운 뒤 animate를 시작해요.
+// SMIL animate라 WebKit에서도 그림 하나만 다시 그리며 매끄럽게 돌아요.
+function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body, wipeMs }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string; expr?: FaceExpr; faceRef?: RefObject<SVGRectElement | null>; body?: BodyAct | null; wipeMs?: number }) {
   const classes = [className, body && `frodo-${body}`].filter(Boolean).join(" ") || undefined;
+  const id = `wipe${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const clip = wipeMs ? `url(#${id})` : undefined;
+  const [vx, vy, vw, vh] = drawing.viewBox.split(" ").map(Number);
+  const ease = { dur: `${wipeMs}ms`, begin: "indefinite", fill: "freeze", calcMode: "spline", keyTimes: "0;1", keySplines: "0.33 0 0.2 1" };
   return (
     <svg className={classes} viewBox={drawing.viewBox} aria-hidden="true" focusable="false" style={{ "--duct-foot": foot, "--duct-paper": paper } as CSSProperties}>
+      {wipeMs ? (
+        <defs>
+          <clipPath id={id} clipPathUnits="userSpaceOnUse">
+            <rect className="feed-wipe" x={vx} y={vy} width={vw} height={vh}>
+              <animate attributeName="y" values={`${vy + vh};${vy}`} {...ease} />
+              <animate attributeName="height" values={`0;${vh}`} {...ease} />
+            </rect>
+          </clipPath>
+        </defs>
+      ) : null}
       {drawing.items.map((item, at) =>
         "parts" in item ? (
           <g key={at} transform={item.transform} className={item.part ? `duct-part-${item.part}` : item.rib === undefined ? undefined : "duct-rib"} style={groupStyle(item)}>
-            {item.parts.map((part, inner) => ("face" in part ? <FaceSprite key={inner} slot={part.face} expr={expr ?? "base"} faceRef={faceRef} /> : <Piece key={inner} piece={part} band={band} />))}
+            {item.parts.map((part, inner) => ("face" in part ? <FaceSprite key={inner} slot={part.face} expr={expr ?? "base"} faceRef={faceRef} /> : <Piece key={inner} piece={part} band={band} clip={clip} />))}
           </g>
         ) : (
-          <Piece key={at} piece={item} band={band} />
+          <Piece key={at} piece={item} band={band} clip={clip} />
         ),
       )}
     </svg>
@@ -84,11 +101,11 @@ export function PoseArt({ pose, parts = [], px, foot, paper, band, className, ac
 }
 
 // 홈의 프로도 한 명. 먹은 방 용량만큼 길어진 몸에 그 방 파일 형식 색이 차요. lengths는 먹은 방의 길이(0~1), parts는 그 방의 형식별 용량이에요.
-export function StackArt({ lengths, parts = [], px, foot, className, actor, mood = "base" }: { lengths: number[]; parts?: Parts; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr }) {
+export function StackArt({ lengths, parts = [], px, foot, className, actor, mood = "base", wipeMs }: { lengths: number[]; parts?: Parts; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr; wipeMs?: number }) {
   const key = `${lengths.map((length) => Math.round(length * 50)).join("|")}/${partsKey(parts)}`;
   const drawing = useMemo(() => drawStack(lengths, { px, live: true, layers: ductLayers(parts) }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(actor, mood);
-  return <DuctArt drawing={drawing} className={className} foot={foot} band="feed-band" expr={expr} faceRef={faceRef} body={body} />;
+  return <DuctArt drawing={drawing} className={className} foot={foot} band="feed-band" expr={expr} faceRef={faceRef} body={body} wipeMs={wipeMs} />;
 }
 
 const pickerPx = 64;

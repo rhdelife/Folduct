@@ -225,8 +225,6 @@
 | `scene/hero-tip-z` | `50` |  |
 | `scene/shelf-card-max` | `160px` |  |
 | `scene/shelf-cover` | `36px` |  |
-| `scene/feed-at` | `1160ms` |  |
-| `scene/feed-fill` | `900ms` |  |
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |

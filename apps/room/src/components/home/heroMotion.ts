@@ -16,12 +16,15 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   ];
 }
 
-// 한 방을 먹는 시간: 카드가 입으로 날아들고(flyMs) 꿀꺽 삼킨 뒤(gulpMs) 그 방 용량만큼 받침에서 솟아요(growMs).
-const flyMs = 420;
-const gulpMs = 320;
-const growMs = 420;
-// 다 솟고 나서 웅크렸다가 파일을 하나씩 뱉어요. 솟기가 멈춘 바로 그 프레임을 피해 80ms 뒤에 시작해요.
-const windFrom = flyMs + gulpMs + growMs + 80;
+// 한 방을 먹는 시간: 카드가 입으로 날아들고(flyMs) 꿀꺽 삼키는(gulpMs) 끝무렵부터 그 방 용량만큼 받침에서 솟아요(growMs).
+// 솟는 동안 형식 색도 받침에서 함께 차올라(fillMs) 한 번에 이어져 보여요. 따로따로 멈췄다 움직이면 끊겨 보였어요.
+const flyMs = 380;
+const gulpMs = 220;
+const growMs = 640;
+const growFrom = flyMs + gulpMs - 60;
+export const fillMs = growMs + 160;
+// 다 솟자마자 웅크렸다가 파일을 하나씩 뱉어요.
+const windFrom = growFrom + growMs + 40;
 const windUp = 420;
 const spillFrom = windFrom + windUp;
 // 파일이 많아도 다 나오는 데 1.6초를 넘지 않게 간격을 줄여요.
@@ -65,13 +68,26 @@ function playFeed(root: HTMLElement, frodo: HeroFrodo, roomId: string, from: { x
   }
   timers.push(window.setTimeout(() => cue(homeActor, { face: "wide", ms: flyMs }), 0));
   timers.push(window.setTimeout(() => cue(homeActor, { face: "shut", ms: gulpMs }), flyMs));
+  // 형식 색 가림을 비워 두었다가 솟기와 함께 걷어 올려요(RoomFace의 SMIL animate). 끝나면 가림을 원래대로 다 열어 둬요.
+  const wipe = root.querySelector<SVGRectElement>(".frodo-home .feed-wipe");
+  if (wipe) {
+    const full = { y: wipe.getAttribute("y")!, height: wipe.getAttribute("height")! };
+    wipe.setAttribute("y", String(Number(full.y) + Number(full.height)));
+    wipe.setAttribute("height", "0");
+    timers.push(window.setTimeout(() => wipe.querySelectorAll("animate").forEach((step) => step.beginElement()), growFrom));
+    timers.push(window.setTimeout(() => {
+      wipe.setAttribute("y", full.y);
+      wipe.setAttribute("height", full.height);
+    }, growFrom + fillMs + 50));
+  }
   if (grownBy > 0) {
     root.classList.add("growing");
+    // 한 번에 부드럽게 솟고 끝에서 살며시 멈춰요. 튕기며 멈추면 끊겨 보였어요.
     const grow = root.querySelector(".frodo-lift")?.animate([
       { translate: `0px ${grownBy}px` },
-      { offset: (flyMs + gulpMs) / (flyMs + gulpMs + growMs), translate: `0px ${grownBy}px`, easing: "cubic-bezier(.3,1.4,.5,1)" },
+      { offset: growFrom / (growFrom + growMs), translate: `0px ${grownBy}px`, easing: "cubic-bezier(.22,1,.36,1)" },
       { translate: "0px 0px" },
-    ], { duration: flyMs + gulpMs + growMs });
+    ], { duration: growFrom + growMs });
     if (grow) {
       anims.push(grow);
       // 끝까지 돈 때만 걷어요. 다른 방을 먹여 취소된 때는 새 먹기가 붙인 가림을 지우면 안 돼요(취소 정리는 effect가 해요).

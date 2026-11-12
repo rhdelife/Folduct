@@ -925,14 +925,6 @@
       "$type": "other",
       "$value": "36px"
     },
-    "feed-at": {
-      "$type": "other",
-      "$value": "1160ms"
-    },
-    "feed-fill": {
-      "$type": "other",
-      "$value": "900ms"
-    },
     "pet-w": {
       "$type": "other",
       "$value": "216px"

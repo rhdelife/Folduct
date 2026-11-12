@@ -116,10 +116,10 @@ describe("홈의 프로도 한 명", () => {
     expect(drawStack([], { px: 200 }).viewBox).not.toContain("NaN");
   });
 
-  it("먹은 방의 형식 색은 받침부터 머리 쪽으로 얇은 조각으로 차고, 색이 없으면 하얀 몸이에요", () => {
+  it("먹은 방의 형식 색은 받침부터 용량 비율만큼 한 띠씩 칠하고, 색이 없으면 하얀 몸이에요", () => {
     const filled = pieces(drawStack([0.5], { px: 200, live: true, layers })).filter((piece) => piece.tone === "layer");
-    expect(filled.length).toBeGreaterThan(10);
-    expect(filled.map((piece) => piece.i)).toEqual(filled.map((_, i) => i));
+    // 조각으로 나누지 않아요. 차오르는 움직임은 가림 하나가 맡아요(RoomFace wipe).
+    expect(filled).toHaveLength(layers.length);
     // 받침 쪽 70%는 영상 색, 머리 쪽은 글·코드 색이에요.
     expect(filled[0].color).toBe(layers[0].color);
     expect(filled[filled.length - 1].color).toBe(layers[1].color);

@@ -499,12 +499,12 @@ export function stackGeometry(lengths: number[]): StackGeometry {
   return { box, segs, mouth: [hx, hy], right: Math.max(...xs(0, cuts[0]).map((p) => p[0])) };
 }
 
-// 몸은 마디를 나누지 않은 관 하나예요. 먹은 방 용량만큼 길어지고, layers를 주면 그 방 파일 형식 색이 받침에서 머리 쪽으로 차요.
-// 색은 관을 얇게 썬 조각(i/n)으로 그려 받침부터 차례로 물들일 수 있어요(styles.css .feed-band).
+// 몸은 마디를 나누지 않은 관 하나예요. 먹은 방 용량만큼 길어지고, layers를 주면 그 방 파일 형식 색을 받침부터 용량 비율만큼 칠해요.
+// 차오르는 움직임은 칠한 색 위에 가림 네모 하나를 아래에서 위로 걷어 올려 만들어요(RoomFace wipe). 얇은 조각으로 나누면 조각 사이 줄무늬가 보였어요.
 export function drawStack(lengths: number[], { px, live, layers = [] }: { px: number; live?: boolean; layers?: DuctLayer[] }): DuctDrawing {
   const { spec } = stackSpec(lengths);
   const [x, y, bw, bh] = stackGeometry(lengths).box;
-  return { viewBox: `${x} ${y} ${bw} ${bh}`, items: draw(spec, { w: ductWeight(px), seed: 31, live, layers, flow: layers.length > 0 }) };
+  return { viewBox: `${x} ${y} ${bw} ${bh}`, items: draw(spec, { w: ductWeight(px), seed: 31, live, layers }) };
 }
 
 // 용량을 길이로 바꿉니다. 1MB가 가장 짧고 128GB에서 끝까지 자라요. 로그라 작은 방끼리도 차이가 보입니다.
