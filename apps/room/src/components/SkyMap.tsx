@@ -429,8 +429,10 @@ const MapLayers = memo(function MapLayers({
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)}>
             <span className="frodo-lift">
+              <span className="frodo-squash">
               <span className="vase-float">
                 <StackArt key={picked?.id ?? "hungry"} lengths={lengths} parts={parts} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} wipeMs={fillMs} />
+              </span>
               </span>
             </span>
           </div>

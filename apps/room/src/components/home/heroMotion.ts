@@ -48,11 +48,11 @@ function playFeed(root: HTMLElement, frodo: HeroFrodo, roomId: string, from: { x
   const card = root.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(roomId)}"]`);
   if (card) {
     const rect = card.getBoundingClientRect();
-    const morsel = card.cloneNode(true) as HTMLElement;
+    // 단추를 통째로 복제하면 WebKit에서 단추 바탕(회색 알약)이 따라와요. 속(그림·이름)만 옮긴 div로 날려요.
+    const morsel = document.createElement("div");
     morsel.className = "feed-morsel";
-    morsel.removeAttribute("data-room-id");
     morsel.setAttribute("aria-hidden", "true");
-    morsel.tabIndex = -1;
+    morsel.append(...[...card.childNodes].map((node) => node.cloneNode(true)));
     const start = from ?? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     Object.assign(morsel.style, { left: `${start.x - box.left - rect.width / 2}px`, top: `${start.y - box.top - rect.height / 2}px`, width: `${rect.width}px`, height: `${rect.height}px` });
     root.append(morsel);
@@ -112,12 +112,13 @@ function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: Vie
   const spitting = cards.length ? (cards.length - 1) * step + spillMs * 0.6 : 0;
   const node = root.querySelector(".frodo-home");
   if (cards.length && node) {
-    const body = node.querySelector(".vase-art");
-    const head = node.querySelector(".duct-part-head");
-    // 축(50% 90%)은 styles.css .vase-art에 둡니다. 키프레임에 transform-origin을 넣으면 WebKit이 합성 스레드로 넘기지 못해요.
+    // 몸은 숨쉬기로 이미 합성 레이어인 .vase-float에 scale로 겁니다. SVG(.vase-art)에 걸면 WebKit이 시작·끝에 레이어를 새로 만들며 프로도가 잠깐 사라졌어요.
+    // 축(50% 90%)은 styles.css .vase-float에 둡니다. 키프레임에 transform-origin을 넣으면 WebKit이 합성 스레드로 넘기지 못해요.
+    // 앱(WebKit)에서는 SVG(.vase-art)나 그 안 머리(g)에 움직임을 걸거나, 숨쉬기가 도는 .vase-float에 겹쳐 걸면 뱉는 동안 프로도 그림 전체가 사라지고 돌아오지 않았어요.
+    // 그래서 웅크리기와 꿀렁임은 다른 움직임이 없는 HTML 껍데기(.frodo-squash) 하나에만 transform으로 걸고, 머리는 표정(눈)으로만 움직여요. 축은 styles.css에 둬요.
+    const body = node.querySelector(".frodo-squash");
     add(body, [{ transform: "none" }, { transform: "scale(1.05, 0.9)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
-    add(head, [{ transform: "none" }, { transform: "scale(0.9) rotate(5deg)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
-    add(head, [{ transform: "none" }, { transform: "scale(1.14) rotate(-6deg)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
+    add(body, [{ transform: "none" }, { transform: "scale(0.97, 1.04)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
   }
   return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting, timers: [] };
 }

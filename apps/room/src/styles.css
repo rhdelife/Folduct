@@ -499,7 +499,9 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .frodo-home { position: absolute; display: block; pointer-events: none; }
 /* 먹고 늘어나는 동안 받침 선 아래는 가려요. 늘어난 몸이 받침에서 솟아올라요(heroMotion). */
 .sky-canvas.growing .frodo-home { clip-path: inset(-100vh -100vw 0 -100vw); }
-.frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
+.frodo-lift, .frodo-squash, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
+/* 뱉기 전 웅크리기와 뱉을 때 꿀렁임만 받는 껍데기(heroMotion). 다른 움직임과 겹치지 않게 따로 둬요. */
+.frodo-squash { transform-origin: 50% 90%; }
 .sky-canvas.growing .frodo-lift { will-change: translate; }
 /* 색 띠만 가리킬 수 있어요(나머지 몸은 지나가요). 올리면 그 형식의 비율을 보여 줘요(.band-tip). */
 .frodo-home .feed-band { pointer-events: visiblePainted; cursor: default; }
@@ -531,7 +533,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node.fed .room-cover { opacity: 0.3; }
 .feed-hint { position: absolute; margin: 0; translate: -50% calc(-100% - var(--space-3)); color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); white-space: nowrap; pointer-events: none; animation: fade-in var(--dur-3) var(--ease-standard); }
 /* 먹이러 날아가는 카드 조각(heroMotion). */
-.feed-morsel { position: absolute; z-index: var(--hero-tip-z); display: grid; border: 0; background: none; box-shadow: none; justify-items: center; align-content: center; gap: var(--space-1); padding: var(--space-1); pointer-events: none; text-align: center; }
+.feed-morsel { position: absolute; z-index: var(--hero-tip-z); display: grid; justify-items: center; align-content: center; gap: var(--space-1); padding: var(--space-1); pointer-events: none; text-align: center; }
 .room-sub b { font-weight: 700; color: var(--ink); }
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out 3; }
 .room-label, .room-sub { text-shadow: 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo); }
