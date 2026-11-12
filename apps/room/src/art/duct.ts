@@ -29,7 +29,7 @@ export type DuctPiece = { d: string; tone: DuctTone; even?: boolean; color?: str
 // 살아 있는 그림에서 표정 시트가 앉을 자리: 얼굴의 가운데와 반지름.
 export type DuctFaceSlot = { face: [number, number, number, number] };
 export type DuctPart = "head" | "armL" | "armR";
-export type DuctGroup = { rib?: number; seg?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
+export type DuctGroup = { rib?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
 export type DuctDrawing = { viewBox: string; items: (DuctPiece | DuctGroup)[] };
 export type DuctLayer = { label: string; color: string; share: number };
 export type DuctPose = "idle" | "watch" | "offer" | "move" | "done" | "rest" | "shock";
@@ -440,8 +440,8 @@ export function ductMouth(shape: number, length: number): { x: number; y: number
   return { x: (spec.head[0] - centeredLeft(spec) - board.w / 2) / board.w, y: (spec.head[1] - board.y - board.h / 2) / board.w };
 }
 
-// ── 홈의 프로도 한 명. 방 하나가 몸의 한 마디예요. 마디 길이는 그 방 용량, 마디 안 색은 그 방 파일 형식이에요. ──
-// 마디 0이 머리 바로 아래이고, 뒤 마디일수록 받침 쪽이에요. 가장 작은 방도 누를 수 있게 마디마다 최소 길이를 둡니다.
+// ── 홈의 프로도 한 명. 방을 하나 먹을 때마다 그 방 용량만큼 몸이 길어져요. ──
+// 마디 0이 머리 바로 아래이고, 뒤 마디일수록 받침 쪽이에요. 처음 켤 때 방을 먹으며 솟는 높이를 재는 데만 마디를 써요. 작은 방도 길이가 보이게 최소 길이를 둡니다.
 const segMin = 26;
 const segGrow = 40;
 const stackX = 52;
@@ -498,43 +498,11 @@ export function stackGeometry(lengths: number[]): StackGeometry {
   return { box, segs, mouth: [hx, hy], right: Math.max(...xs(0, cuts[0]).map((p) => p[0])) };
 }
 
-export function drawStack(segs: { length: number; layers: DuctLayer[] }[], { px, live }: { px: number; live?: boolean }): DuctDrawing {
-  const lengths = segs.map((seg) => seg.length);
-  const { spec, cuts, L, R } = stackSpec(lengths);
-  const w = ductWeight(px);
-  const items = draw(spec, { w, seed: 31, live });
-  const pen = makePen(53);
-  const bodyAt = items.findIndex((item) => "tone" in item && item.tone === "white" && item.d === tube(spec).body);
-  const groups: DuctGroup[] = segs.map(({ layers }, i) => {
-    const from = cuts[i + 1];
-    const to = cuts[i];
-    const parts: DuctPiece[] = [];
-    // 받침 쪽부터 형식별 용량 비율만큼 칠해요. 파일을 다 세지 못한 방은 칠하지 않아요.
-    let start = from;
-    layers.forEach(({ color, share }, k) => {
-      const stop = k === layers.length - 1 ? to : Math.min(to, start + Math.round((to - from) * share));
-      if (stop > start) parts.push({ d: poly([...L.slice(start, stop + 1), ...R.slice(start, stop + 1).reverse()]), tone: "layer", color, i: k, n: layers.length });
-      start = stop;
-    });
-    return { seg: i, parts };
-  });
-  // 마디 사이에는 관보다 조금 넓은 이음 고리를 끼워 방과 방을 또렷이 끊어요. 고른 방을 흐리게 할 때도 고리는 그대로예요.
-  const ring = (c: number): DuctPiece[] => {
-    const a = Math.max(0, c - 1);
-    const b = Math.min(L.length - 1, c + 1);
-    const out = (p: Pt, q: Pt): Pt => {
-      const m = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1;
-      return [p[0] + ((p[0] - q[0]) / m) * 2.5, p[1] + ((p[1] - q[1]) / m) * 2.5];
-    };
-    const d = poly([...L.slice(a, b + 1).map((p, k) => out(p, R[a + k])), ...R.slice(a, b + 1).map((p, k) => out(p, L[a + k])).reverse()]);
-    return [{ d, tone: "white" }, ...pen(d, w)];
-  };
-  const head = oval(spec.head);
-  const headAt = items.findIndex((item) => ("part" in item && item.part === "head") || ("d" in item && item.d === head));
-  items.splice(headAt, 0, ...segs.flatMap((_, i) => ring(cuts[i])));
-  items.splice(bodyAt + 1, 0, ...groups);
+// 몸은 마디를 나누지 않은 하얀 관 하나예요. 방을 먹은 만큼(마디 길이를 더한 만큼) 길어질 뿐, 방이 몸 안에 칸으로 담긴 것처럼 그리지 않아요.
+export function drawStack(lengths: number[], { px, live }: { px: number; live?: boolean }): DuctDrawing {
+  const { spec } = stackSpec(lengths);
   const [x, y, bw, bh] = stackGeometry(lengths).box;
-  return { viewBox: `${x} ${y} ${bw} ${bh}`, items };
+  return { viewBox: `${x} ${y} ${bw} ${bh}`, items: draw(spec, { w: ductWeight(px), seed: 31, live }) };
 }
 
 // 용량을 길이로 바꿉니다. 1MB가 가장 짧고 128GB에서 끝까지 자라요. 로그라 작은 방끼리도 차이가 보입니다.

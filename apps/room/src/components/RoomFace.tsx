@@ -35,13 +35,13 @@ function FaceSprite({ slot: [x, y, rx, ry], expr, faceRef }: { slot: DuctFaceSlo
   );
 }
 
-function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body, selected = null }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string; expr?: FaceExpr; faceRef?: RefObject<SVGRectElement | null>; body?: BodyAct | null; selected?: number | null }) {
+function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body }: { drawing: DuctDrawing; className?: string; foot?: string; paper?: string; band?: string; expr?: FaceExpr; faceRef?: RefObject<SVGRectElement | null>; body?: BodyAct | null }) {
   const classes = [className, body && `frodo-${body}`].filter(Boolean).join(" ") || undefined;
   return (
     <svg className={classes} viewBox={drawing.viewBox} aria-hidden="true" focusable="false" style={{ "--duct-foot": foot, "--duct-paper": paper } as CSSProperties}>
       {drawing.items.map((item, at) =>
         "parts" in item ? (
-          <g key={at} transform={item.transform} className={groupClass(item, selected)} style={groupStyle(item)}>
+          <g key={at} transform={item.transform} className={item.part ? `duct-part-${item.part}` : item.rib === undefined ? undefined : "duct-rib"} style={groupStyle(item)}>
             {item.parts.map((part, inner) => ("face" in part ? <FaceSprite key={inner} slot={part.face} expr={expr ?? "base"} faceRef={faceRef} /> : <Piece key={inner} piece={part} band={band} />))}
           </g>
         ) : (
@@ -50,13 +50,6 @@ function DuctArt({ drawing, className, foot, paper, band, expr, faceRef, body, s
       )}
     </svg>
   );
-}
-
-// 홈 프로도의 마디는 고른 방만 색을 두고 나머지는 흐리게 합니다.
-function groupClass(item: DuctGroup, selected: number | null): string | undefined {
-  if (item.part) return `duct-part-${item.part}`;
-  if (item.seg !== undefined) return `duct-seg${selected !== null && item.seg !== selected ? " dim" : ""}`;
-  return item.rib === undefined ? undefined : "duct-rib";
 }
 
 // 머리는 목을 축으로 움직입니다. 안쪽 svg 때문에 크기를 믿을 수 없어 축을 그림 좌표로 줘요.
@@ -90,12 +83,12 @@ export function PoseArt({ pose, parts = [], px, foot, paper, band, className, ac
   return <DuctArt drawing={drawing} className={className} foot={foot} paper={paper} band={band} expr={expr} faceRef={faceRef} body={body} />;
 }
 
-// 홈의 프로도 한 명. 마디 하나가 방 하나이고, 위(머리 쪽)부터 rooms 순서예요. selected는 고른 마디 번호입니다.
-export function StackArt({ segs, px, foot, selected, className, actor, mood = "base" }: { segs: { length: number; parts: Parts }[]; px: number; foot?: string; selected: number | null; className?: string; actor: string; mood?: FaceExpr }) {
-  const key = segs.map((seg) => `${Math.round(seg.length * 50)}/${partsKey(seg.parts)}`).join("|");
-  const drawing = useMemo(() => drawStack(segs.map((seg) => ({ length: seg.length, layers: ductLayers(seg.parts) })), { px, live: true }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
+// 홈의 프로도 한 명. 먹은 방마다 그 방 용량만큼 길어진 하얀 몸이에요. lengths는 방마다의 길이(0~1)입니다.
+export function StackArt({ lengths, px, foot, className, actor, mood = "base" }: { lengths: number[]; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr }) {
+  const key = lengths.map((length) => Math.round(length * 50)).join("|");
+  const drawing = useMemo(() => drawStack(lengths, { px, live: true }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(actor, mood);
-  return <DuctArt drawing={drawing} className={className} foot={foot} expr={expr} faceRef={faceRef} body={body} selected={selected} />;
+  return <DuctArt drawing={drawing} className={className} foot={foot} expr={expr} faceRef={faceRef} body={body} />;
 }
 
 const pickerPx = 64;

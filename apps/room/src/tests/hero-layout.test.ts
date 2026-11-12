@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, lastActivity } from "../domain/care";
-import { heroLayout, moreHeight, namedPaper, paperWidth, tagWidth, type Card } from "../domain/heroLayout";
+import { heroLayout, moreHeight, namedPaper, paperWidth, tagRow, tagWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
 import { baseView, calendarSpot, homeLimit, toPx, type Box, type View } from "../domain/sky";
 import { spillFrames } from "../components/home/heroMotion";
@@ -64,6 +64,11 @@ describe("첫 화면: 프로도 한 명과 방 마디", () => {
           expect(frodo!.tagX + tagWidth(view), label).toBeLessThanOrEqual(view.w + 0.5);
           expect(frodo!.top, label).toBeGreaterThan(0);
           expect(frodo!.top + frodo!.height, label).toBeLessThanOrEqual(view.h);
+          // 방 이름 목록은 고른 간격이고 창 안에 있어요.
+          const ys = frodo!.segs.map((seg) => seg.tagY);
+          ys.slice(1).forEach((y, i) => expect(y - ys[i], label).toBeCloseTo(tagRow(view), 5));
+          expect(ys[0] - tagRow(view) / 2, label).toBeGreaterThan(0);
+          expect(ys[ys.length - 1] + tagRow(view) / 2, label).toBeLessThanOrEqual(view.h);
           const [calendar] = calendarSpot(view);
           if (calendar) expect(frodo!.left, label).toBeGreaterThanOrEqual(calendar.x + calendar.hw);
         }

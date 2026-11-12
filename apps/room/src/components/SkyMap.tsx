@@ -5,7 +5,7 @@ import { ductLength, kindParts, kindSummary } from "../art/duct";
 import { StackArt } from "./RoomFace";
 import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, lastActivity, relativeDay } from "../domain/care";
-import { heroLayout, namedPaper, tagWidth, type Card, type HeroFrodo, type MoreSpot } from "../domain/heroLayout";
+import { heroLayout, namedPaper, tagRow, tagWidth, type Card, type HeroFrodo, type MoreSpot } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { sky, stepRoom, toPx, toSky, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
@@ -205,6 +205,7 @@ export function SkyMap({
         />
         <MapLayers
           frodo={frodo}
+          view={view}
           cards={cards}
           opener={opener}
           ids={ids}
@@ -221,7 +222,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">화살표나 좌우로 쓸어서 프로도의 마디를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표나 좌우로 쓸어서 방을 옮겨 다니면 프로도 입에서 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -246,6 +247,7 @@ export function SkyMap({
 // 주름관과 종이는 HTML 층에 둡니다. 합성 레이어라 숨쉬고 커져도 지도를 다시 그리지 않아 방이 많아도 부드럽습니다.
 const MapLayers = memo(function MapLayers({
   frodo,
+  view,
   cards,
   opener,
   ids,
@@ -263,6 +265,7 @@ const MapLayers = memo(function MapLayers({
   onCloseTip,
 }: {
   frodo: HeroFrodo | null;
+  view: View;
   cards: Card[];
   opener: MoreSpot | null;
   ids: string[];
@@ -311,13 +314,11 @@ const MapLayers = memo(function MapLayers({
   const pick = (id: string) => (id === selectedId ? onOpenRoom(id) : onSelectRoom(id));
 
   const segs = frodo?.segs ?? [];
+  const row = tagRow(view);
   const folders = useReadableFolders(useMemo(() => segs.map((seg) => seg.room), [frodo])); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedAt = segs.findIndex((seg) => seg.room.id === selectedId);
   const picked = segs[selectedAt]?.room;
-  const art = useMemo(() => segs.map(({ room }) => {
-    const usage = stats.get(room.id)!.usage;
-    return { length: ductLength(usage.totalBytes), parts: usage.exact ? kindParts(room.things) : [] };
-  }), [frodo, stats]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lengths = useMemo(() => segs.map(({ room }) => ductLength(stats.get(room.id)!.usage.totalBytes)), [frodo, stats]); // eslint-disable-line react-hooks/exhaustive-deps
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
   const onPaperUp = (event: PointerEvent, card: Card) => {
@@ -365,18 +366,18 @@ const MapLayers = memo(function MapLayers({
           );
         })}
       </div>
-      <div className="sky-rooms" role="group" aria-label="내 방들. 프로도의 마디 하나가 방 하나예요. 마디가 길수록 용량이 크고, 색은 파일 형식이에요. 방을 고르면 프로도 입에서 그 방 파일이 최근 작업 순서로 나와요." aria-describedby="sky-hint">
+      <div className="sky-rooms" role="group" aria-label="내 방들. 프로도는 먹은 방의 용량만큼 길어요. 방을 고르면 프로도 입에서 그 방 파일이 최근 작업 순서로 나와요." aria-describedby="sky-hint">
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }}>
             <span className="frodo-floor" />
             <span className="frodo-lift">
               <span className="vase-float">
-                <StackArt segs={art} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} selected={selectedAt < 0 ? null : selectedAt} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} />
+                <StackArt lengths={lengths} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} />
               </span>
             </span>
           </div>
         )}
-        {frodo && segs.map(({ room, top, bottom, left }, index) => {
+        {frodo && segs.map(({ room, tagY }, index) => {
           const { usage, stale } = stats.get(room.id)!;
           const parts = kindParts(room.things);
           const size = `${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`;
@@ -387,7 +388,7 @@ const MapLayers = memo(function MapLayers({
               type="button"
               data-room-id={room.id}
               className={`room-node${selectedId === room.id ? " selected" : ""}${selectedId && selectedId !== room.id ? " dim" : ""}`}
-              style={{ left, top, width: frodo.tagX - left, height: bottom - top, "--i": index } as CSSProperties}
+              style={{ left: frodo.tagX, top: tagY - row / 2, width: tagWidth(view), height: row, "--i": index } as CSSProperties}
               tabIndex={room.id === tabStop ? 0 : -1}
               aria-pressed={selectedId === room.id}
               aria-label={`${room.name} 방, ${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}`}

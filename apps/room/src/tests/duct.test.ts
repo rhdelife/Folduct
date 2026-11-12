@@ -94,17 +94,16 @@ describe("주름관 그림", () => {
 });
 
 describe("홈의 프로도 한 명", () => {
-  const segs = [{ length: 0.2, layers }, { length: 1, layers: [] }, { length: 0, layers }];
+  const segs = [{ length: 0.2 }, { length: 1 }, { length: 0 }];
 
-  it("방마다 마디 하나이고, 칠한 색은 그 마디 안에만 있어요", () => {
-    const drawing = drawStack(segs, { px: 200, live: true });
+  it("몸은 마디 칸·색 없이 하얀 관 하나이고, 방을 먹을수록 길어요", () => {
+    const drawing = drawStack(segs.map((seg) => seg.length), { px: 200, live: true });
     expect(drawing.viewBox).not.toContain("NaN");
     for (const piece of pieces(drawing)) expect(piece.d).not.toMatch(/NaN|undefined/);
-    const groups = drawing.items.filter((item) => "seg" in item && item.seg !== undefined);
-    expect(groups.map((item) => ("seg" in item ? item.seg : -1))).toEqual([0, 1, 2]);
-    // 파일을 다 세지 못한(색이 없는) 방은 칠하지 않아요.
-    expect(groups.map((item) => ("parts" in item ? item.parts.filter((part) => "tone" in part && part.tone === "layer").length : -1))).toEqual([2, 0, 2]);
-    expect(drawStack(segs, { px: 200, live: true })).toEqual(drawing);
+    expect(pieces(drawing).some((piece) => piece.tone === "layer")).toBe(false);
+    expect(drawStack(segs.map((seg) => seg.length), { px: 200, live: true })).toEqual(drawing);
+    const height = (lengths: number[]) => Number(drawStack(lengths, { px: 200 }).viewBox.split(" ")[3]);
+    expect(height([0.2, 1])).toBeGreaterThan(height([0.2]));
   });
 
   it("용량이 큰 방은 마디가 길고, 첫 마디가 머리 바로 아래예요", () => {

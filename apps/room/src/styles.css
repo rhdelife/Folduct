@@ -181,7 +181,7 @@
   --hero-type: max(2.22vw, 3vh);
   --hero-layer-z: 40;
   --hero-tip-z: 50;
-  /* 홈 마디 이름표의 최대 폭. domain/heroLayout.ts tagWidth와 맞춰요. */
+  /* 홈 방 이름표의 최대 폭. domain/heroLayout.ts tagWidth와 맞춰요. */
   --seg-tag-max: 200px;
   --seg-tag-max-narrow: 132px;
 
@@ -493,15 +493,14 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 
 /* 지도 카메라: 방을 고르면 그 방이 가운데로 끌려오며 확대됩니다. */
 .sky-camera { position: relative; pointer-events: none; transform-origin: 0 0; transition: transform var(--dur-focus) var(--ease-glide); }
-/* 홈의 프로도 한 명: 받침 위에 서서 주름으로 숨쉬어요. 마디 하나가 방 하나이고, 마디마다 눌러 고르는 단추와 이름표가 붙어요.
+/* 홈의 프로도 한 명: 받침 위에 서서 주름으로 숨쉬어요. 몸은 먹은 방 용량만큼 길고, 옆에 방 이름 목록이 붙어요.
    transform만 움직여 합성 레이어에서 돌아가므로 지도를 다시 그리지 않습니다. */
 .sky-rooms { position: absolute; inset: 0; pointer-events: none; }
 .frodo-home { position: absolute; display: block; pointer-events: none; }
-/* 처음 켤 때 받침 선 아래는 가려요. 아직 안 먹은 마디가 보이지 않고, 먹을 때마다 마디가 받침에서 솟아요(heroMotion). */
+/* 처음 켤 때 받침 선 아래는 가려요. 아직 안 먹은 만큼의 몸은 보이지 않고, 방을 먹을 때마다 그만큼 받침에서 솟아요(heroMotion). */
 .sky-canvas.entering .frodo-home { clip-path: inset(-100vh -100vw 0 -100vw); }
 .frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
 .sky-canvas.entering .frodo-lift { will-change: translate; }
-.sky-canvas.entering .room-node::before { visibility: hidden; }
 /* 프로도 동작(svg.frodo-*)의 축. */
 .vase-art { transform-origin: 50% 90%; }
 .vase-float { transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
@@ -517,17 +516,11 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .duct-solid { fill: var(--duct-foot, var(--ink)); }
 .duct-paper { fill: var(--duct-paper, var(--surface)); }
 .duct-rib { transform-box: fill-box; transform-origin: center; animation: duct-pass 2200ms ease-in-out infinite; animation-delay: calc(var(--rib) * 110ms); }
-/* 방을 고르면 다른 마디의 색은 옅어지고 고른 마디 색만 남아요. */
-.duct-seg { transition: opacity var(--dur-focus) var(--ease-glide); }
-.duct-seg.dim { opacity: 0.2; }
-/* 마디 단추: 몸의 그 마디부터 이름표 끝까지 눌러요. 이름표는 몸 오른쪽에 마디 높이 가운데로 붙어요. */
+/* 방 단추: 몸 옆 목록의 한 줄이에요. 줄 높이는 domain/heroLayout.ts tagRow와 같아요. */
 .room-node { position: absolute; display: block; min-height: 0; padding: 0; border: 0; background: none; transform: none; pointer-events: auto; cursor: pointer; }
 .room-node:active:where(:not(:disabled)) { transform: none; background: none; }
-.seg-tag { position: absolute; left: 100%; top: 50%; display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: var(--seg-tag-max); translate: 0 -50%; text-align: left; white-space: nowrap; }
+.seg-tag { position: absolute; left: 0; top: 50%; display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: var(--seg-tag-max); translate: 0 -50%; text-align: left; white-space: nowrap; }
 .seg-text { display: grid; min-width: 0; }
-/* 마디와 이름표를 잇는 짧은 눈금. 고른 마디는 굵어요. */
-.room-node::before { content: ""; position: absolute; right: 0; top: 50%; width: var(--space-2); border-top: var(--room-hair) solid var(--ink-faint); }
-.room-node.selected::before { border-top: calc(var(--room-hair) * 3) solid var(--ink); }
 .room-node.dim .room-label { color: var(--ink-caption); font-weight: 500; }
 .room-node.dim .room-sub { visibility: hidden; }
 .room-node.dim .room-cover { opacity: 0.4; }

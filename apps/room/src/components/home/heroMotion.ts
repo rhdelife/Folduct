@@ -4,7 +4,7 @@ import type { Card, HeroFrodo } from "../../domain/heroLayout";
 import { cue, homeActor } from "../useFrodo";
 import { useEngine } from "./engine";
 
-// 첫 화면의 움직임: 처음 켤 때 프로도가 방을 하나씩 받아먹으며 마디가 늘고, 방을 고르면 입에서 그 방 파일이 제 칸으로 나옵니다.
+// 첫 화면의 움직임: 처음 켤 때 프로도가 방을 하나씩 받아먹으며 그만큼 길어지고, 방을 고르면 입에서 그 방 파일이 제 칸으로 나옵니다.
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // 종이 한 장의 등장: 자기 방 주름관의 입에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
@@ -17,7 +17,7 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   ];
 }
 
-// 한 방을 받아먹는 데 드는 시간: 입을 벌리고(gulpMs) 삼킨 뒤 마디 하나만큼 받침에서 솟아요(growMs).
+// 한 방을 받아먹는 데 드는 시간: 입을 벌리고(gulpMs) 삼킨 뒤 그 방 용량만큼 받침에서 솟아요(growMs).
 const peekMs = 520;
 const gulpMs = 320;
 const growMs = 380;
@@ -40,8 +40,8 @@ const player = (anims: Animation[]) => (el: Element | null | undefined, frames: 
   if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
 };
 
-// 처음 켤 때: 받침 자리에서 머리만 내민 프로도가 방을 하나씩 받아먹고, 먹을 때마다 마디 하나만큼 솟아 몸이 길어져요.
-// 받침 선 아래는 가려 두니(styles.css .entering .frodo-home) 아직 안 먹은 마디는 보이지 않아요. 움직이는 건 translate 하나라 합성 스레드에서 돌아요.
+// 처음 켤 때: 받침 자리에서 머리만 내민 프로도가 방을 하나씩 받아먹고, 먹을 때마다 그 방 용량만큼 솟아 몸이 길어져요. 먹은 방 이름이 옆 목록에 하나씩 나타나요.
+// 받침 선 아래는 가려 두니(styles.css .entering .frodo-home) 아직 안 먹은 만큼의 몸은 보이지 않아요. 움직이는 건 translate 하나라 합성 스레드에서 돌아요.
 function playEntrance(root: HTMLElement, frodo: HeroFrodo): Play {
   const anims: Animation[] = [];
   const timers: number[] = [];
@@ -66,8 +66,6 @@ function playEntrance(root: HTMLElement, frodo: HeroFrodo): Play {
   });
   frames.push({ offset: 1, translate: "0px 0px" });
   add(root.querySelector(".frodo-lift"), frames, { duration: total });
-  // 이름표는 자기 마디와 함께 솟아요. 마디 단추는 translate를 쓰지 않으니 같은 움직임을 그대로 겁니다.
-  for (const node of root.querySelectorAll(".room-node")) add(node, frames, { duration: total });
   add(root.querySelector(".frodo-floor"), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: total - 320, easing: "ease-out" });
   timers.push(window.setTimeout(() => cue(homeActor, { face: "happy", ms: 900 }), total));
   return { anims, endsAt: total + 100, timers };

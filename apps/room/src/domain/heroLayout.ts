@@ -3,7 +3,7 @@ import { lastActivity, roomUsage, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
 import { calendarSpot, hash, homeLimit, roomStars, stageUnit, toSky, type Point, type Star, type View } from "./sky";
 
-// 첫 화면 배치: 프로도 한 명이 받침 위에 서고, 방 하나가 그 몸의 한 마디예요. 마디 옆에 방 이름표가 붙어요.
+// 첫 화면 배치: 프로도 한 명이 받침 위에 서고, 먹은 방마다 그 방 용량만큼 몸이 길어요. 몸 옆에 방 이름 목록이 고른 간격으로 붙어요.
 // 고른 방의 파일은 넓은 창에서는 프로도 오른쪽, 좁은 창에서는 프로도 아래 칸에 최근 작업 순서로 놓이고, 칸 아래에 "방 열기"가 붙어요.
 
 // 이름이 찍히는 가장 작은 종이 폭(글자는 8.5px 아래로 줄지 않아요).
@@ -13,8 +13,10 @@ const edge = 16;
 // "방 열기 · +N개 더" 한 줄의 높이(styles.css .room-more)
 export const moreHeight = 32;
 const moreWidth = 96;
-// 마디 옆 이름표 폭. styles.css .seg-tag의 최대 폭과 맞춰요.
+// 몸 옆 이름표 폭. styles.css .seg-tag의 최대 폭과 맞춰요.
 export const tagWidth = (view: View) => (view.w < 720 ? 132 : 200);
+// 방 목록 한 줄의 높이. 손가락으로 누를 수 있게 44 아래로 줄이지 않아요.
+export const tagRow = (view: View) => (view.w < 720 ? 44 : 52);
 // 화면 아래 가운데 "형식별로 보기" 손잡이 자리
 const hintSpace = 56;
 // 그림 판 1칸이 차지하는 가장 큰 px. 방이 하나뿐이어도 프로도가 화면을 다 덮지 않아요.
@@ -32,8 +34,8 @@ export type Card = Star & {
   rot: number;
   kick: number;
 };
-// 마디 하나(px). left·right는 몸의 좌우 끝, tagX는 이름표가 시작하는 자리예요.
-export type HeroSeg = { room: Room; top: number; bottom: number; left: number; right: number };
+// 마디 하나(px). 몸에 칸으로 그리지 않고, 처음 켤 때 방을 먹으며 솟는 높이를 재는 데만 써요. tagY는 그 방 이름 줄의 가운데예요.
+export type HeroSeg = { room: Room; top: number; bottom: number; left: number; right: number; tagY: number };
 // 프로도 그림 상자(px)와 마디들. scale은 그림 판 1칸의 px, mouth는 파일이 나오는 입이에요.
 export type HeroFrodo = { left: number; top: number; width: number; height: number; scale: number; mouth: Point; tagX: number; segs: HeroSeg[] };
 // 파일 칸 아래 "방 열기" 단추 자리(지도 좌표)와 칸에 다 못 놓은 파일 수.
@@ -77,11 +79,15 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const height = bh * scale;
   const frodoTop = narrow ? top : floor - height;
   const px = (x: number, y: number): Point => ({ x: left + (x - bx) * scale, y: frodoTop + (y - by) * scale });
+  const mouth = px(...geo.mouth);
+  // 이름 목록은 입과 받침 사이 가운데에 둬요. 그 사이에 다 안 들어가면 머리 위 칸(top)을 넘지 않는 데까지 올려요.
+  const row = tagRow(view);
+  const listTop = Math.max(top, (mouth.y + frodoTop + height - active.length * row) / 2);
   const segs = active.map((room, i) => {
     const seg = geo.segs[i];
-    return { room, top: px(0, seg.top).y, bottom: px(0, seg.bottom).y, left: px(seg.left, 0).x, right: px(seg.right, 0).x };
+    return { room, top: px(0, seg.top).y, bottom: px(0, seg.bottom).y, left: px(seg.left, 0).x, right: px(seg.right, 0).x, tagY: listTop + (i + 0.5) * row };
   });
-  const frodo: HeroFrodo = { left, top: frodoTop, width: bw * scale, height, scale, mouth: px(...geo.mouth), tagX: px(geo.right, 0).x + gap, segs };
+  const frodo: HeroFrodo = { left, top: frodoTop, width: bw * scale, height, scale, mouth, tagX: px(geo.right, 0).x + gap, segs };
 
   const cards: Card[] = [];
   const more: MoreSpot[] = [];
