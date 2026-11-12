@@ -52,6 +52,8 @@ const ownsScroll = (target: EventTarget | null) => {
   return own !== null && (!own.matches("[data-own-wheel]") || own.scrollHeight > own.clientHeight);
 };
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// 아래 서랍장 장면으로 내려가 있나요.
+export const awayFromHome = () => (document.querySelector(".home")?.scrollTop ?? 0) > innerHeight / 3;
 
 export type Engine = {
   readonly pos: number;

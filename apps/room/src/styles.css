@@ -1530,8 +1530,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 목록 종이: 넓으면 오른쪽에 서고, 닫혀 있으면 안 보이게 비켜나 있다가 밀려 들어와요. */
 .kind-slip { position: absolute; inset: 0 0 0 auto; display: grid; justify-items: end; width: var(--kind-slip-w); min-height: 0; visibility: hidden; }
 .kind-slip[data-open="true"] { visibility: visible; }
-.kind-slip:focus-visible { outline: none; }
-.kind-slip:focus-visible .kind-slip-paper { outline: 2px solid var(--ink); outline-offset: 2px; }
+.kind-folder:focus-visible { outline: none; }
+.kind-slip:has(.kind-folder:focus-visible) .kind-slip-paper { outline: 2px solid var(--ink); outline-offset: 2px; }
 .kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; padding: var(--space-5); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-2); opacity: 0; translate: var(--kind-slip-from); }
 .kind-slip[data-open="true"] .kind-slip-paper { opacity: 1; translate: 0 0; }
 .kind-folder-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }

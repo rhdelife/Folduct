@@ -90,3 +90,85 @@ export class WheelStepper {
     return dir as -1 | 1;
   }
 }
+
+// 장면을 넘긴 뒤나 목록이 끝에 닿은 뒤, 휠이 이만큼 멈출 때까지는 같은 흐름으로 봐요.
+export const sceneQuietMs = 300;
+// 장면을 넘긴 직후 이만큼 안에 오는 반대 값은 휠이 튄 거예요.
+export const sceneBounceMs = 80;
+
+// 집의 두 장면(방 지도와 서랍장) 사이를 휠로 넘길지 정해요. "list"는 목록 종이가 스크롤하고, 0은 막기만 하고, ±1은 그쪽 장면으로 가요.
+// 장면이 둘뿐이라 넘긴 뒤 같은 방향 값은 갈 곳이 없어요. 새 손짓은 부호로만 봐요. WheelStepper의 세짐 판단은 관성 끝에서 헛걸음을 낼 수 있어서 쓰지 않아요.
+export class SceneWheelGate {
+  private quietUntil = 0;
+  private listUntil = 0;
+  private dir = 0;
+  private movedAt = -Infinity;
+  // 장면을 넘긴 뒤 막은 값 중 가장 작은 값. 잦아든 관성보다 확 세지면 새로 쓴 거예요.
+  private low = Infinity;
+  // 느리게 쓸 때 오는 작은 값을 같은 쪽으로 모은 것.
+  private sum = 0;
+  private sumAt = -Infinity;
+
+  push(deltaY: number, t: number, listHasRoom: boolean): "list" | -1 | 0 | 1 {
+    const dir = Math.sign(deltaY) as -1 | 1;
+    const size = Math.abs(deltaY);
+    const turning = dir !== this.dir && size >= notchPx && t - this.movedAt >= sceneBounceMs;
+    // 목록 위에서 새로 쓰면 목록이 내려가요. 잘못 봐도 목록이 조금 내려갈 뿐 장면은 넘기지 않아요.
+    const rising = listHasRoom && size >= riseX * this.low && size >= this.low + risePx;
+    if (t < this.quietUntil && !turning && !rising) {
+      this.quietUntil = t + sceneQuietMs;
+      this.low = Math.min(this.low, size);
+      return 0;
+    }
+    if (listHasRoom) {
+      this.quietUntil = 0;
+      this.listUntil = t + sceneQuietMs;
+      return "list";
+    }
+    // 목록을 내리던 흐름이 끝에 닿아도 그 흐름으로는 장면을 넘기지 않아요.
+    if (t < this.listUntil) {
+      this.listUntil = t + sceneQuietMs;
+      return 0;
+    }
+    // 느린 쓸기나 고해상도 휠의 작은 값은 같은 쪽으로 모여 notchPx가 되면 넘겨요. 1px 한두 번(살짝 건드림)은 넘지 않아요.
+    if (size < notchMinPx) {
+      this.sum = Math.sign(this.sum) === dir && t - this.sumAt <= restMs ? this.sum + deltaY : deltaY;
+      this.sumAt = t;
+      if (Math.abs(this.sum) < notchPx) return 0;
+    }
+    this.sum = 0;
+    this.quietUntil = t + sceneQuietMs;
+    this.dir = dir;
+    this.movedAt = t;
+    this.low = Infinity;
+    return dir;
+  }
+}
+
+// 손짓 첫머리에는 가로와 세로 값이 섞여 와요. 첫 값 하나로 축을 정하면 살짝 기운 세로 쓸기가 방을 고르거나 가로 쓸기가 장면을 넘겨요.
+// 넘길 값이 오면 이만큼 더 모아 보고 큰 쪽으로 정해요.
+export const axisMs = 50;
+
+export class AxisWindow {
+  private x = 0;
+  private y = 0;
+  private until = -Infinity;
+
+  // 넘길 값이 왔어요. 그 값부터 모아요.
+  open(deltaX: number, deltaY: number, t: number) {
+    this.x = Math.abs(deltaX);
+    this.y = Math.abs(deltaY);
+    this.until = t + axisMs;
+  }
+
+  // 휠 값마다 불러요. 모으는 동안만 더해요.
+  add(deltaX: number, deltaY: number, t: number) {
+    if (t > this.until) return;
+    this.x += Math.abs(deltaX);
+    this.y += Math.abs(deltaY);
+  }
+
+  sideways() {
+    return this.x > this.y;
+  }
+}

@@ -1,13 +1,15 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
 import { kindShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
+import { AxisWindow, axisMs, SceneWheelGate } from "../../domain/wheelStep";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
 import { useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
+import { awayFromHome } from "./engine";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -15,8 +17,8 @@ const shownMost = 120;
 // 열린 서랍 안에 앞뒤로 겹쳐 꽂힌 종이 수.
 const peekCount = 5;
 const cardArtPx = 40;
-// 장면을 넘긴 뒤 휠이 이만큼 멈출 때까지는 트랙패드 관성으로 보고 삼켜요.
-const quietMs = 300;
+// 장면을 JS로 옮기는 동안 스냅을 꺼 두는 시간. WebKit은 200ms, WebView2는 키 큰 창에서 650ms쯤 걸려요.
+const snapOffMs = 700;
 const slipId = "kind-slip";
 
 const colorOf = (shelf: Shelf) => colorGroups.find((group) => group.label === shelf.label)?.color;
@@ -45,34 +47,73 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     const section = self.current;
     const scroller = section?.closest<HTMLElement>(".home");
     if (!section || !scroller) return;
-    let quietUntil = 0;
-    const onWheel = (event: WheelEvent) => {
-      const target = event.target as Element;
-      if (event.ctrlKey || event.shiftKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY) || target.closest("dialog, .context-menu")) return;
-      if (event.timeStamp < quietUntil) {
-        quietUntil = event.timeStamp + quietMs;
-        event.preventDefault();
-        return;
+    const gate = new SceneWheelGate();
+    const axis = new AxisWindow();
+    let snapBack: ReturnType<typeof setTimeout> | undefined;
+    let later: ReturnType<typeof setTimeout> | undefined;
+    // JS로 옮기는 중인 장면 맨 위. 닿으면 바로 스냅을 되돌려요.
+    let moving: number | null = null;
+    const snapOn = () => {
+      clearTimeout(snapBack);
+      moving = null;
+      scroller.style.scrollSnapType = "";
+    };
+    const onScroll = () => {
+      if (moving !== null && Math.abs(scroller.scrollTop - moving) < 1) snapOn();
+    };
+    const go = (to: number, cancelable: boolean) => {
+      // 손가락을 떼는 신호는 JS가 막을 수 없고, WebKit은 그때 스냅으로 이동을 가로채 튕겨 돌아가거나 끊겨요. 옮기는 동안만 꺼요.
+      // 닿으면 바로 켜서 그 뒤의 화살표·PageUp은 평소처럼 장면에 붙어요. scrollend는 WebKit에서 도중에 여러 번 오니 쓰지 않아요.
+      // 막을 수 없는 휠(Chromium에서 손짓 첫 값을 놓친 경우)은 페이지도 함께 움직이니 스냅을 그대로 둬요.
+      if (cancelable) {
+        scroller.style.scrollSnapType = "none";
+        moving = to;
+        clearTimeout(snapBack);
+        snapBack = setTimeout(() => {
+          // 닿기 전에 키 스크롤 등으로 끊겼으면 가까운 장면에 붙여요. 스냅을 다시 켜도 WebKit은 장면 사이에 멈춘 채로 둬요.
+          const top = scroller.scrollTop;
+          snapOn();
+          if (top > 1 && Math.abs(top - section.offsetTop) > 1) scroller.scrollTo({ top: top < section.offsetTop / 2 ? 0 : section.offsetTop, behavior: reducedMotion() ? "auto" : "smooth" });
+        }, snapOffMs);
       }
-      const list = target.closest<HTMLElement>(".kind-folder");
-      if (list && (event.deltaY > 0 ? list.scrollTop + list.clientHeight < list.scrollHeight - 1 : list.scrollTop > 0)) return;
-      const top = scroller.scrollTop;
-      const to = event.deltaY > 0 ? (top < section.offsetTop - 1 ? section.offsetTop : null) : top > 1 ? 0 : null;
-      if (to === null) return;
-      event.preventDefault();
-      quietUntil = event.timeStamp + quietMs;
       scroller.scrollTo({ top: to, behavior: reducedMotion() ? "auto" : "smooth" });
     };
+    const onWheel = (event: WheelEvent) => {
+      const target = event.target as Element;
+      axis.add(event.deltaX, event.deltaY, event.timeStamp);
+      if (event.ctrlKey || event.shiftKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY) || target.closest("dialog, .context-menu")) return;
+      const list = target.closest<HTMLElement>(".kind-folder");
+      const dy = event.deltaY * (event.deltaMode === 1 ? 40 : event.deltaMode === 2 ? innerHeight : 1);
+      const step = gate.push(dy, event.timeStamp, list !== null && (dy > 0 ? list.scrollTop + list.clientHeight < list.scrollHeight - 1 : list.scrollTop > 0));
+      // WebKit은 목록이 시작한 손짓의 나머지를 취소할 수 없게 보내요. 그 손짓은 끝까지 목록 몫이에요.
+      if (step === "list" || (!event.cancelable && list)) return;
+      event.preventDefault();
+      if (step === 0) return;
+      const top = scroller.scrollTop;
+      const to = step > 0 ? (top < section.offsetTop - 1 ? section.offsetTop : null) : top > 1 ? 0 : null;
+      if (to === null) return;
+      if (event.deltaX === 0) return go(to, event.cancelable);
+      // 가로 값이 섞인 첫 값은 방을 고르는 가로 쓸기의 시작일 수 있어요. 잠깐 모아 보고 세로가 클 때만 넘겨요.
+      axis.open(event.deltaX, event.deltaY, event.timeStamp);
+      clearTimeout(later);
+      const cancelable = event.cancelable;
+      later = setTimeout(() => {
+        if (!axis.sideways()) go(to, cancelable);
+      }, axisMs);
+    };
     scroller.addEventListener("wheel", onWheel, { passive: false });
-    return () => scroller.removeEventListener("wheel", onWheel);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scroller.removeEventListener("wheel", onWheel);
+      scroller.removeEventListener("scroll", onScroll);
+      clearTimeout(later);
+      snapOn();
+    };
   }, [shown]);
-  // 서랍을 열면 목록 종이로 포커스를 옮겨, 키보드로 바로 파일을 고를 수 있어요.
+  // 서랍을 열면 목록으로 포커스를 옮겨, 화살표로 바로 내리고 Tab으로 파일을 고를 수 있어요.
   useEffect(() => {
-    if (open) slip.current?.focus({ preventScroll: true });
+    if (open) slip.current?.querySelector<HTMLElement>(".kind-folder")?.focus({ preventScroll: true });
   }, [open]);
-  if (!shown) return null;
-  const total = shelves.reduce((sum, shelf) => sum + shelf.items.length, 0);
-  const listed = shelves.find((shelf) => shelf.label === last) ?? null;
   // 서랍장 크기는 레이아웃 한 번으로 바꾸고, 옛 자리에서 새 자리까지는 transform 으로 이어요(FLIP). 폭을 매 프레임 바꾸면 그때마다 레이아웃을 다시 계산해서 끊겨요.
   const moveCabinet = (change: () => void) => {
     const element = cabinet.current;
@@ -88,6 +129,31 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       { duration: parseFloat(tokens.getPropertyValue("--dur-drawer")), easing: tokens.getPropertyValue("--ease-drawer") },
     );
   };
+  // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
+  const close = () => {
+    moveCabinet(() => setOpen(null));
+    front.current?.focus({ preventScroll: true });
+  };
+  // 서랍장 장면에서는 포커스가 어디 있든(제목을 눌렀거나 위 장면의 주름관에 남았어도) Esc로 열린 서랍을 닫아요.
+  // 방 지도 장면에서는 화면 밖 서랍장에 남은 포커스로 서랍이나 파일을 열거나 숨은 목록을 내리지 않아요.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!awayFromHome()) {
+        if (target?.closest(".kind-shelves") && (event.key === "Enter" || event.key === " " || ((event.key === "PageDown" || event.key === "PageUp") && target.closest(".kind-folder")))) event.preventDefault();
+        return;
+      }
+      // 대화상자·메뉴가 떠 있거나 글을 쓰는 중이면 Esc는 그쪽 몫이에요. 그쪽이 먼저 닫혀 버리기 전에 보려고 캡처 단계에서 들어요.
+      if (event.key !== "Escape" || !open || document.querySelector("dialog[open], .context-menu") || target?.closest("input, textarea, select, [contenteditable]")) return;
+      event.preventDefault();
+      close();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
+  if (!shown) return null;
+  const total = shelves.reduce((sum, shelf) => sum + shelf.items.length, 0);
+  const listed = shelves.find((shelf) => shelf.label === last) ?? null;
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
     const next = open === shelf.label ? null : shelf.label;
@@ -96,18 +162,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       if (next) setLast(next);
     });
   };
-  // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
-  const close = () => {
-    moveCabinet(() => setOpen(null));
-    front.current?.focus({ preventScroll: true });
-  };
-  const onKey = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Escape" || !open) return;
-    event.preventDefault();
-    close();
-  };
   return (
-    <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title" onKeyDown={onKey}>
+    <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
         <h2 id="kind-shelves-title">형식별로 보기</h2>
         <p>홈에 둔 방의 파일 {countText(total)}개를 종류대로 서랍에 나눠 담았어요. 버전이 여럿인 파일은 최신본만 보여요.</p>
@@ -120,7 +176,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             ))}
           </div>
         </div>
-        <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" tabIndex={-1} data-open={open !== null} inert={open === null}>
+        <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
           {listed && (
             // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 종이가 다시 내려앉아요.
             <div key={listed.label} className="kind-slip-paper" style={{ "--kind": colorOf(listed) } as CSSProperties}>
@@ -181,7 +237,7 @@ export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folde
   const [all, setAll] = useState(false);
   const shown = shelf.items.slice(0, all ? shownMost : shownAtFirst);
   return (
-    <div className="kind-folder">
+    <div className="kind-folder" role="group" aria-labelledby="kind-slip-title" tabIndex={-1}>
       <ul className="kind-folder-things">
         {shown.map((item, order) => (
           <li key={item.thing.id}>

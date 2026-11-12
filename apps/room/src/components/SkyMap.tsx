@@ -9,8 +9,9 @@ import { heroLayout, namedPaper, type Card, type HeroNode, type MoreSpot } from 
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
+import { awayFromHome } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
-import { WheelStepper } from "../domain/wheelStep";
+import { AxisWindow, axisMs, WheelStepper } from "../domain/wheelStep";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { coverOf, useReadableFolders, useThumb } from "../storage/thumbs";
@@ -154,8 +155,7 @@ export function SkyMap({
   useEffect(() => {
     // 대화상자·메뉴가 떠 있거나, 글을 쓰는 중이거나, 옆으로 미는 현관 줄 위에서는 건드리지 않아요.
     // 아래 형식별 칸으로 내려가 있을 때도 건드리지 않아요. 그때 화살표와 휠은 페이지를 움직여요.
-    const away = () => (document.querySelector(".home")?.scrollTop ?? 0) > innerHeight / 3;
-    const blocked = (target: EventTarget | null) => away() || document.querySelector("dialog[open], .context-menu") !== null || (target instanceof Element && target.closest("input, textarea, select, [contenteditable], .doorstep, .kind-shelves") !== null);
+    const blocked = (target: EventTarget | null) => awayFromHome() || document.querySelector("dialog[open], .context-menu") !== null || (target instanceof Element && target.closest("input, textarea, select, [contenteditable], .doorstep") !== null);
     const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
     const onKey = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !keys.includes(event.key) || blocked(event.target)) return;
@@ -166,17 +166,27 @@ export function SkyMap({
     // 막혀 있을 때도 흐름은 읽어 둬야
     // 대화상자를 닫은 뒤 남은 관성을 새 손짓으로 착각하지 않아요.
     const wheel = new WheelStepper();
+    const axis = new AxisWindow();
+    let later: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (event: WheelEvent) => {
       if (event.ctrlKey) return;
+      axis.add(event.deltaX, event.deltaY, event.timeStamp);
       const dir = wheel.push({ deltaX: event.deltaX, deltaY: 0, deltaMode: event.deltaMode, timeStamp: event.timeStamp });
       if (dir === 0 || blocked(event.target)) return;
-      step.current(dir > 0 ? "ArrowRight" : "ArrowLeft");
+      // 세로로 쓸 때도 첫 값은 가로로 기울 수 있어요. 잠깐 모아 보고 가로가 클 때만 한 칸 가요(KindShelf의 장면 넘기기와 같은 판단).
+      axis.open(event.deltaX, event.deltaY, event.timeStamp);
+      clearTimeout(later);
+      const target = event.target;
+      later = setTimeout(() => {
+        if (axis.sideways() && !blocked(target)) step.current(dir > 0 ? "ArrowRight" : "ArrowLeft");
+      }, axisMs);
     };
     document.addEventListener("keydown", onKey);
     addEventListener("wheel", onWheel, { passive: true });
     return () => {
       document.removeEventListener("keydown", onKey);
       removeEventListener("wheel", onWheel);
+      clearTimeout(later);
     };
   }, []);
 
@@ -280,6 +290,11 @@ const MapLayers = memo(function MapLayers({
   const tabStop = selectedId ?? (lastFocus && ids.includes(lastFocus) ? lastFocus : ids[0]);
 
   function onRoomKey(event: KeyboardEvent<HTMLButtonElement>, id: string) {
+    // 서랍장 장면에서는 화면 밖 주름관에 남은 포커스가 방을 고르거나 페이지를 끌어올리지 않아요.
+    if (awayFromHome()) {
+      if (event.key === "Enter" || event.key === " ") event.preventDefault();
+      return;
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       pick(id);

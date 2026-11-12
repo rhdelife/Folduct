@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
-import { createEngine, EngineContext, type HomeActions } from "../components/home/engine";
+import { awayFromHome, createEngine, EngineContext, type HomeActions } from "../components/home/engine";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader } from "../components/home/HomeHeader";
 import { KindShelf } from "../components/home/KindShelf";
@@ -48,6 +48,8 @@ const scanCommand = "node apps/room/scripts/scan-folders.mjs --out folduct-rooms
 
 // 그 방의 주름관으로 포커스를 옮깁니다. 주름관이 없으면 지도로 들어오는 자리(첫 주름관이나 빈 지도의 버튼)로요.
 function landFocus(id: string) {
+  // 서랍장 장면에서 위쪽 주름관에 포커스를 주면 페이지가 끌려 올라가요.
+  if (awayFromHome()) return;
   (document.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`) ?? document.querySelector<HTMLElement>('.room-node[tabindex="0"], .sky-empty button'))?.focus();
 }
 

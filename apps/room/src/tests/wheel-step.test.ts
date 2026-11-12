@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WheelStepper, type WheelInput } from "../domain/wheelStep";
+import { AxisWindow, axisMs, SceneWheelGate, WheelStepper, type WheelInput } from "../domain/wheelStep";
 
 type Ev = [t: number, dy: number, dx?: number, mode?: number];
 const ev = ([timeStamp, deltaY, deltaX = 0, deltaMode = 0]: Ev): WheelInput => ({ timeStamp, deltaX, deltaY, deltaMode });
@@ -140,3 +140,77 @@ describe("작은 값과 방향", () => {
   });
 });
 
+
+describe("집 두 장면 사이 휠", () => {
+  const stream = (t0: number, n: number, dy: number, gap = 16) => Array.from({ length: n }, (_, i) => [t0 + i * gap, dy] as const);
+  const run = (events: readonly (readonly [number, number, boolean?])[], gate = new SceneWheelGate()) => events.map(([t, dy, room]) => gate.push(dy, t, room ?? false));
+
+  it("한 번 쓸면 관성이 길어도 한 번만 넘어가요", () => {
+    expect(run(stream(0, 90, 8)).filter((s) => s !== 0)).toEqual([1]);
+  });
+
+  it("관성 바로 뒤에 반대로 쓸면 돌아와요", () => {
+    expect(run([...stream(0, 75, 8), ...stream(75 * 16 + 100, 5, -8)]).filter((s) => s !== 0)).toEqual([1, -1]);
+  });
+
+  it("휠이 튄 반대 값과 관성 끝의 작은 반대 값은 무시해요", () => {
+    expect(run([[1000, 100], [1030, -100]]).filter((s) => s !== 0)).toEqual([1]);
+    expect(run([...stream(1000, 20, 8), [1400, -1]]).filter((s) => s !== 0)).toEqual([1]);
+  });
+
+  it("살짝 닿은 1px로는 넘어가지 않아요", () => {
+    expect(run([[1000, 1]])).toEqual([0]);
+  });
+
+  it("목록이 스크롤하던 흐름이 끝에 닿아도 장면을 넘기지 않고, 쉬었다 다시 쓸면 넘겨요", () => {
+    const events = [...stream(1000, 10, -8).map(([t, dy]) => [t, dy, true] as const), ...stream(1160, 20, -8), [1160 + 19 * 16 + 400, -8] as const];
+    const out = run(events);
+    expect(out.slice(0, 10)).toEqual(Array(10).fill("list"));
+    expect(out.slice(10, -1).every((s) => s === 0)).toBe(true);
+    expect(out.at(-1)).toBe(-1);
+  });
+
+  it("넘어온 관성은 목록 위에 닿아도 목록을 내리지 않아요", () => {
+    expect(run([[1000, 8], [1016, 8, true], [1032, 8, true]])).toEqual([1, 0, 0]);
+  });
+
+  it("느리게 쓸어 1px씩 오면 모아서 한 번 넘기고, 1px 두 번은 넘기지 않아요", () => {
+    expect(run(stream(1000, 90, 1, 30)).filter((s) => s !== 0)).toEqual([1]);
+    expect(run([[1000, 1], [1030, 1]])).toEqual([0, 0]);
+  });
+
+  it("넘긴 뒤 관성이 잦아들 때 목록 위에서 새로 쓸면 목록이 내려가요", () => {
+    const fading = [20, 14, 9, 6, 4, 2].map((dy, i) => [1016 + i * 16, dy, true] as const);
+    const fresh = [6, 14, 24].map((dy, i) => [1120 + i * 16, dy, true] as const);
+    expect(run([[1000, 30], ...fading, ...fresh])).toEqual([1, 0, 0, 0, 0, 0, 0, "list", "list", "list"]);
+  });
+});
+
+describe("손짓 첫머리의 축", () => {
+  const decide = (events: [number, number][]) => {
+    const axis = new AxisWindow();
+    events.forEach(([dx, dy], i) => (i === 0 ? axis.open(dx, dy, 0) : axis.add(dx, dy, i * 16)));
+    return axis.sideways();
+  };
+
+  it("가로로 기운 첫 값 뒤에 세로가 이어지면 세로 쓸기예요", () => {
+    expect(decide([[2, 1], [0, 10], [0, 20]])).toBe(false);
+    expect(decide([[3, 0], [1, 12]])).toBe(false);
+  });
+
+  it("세로로 기운 첫 값 뒤에 가로가 이어지면 가로 쓸기예요", () => {
+    expect(decide([[3, 4], [10, 2], [20, 1]])).toBe(true);
+  });
+
+  it("값 하나만 오면(마우스 한 칸) 그 값의 축이에요", () => {
+    expect(decide([[4, 0]])).toBe(true);
+    expect(decide([[0, 4]])).toBe(false);
+  });
+
+  it("모으는 시간이 지난 값은 세지 않아요", () => {
+    const axis = new AxisWindow();
+    axis.open(6, 0, 0);
+    axis.add(0, 40, axisMs + 1);
+    expect(axis.sideways()).toBe(true);
+  });
+});
