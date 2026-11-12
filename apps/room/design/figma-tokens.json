@@ -917,13 +917,21 @@
       "$type": "other",
       "$value": "50"
     },
-    "seg-tag-max": {
+    "shelf-card-max": {
       "$type": "other",
-      "$value": "200px"
+      "$value": "160px"
     },
-    "seg-tag-max-narrow": {
+    "shelf-cover": {
       "$type": "other",
-      "$value": "132px"
+      "$value": "36px"
+    },
+    "feed-at": {
+      "$type": "other",
+      "$value": "1160ms"
+    },
+    "feed-fill": {
+      "$type": "other",
+      "$value": "900ms"
     },
     "pet-w": {
       "$type": "other",

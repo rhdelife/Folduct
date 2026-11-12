@@ -3,8 +3,9 @@ import { lastActivity, roomUsage, sizeRatio } from "./care";
 import type { Room, Thing } from "./model";
 import { calendarSpot, hash, homeLimit, roomStars, stageUnit, toSky, type Point, type Star, type View } from "./sky";
 
-// 첫 화면 배치: 프로도 한 명이 받침 위에 서고, 먹은 방마다 그 방 용량만큼 몸이 길어요. 몸 옆에 방 이름 목록이 고른 간격으로 붙어요.
-// 고른 방의 파일은 넓은 창에서는 프로도 오른쪽, 좁은 창에서는 프로도 아래 칸에 최근 작업 순서로 놓이고, 칸 아래에 "방 열기"가 붙어요.
+// 첫 화면 배치: 위에 방(프로젝트) 카드 한 줄, 그 아래 받침 위에 선 프로도 한 명.
+// 방 카드를 프로도에게 먹이면 그 방 용량만큼 몸이 늘어나고, 그 방 파일이 넓은 창에서는 프로도 오른쪽, 좁은 창에서는 프로도 아래 칸에
+// 최근 작업 순서로 놓이며 칸 아래에 "방 열기"가 붙어요. 아무것도 안 먹은 프로도는 목만 내민 짧은 몸이에요.
 
 // 이름이 찍히는 가장 작은 종이 폭(글자는 8.5px 아래로 줄지 않아요).
 export const namedPaper = 46;
@@ -13,18 +14,19 @@ const edge = 16;
 // "방 열기 · +N개 더" 한 줄의 높이(styles.css .room-more)
 export const moreHeight = 32;
 const moreWidth = 96;
-// 몸 옆 이름표 폭. styles.css .seg-tag의 최대 폭과 맞춰요.
-export const tagWidth = (view: View) => (view.w < 720 ? 132 : 200);
-// 방 목록 한 줄의 높이. 손가락으로 누를 수 있게 44 아래로 줄이지 않아요.
-export const tagRow = (view: View) => (view.w < 720 ? 44 : 52);
+// 위 방 카드 줄의 높이. styles.css .room-shelf와 맞춰요.
+export const shelfHeight = (view: View) => (view.w < 720 ? 76 : 92);
 // 화면 아래 가운데 "형식별로 보기" 손잡이 자리
 const hintSpace = 56;
-// 그림 판 1칸이 차지하는 가장 큰 px. 방이 하나뿐이어도 프로도가 화면을 다 덮지 않아요.
+// 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
 const maxScale = 2.4;
-// 좁은 창에서 프로도가 쓰는 높이의 몫. 나머지는 고른 방 파일 칸이에요.
+// 파일 칸을 프로도 아래에 둘 때 프로도가 쓰는 높이의 몫. 나머지는 먹은 방 파일 칸이에요.
 const narrowShare = 0.56;
-// 넓은 창의 파일 칸 폭
+// 이 폭부터 파일 칸을 프로도 오른쪽에 둬요.
+const sideBySide = 1000;
+// 넓은 창의 파일 칸 폭. 가장 좁아도 종이 몇 장이 한 줄에 들어가요.
 const filesMax = 560;
+const filesMin = 240;
 
 export type Card = Star & {
   room: Room;
@@ -34,13 +36,13 @@ export type Card = Star & {
   rot: number;
   kick: number;
 };
-// 마디 하나(px). 몸에 칸으로 그리지 않고, 처음 켤 때 방을 먹으며 솟는 높이를 재는 데만 써요. tagY는 그 방 이름 줄의 가운데예요.
-export type HeroSeg = { room: Room; top: number; bottom: number; left: number; right: number; tagY: number };
-// 프로도 그림 상자(px)와 마디들. scale은 그림 판 1칸의 px, mouth는 파일이 나오는 입이에요.
-export type HeroFrodo = { left: number; top: number; width: number; height: number; scale: number; mouth: Point; tagX: number; segs: HeroSeg[] };
+// 프로도 그림 상자(px). scale은 그림 판 1칸의 px, mouth는 파일이 나오는 입, floor는 받침 아래 선이에요.
+// 먹은 방이 바뀌어도 scale·left·floor는 그대로이고, 몸 길이(top·height)만 바뀌어요.
+export type HeroFrodo = { left: number; top: number; width: number; height: number; scale: number; mouth: Point; floor: number };
 // 파일 칸 아래 "방 열기" 단추 자리(지도 좌표)와 칸에 다 못 놓은 파일 수.
 export type MoreSpot = { room: Room; x: number; y: number; count: number };
-export type HeroLayout = { frodo: HeroFrodo | null; cards: Card[]; more: MoreSpot[] };
+// shelf: 위 방 카드 줄(px). rooms: 그 줄에 놓는 방, 순서대로예요.
+export type HeroLayout = { shelf: { top: number; height: number } | null; rooms: Room[]; frodo: HeroFrodo | null; cards: Card[]; more: MoreSpot[] };
 
 // 파일이 클수록 큰 종이. 로그 눈금이라 1KB 56, 1MB 76, 1GB 96(1280 기준)입니다. 가장 작아도 이름이 찍혀요(ObjectShape).
 export const paperWidth = (bytes: number, unit: number) => (56 + 40 * sizeRatio(bytes)) * unit;
@@ -52,52 +54,52 @@ const doorBottom = (view: View) => headerBottom(view) + doorHeight;
 
 export const homeRooms = (rooms: Room[]) => rooms.filter((room) => !room.care.done).slice(0, homeLimit);
 
-// selectedId: 고른 방. 그 방 파일만 칸에 놓아요. 프로도 자리는 고르든 말든 같고, 다가가는 건 카메라(SkyMap)가 맡아요.
+// 먹은 방의 몸 길이. 아무것도 안 먹었으면 마디가 없어요.
+export const fedLengths = (room: Room | undefined) => (room ? [ductLength(roomUsage(room).totalBytes)] : []);
+
+// selectedId: 프로도가 먹은 방. 그 방 파일만 칸에 놓아요.
 export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, doorOpen = false, selectedId: string | null = null): HeroLayout {
   const active = homeRooms(rooms);
-  if (active.length === 0) return { frodo: null, cards: [], more: [] };
-  const narrow = view.w < 720;
+  if (active.length === 0) return { shelf: null, rooms: [], frodo: null, cards: [], more: [] };
   const unit = stageUnit(view);
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
-  const top = (doorOpen ? doorBottom(view) : headerBottom(view)) + edge;
-  const floor = view.h - hintSpace;
-  const tag = tagWidth(view);
+  const shelf = { top: (doorOpen ? doorBottom(view) : headerBottom(view)) + edge, height: shelfHeight(view) };
+  const top = shelf.top + shelf.height + gap;
+  const room = active.find((item) => item.id === selectedId);
 
-  const geo = stackGeometry(active.map((room) => ductLength(roomUsage(room).totalBytes)));
-  const [bx, by, bw, bh] = geo.box;
-  const tall = Math.max(1, (narrow ? (floor - top) * narrowShare : floor - top));
-  // 그림 판 오른쪽 끝이 아니라 몸 오른쪽 끝에서 이름표가 시작해요.
-  const across = (s: number) => Math.max(bw * s, (geo.right - bx) * s + gap + tag);
-  let scale = Math.min(maxScale, tall / bh);
-  scale = Math.min(scale, (view.w - 2 * edge) / across(1));
-  const column = across(scale);
-  // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게 오른쪽으로 비켜요.
+  // 크기는 가장 길게 자란 몸에 맞춰 정해 두고, 먹은 만큼의 몸을 같은 크기로 받침 위에 세워요. 그래야 먹을 때 프로도가 줄었다 커졌다 하지 않아요.
+  const full = stackGeometry([1]).box;
+  const [bx, by, bw, bh] = stackGeometry(fedLengths(room)).box;
+  // 파일 칸을 프로도 옆에 둘 만큼 넓지 않으면(below) 프로도 아래에 둬요. 그때 일력이 있으면 받침이 일력보다 위에 서요.
+  const below = view.w < sideBySide;
   const [calendar] = calendarSpot(view);
-  const leftMin = calendar ? calendar.x + calendar.hw + edge : edge;
-  const left = narrow ? (view.w - column) / 2 : Math.max(leftMin, (view.w - column) / 2);
+  const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - hintSpace;
+  const tall = Math.max(1, below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top);
+  // 넓은 창은 프로도와 파일 칸을 함께 가운데 둬요. 먹기 전에도 같은 자리라 먹어도 프로도가 옆으로 움직이지 않아요.
+  // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게 오른쪽으로 비켜요.
+  const leftMin = calendar && !below ? calendar.x + calendar.hw + edge : edge;
+  const across = below ? view.w - 2 * edge : view.w - leftMin - filesMin - 3 * edge;
+  const scale = Math.min(maxScale, tall / full[3], across / full[2]);
+  const width = bw * scale;
+  const centered = (view.w - width - 2 * edge - Math.min(filesMax, view.w - width - 4 * edge)) / 2;
+  const left = below ? (view.w - width) / 2 : Math.max(leftMin, centered);
+  const filesWidth = below ? 0 : Math.max(moreWidth, Math.min(filesMax, view.w - edge - (left + width + 2 * edge)));
+  const floor = top + tall;
   const height = bh * scale;
-  const frodoTop = narrow ? top : floor - height;
+  const frodoTop = floor - height;
   const px = (x: number, y: number): Point => ({ x: left + (x - bx) * scale, y: frodoTop + (y - by) * scale });
-  const mouth = px(...geo.mouth);
-  // 이름 목록은 입과 받침 사이 가운데에 둬요. 그 사이에 다 안 들어가면 머리 위 칸(top)을 넘지 않는 데까지 올려요.
-  const row = tagRow(view);
-  const listTop = Math.max(top, (mouth.y + frodoTop + height - active.length * row) / 2);
-  const segs = active.map((room, i) => {
-    const seg = geo.segs[i];
-    return { room, top: px(0, seg.top).y, bottom: px(0, seg.bottom).y, left: px(seg.left, 0).x, right: px(seg.right, 0).x, tagY: listTop + (i + 0.5) * row };
-  });
-  const frodo: HeroFrodo = { left, top: frodoTop, width: bw * scale, height, scale, mouth, tagX: px(geo.right, 0).x + gap, segs };
+  const frodo: HeroFrodo = { left, top: frodoTop, width, height, scale, mouth: px(...stackGeometry(fedLengths(room)).mouth), floor };
 
   const cards: Card[] = [];
   const more: MoreSpot[] = [];
-  const room = active.find((item) => item.id === selectedId);
-  if (!room) return { frodo, cards, more };
+  const base = { shelf, rooms: active, frodo };
+  if (!room) return { ...base, cards, more };
 
-  // 고른 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요.
-  const span = narrow
-    ? { left: edge, right: view.w - edge, top: frodoTop + height + gap, bottom: view.h - edge }
-    : { left: left + column + 2 * edge, right: left + column + 2 * edge + Math.max(moreWidth, Math.min(filesMax, view.w - column - 4 * edge)), top: Math.max(top, frodo.mouth.y), bottom: view.h - edge };
+  // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요.
+  const span = below
+    ? { left: edge, right: view.w - edge, top: floor + gap, bottom: view.h - edge }
+    : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom: view.h - edge };
   const stars = roomStars(room, frodo.mouth, 0, now, room.things.length).sort((a, b) => lastActivity(b.thing) - lastActivity(a.thing) || b.thing.size - a.thing.size);
   // 칸이 낮은 폰에서는 한 줄과 단추가 들어가도록 종이를 줄입니다. 반올림으로 1px 넘치지 않게 조금 덜어 둡니다.
   const tallestPaper = Math.max(24, span.bottom - span.top - gap - moreHeight - 1);
@@ -138,5 +140,5 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     y += row.height + gap;
   }
   more.push({ room, ...toSky({ x: (span.left + span.right) / 2, y: y + moreHeight / 2 }, view), count: sized.length - shown });
-  return { frodo, cards, more };
+  return { ...base, cards, more };
 }

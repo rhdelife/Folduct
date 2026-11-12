@@ -83,12 +83,12 @@ export function PoseArt({ pose, parts = [], px, foot, paper, band, className, ac
   return <DuctArt drawing={drawing} className={className} foot={foot} paper={paper} band={band} expr={expr} faceRef={faceRef} body={body} />;
 }
 
-// 홈의 프로도 한 명. 먹은 방마다 그 방 용량만큼 길어진 하얀 몸이에요. lengths는 방마다의 길이(0~1)입니다.
-export function StackArt({ lengths, px, foot, className, actor, mood = "base" }: { lengths: number[]; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr }) {
-  const key = lengths.map((length) => Math.round(length * 50)).join("|");
-  const drawing = useMemo(() => drawStack(lengths, { px, live: true }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
+// 홈의 프로도 한 명. 먹은 방 용량만큼 길어진 몸에 그 방 파일 형식 색이 차요. lengths는 먹은 방의 길이(0~1), parts는 그 방의 형식별 용량이에요.
+export function StackArt({ lengths, parts = [], px, foot, className, actor, mood = "base" }: { lengths: number[]; parts?: Parts; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr }) {
+  const key = `${lengths.map((length) => Math.round(length * 50)).join("|")}/${partsKey(parts)}`;
+  const drawing = useMemo(() => drawStack(lengths, { px, live: true, layers: ductLayers(parts) }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(actor, mood);
-  return <DuctArt drawing={drawing} className={className} foot={foot} expr={expr} faceRef={faceRef} body={body} />;
+  return <DuctArt drawing={drawing} className={className} foot={foot} band="feed-band" expr={expr} faceRef={faceRef} body={body} />;
 }
 
 const pickerPx = 64;

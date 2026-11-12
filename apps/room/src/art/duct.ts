@@ -440,16 +440,17 @@ export function ductMouth(shape: number, length: number): { x: number; y: number
   return { x: (spec.head[0] - centeredLeft(spec) - board.w / 2) / board.w, y: (spec.head[1] - board.y - board.h / 2) / board.w };
 }
 
-// ── 홈의 프로도 한 명. 방을 하나 먹을 때마다 그 방 용량만큼 몸이 길어져요. ──
-// 마디 0이 머리 바로 아래이고, 뒤 마디일수록 받침 쪽이에요. 처음 켤 때 방을 먹으며 솟는 높이를 재는 데만 마디를 써요. 작은 방도 길이가 보이게 최소 길이를 둡니다.
-const segMin = 26;
-const segGrow = 40;
+// ── 홈의 프로도 한 명. 방을 먹이면 그 방 용량만큼 몸이 늘어나요. ──
+// 아무것도 안 먹으면 받침 위에 목만 내민 짧은 몸(stub)이에요. 마디 0이 머리 바로 아래이고, 뒤 마디일수록 받침 쪽이에요. 작은 방도 늘어난 게 보이게 최소 길이를 둡니다.
+const stub = 16;
+const segMin = 10;
+const segGrow = 90;
 const stackX = 52;
 const neckR = 24;
 export const stackSegLength = (length: number) => segMin + segGrow * Math.min(1, Math.max(0, length));
 
 function stackSpec(lengths: number[]) {
-  const total = lengths.reduce((sum, length) => sum + stackSegLength(length), 0);
+  const total = stub + lengths.reduce((sum, length) => sum + stackSegLength(length), 0);
   const points: Pt[] = [];
   // 받침에서 위로 곧게 서되 살짝 흔들립니다. 점 간격 2라 마디 경계를 점 번호로 잘라요.
   for (let t = 0; t <= total; t += 2) points.push([stackX + 3 * Math.sin(t / 30), 108 - t]);
@@ -457,7 +458,7 @@ function stackSpec(lengths: number[]) {
   // 목: 위로 올라가다 오른쪽으로 고개를 숙여요.
   for (let a = 2 / neckR; a <= (50 * Math.PI) / 180; a += 2 / neckR) points.push([x0 + neckR - neckR * Math.cos(a), y0 - neckR * Math.sin(a)]);
   let at = 0;
-  const cuts = [0, ...[...lengths].reverse().map((length) => (at += stackSegLength(length)) / 2)].map(Math.round).reverse();
+  const cuts = [0, ...[...lengths].reverse().map((length) => (at += stackSegLength(length)) / 2)].map((cut) => Math.round(cut + stub / 2)).reverse();
   const end = points[points.length - 1];
   const back = points[points.length - 5];
   const span = Math.hypot(end[0] - back[0], end[1] - back[1]) || 1;
@@ -498,11 +499,12 @@ export function stackGeometry(lengths: number[]): StackGeometry {
   return { box, segs, mouth: [hx, hy], right: Math.max(...xs(0, cuts[0]).map((p) => p[0])) };
 }
 
-// 몸은 마디를 나누지 않은 하얀 관 하나예요. 방을 먹은 만큼(마디 길이를 더한 만큼) 길어질 뿐, 방이 몸 안에 칸으로 담긴 것처럼 그리지 않아요.
-export function drawStack(lengths: number[], { px, live }: { px: number; live?: boolean }): DuctDrawing {
+// 몸은 마디를 나누지 않은 관 하나예요. 먹은 방 용량만큼 길어지고, layers를 주면 그 방 파일 형식 색이 받침에서 머리 쪽으로 차요.
+// 색은 관을 얇게 썬 조각(i/n)으로 그려 받침부터 차례로 물들일 수 있어요(styles.css .feed-band).
+export function drawStack(lengths: number[], { px, live, layers = [] }: { px: number; live?: boolean; layers?: DuctLayer[] }): DuctDrawing {
   const { spec } = stackSpec(lengths);
   const [x, y, bw, bh] = stackGeometry(lengths).box;
-  return { viewBox: `${x} ${y} ${bw} ${bh}`, items: draw(spec, { w: ductWeight(px), seed: 31, live }) };
+  return { viewBox: `${x} ${y} ${bw} ${bh}`, items: draw(spec, { w: ductWeight(px), seed: 31, live, layers, flow: layers.length > 0 }) };
 }
 
 // 용량을 길이로 바꿉니다. 1MB가 가장 짧고 128GB에서 끝까지 자라요. 로그라 작은 방끼리도 차이가 보입니다.

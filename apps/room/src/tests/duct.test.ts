@@ -106,15 +106,24 @@ describe("홈의 프로도 한 명", () => {
     expect(height([0.2, 1])).toBeGreaterThan(height([0.2]));
   });
 
-  it("용량이 큰 방은 마디가 길고, 첫 마디가 머리 바로 아래예요", () => {
-    const geo = stackGeometry(segs.map((seg) => seg.length));
-    const tall = geo.segs.map((seg) => seg.bottom - seg.top);
-    expect(tall[1]).toBeGreaterThan(tall[0]);
-    expect(tall[0]).toBeGreaterThan(tall[2]);
-    expect(geo.segs[0].bottom).toBeCloseTo(geo.segs[1].top, 5);
+  it("아무것도 안 먹은 몸이 가장 짧고, 먹은 방 용량이 클수록 길어요", () => {
+    const tall = (lengths: number[]) => stackGeometry(lengths).box[3];
+    expect(tall([0])).toBeGreaterThan(tall([]));
+    expect(tall([0.5])).toBeGreaterThan(tall([0]));
+    expect(tall([1])).toBeGreaterThan(tall([0.5]));
+    const geo = stackGeometry([0.5]);
     expect(geo.mouth[1]).toBeLessThan(geo.segs[0].top);
-    // 방이 늘면 몸이 길어져 그림 판도 높아져요.
-    expect(stackGeometry([0, 0, 0, 0]).box[3]).toBeGreaterThan(stackGeometry([0]).box[3]);
+    expect(drawStack([], { px: 200 }).viewBox).not.toContain("NaN");
+  });
+
+  it("먹은 방의 형식 색은 받침부터 머리 쪽으로 얇은 조각으로 차고, 색이 없으면 하얀 몸이에요", () => {
+    const filled = pieces(drawStack([0.5], { px: 200, live: true, layers })).filter((piece) => piece.tone === "layer");
+    expect(filled.length).toBeGreaterThan(10);
+    expect(filled.map((piece) => piece.i)).toEqual(filled.map((_, i) => i));
+    // 받침 쪽 70%는 영상 색, 머리 쪽은 글·코드 색이에요.
+    expect(filled[0].color).toBe(layers[0].color);
+    expect(filled[filled.length - 1].color).toBe(layers[1].color);
+    expect(pieces(drawStack([0.5], { px: 200, live: true })).some((piece) => piece.tone === "layer")).toBe(false);
   });
 });
 

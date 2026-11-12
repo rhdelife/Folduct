@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayMs, defaultCare, lastActivity } from "../domain/care";
-import { heroLayout, moreHeight, namedPaper, paperWidth, tagRow, tagWidth, type Card } from "../domain/heroLayout";
+import { heroLayout, moreHeight, namedPaper, paperWidth, type Card } from "../domain/heroLayout";
 import type { Room, Thing } from "../domain/model";
 import { baseView, calendarSpot, homeLimit, toPx, type Box, type View } from "../domain/sky";
 import { spillFrames } from "../components/home/heroMotion";
@@ -26,51 +26,57 @@ const boxOf = (card: Card, view: View): Box => {
 const overlap = (a: Box, b: Box) => Math.abs(a.x - b.x) < a.hw + b.hw - 0.5 && Math.abs(a.y - b.y) < a.hh + b.hh - 0.5;
 const big = (id: string, bytes: number) => room(id, [thing(`${id}-f`, { size: bytes })]);
 
-describe("첫 화면: 프로도 한 명과 방 마디", () => {
+describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", () => {
   it("같은 입력이면 늘 같은 자리다", () => {
     const rooms = many(3, 14);
     expect(heroLayout(rooms, start, baseView, aspect, false, "room-1")).toEqual(heroLayout(rooms, start, baseView, aspect, false, "room-1"));
   });
 
-  it("방 하나가 마디 하나이고, 첫 방이 머리 바로 아래에서 받침 쪽으로 차례로 쌓인다", () => {
-    const rooms = many(homeLimit, 3);
-    const { frodo } = heroLayout(rooms, start, baseView, aspect);
-    expect(frodo!.segs.map((seg) => seg.room.id)).toEqual(rooms.map((r) => r.id));
-    frodo!.segs.forEach((seg, i) => {
-      expect(seg.bottom).toBeGreaterThan(seg.top);
-      if (i > 0) expect(seg.top).toBeGreaterThanOrEqual(frodo!.segs[i - 1].bottom - 1);
-    });
-    expect(frodo!.mouth.y).toBeLessThan(frodo!.segs[0].top);
-  });
-
-  it("용량이 큰 방은 마디가 길고, 아무리 작은 방도 누를 만큼은 길다", () => {
-    const { frodo } = heroLayout([big("small", 16), big("huge", 64 * 1024 * MB)], start, baseView, aspect);
-    const [small, huge] = frodo!.segs.map((seg) => seg.bottom - seg.top);
-    expect(huge).toBeGreaterThan(small * 1.5);
-    // 320x568처럼 아주 작은 창은 빼요. 지켜야 할 폭은 375·720·1280이에요.
-    for (const view of views.filter((v) => v.w >= 375)) {
-      const seg = heroLayout(many(homeLimit, 2), start, view, aspect, true).frodo!.segs;
-      for (const s of seg) expect(s.bottom - s.top, `${view.w}x${view.h}`).toBeGreaterThanOrEqual(24);
+  it("방은 위 카드 줄에 차례로 놓이고, 프로도는 그 아래 받침 위에 선다", () => {
+    for (const view of views) {
+      for (const doorOpen of [false, true]) {
+        const rooms = many(homeLimit, 3);
+        const { shelf, rooms: shelfRooms, frodo } = heroLayout(rooms, start, view, aspect, doorOpen);
+        const label = `${view.w}x${view.h} 현관${doorOpen}`;
+        expect(shelfRooms.map((r) => r.id), label).toEqual(rooms.map((r) => r.id));
+        expect(frodo!.top, label).toBeGreaterThan(shelf!.top + shelf!.height);
+        expect(frodo!.top + frodo!.height, label).toBeCloseTo(frodo!.floor, 5);
+      }
     }
   });
 
-  it("프로도와 이름표는 창 안에 있고, 일력 위에 서지 않는다", () => {
+  it("먹이면 그 방 용량만큼 늘어나고, 큰 방일수록 길다. 크기·받침·좌우 자리는 그대로다", () => {
+    const rooms = [big("small", 16), big("mid", 512 * MB), big("huge", 64 * 1024 * MB)];
+    for (const view of views.filter((v) => v.w >= 375)) {
+      const label = `${view.w}x${view.h}`;
+      const hungry = heroLayout(rooms, start, view, aspect).frodo!;
+      const [small, mid, huge] = rooms.map((r) => heroLayout(rooms, start, view, aspect, false, r.id).frodo!);
+      expect(small.height, label).toBeGreaterThan(hungry.height);
+      expect(mid.height, label).toBeGreaterThan(small.height);
+      expect(huge.height, label).toBeGreaterThan(mid.height);
+      for (const fed of [small, mid, huge]) {
+        expect(fed.scale, label).toBe(hungry.scale);
+        expect(fed.left, label).toBe(hungry.left);
+        expect(fed.floor, label).toBe(hungry.floor);
+        expect(fed.mouth.y, label).toBeLessThan(fed.floor);
+      }
+    }
+  });
+
+  it("가장 크게 자란 프로도도 창 안에 있고, 일력 위에 서지 않는다", () => {
     for (const view of views) {
       for (const count of [1, 3, homeLimit]) {
         for (const doorOpen of [false, true]) {
           const label = `${view.w}x${view.h} 방${count} 현관${doorOpen}`;
-          const { frodo } = heroLayout(many(count, 2), start, view, aspect, doorOpen);
+          const rooms = [big("huge", 512 * 1024 * MB), ...many(count - 1, 2)];
+          const { frodo } = heroLayout(rooms, start, view, aspect, doorOpen, "huge");
           expect(frodo!.left, label).toBeGreaterThanOrEqual(0);
-          expect(frodo!.tagX + tagWidth(view), label).toBeLessThanOrEqual(view.w + 0.5);
+          expect(frodo!.left + frodo!.width, label).toBeLessThanOrEqual(view.w + 0.5);
           expect(frodo!.top, label).toBeGreaterThan(0);
-          expect(frodo!.top + frodo!.height, label).toBeLessThanOrEqual(view.h);
-          // 방 이름 목록은 고른 간격이고 창 안에 있어요.
-          const ys = frodo!.segs.map((seg) => seg.tagY);
-          ys.slice(1).forEach((y, i) => expect(y - ys[i], label).toBeCloseTo(tagRow(view), 5));
-          expect(ys[0] - tagRow(view) / 2, label).toBeGreaterThan(0);
-          expect(ys[ys.length - 1] + tagRow(view) / 2, label).toBeLessThanOrEqual(view.h);
+          expect(frodo!.floor, label).toBeLessThanOrEqual(view.h);
           const [calendar] = calendarSpot(view);
-          if (calendar) expect(frodo!.left, label).toBeGreaterThanOrEqual(calendar.x + calendar.hw);
+          const body = { x: frodo!.left + frodo!.width / 2, y: (frodo!.top + frodo!.floor) / 2, hw: frodo!.width / 2, hh: (frodo!.floor - frodo!.top) / 2 };
+          if (calendar) expect(overlap(body, calendar), label).toBe(false);
         }
       }
     }
@@ -91,6 +97,7 @@ describe("첫 화면: 프로도 한 명과 방 마디", () => {
             expect(card.room.id, label).toBe(picked);
             expect(card.rot, label).toBe(0);
             expect(box.x - box.hw, label).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.hw, label).toBeLessThanOrEqual(view.w + 0.5);
             expect(box.y + box.hh, label).toBeLessThanOrEqual(view.h);
             expect(overlap(box, body), label).toBe(false);
             boxes.slice(i + 1).forEach((other) => expect(overlap(box, other), label).toBe(false));
@@ -122,17 +129,17 @@ describe("첫 화면: 프로도 한 명과 방 마디", () => {
     expect(Math.max(...cards.map((card) => toPx(card, baseView).y))).toBeLessThan(toPx(more[0], baseView).y);
   });
 
-  it("상자 속·없어진 파일은 놓지 않고, 홈에서 뺀 방과 자리를 넘은 방은 마디가 되지 않는다", () => {
+  it("상자 속·없어진 파일은 놓지 않고, 홈에서 뺀 방과 자리를 넘은 방은 카드 줄에 놓지 않는다", () => {
     const rooms = [
       room("a", [thing("ok"), thing("boxed", { box: { state: "boxed", fromPath: "x", boxPath: "y", at: start } as unknown as Thing["box"] }), thing("gone", { missing: true })]),
       room("done", [thing("d1")], { care: { ...defaultCare, done: true } }),
       ...many(homeLimit, 1),
     ];
-    const { frodo, cards } = heroLayout(rooms, start, baseView, aspect, false, "a");
-    expect(frodo!.segs.map((seg) => seg.room.id)).not.toContain("done");
-    expect(frodo!.segs.length).toBe(homeLimit);
+    const { rooms: shelfRooms, cards } = heroLayout(rooms, start, baseView, aspect, false, "a");
+    expect(shelfRooms.map((r) => r.id)).not.toContain("done");
+    expect(shelfRooms.length).toBe(homeLimit);
     expect(cards.map((card) => card.thing.id)).toEqual(["ok"]);
-    expect(heroLayout([], start, baseView, aspect)).toEqual({ frodo: null, cards: [], more: [] });
+    expect(heroLayout([], start, baseView, aspect)).toEqual({ shelf: null, rooms: [], frodo: null, cards: [], more: [] });
   });
 
   it("큰 파일일수록 큰 종이이고, 넓은 창에서는 이름이 찍히는 크기다", () => {
