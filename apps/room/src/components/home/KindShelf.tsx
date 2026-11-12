@@ -157,6 +157,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
     const next = open === shelf.label ? null : shelf.label;
+    // 앞판을 다시 눌러 닫을 때도 Esc·닫기처럼 앞판에 포커스를 둬요. WebKit은 눌러도 버튼에 포커스를 주지 않아요.
+    if (next === null) return close();
     moveCabinet(() => {
       setOpen(next);
       if (next) setLast(next);
