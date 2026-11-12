@@ -917,9 +917,13 @@
       "$type": "other",
       "$value": "50"
     },
-    "room-label-max": {
+    "seg-tag-max": {
       "$type": "other",
-      "$value": "max(22vw, 144px)"
+      "$value": "200px"
+    },
+    "seg-tag-max-narrow": {
+      "$type": "other",
+      "$value": "132px"
     },
     "pet-w": {
       "$type": "other",

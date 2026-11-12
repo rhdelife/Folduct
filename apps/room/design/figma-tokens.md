@@ -223,7 +223,8 @@
 | `scene/hero-type` | `max(2.22vw, 3vh)` |  |
 | `scene/hero-layer-z` | `40` |  |
 | `scene/hero-tip-z` | `50` |  |
-| `scene/room-label-max` | `max(22vw, 144px)` |  |
+| `scene/seg-tag-max` | `200px` |  |
+| `scene/seg-tag-max-narrow` | `132px` |  |
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |

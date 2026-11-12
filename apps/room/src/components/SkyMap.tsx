@@ -2,12 +2,13 @@ import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, 
 import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { kindColors } from "../art/palette";
 import { ductLength, kindParts, kindSummary } from "../art/duct";
-import { RoomFaceArt } from "./RoomFace";
-import { centerOf, cue } from "./useFrodo";
+import { StackArt } from "./RoomFace";
+import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, lastActivity, relativeDay } from "../domain/care";
-import { heroLayout, namedPaper, type Card, type HeroNode, type MoreSpot } from "../domain/heroLayout";
+import { heroLayout, namedPaper, tagWidth, type Card, type HeroFrodo, type MoreSpot } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { hash, sky, stageUnit, stepRoom, toPx, toSky, vaseHalf, vaseLift, vaseUnit, type RoomStat, type View } from "../domain/sky";
+import { sky, stepRoom, toPx, toSky, type RoomStat, type View } from "../domain/sky";
+import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { awayFromHome } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
@@ -109,18 +110,15 @@ export function SkyMap({
   }, []);
 
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const { ordered, cards, more, ids, camera } = useMemo(() => {
-    const { nodes, cards, more } = heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId);
-    // 고른 프로도와 뱉은 파일, 방 열기 단추가 한눈에 들어오게 다가갑니다. 변환은 CSS가 부드럽게 이어 줍니다.
-    const picked = nodes.find((item) => item.room.id === selectedId);
+  const { frodo, cards, more, ids, camera } = useMemo(() => {
+    const { frodo, cards, more } = heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId);
+    // 프로도와 뱉은 파일, 방 열기 단추가 한눈에 들어오게 다가갑니다. 변환은 CSS가 부드럽게 이어 줍니다.
     let camera: Camera = null;
-    if (picked) {
-      const center = toPx(picked.at, view);
-      const half = vaseHalf(picked.r) * vaseLift * stageUnit(view) * vaseUnit;
+    if (frodo && frodo.segs.some((seg) => seg.room.id === selectedId)) {
       const opener = more.find((spot) => spot.room.id === selectedId);
-      const xs = [center.x - half, center.x + half];
-      const ys = [center.y + vaseHalf(picked.r) * stageUnit(view) * vaseUnit - 2 * half, opener ? toPx(opener, view).y + 24 : center.y + half];
-      for (const card of cards.filter((item) => item.room.id === selectedId)) {
+      const xs = [frodo.left, Math.max(frodo.left + frodo.width, frodo.tagX + tagWidth(view))];
+      const ys = [frodo.top, frodo.top + frodo.height, opener ? toPx(opener, view).y + 24 : frodo.top];
+      for (const card of cards) {
         const at = toPx(card, view);
         xs.push(at.x - card.size / 2, at.x + card.size / 2);
       }
@@ -129,18 +127,17 @@ export function SkyMap({
       const mid = toSky({ x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2 }, view);
       camera = { zoom, x: focusPoint.x - mid.x * zoom, y: focusPoint.y + 30 - mid.y * zoom };
     }
-    return { ordered: nodes, cards, more, ids: nodes.map((item) => item.room.id), camera };
+    return { frodo, cards, more, ids: frodo?.segs.map((seg) => seg.room.id) ?? [], camera };
   }, [rooms, selectedId, now, view, doorOpen]);
 
-  // 현관에 새 파일이 오면 모두 고개를 들어 그쪽을 봅니다.
+  // 현관에 새 파일이 오면 고개를 들어 그쪽을 봅니다.
   useEffect(() => {
-    if (doorOpen) for (const { room } of ordered) cue(room.id, { face: "lookU", ms: 1200 });
+    if (doorOpen) cue(homeActor, { face: "lookU", ms: 1200 });
   }, [doorOpen]);
 
-  // 평소에는 주름관만 보입니다. 고른 방의 파일만 그 주름관 아래로 나와요.
-  const shown = useMemo(() => cards.filter((card) => card.room.id === selectedId), [cards, selectedId]);
-  const opener = more.find((spot) => spot.room.id === selectedId) ?? null;
-  useHeroMotion(canvas, shown, ordered, view, selectedId);
+  // 평소에는 프로도만 보입니다. 고른 방의 파일만 입에서 나와요.
+  const opener = more[0] ?? null;
+  useHeroMotion(canvas, cards, frodo, view, selectedId);
 
   // 화살표와 휠로 프로도 사이를 옮겨 다닙니다. 옮겨 간 프로도에게 다가가고, 그 프로도가 파일을 뱉어요.
   const step = useRef<(key: string) => void>(() => {});
@@ -207,10 +204,9 @@ export function SkyMap({
           }}
         />
         <MapLayers
-          ordered={ordered}
-          cards={shown}
+          frodo={frodo}
+          cards={cards}
           opener={opener}
-          unit={stageUnit(view)}
           ids={ids}
           camera={camera}
           stats={stats}
@@ -225,7 +221,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">화살표나 좌우로 쓸어서 프로도를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">화살표나 좌우로 쓸어서 프로도의 마디를 옮겨 다니면 그 방 파일이 나와요. Enter를 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -249,10 +245,9 @@ export function SkyMap({
 // 선·종이·방 층. 말풍선 상태를 받지 않으므로, 종이 위를 오가도 다시 그리지 않습니다.
 // 주름관과 종이는 HTML 층에 둡니다. 합성 레이어라 숨쉬고 커져도 지도를 다시 그리지 않아 방이 많아도 부드럽습니다.
 const MapLayers = memo(function MapLayers({
-  ordered,
+  frodo,
   cards,
   opener,
-  unit,
   ids,
   camera,
   stats,
@@ -267,10 +262,9 @@ const MapLayers = memo(function MapLayers({
   onHideTip,
   onCloseTip,
 }: {
-  ordered: HeroNode[];
+  frodo: HeroFrodo | null;
   cards: Card[];
   opener: MoreSpot | null;
-  unit: number;
   ids: string[];
   camera: Camera;
   stats: Map<string, RoomStat>;
@@ -313,10 +307,17 @@ const MapLayers = memo(function MapLayers({
     onSelectRoom(next);
   }
 
-  // 처음 누르면 그 프로도에게 다가가 파일을 뱉게 하고, 고른 프로도를 한 번 더 누르면 방으로 들어갑니다.
+  // 처음 누르면 프로도에게 다가가 그 마디의 파일을 뱉게 하고, 고른 마디를 한 번 더 누르면 방으로 들어갑니다.
   const pick = (id: string) => (id === selectedId ? onOpenRoom(id) : onSelectRoom(id));
 
-  const folders = useReadableFolders(ordered.map((node) => node.room));
+  const segs = frodo?.segs ?? [];
+  const folders = useReadableFolders(useMemo(() => segs.map((seg) => seg.room), [frodo])); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedAt = segs.findIndex((seg) => seg.room.id === selectedId);
+  const picked = segs[selectedAt]?.room;
+  const art = useMemo(() => segs.map(({ room }) => {
+    const usage = stats.get(room.id)!.usage;
+    return { length: ductLength(usage.totalBytes), parts: usage.exact ? kindParts(room.things) : [] };
+  }), [frodo, stats]); // eslint-disable-line react-hooks/exhaustive-deps
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
   const onPaperUp = (event: PointerEvent, card: Card) => {
@@ -342,18 +343,18 @@ const MapLayers = memo(function MapLayers({
                 className="paper-art"
                 style={{ rotate: `${card.rot}deg` }}
                 onClick={() => {
-                  cue(card.room.id, { body: "nod" });
+                  cue(homeActor, { body: "nod" });
                   onOpenThing(card.room.id, card.thing.id);
                 }}
                 onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
                 onPointerUp={(event) => onPaperUp(event, card)}
                 onMouseEnter={(event) => {
-                  // 이 파일의 방 프로도만 종이를 바라봅니다.
-                  cue(card.room.id, { look: centerOf(event.currentTarget) });
+                  // 프로도가 종이를 바라봅니다.
+                  cue(homeActor, { look: centerOf(event.currentTarget) });
                   onShowTip({ star: card, room: card.room });
                 }}
                 onMouseLeave={() => {
-                  cue(card.room.id, { look: null });
+                  cue(homeActor, { look: null });
                   onHideTip();
                 }}
               >
@@ -364,8 +365,18 @@ const MapLayers = memo(function MapLayers({
           );
         })}
       </div>
-      <div className="sky-rooms" style={{ "--u": `${unit * vaseUnit}px` } as CSSProperties} role="group" aria-label="내 방들. 주름관은 방, 작은 오브제는 파일이에요. 관이 길수록 용량이 크고, 색은 파일 형식이에요. 파일은 각 주름관 아래에 최근 작업 순서로 놓여요." aria-describedby="sky-hint">
-        {ordered.map(({ room, at, r, card }) => {
+      <div className="sky-rooms" role="group" aria-label="내 방들. 프로도의 마디 하나가 방 하나예요. 마디가 길수록 용량이 크고, 색은 파일 형식이에요. 방을 고르면 프로도 입에서 그 방 파일이 최근 작업 순서로 나와요." aria-describedby="sky-hint">
+        {frodo && (
+          <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }}>
+            <span className="frodo-floor" />
+            <span className="frodo-lift">
+              <span className="vase-float">
+                <StackArt segs={art} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} selected={selectedAt < 0 ? null : selectedAt} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} />
+              </span>
+            </span>
+          </div>
+        )}
+        {frodo && segs.map(({ room, top, bottom, left }, index) => {
           const { usage, stale } = stats.get(room.id)!;
           const parts = kindParts(room.things);
           const size = `${usage.exact ? "" : "최소 "}${formatBytes(usage.totalBytes)}`;
@@ -376,50 +387,40 @@ const MapLayers = memo(function MapLayers({
               type="button"
               data-room-id={room.id}
               className={`room-node${selectedId === room.id ? " selected" : ""}${selectedId && selectedId !== room.id ? " dim" : ""}`}
-              style={{ left: `${(at.x / sky.width) * 100}%`, top: `${(at.y / sky.height) * 100}%`, "--half": vaseHalf(r), "--lift": vaseLift, "--phase": hash(room.id, 3), "--card-w": `${card.w}px`, "--card-h": `${card.h}px`, "--card-below": `${card.below}px` } as CSSProperties}
+              style={{ left, top, width: frodo.tagX - left, height: bottom - top, "--i": index } as CSSProperties}
               tabIndex={room.id === tabStop ? 0 : -1}
               aria-pressed={selectedId === room.id}
               aria-label={`${room.name} 방, ${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}`}
               onClick={() => pick(room.id)}
               onContextMenu={(event) => {
-                cue(room.id, { body: "tilt", face: "tilt", ms: 720 });
+                cue(homeActor, { body: "tilt", face: "tilt", ms: 720 });
                 menu.onContextMenu(event);
               }}
               onFocus={(event) => {
                 setLastFocus(room.id);
-                if (event.currentTarget.matches(":focus-visible")) cue(room.id, { body: "wave" });
+                if (event.currentTarget.matches(":focus-visible")) cue(homeActor, { body: "wave" });
               }}
               onKeyDown={(event) => {
                 menu.onKeyDown(event);
                 onRoomKey(event, room.id);
               }}
-              onMouseEnter={() => {
-                cue(room.id, { body: "wave" });
-              }}
-              onMouseMove={(event) => cue(room.id, { look: { x: event.clientX, y: event.clientY } })}
-              onMouseLeave={() => {
-                cue(room.id, { look: null });
-              }}
+              onMouseEnter={() => cue(homeActor, { body: "wave" })}
+              onMouseMove={(event) => cue(homeActor, { look: { x: event.clientX, y: event.clientY } })}
+              onMouseLeave={() => cue(homeActor, { look: null })}
             >
-              {/* 카드와 바닥 그림자: 프로도가 허공에 뜨지 않고 제 칸에 서 있게 합니다. */}
-              <span className="room-card" aria-hidden="true" />
-              <span className="room-floor" aria-hidden="true" />
-              <span className="vase-lift">
-                <RoomCover room={room} folder={folders.get(room.id) ?? null} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit * 0.44) / 4) * 4} />
-                <span className="vase-float">
-                  <RoomFaceArt face={room.face} parts={usage.exact ? parts : []} length={ductLength(usage.totalBytes)} px={Math.round((vaseHalf(r) * 2 * unit * vaseUnit) / 8) * 8} className="vase-art" actor={room.id} mood={selectedId === room.id ? "happy" : selectedId ? "shut" : "base"} />
+              <span className="seg-tag">
+                <RoomCover room={room} folder={folders.get(room.id) ?? null} px={24} />
+                <span className="seg-text">
+                  <span className="room-label">{room.name}</span>
+                  <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
                 </span>
-              </span>
-              <span className="vase-tag">
-                <span className="room-label">{room.name}</span>
-                <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
               </span>
             </button>
           );
         })}
         {/* 고른 방 파일 칸 아래의 방 열기. 칸에 다 못 놓은 파일 수도 함께 알려요. */}
         {opener && (
-          <button key={opener.room.id} type="button" className="room-more" style={{ left: `${(opener.x / sky.width) * 100}%`, top: `${(opener.y / sky.height) * 100}%` }} onClick={() => onOpenRoom(opener.room.id)} onMouseEnter={() => cue(opener.room.id, { body: "nod" })}>
+          <button key={opener.room.id} type="button" className="room-more" style={{ left: `${(opener.x / sky.width) * 100}%`, top: `${(opener.y / sky.height) * 100}%` }} onClick={() => onOpenRoom(opener.room.id)} onMouseEnter={() => cue(homeActor, { body: "nod" })}>
             {opener.count > 0 ? <Meta items={["방 열기", `${opener.count}개 더`]} /> : "방 열기"}
           </button>
         )}
@@ -428,7 +429,7 @@ const MapLayers = memo(function MapLayers({
   );
 });
 
-// 방의 대표 이미지 한 장을 받침 옆에 기대 세워요. 이름만으로 방을 찾지 않게, 방에서 가장 최근의 그림을 보여 줍니다.
+// 방의 대표 이미지 한 장을 마디 이름표 앞에 둬요. 이름만으로 방을 찾지 않게, 방에서 가장 최근의 그림을 보여 줍니다.
 // 그림을 읽기 전이거나 읽을 수 없으면 아무것도 그리지 않아요.
 function RoomCover({ room, folder, px }: { room: Room; folder: Folder | null; px: number }) {
   const cover = useMemo(() => coverOf(room), [room.things]); // eslint-disable-line react-hooks/exhaustive-deps

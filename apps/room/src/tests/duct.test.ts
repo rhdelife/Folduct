@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import faces from "../art/duct-faces.png?inline";
 import { cue, onCue, type Cue } from "../components/useFrodo";
-import { drawFaceFrame, drawPose, drawRoom, faceCell, faceFrames, lookExpr, poseFace, ductIndex, ductLayers, ductLength, ductMouth, ductReach, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
+import { drawFaceFrame, drawPose, drawRoom, drawStack, stackGeometry, faceCell, faceFrames, lookExpr, poseFace, ductIndex, ductLayers, ductLength, ductMouth, ductReach, ductShapeCount, ductWeight, type DuctDrawing, type DuctPiece, type DuctPose } from "../art/duct";
 
 const pieces = (drawing: DuctDrawing): DuctPiece[] => drawing.items.flatMap((item) => ("parts" in item ? item.parts.filter((part): part is DuctPiece => "d" in part) : [item]));
 const allPoses: DuctPose[] = ["idle", "watch", "offer", "move", "done", "rest", "shock"];
@@ -90,6 +90,32 @@ describe("주름관 그림", () => {
   it("같은 방은 늘 같은 모양이고 여덟 모양에 흩어져요", () => {
     expect(ductIndex("방-1")).toBe(ductIndex("방-1"));
     expect(new Set(Array.from({ length: 80 }, (_, i) => ductIndex(`방-${i}`))).size).toBe(ductShapeCount);
+  });
+});
+
+describe("홈의 프로도 한 명", () => {
+  const segs = [{ length: 0.2, layers }, { length: 1, layers: [] }, { length: 0, layers }];
+
+  it("방마다 마디 하나이고, 칠한 색은 그 마디 안에만 있어요", () => {
+    const drawing = drawStack(segs, { px: 200, live: true });
+    expect(drawing.viewBox).not.toContain("NaN");
+    for (const piece of pieces(drawing)) expect(piece.d).not.toMatch(/NaN|undefined/);
+    const groups = drawing.items.filter((item) => "seg" in item && item.seg !== undefined);
+    expect(groups.map((item) => ("seg" in item ? item.seg : -1))).toEqual([0, 1, 2]);
+    // 파일을 다 세지 못한(색이 없는) 방은 칠하지 않아요.
+    expect(groups.map((item) => ("parts" in item ? item.parts.filter((part) => "tone" in part && part.tone === "layer").length : -1))).toEqual([2, 0, 2]);
+    expect(drawStack(segs, { px: 200, live: true })).toEqual(drawing);
+  });
+
+  it("용량이 큰 방은 마디가 길고, 첫 마디가 머리 바로 아래예요", () => {
+    const geo = stackGeometry(segs.map((seg) => seg.length));
+    const tall = geo.segs.map((seg) => seg.bottom - seg.top);
+    expect(tall[1]).toBeGreaterThan(tall[0]);
+    expect(tall[0]).toBeGreaterThan(tall[2]);
+    expect(geo.segs[0].bottom).toBeCloseTo(geo.segs[1].top, 5);
+    expect(geo.mouth[1]).toBeLessThan(geo.segs[0].top);
+    // 방이 늘면 몸이 길어져 그림 판도 높아져요.
+    expect(stackGeometry([0, 0, 0, 0]).box[3]).toBeGreaterThan(stackGeometry([0]).box[3]);
   });
 });
 

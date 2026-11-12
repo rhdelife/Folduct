@@ -29,7 +29,7 @@ export type DuctPiece = { d: string; tone: DuctTone; even?: boolean; color?: str
 // 살아 있는 그림에서 표정 시트가 앉을 자리: 얼굴의 가운데와 반지름.
 export type DuctFaceSlot = { face: [number, number, number, number] };
 export type DuctPart = "head" | "armL" | "armR";
-export type DuctGroup = { rib?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
+export type DuctGroup = { rib?: number; seg?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
 export type DuctDrawing = { viewBox: string; items: (DuctPiece | DuctGroup)[] };
 export type DuctLayer = { label: string; color: string; share: number };
 export type DuctPose = "idle" | "watch" | "offer" | "move" | "done" | "rest" | "shock";
@@ -438,6 +438,103 @@ export function drawRoom(shape: number, length: number, { px, layers, live }: { 
 export function ductMouth(shape: number, length: number): { x: number; y: number } {
   const spec = roomSpec(shape, length);
   return { x: (spec.head[0] - centeredLeft(spec) - board.w / 2) / board.w, y: (spec.head[1] - board.y - board.h / 2) / board.w };
+}
+
+// ── 홈의 프로도 한 명. 방 하나가 몸의 한 마디예요. 마디 길이는 그 방 용량, 마디 안 색은 그 방 파일 형식이에요. ──
+// 마디 0이 머리 바로 아래이고, 뒤 마디일수록 받침 쪽이에요. 가장 작은 방도 누를 수 있게 마디마다 최소 길이를 둡니다.
+const segMin = 26;
+const segGrow = 40;
+const stackX = 52;
+const neckR = 24;
+export const stackSegLength = (length: number) => segMin + segGrow * Math.min(1, Math.max(0, length));
+
+function stackSpec(lengths: number[]) {
+  const total = lengths.reduce((sum, length) => sum + stackSegLength(length), 0);
+  const points: Pt[] = [];
+  // 받침에서 위로 곧게 서되 살짝 흔들립니다. 점 간격 2라 마디 경계를 점 번호로 잘라요.
+  for (let t = 0; t <= total; t += 2) points.push([stackX + 3 * Math.sin(t / 30), 108 - t]);
+  const [x0, y0] = points[points.length - 1];
+  // 목: 위로 올라가다 오른쪽으로 고개를 숙여요.
+  for (let a = 2 / neckR; a <= (50 * Math.PI) / 180; a += 2 / neckR) points.push([x0 + neckR - neckR * Math.cos(a), y0 - neckR * Math.sin(a)]);
+  let at = 0;
+  const cuts = [0, ...[...lengths].reverse().map((length) => (at += stackSegLength(length)) / 2)].map(Math.round).reverse();
+  const end = points[points.length - 1];
+  const back = points[points.length - 5];
+  const span = Math.hypot(end[0] - back[0], end[1] - back[1]) || 1;
+  const x = end[0] + ((end[0] - back[0]) / span) * 8;
+  const y = end[1] + ((end[1] - back[1]) / span) * 8;
+  const rx = 27;
+  const ry = rx * 0.86;
+  const spec: Spec = { points, width: 30, rib: 6, scallop: 2.2, head: [x, y, rx, ry], inner: [x, y, rx - 7, ry - 7], eyes: [[x - 10, y - 1], [x + 11, y - 2]], foot: `M${stackX - 24} 106L${stackX + 22} 106L${stackX + 24} 114L${stackX - 26} 114Z`, arms: [] };
+  const { L, R } = tube(spec);
+  const armAt = Math.min(Math.round(L.length / 2), 12);
+  const center: Pt = [(L[armAt][0] + R[armAt][0]) / 2, (L[armAt][1] + R[armAt][1]) / 2];
+  spec.arms = [L[armAt], R[armAt]].map((p) => {
+    const m = Math.hypot(p[0] - center[0], p[1] - center[1]) || 1;
+    const nx = (p[0] - center[0]) / m;
+    const ny = (p[1] - center[1]) / m;
+    const pt = (out: number, down: number) => `${f1(p[0] + nx * out)} ${f1(p[1] + ny * out + down)}`;
+    return `M${pt(-2, 0)}C${pt(6, 0)} ${pt(12, 2)} ${pt(15, 8)}`;
+  });
+  // cuts[i]~cuts[i+1]: 마디 i의 점 번호(머리 쪽 끝부터). 0번째 값이 목이 시작하는 자리예요.
+  return { spec, cuts, L, R };
+}
+
+export type StackGeometry = { box: [number, number, number, number]; segs: { top: number; bottom: number; left: number; right: number }[]; mouth: Pt; right: number };
+
+// 그리지 않고 자리만 잽니다. 배치(heroLayout)가 마디마다 단추와 이름표를 붙이는 데 써요. 좌표는 그림 판 단위예요.
+export function stackGeometry(lengths: number[]): StackGeometry {
+  const { spec, cuts, L, R } = stackSpec(lengths);
+  const [hx, hy, , ry] = spec.head;
+  const top = Math.floor(Math.min(hy - ry - 6, ...L.map((p) => p[1]), ...R.map((p) => p[1])));
+  const box: [number, number, number, number] = [board.x, top, board.w, 122 - top];
+  const xs = (from: number, to: number) => [...L.slice(from, to + 1), ...R.slice(from, to + 1)];
+  // 위아래는 가운데 선의 경계 점으로 잽니다. 주름 굴곡으로 재면 이웃 마디와 몇 칸씩 겹쳐요.
+  const line = spec.points!;
+  const segs = lengths.map((_, i) => {
+    const pts = xs(cuts[i + 1], cuts[i]);
+    return { top: line[cuts[i]][1], bottom: line[cuts[i + 1]][1], left: Math.min(...pts.map((p) => p[0])), right: Math.max(...pts.map((p) => p[0])) };
+  });
+  return { box, segs, mouth: [hx, hy], right: Math.max(...xs(0, cuts[0]).map((p) => p[0])) };
+}
+
+export function drawStack(segs: { length: number; layers: DuctLayer[] }[], { px, live }: { px: number; live?: boolean }): DuctDrawing {
+  const lengths = segs.map((seg) => seg.length);
+  const { spec, cuts, L, R } = stackSpec(lengths);
+  const w = ductWeight(px);
+  const items = draw(spec, { w, seed: 31, live });
+  const pen = makePen(53);
+  const bodyAt = items.findIndex((item) => "tone" in item && item.tone === "white" && item.d === tube(spec).body);
+  const groups: DuctGroup[] = segs.map(({ layers }, i) => {
+    const from = cuts[i + 1];
+    const to = cuts[i];
+    const parts: DuctPiece[] = [];
+    // 받침 쪽부터 형식별 용량 비율만큼 칠해요. 파일을 다 세지 못한 방은 칠하지 않아요.
+    let start = from;
+    layers.forEach(({ color, share }, k) => {
+      const stop = k === layers.length - 1 ? to : Math.min(to, start + Math.round((to - from) * share));
+      if (stop > start) parts.push({ d: poly([...L.slice(start, stop + 1), ...R.slice(start, stop + 1).reverse()]), tone: "layer", color, i: k, n: layers.length });
+      start = stop;
+    });
+    return { seg: i, parts };
+  });
+  // 마디 사이에는 관보다 조금 넓은 이음 고리를 끼워 방과 방을 또렷이 끊어요. 고른 방을 흐리게 할 때도 고리는 그대로예요.
+  const ring = (c: number): DuctPiece[] => {
+    const a = Math.max(0, c - 1);
+    const b = Math.min(L.length - 1, c + 1);
+    const out = (p: Pt, q: Pt): Pt => {
+      const m = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1;
+      return [p[0] + ((p[0] - q[0]) / m) * 2.5, p[1] + ((p[1] - q[1]) / m) * 2.5];
+    };
+    const d = poly([...L.slice(a, b + 1).map((p, k) => out(p, R[a + k])), ...R.slice(a, b + 1).map((p, k) => out(p, L[a + k])).reverse()]);
+    return [{ d, tone: "white" }, ...pen(d, w)];
+  };
+  const head = oval(spec.head);
+  const headAt = items.findIndex((item) => ("part" in item && item.part === "head") || ("d" in item && item.d === head));
+  items.splice(headAt, 0, ...segs.flatMap((_, i) => ring(cuts[i])));
+  items.splice(bodyAt + 1, 0, ...groups);
+  const [x, y, bw, bh] = stackGeometry(lengths).box;
+  return { viewBox: `${x} ${y} ${bw} ${bh}`, items };
 }
 
 // 용량을 길이로 바꿉니다. 1MB가 가장 짧고 128GB에서 끝까지 자라요. 로그라 작은 방끼리도 차이가 보입니다.

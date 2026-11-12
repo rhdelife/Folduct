@@ -1,35 +1,12 @@
 import { useLayoutEffect, type RefObject } from "react";
-import { ductLength, ductMouth } from "../../art/duct";
-import { roomUsage } from "../../domain/care";
-import { stageUnit, toPx, vaseHalf, vaseUnit, type View } from "../../domain/sky";
-import type { Card, HeroNode } from "../../domain/heroLayout";
-import { cue } from "../useFrodo";
-import { range, useEngine } from "./engine";
+import { toPx, type View } from "../../domain/sky";
+import type { Card, HeroFrodo } from "../../domain/heroLayout";
+import { cue, homeActor } from "../useFrodo";
+import { useEngine } from "./engine";
 
-// 첫 화면의 움직임: 처음 켤 때 주름관이 날아와 서고, 방을 고르면 그 주름관 입에서 파일이 제 칸으로 나옵니다.
+// 첫 화면의 움직임: 처음 켤 때 프로도가 방을 하나씩 받아먹으며 마디가 늘고, 방을 고르면 입에서 그 방 파일이 제 칸으로 나옵니다.
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-// 2차 베지어 위의 점들을 키프레임으로 씁니다. 합성 스레드에서 도니 비행 중에 JS가 돌지 않아요.
-type Pt = { x: number; y: number };
-const bezier = (a: Pt, b: Pt, c: Pt, s: number): Pt => ({ x: (1 - s) ** 2 * a.x + 2 * (1 - s) * s * b.x + s * s * c.x, y: (1 - s) ** 2 * a.y + 2 * (1 - s) * s * b.y + s * s * c.y });
-
-// 왼쪽 아래 화면 밖에서 떠올라 수평으로 눕듯 내려앉습니다. 오를 땐 기울고, 내릴 땐 고개를 들며, 긴 주기로 살짝 흔들려요.
-export function arrivalFrames(rest: Pt, half: number, view: View, ms: number): Keyframe[] {
-  const from = { x: -1.2 * half * 2, y: view.h + 1.2 * half * 2 };
-  const via = { x: lerp(from.x, rest.x, 0.4), y: rest.y };
-  return Array.from({ length: 29 }, (_, i) => {
-    const u = i / 28;
-    const t = u * ms;
-    const at = bezier(from, via, rest, Math.sin((u * Math.PI) / 2));
-    const flare = range(u, 0.54, 1);
-    const lean = 20 * (1 - flare) * (1 - flare) - 7 * Math.sin(Math.PI * flare);
-    const sway = -3 * Math.cos((2 * Math.PI * (t + 14)) / 1400) * (1 - range(t, ms - 300, ms));
-    return { translate: `${at.x - rest.x}px ${at.y - rest.y}px`, rotate: `${lean + sway}deg` };
-  });
-}
-
 // 종이 한 장의 등장: 자기 방 주름관의 입에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
 export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   return [
@@ -40,9 +17,11 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   ];
 }
 
-const vaseStep = (count: number) => Math.min(220, 1500 / Math.max(1, count));
-const flightMs = 1600;
-const vaseFrom = 150;
+// 한 방을 받아먹는 데 드는 시간: 입을 벌리고(gulpMs) 삼킨 뒤 마디 하나만큼 받침에서 솟아요(growMs).
+const peekMs = 520;
+const gulpMs = 320;
+const growMs = 380;
+const eatFrom = 200;
 // 고른 뒤: 카메라가 다가가고(styles.css .sky-camera, 1000ms), 멈추면 프로도가 웅크렸다가 파일을 하나씩 뱉어요.
 // 다가가는 1초 동안은 카메라만 움직입니다. 웅크리기·표정·뱉기는 카메라가 멈춘 뒤에 시작해요.
 // 전에는 카메라가 멈추는 바로 그 프레임에 뱉기가 시작되고, 다가가는 중에 SVG 머리를 움직여 WebKit에서 한 번 끊겼어요.
@@ -56,41 +35,50 @@ const spillMs = 1100;
 // 머리를 한 번 부풀렸다 오므리는 데 걸리는 시간. 늘 오므린 채로 끝나 멈출 때 튀지 않아요.
 const puffMs = 560;
 
-function vaseOf(root: HTMLElement, id: string) {
-  return root.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(id)}"]`);
-}
-
-type Play = { anims: Animation[]; endsAt: number };
+type Play = { anims: Animation[]; endsAt: number; timers: number[] };
 const player = (anims: Animation[]) => (el: Element | null | undefined, frames: Keyframe[], options: KeyframeAnimationOptions) => {
   if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
 };
 
-// 처음 켤 때: 주름관이 차례로 날아와 자리를 잡습니다. 파일은 고를 때까지 나오지 않아요.
-function playEntrance(root: HTMLElement, nodes: HeroNode[], view: View): Play {
+// 처음 켤 때: 받침 자리에서 머리만 내민 프로도가 방을 하나씩 받아먹고, 먹을 때마다 마디 하나만큼 솟아 몸이 길어져요.
+// 받침 선 아래는 가려 두니(styles.css .entering .frodo-home) 아직 안 먹은 마디는 보이지 않아요. 움직이는 건 translate 하나라 합성 스레드에서 돌아요.
+function playEntrance(root: HTMLElement, frodo: HeroFrodo): Play {
   const anims: Animation[] = [];
+  const timers: number[] = [];
   const add = player(anims);
-  const step = vaseStep(nodes.length);
-  const unit = stageUnit(view) * vaseUnit;
-  nodes.forEach(({ room, at, r }, i) => {
-    const node = vaseOf(root, room.id);
-    const delay = vaseFrom + i * step;
-    add(node?.querySelector(".vase-lift"), arrivalFrames(toPx(at, view), vaseHalf(r) * unit, view, flightMs), { duration: flightMs, delay });
-    // 카드와 바닥 그림자도 이름표와 함께 나타나요. 먼저 깔려 있으면 빈 카드만 1초쯤 보였어요.
-    for (const part of [".room-card", ".room-floor", ".vase-tag"]) add(node?.querySelector(part), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: delay + flightMs - 200, easing: "ease-out" });
+  const floor = frodo.top + frodo.height;
+  const { segs } = frodo;
+  const step = gulpMs + growMs;
+  const total = eatFrom + peekMs + segs.length * step + growMs;
+  const at = (ms: number) => Math.min(1, ms / total);
+  const frames: Keyframe[] = [{ offset: 0, translate: `0px ${frodo.height}px` }, { offset: at(eatFrom), translate: `0px ${frodo.height}px`, easing: "cubic-bezier(.2,.8,.3,1)" }];
+  let rest = floor - segs[0].top;
+  frames.push({ offset: at(eatFrom + peekMs), translate: `0px ${rest}px` });
+  segs.forEach((seg, i) => {
+    const from = eatFrom + peekMs + i * step;
+    // 입을 크게 벌렸다 닫으며 삼켜요. 그 사이 몸은 멈춰 있어요.
+    timers.push(window.setTimeout(() => cue(homeActor, { face: "wide", ms: gulpMs * 0.6 }), from));
+    timers.push(window.setTimeout(() => cue(homeActor, { face: "shut", ms: gulpMs * 0.4 }), from + gulpMs * 0.6));
+    frames.push({ offset: at(from + gulpMs), translate: `0px ${rest}px`, easing: "cubic-bezier(.3,1.4,.5,1)" });
+    rest = i === segs.length - 1 ? 0 : floor - seg.bottom;
+    frames.push({ offset: at(from + step), translate: `0px ${rest}px` });
+    add(root.querySelector(`.room-node[data-room-id="${CSS.escape(seg.room.id)}"] .seg-tag`), [{ opacity: 0, translate: "-8px 0" }, { opacity: 1, translate: "0 0" }], { duration: growMs, delay: from + gulpMs, easing: "ease-out" });
   });
-  return { anims, endsAt: vaseFrom + Math.max(0, nodes.length - 1) * step + flightMs + 100 };
+  frames.push({ offset: 1, translate: "0px 0px" });
+  add(root.querySelector(".frodo-lift"), frames, { duration: total });
+  // 이름표는 자기 마디와 함께 솟아요. 마디 단추는 translate를 쓰지 않으니 같은 움직임을 그대로 겁니다.
+  for (const node of root.querySelectorAll(".room-node")) add(node, frames, { duration: total });
+  add(root.querySelector(".frodo-floor"), [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: total - 320, easing: "ease-out" });
+  timers.push(window.setTimeout(() => cue(homeActor, { face: "happy", ms: 900 }), total));
+  return { anims, endsAt: total + 100, timers };
 }
 
 // 고른 방: 프로도가 웅크렸다가 머리를 부풀리며 파일을 한 장씩 뱉고, 파일은 아래 칸에 앉습니다. 종이는 그린 순서대로 .paper예요.
 // 몸짓도 여기서 직접 틀어요. CSS 클래스로 두면 끝날 때 머리가 부푼 채로 끊겨 튀어 보였어요.
-function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View): Play & { spitting: number } {
+function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: View): Play & { spitting: number } {
   const anims: Animation[] = [];
   const add = player(anims);
-  const unit = stageUnit(view) * vaseUnit;
-  const center = toPx(home.at, view);
-  const mouth = ductMouth(home.room.face.shape, ductLength(roomUsage(home.room).totalBytes));
-  const box = vaseHalf(home.r) * unit * 2;
-  const origin = { x: center.x + mouth.x * box, y: center.y + mouth.y * box };
+  const origin = frodo.mouth;
   const step = spillStepFor(cards.length);
   const papers = [...root.querySelectorAll<HTMLElement>(".paper")];
   cards.forEach((card, index) => {
@@ -98,7 +86,7 @@ function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View)
     add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay: spillFrom + index * step });
   });
   const spitting = cards.length ? (cards.length - 1) * step + spillMs * 0.6 : 0;
-  const node = vaseOf(root, home.room.id);
+  const node = root.querySelector(".frodo-home");
   if (cards.length && node) {
     const body = node.querySelector(".vase-art");
     const head = node.querySelector(".duct-part-head");
@@ -107,16 +95,16 @@ function playSpill(root: HTMLElement, cards: Card[], home: HeroNode, view: View)
     add(head, [{ transform: "none" }, { transform: "scale(0.9) rotate(5deg)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
     add(head, [{ transform: "none" }, { transform: "scale(1.14) rotate(-6deg)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
   }
-  return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting };
+  return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting, timers: [] };
 }
 
 // 처음 켤 때 한 번만. 방에서 돌아오면 다시 틀지 않습니다.
 let entrancePlayed = false;
 
-export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], nodes: HeroNode[], view: View, selectedId: string | null) {
+export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], frodo: HeroFrodo | null, view: View, selectedId: string | null) {
   const engine = useEngine();
   // 등장. 휠, 키, 누르기 중 무엇이든 들어오면 바로 끝난 모습으로 갑니다.
-  const hasScene = nodes.length > 0;
+  const hasScene = frodo !== null;
   useLayoutEffect(() => {
     if (entrancePlayed || !hasScene) return;
     if (reduced() || engine.pos !== 0 || selectedId) {
@@ -125,9 +113,10 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     }
     const root = canvas.current!;
     root.classList.add("entering");
-    const { anims, endsAt } = playEntrance(root, nodes, view);
+    const { anims, endsAt, timers } = playEntrance(root, frodo!);
     const stop = () => {
       clearTimeout(timer);
+      timers.forEach(clearTimeout);
       for (const name of inputs) removeEventListener(name, finish, true);
       for (const anim of anims) anim.cancel();
       root.classList.remove("entering");
@@ -145,11 +134,10 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
 
   // 방을 고를 때마다 그 방 주름관이 파일을 뱉습니다. 다른 방으로 바꾸거나 닫으면 남은 움직임은 멈춰요.
   useLayoutEffect(() => {
-    const home = nodes.find((node) => node.room.id === selectedId);
-    if (!home || reduced()) return;
-    const { anims, spitting } = playSpill(canvas.current!, cards, home, view);
-    // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 고른 방의 웃는 얼굴로 돌아가요. 뱉을 파일이 없는 방은 웅크리지 않아요.
-    const id = home.room.id;
+    if (!frodo || !selectedId || !frodo.segs.some((seg) => seg.room.id === selectedId) || reduced()) return;
+    const { anims, spitting } = playSpill(canvas.current!, cards, frodo, view);
+    // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 웃는 얼굴로 돌아가요. 뱉을 파일이 없는 방은 웅크리지 않아요.
+    const id = homeActor;
     const timers = cards.length === 0 ? [] : [
       window.setTimeout(() => cue(id, { face: "shut", ms: windUp }), windFrom),
       window.setTimeout(() => cue(id, { face: "wide", ms: spitting }), spillFrom),
