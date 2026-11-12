@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { KindShelf } from "../components/home/KindShelf";
+import { colorGroups } from "../art/palette";
+import { KindShelf, SlipPaper } from "../components/home/KindShelf";
 import type { Room, Thing } from "../domain/model";
+import { kindShelves } from "../domain/shelves";
 
 const thing = (path: string, over: Partial<Thing> = {}): Thing => ({ id: path, path, name: path.split("/").pop()!, kind: "image", size: 10, lastModified: 1, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, seenAt: 0, pinned: false, box: null, ...over });
 const rooms = [{ id: "a", name: "a", things: [thing("a/1.png"), thing("a/2.png"), thing("a/r.pdf", { kind: "pdf" })], care: { done: false, staleAfterDays: 14 } }] as unknown as Room[];
@@ -16,5 +18,16 @@ describe("형식별 서랍장", () => {
     expect(html).not.toContain("shelf-paper");
     // 서랍 속에는 그 형식 종이가 몇 장 들어 있어요(이미지 2장, PDF 1장).
     expect(html.match(/class="kind-drawer-sheet"/g)).toHaveLength(3);
+  });
+
+  it("서랍을 바꿔 열어 사라지는 중인 옛 목록 종이는 손이 닿지 않고 읽히지 않으며, 제목 id는 새 종이만 가져요", () => {
+    const shelf = kindShelves(rooms, colorGroups)[0];
+    const paper = (leaving: boolean) => renderToStaticMarkup(<SlipPaper shelf={shelf} leaving={leaving} folders={new Map()} onOpenFile={() => {}} onClose={() => {}} />);
+    const old = paper(true);
+    expect(old).toMatch(/^<div class="kind-slip-paper" data-leaving="true" inert="" aria-hidden="true"/);
+    expect(old).not.toContain('id="kind-slip-title"');
+    const fresh = paper(false);
+    expect(fresh).toMatch(/^<div class="kind-slip-paper" style=/);
+    expect(fresh).toContain('id="kind-slip-title"');
   });
 });

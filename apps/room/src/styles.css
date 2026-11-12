@@ -1487,8 +1487,10 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 다리 두 개: 바닥에서 살짝 뜬 서랍장이에요. */
 .kind-cabinet::before, .kind-cabinet::after { content: ""; position: absolute; top: 100%; left: 7%; width: 9%; height: var(--space-3); border: var(--room-hair) solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--radius-xs) var(--radius-xs); background: var(--surface-selected); }
 .kind-cabinet::after { left: auto; right: 7%; }
-/* 서랍 칸 자체는 서랍장 속 어두운 구멍이에요. 앞판이 빠져나가면 드러나요. 닫히는 동안에도 아랫줄 서랍 위에 있도록 z-index는 끝날 때 내려요. */
+/* 서랍 칸 자체는 서랍장 속 어두운 구멍이에요. 앞판이 빠져나가면 드러나요.
+   닫히는 서랍(data-closing, 들어가는 동안 KindShelf가 붙여요)은 아랫줄 서랍 위, 새로 연 서랍 아래에 둬요. 같은 층이면 겹친 동안 앞뒤가 문서 순서를 따르다가 끝에 뒤집혀요. */
 .kind-drawer { position: relative; z-index: 0; min-width: 0; min-height: 0; border-radius: var(--radius-sm); background: var(--ink-wash); }
+.kind-drawer[data-closing="true"] { z-index: 1; }
 .kind-drawer[data-open="true"] { z-index: 2; }
 .kind-stage[data-open="true"] .kind-drawer:not([data-open="true"]) { opacity: 0.55; }
 /* 몸: 앞판과 속을 한 덩어리로 옮겨요. 당긴 거리(40%)와 커진 비율(1.04), 속 높이(33%)가 맞물려서 속의 뒷변이 여닫는 내내 구멍 윗변 바로 아래에 머물러요. */
@@ -1522,9 +1524,13 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-slip { position: absolute; inset: 0 0 0 auto; display: grid; justify-items: end; width: var(--kind-slip-w); min-height: 0; visibility: hidden; }
 .kind-slip[data-open="true"] { visibility: visible; }
 .kind-folder:focus-visible { outline: none; }
-.kind-slip:has(.kind-folder:focus-visible) .kind-slip-paper { outline: 2px solid var(--ink); outline-offset: 2px; }
+.kind-slip-paper:has(.kind-folder:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; padding: var(--space-5); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-2); opacity: 0; translate: var(--kind-slip-from); }
 .kind-slip[data-open="true"] .kind-slip-paper { opacity: 1; translate: 0 0; }
+/* 서랍을 바꿔 열면 두 장이 같은 칸에 겹쳐요. 새 종이가 위로 밀려 들어오고, 옛 종이는 그 밑에서 살짝 가라앉으며 사라져요. */
+.kind-slip-paper { grid-area: 1 / 1; }
+.kind-slip-paper:not([data-leaving]) { z-index: 1; }
+.kind-slip[data-open="true"] .kind-slip-paper[data-leaving] { opacity: 0; scale: 0.96; }
 .kind-folder-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
 .kind-folder-head h3 { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-lg); line-height: var(--lh-lg); }
 .kind-folder-count { font-size: var(--text-xs); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
@@ -1563,6 +1569,8 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-drawer-plate { font-size: var(--text-base); line-height: var(--lh-base); }
   .kind-slip { inset: auto 0 0; z-index: 3; width: auto; height: 60%; justify-items: stretch; }
   .kind-slip-paper { width: auto; padding: var(--space-4); }
+  /* 새 종이가 아래에서 멀리 올라오는 동안 옛 종이 윗부분이 비치지 않게, 옛 종이는 다 덮인 뒤 빠질 때까지 옅어지지 않아요. */
+  .kind-slip[data-open="true"] .kind-slip-paper[data-leaving] { opacity: 1; }
 }
 @media (max-width: 560px) {
   .kind-cabinet { --cols: 2; --rows: var(--rows2); }
@@ -1571,16 +1579,21 @@ p.kind-folder-more { color: var(--ink-caption); }
    여닫을 때는 transform과 opacity만 움직여요. 몸과 벽·바닥은 같은 시간과 곡선이라 중간 프레임에서도 어긋나지 않아요.
    이 장면으로 넘어오는 동안에는 서랍장이 아래에서 다가와요(스크롤에 묶인 움직임). 움직임 줄이기면 모두 바로 바뀌어요. */
 @media (prefers-reduced-motion: no-preference) {
-  .kind-drawer { transition: opacity var(--dur-3) var(--ease-settle), z-index 0s linear var(--dur-3); }
-  .kind-drawer[data-open="true"] { transition-delay: 0s; }
+  .kind-drawer { transition: opacity var(--dur-3) var(--ease-settle); }
   .kind-drawer-body, .kind-drawer-well { transition: transform var(--dur-3) var(--ease-settle); }
   .kind-drawer-front::before { transition: opacity var(--dur-3) var(--ease-settle); }
   .kind-drawer-sheet { transition: transform var(--dur-2) var(--ease-standard); }
   .kind-drawer[data-open="true"] .kind-drawer-sheet { transition: transform var(--dur-3) var(--ease-spring); transition-delay: calc(var(--dur-1) + var(--i) * 45ms); }
+  /* 다른 서랍이 닫히는 중에 열면, 그 서랍이 들어가기 시작한 뒤(--dur-1) 따라 나와요. 동시에 움직이면 두 서랍이 엉켜 보여요. */
+  .kind-stage[data-handoff="true"] .kind-drawer[data-open="true"] :is(.kind-drawer-body, .kind-drawer-well),
+  .kind-stage[data-handoff="true"] .kind-drawer[data-open="true"] .kind-drawer-front::before { transition-delay: var(--dur-1); }
+  .kind-stage[data-handoff="true"] .kind-drawer[data-open="true"] .kind-drawer-sheet { transition-delay: calc(var(--dur-1) * 2 + var(--i) * 45ms); }
   .kind-slip { transition: visibility 0s linear var(--dur-drawer); }
   .kind-slip[data-open="true"] { transition-delay: 0s; }
-  .kind-slip-paper { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-3) var(--ease-standard); }
+  .kind-slip-paper { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-3) var(--ease-standard), scale var(--dur-3) var(--ease-settle); }
   .kind-slip[data-open="true"] .kind-slip-paper { transition-delay: var(--dur-1); }
+  /* 옛 종이는 바로 가라앉되, 새 종이가 거의 덮은 뒤(--dur-3)에야 옅어져요. 아직 들어오던 종이였으면 그 미끄러짐을 끊지 않고 이어 가요. */
+  .kind-slip[data-open="true"] .kind-slip-paper[data-leaving] { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-2) var(--ease-standard) var(--dur-3), scale var(--dur-3) var(--ease-settle); }
   @starting-style { .kind-slip[data-open="true"] .kind-slip-paper { opacity: 0; translate: var(--kind-slip-from); } }
   .shelf-paper { transition: translate var(--dur-2) var(--ease-settle), box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-1) var(--ease-standard); }
   /* 처음 놓이는 12장만 차례로 내려앉아요. "더 보기"로 늘어난 100여 장이 한꺼번에 움직이지 않아요. */

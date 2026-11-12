@@ -34,6 +34,10 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const [open, setOpen] = useState<string | null>(null);
   // 닫히는 동안에도 목록 종이가 빈 채로 빠지지 않게 마지막으로 연 서랍을 붙들어 둬요.
   const [last, setLast] = useState<string | null>(null);
+  // 닫히기 시작한 서랍들이에요. 들어가는 동안 새로 연 서랍 아래에 두고, 바로 다른 서랍으로 바꿔 열었으면(swap) 그 목록 종이도 새 종이 밑에서 사라질 때까지 남겨 둬요.
+  // 빠르게 여러 번 바꿔도 서랍마다 따로 붙들어서, 먼저 닫힌 서랍과 종이가 한 프레임에 사라지지 않아요.
+  const [gone, setGone] = useState<{ label: string; swap: boolean }[]>([]);
+  const goneTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const self = useRef<HTMLElement>(null);
   const cabinet = useRef<HTMLDivElement>(null);
   const slip = useRef<HTMLDivElement>(null);
@@ -112,8 +116,24 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   }, [shown]);
   // 서랍을 열면 목록으로 포커스를 옮겨, 화살표로 바로 내리고 Tab으로 파일을 고를 수 있어요.
   useEffect(() => {
-    if (open) slip.current?.querySelector<HTMLElement>(".kind-folder")?.focus({ preventScroll: true });
+    if (open) slip.current?.querySelector<HTMLElement>(".kind-slip-paper:not([data-leaving]) .kind-folder")?.focus({ preventScroll: true });
   }, [open]);
+  useEffect(() => {
+    const timers = goneTimers.current;
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, []);
+  // 닫히기 시작한 서랍을, 다 들어가고 새 목록 종이가 옛 종이를 덮을 때까지(--dur-drawer, CSS는 --dur-3 + --dur-2에 끝나요) 붙들어 둬요. 움직임 줄이기면 붙들 움직임이 없어요.
+  const letGo = (label: string, swap: boolean) => {
+    if (reducedMotion()) return;
+    const timers = goneTimers.current;
+    clearTimeout(timers.get(label));
+    setGone((list) => [...list.filter((item) => item.label !== label), { label, swap }]);
+    const ms = parseFloat(getComputedStyle(self.current ?? document.documentElement).getPropertyValue("--dur-drawer"));
+    timers.set(label, setTimeout(() => {
+      timers.delete(label);
+      setGone((list) => list.filter((item) => item.label !== label));
+    }, ms));
+  };
   // 서랍장 크기는 레이아웃 한 번으로 바꾸고, 옛 자리에서 새 자리까지는 transform 으로 이어요(FLIP). 폭을 매 프레임 바꾸면 그때마다 레이아웃을 다시 계산해서 끊겨요.
   const moveCabinet = (change: () => void) => {
     const element = cabinet.current;
@@ -131,7 +151,10 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   };
   // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
   const close = () => {
-    moveCabinet(() => setOpen(null));
+    moveCabinet(() => {
+      if (open) letGo(open, false);
+      setOpen(null);
+    });
     front.current?.focus({ preventScroll: true });
   };
   // 서랍장 장면에서는 포커스가 어디 있든(제목을 눌렀거나 위 장면의 주름관에 남았어도) Esc로 열린 서랍을 닫아요.
@@ -154,12 +177,20 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   if (!shown) return null;
   const total = shelves.reduce((sum, shelf) => sum + shelf.items.length, 0);
   const listed = shelves.find((shelf) => shelf.label === last) ?? null;
+  // 다른 서랍이 닫히는 중에 연 서랍은 그 서랍이 들어가기 시작한 뒤에 따라 나와요(CSS data-handoff). 들어가던 서랍을 다시 열면 멈칫하지 않고 바로 돌아 나와요.
+  const handoff = open !== null && gone.length > 0 && !gone.some((item) => item.label === open);
+  // 바꿔 열면 옛 목록 종이가 새 종이 밑에 잠깐 남아요. 서랍 순서대로 놓아 React가 종이를 옮기지 않으니 옛 종이는 다시 그려지지 않고 그 자리에서 사라져요. 새 종이는 CSS z-index로 위에 와요.
+  const leaving = new Set(gone.filter((item) => item.swap && item.label !== last).map((item) => item.label));
+  const papers = shelves.filter((shelf) => shelf === listed || leaving.has(shelf.label));
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
     const next = open === shelf.label ? null : shelf.label;
     // 앞판을 다시 눌러 닫을 때도 Esc·닫기처럼 앞판에 포커스를 둬요. WebKit은 눌러도 버튼에 포커스를 주지 않아요.
     if (next === null) return close();
     moveCabinet(() => {
+      // 닫혀 있다가 열면 목록 칸과 함께 빠져나가던 옛 종이를 되살리지 않아요. 되살리면 반쯤 사라진 종이가 제자리로 튀어요.
+      if (open) letGo(open, true);
+      else setGone((list) => list.map((item) => ({ ...item, swap: false })));
       setOpen(next);
       if (next) setLast(next);
     });
@@ -170,40 +201,47 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         <h2 id="kind-shelves-title">형식별로 보기</h2>
         <p>홈에 둔 방의 파일 {countText(total)}개를 종류대로 서랍에 나눠 담았어요. 버전이 여럿인 파일은 최신본만 보여요.</p>
       </header>
-      <div className="kind-stage" data-open={open !== null}>
+      <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
         <div className="kind-cabinet-wrap">
           <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
             {shelves.map((shelf) => (
-              <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} onToggle={(pressed) => toggle(shelf, pressed)} />
+              <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
             ))}
           </div>
         </div>
         <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
-          {listed && (
-            // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 종이가 다시 내려앉아요.
-            <div key={listed.label} className="kind-slip-paper" style={{ "--kind": colorOf(listed) } as CSSProperties}>
-              <div className="kind-folder-head">
-                <h3 id="kind-slip-title">
-                  <span className="kind-dot" aria-hidden="true" />
-                  {listed.label}
-                </h3>
-                <Meta className="kind-folder-count" items={[`${countText(listed.items.length)}개`, formatBytes(listed.size)]} />
-                <button type="button" className="quiet kind-slip-close" onClick={close}>닫기</button>
-              </div>
-              <KindFolder shelf={listed} folders={folders} onOpenFile={onOpenFile} />
-            </div>
-          )}
+          {papers.map((shelf) => (
+            // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 새 종이가 다시 내려앉아요.
+            <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} />
+          ))}
         </div>
       </div>
     </section>
   );
 });
 
+// 목록 종이 한 장. 바꿔 열어 사라지는 중인 옛 종이(leaving)는 손이 닿지 않고 읽히지 않으며, 제목 id도 새 종이에 넘겨요.
+export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose }: { shelf: Shelf; leaving: boolean; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; onClose: () => void }) {
+  return (
+    <div className="kind-slip-paper" data-leaving={leaving || undefined} inert={leaving} aria-hidden={leaving || undefined} style={{ "--kind": colorOf(shelf) } as CSSProperties}>
+      <div className="kind-folder-head">
+        <h3 id={leaving ? undefined : "kind-slip-title"}>
+          <span className="kind-dot" aria-hidden="true" />
+          {shelf.label}
+        </h3>
+        <Meta className="kind-folder-count" items={[`${countText(shelf.items.length)}개`, formatBytes(shelf.size)]} />
+        <button type="button" className="quiet kind-slip-close" onClick={onClose}>닫기</button>
+      </div>
+      <KindFolder shelf={shelf} folders={folders} onOpenFile={onOpenFile} />
+    </div>
+  );
+}
+
 // 서랍 한 칸: 구멍(.kind-drawer) 안에서 앞판(누르는 곳)과 그 뒤의 속이 한 몸으로 빠져나와요.
-function Drawer({ shelf, on, onToggle }: { shelf: Shelf; on: boolean; onToggle: (pressed: HTMLButtonElement) => void }) {
+function Drawer({ shelf, on, closing, onToggle }: { shelf: Shelf; on: boolean; closing: boolean; onToggle: (pressed: HTMLButtonElement) => void }) {
   const count = countText(shelf.items.length);
   return (
-    <div className="kind-drawer" data-open={on} style={{ "--kind": colorOf(shelf) } as CSSProperties}>
+    <div className="kind-drawer" data-open={on} data-closing={closing || undefined} style={{ "--kind": colorOf(shelf) } as CSSProperties}>
       <div className="kind-drawer-body">
         {/* 속: 위에서 내려다본 벽과 바닥, 앞뒤로 줄지어 꽂힌 종이(형식 색 색인 탭). 닫혀 있으면 앞판 뒤에 숨어요. */}
         <span className="kind-drawer-tray" aria-hidden="true">
