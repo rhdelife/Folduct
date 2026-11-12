@@ -22,7 +22,7 @@ const flyMs = 380;
 const gulpMs = 220;
 const growMs = 640;
 const growFrom = flyMs + gulpMs - 60;
-export const fillMs = growMs + 160;
+const fillMs = growMs + 160;
 // 다 솟자마자 웅크렸다가 파일을 하나씩 뱉어요.
 const windFrom = growFrom + growMs + 40;
 const windUp = 420;
@@ -39,7 +39,7 @@ const player = (anims: Animation[]) => (el: Element | null | undefined, frames: 
 };
 
 // 먹기: 먹을 방 카드를 본뜬 조각이 카드 자리(끌어다 놓았으면 놓은 자리)에서 입으로 날아들어 작아지며 사라져요.
-// 삼키면 늘어난 몸이 받침 아래에서 솟아올라요. 받침 선 아래는 가려 두니(styles.css .growing .frodo-home) 아직 안 솟은 몸은 보이지 않아요.
+// 삼키면 늘어난 몸이 받침 아래에서 솟아올라요. 받침 선 아래는 가려 두니(styles.css .frodo-clip) 아직 안 솟은 몸은 보이지 않아요.
 // 움직이는 건 translate·scale·opacity뿐이라 합성 스레드에서 돌아요.
 function playFeed(root: HTMLElement, frodo: HeroFrodo, roomId: string, from: { x: number; y: number } | null, grownBy: number): Play {
   const anims: Animation[] = [];
@@ -68,31 +68,20 @@ function playFeed(root: HTMLElement, frodo: HeroFrodo, roomId: string, from: { x
   }
   timers.push(window.setTimeout(() => cue(homeActor, { face: "wide", ms: flyMs }), 0));
   timers.push(window.setTimeout(() => cue(homeActor, { face: "shut", ms: gulpMs }), flyMs));
-  // 형식 색 가림을 비워 두었다가 솟기와 함께 걷어 올려요(RoomFace의 SMIL animate). 끝나면 가림을 원래대로 다 열어 둬요.
-  const wipe = root.querySelector<SVGRectElement>(".frodo-home .feed-wipe");
-  if (wipe) {
-    const full = { y: wipe.getAttribute("y")!, height: wipe.getAttribute("height")! };
-    wipe.setAttribute("y", String(Number(full.y) + Number(full.height)));
-    wipe.setAttribute("height", "0");
-    timers.push(window.setTimeout(() => wipe.querySelectorAll("animate").forEach((step) => step.beginElement()), growFrom));
-    timers.push(window.setTimeout(() => {
-      wipe.setAttribute("y", full.y);
-      wipe.setAttribute("height", full.height);
-    }, growFrom + fillMs + 50));
-  }
+  const add = player(anims);
+  // 형식 색을 칠한 겹 그림의 칸을 받침에서 위로 걷어 올려요. 바깥 칸은 아래에서 올라오고 안쪽 그림은 그만큼 거꾸로 움직여 제자리에 있어요.
+  // 둘 다 translate라 다시 그리지 않고 레이어만 움직여요.
+  const fill = root.querySelector(".frodo-home .frodo-fill");
+  const fillEase = "cubic-bezier(.33,0,.2,1)";
+  add(fill, [{ translate: "0 100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs, delay: growFrom });
+  add(fill?.firstElementChild, [{ translate: "0 -100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs, delay: growFrom });
   if (grownBy > 0) {
-    root.classList.add("growing");
-    // 한 번에 부드럽게 솟고 끝에서 살며시 멈춰요. 튕기며 멈추면 끊겨 보였어요.
-    const grow = root.querySelector(".frodo-lift")?.animate([
+    // 한 번에 부드럽게 솟고 끝에서 살며시 멈춰요. 받침 선 아래는 .frodo-clip이 늘 가려요.
+    add(root.querySelector(".frodo-lift"), [
       { translate: `0px ${grownBy}px` },
       { offset: growFrom / (growFrom + growMs), translate: `0px ${grownBy}px`, easing: "cubic-bezier(.22,1,.36,1)" },
       { translate: "0px 0px" },
     ], { duration: growFrom + growMs });
-    if (grow) {
-      anims.push(grow);
-      // 끝까지 돈 때만 걷어요. 다른 방을 먹여 취소된 때는 새 먹기가 붙인 가림을 지우면 안 돼요(취소 정리는 effect가 해요).
-      grow.finished.then(() => root.classList.remove("growing"), () => undefined);
-    }
   }
   return { anims, endsAt: windFrom, timers };
 }
@@ -114,11 +103,13 @@ function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: Vie
   if (cards.length && node) {
     // 몸은 숨쉬기로 이미 합성 레이어인 .vase-float에 scale로 겁니다. SVG(.vase-art)에 걸면 WebKit이 시작·끝에 레이어를 새로 만들며 프로도가 잠깐 사라졌어요.
     // 축(50% 90%)은 styles.css .vase-float에 둡니다. 키프레임에 transform-origin을 넣으면 WebKit이 합성 스레드로 넘기지 못해요.
-    // 앱(WebKit)에서는 SVG(.vase-art)나 그 안 머리(g)에 움직임을 걸거나, 숨쉬기가 도는 .vase-float에 겹쳐 걸면 뱉는 동안 프로도 그림 전체가 사라지고 돌아오지 않았어요.
-    // 그래서 웅크리기와 꿀렁임은 다른 움직임이 없는 HTML 껍데기(.frodo-squash) 하나에만 transform으로 걸고, 머리는 표정(눈)으로만 움직여요. 축은 styles.css에 둬요.
-    const body = node.querySelector(".frodo-squash");
-    add(body, [{ transform: "none" }, { transform: "scale(1.05, 0.9)", offset: 0.7 }, { transform: "none" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
-    add(body, [{ transform: "none" }, { transform: "scale(0.97, 1.04)", offset: 0.45 }, { transform: "none" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
+    // 앱(WebKit)에서 확인한 것:
+    // - SVG 안 머리(g)에 transform 움직임을 걸면 뱉는 동안 프로도 그림 전체가 사라지고 돌아오지 않았어요.
+    // - 새 껍데기에 움직임을 걸면 시작·끝마다 레이어를 새로 만들어 프로도가 깜빡였어요.
+    // 그래서 웅크리기와 꿀렁임은 숨쉬기로 늘 레이어인 .vase-float에 scale로만 걸고(숨쉬기는 transform이라 겹치지 않아요), 머리는 표정(눈)으로만 움직여요.
+    const body = node.querySelector(".vase-float");
+    add(body, [{ scale: "1" }, { scale: "1.05 0.9", offset: 0.7 }, { scale: "1" }], { duration: windUp, delay: windFrom, easing: "ease-in-out" });
+    add(body, [{ scale: "1" }, { scale: "0.97 1.04", offset: 0.45 }, { scale: "1" }], { duration: puffMs, delay: spillFrom, iterations: Math.max(1, Math.round(spitting / puffMs)), easing: "ease-in-out" });
   }
   return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting, timers: [] };
 }
@@ -147,7 +138,6 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
       timers.forEach(clearTimeout);
       [...ate.anims, ...anims].forEach((anim) => anim.cancel());
       root.querySelectorAll(".feed-morsel").forEach((el) => el.remove());
-      root.classList.remove("growing");
     };
   }, [selectedId]);
 }

@@ -224,7 +224,8 @@
 | `scene/hero-layer-z` | `40` |  |
 | `scene/hero-tip-z` | `50` |  |
 | `scene/shelf-card-max` | `160px` |  |
-| `scene/shelf-cover` | `36px` |  |
+| `scene/shelf-cover` | `64px` |  |
+| `scene/shelf-cover-narrow` | `44px` |  |
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |

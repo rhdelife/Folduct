@@ -923,7 +923,11 @@
     },
     "shelf-cover": {
       "$type": "other",
-      "$value": "36px"
+      "$value": "64px"
+    },
+    "shelf-cover-narrow": {
+      "$type": "other",
+      "$value": "44px"
     },
     "pet-w": {
       "$type": "other",

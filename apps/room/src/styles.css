@@ -183,7 +183,8 @@
   --hero-tip-z: 50;
   /* 홈 위 방 카드: 한 장의 가장 큰 폭과 그림 크기. 줄 높이는 domain/heroLayout.ts shelfHeight와 맞춰요. */
   --shelf-card-max: 160px;
-  --shelf-cover: 36px;
+  --shelf-cover: 64px;
+  --shelf-cover-narrow: 44px;
 
   /* 플로팅 창 */
   --pet-w: 216px;
@@ -497,12 +498,18 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
    transform만 움직여 합성 레이어에서 돌아가므로 지도를 다시 그리지 않습니다. */
 .sky-rooms { position: absolute; inset: 0; pointer-events: none; }
 .frodo-home { position: absolute; display: block; pointer-events: none; }
-/* 먹고 늘어나는 동안 받침 선 아래는 가려요. 늘어난 몸이 받침에서 솟아올라요(heroMotion). */
-.sky-canvas.growing .frodo-home { clip-path: inset(-100vh -100vw 0 -100vw); }
-.frodo-lift, .frodo-squash, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
-/* 뱉기 전 웅크리기와 뱉을 때 꿀렁임만 받는 껍데기(heroMotion). 다른 움직임과 겹치지 않게 따로 둬요. */
-.frodo-squash { transform-origin: 50% 90%; }
-.sky-canvas.growing .frodo-lift { will-change: translate; }
+.frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
+/* 받침 선 아래만 가리는 칸. 솟는 몸의 아직 안 나온 부분을 숨겨요. clip-path 대신 overflow라 앱(WebKit)에서도 레이어만 움직여요. */
+.frodo-clip { position: absolute; inset: -100vh -100vw 0 -100vw; display: block; overflow: hidden; pointer-events: none; }
+.frodo-clip > .frodo-lift { inset: 100vh 100vw 0 100vw; }
+/* 몸은 한 번 그린 그림(img), 색은 그 위에 겹친 그림, 눈은 표정 시트 한 칸이에요(RoomFace StackArt). */
+.frodo-img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.frodo-fill, .frodo-fill-in { position: absolute; inset: 0; display: block; }
+.frodo-fill { overflow: hidden; }
+.frodo-face { position: absolute; display: block; background-repeat: no-repeat; pointer-events: none; }
+.frodo-hit { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+/* 솟기를 받는 껍데기는 늘 자기 레이어에 둬요. 먹을 때만 레이어를 만들면 앱(WebKit)에서 시작·끝에 프로도가 깜빡였어요. */
+.frodo-lift { will-change: translate; }
 /* 색 띠만 가리킬 수 있어요(나머지 몸은 지나가요). 올리면 그 형식의 비율을 보여 줘요(.band-tip). */
 .frodo-home .feed-band { pointer-events: visiblePainted; cursor: default; }
 .band-tip { position: absolute; z-index: var(--hero-tip-z); margin: 0; padding: var(--space-1) var(--space-2); translate: var(--space-3) calc(-100% - var(--space-2)); border-radius: var(--radius-md); background: var(--ink); color: var(--on-ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 600; white-space: nowrap; pointer-events: none; }
@@ -777,6 +784,7 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .scene-hero .room-sub { display: none; }
 }
 @media (max-width: 719.98px) {
+  .scene-hero { --shelf-cover: var(--shelf-cover-narrow); }
   .scene-hero .sky-panel { top: auto; }
   .scene-hero .sky-layout.has-panel .sky-stage { transform: translateY(-29dvh); }
 }

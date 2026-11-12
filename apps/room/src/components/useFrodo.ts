@@ -43,7 +43,7 @@ export const centerOf = (el: Element): Point => {
 const blinkGap = () => 2600 + Math.random() * 4200;
 
 export function useFrodo(actor: string | undefined, mood: FaceExpr) {
-  const faceRef = useRef<SVGRectElement | null>(null);
+  const faceRef = useRef<Element | null>(null);
   const [flash, setFlash] = useState<FaceExpr | null>(null);
   const [look, setLook] = useState<FaceExpr | null>(null);
   const [blink, setBlink] = useState<FaceExpr | null>(null);

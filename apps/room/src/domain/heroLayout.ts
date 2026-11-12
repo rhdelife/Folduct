@@ -14,8 +14,8 @@ const edge = 16;
 // "방 열기 · +N개 더" 한 줄의 높이(styles.css .room-more)
 export const moreHeight = 32;
 const moreWidth = 96;
-// 위 방 카드 줄의 높이. styles.css .room-shelf와 맞춰요.
-export const shelfHeight = (view: View) => (view.w < 720 ? 76 : 92);
+// 위 방 카드 줄의 높이. styles.css .room-shelf(--shelf-cover)와 맞춰요.
+export const shelfHeight = (view: View) => (view.w < 720 ? 92 : 124);
 // 화면 아래 가운데 "형식별로 보기" 손잡이 자리
 const hintSpace = 56;
 // 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
@@ -76,14 +76,13 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const [calendar] = calendarSpot(view);
   const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - hintSpace;
   const tall = Math.max(1, below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top);
-  // 넓은 창은 프로도와 파일 칸을 함께 가운데 둬요. 먹기 전에도 같은 자리라 먹어도 프로도가 옆으로 움직이지 않아요.
-  // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게 오른쪽으로 비켜요.
+  // 프로도는 늘 창 가운데에 서요. 넓은 창은 파일 칸이 프로도 오른쪽에 들어가도록 프로도 크기를 맞춰요.
+  // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게만 오른쪽으로 비켜요.
   const leftMin = calendar && !below ? calendar.x + calendar.hw + edge : edge;
-  const across = below ? view.w - 2 * edge : view.w - leftMin - filesMin - 3 * edge;
+  const across = below ? view.w - 2 * edge : view.w - 2 * (filesMin + 2 * edge);
   const scale = Math.min(maxScale, tall / full[3], across / full[2]);
   const width = bw * scale;
-  const centered = (view.w - width - 2 * edge - Math.min(filesMax, view.w - width - 4 * edge)) / 2;
-  const left = below ? (view.w - width) / 2 : Math.max(leftMin, centered);
+  const left = Math.max(below ? edge : leftMin, (view.w - width) / 2);
   const filesWidth = below ? 0 : Math.max(moreWidth, Math.min(filesMax, view.w - edge - (left + width + 2 * edge)));
   const floor = top + tall;
   const height = bh * scale;

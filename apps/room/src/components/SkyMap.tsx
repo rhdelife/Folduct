@@ -11,7 +11,7 @@ import { sky, stepRoom, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { awayFromHome } from "./home/engine";
-import { fillMs, useHeroMotion } from "./home/heroMotion";
+import { useHeroMotion } from "./home/heroMotion";
 import { AxisWindow, axisMs, WheelStepper } from "../domain/wheelStep";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
@@ -428,12 +428,12 @@ const MapLayers = memo(function MapLayers({
       <div className="sky-rooms">
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)}>
+            <span className="frodo-clip">
             <span className="frodo-lift">
-              <span className="frodo-squash">
               <span className="vase-float">
-                <StackArt key={picked?.id ?? "hungry"} lengths={lengths} parts={parts} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} wipeMs={fillMs} />
+                <StackArt key={picked?.id ?? "hungry"} lengths={lengths} parts={parts} px={Math.round(frodo.width / 8) * 8} foot={picked ? faceColorVar(picked.face.color) : undefined} className="vase-art" actor={homeActor} mood={picked ? "happy" : "base"} />
               </span>
-              </span>
+            </span>
             </span>
           </div>
         )}
@@ -483,7 +483,7 @@ const MapLayers = memo(function MapLayers({
                   onMouseEnter={(event) => cue(homeActor, { look: centerOf(event.currentTarget) })}
                   onMouseLeave={() => cue(homeActor, { look: null })}
                 >
-                  <RoomCover room={room} folder={folders.get(room.id) ?? null} px={36} />
+                  <RoomCover room={room} folder={folders.get(room.id) ?? null} px={64} />
                   <span className="room-label">{room.name}</span>
                   <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
                 </button>
