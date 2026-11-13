@@ -27,6 +27,7 @@
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
 | `color/neutral/bg` | `#f6f6f3` |  |
+| `color/neutral/bg-wash` | `radial-gradient(55% 45% at 12% 8%, rgb(255 255 255 / 0.95), transparent 70%), radial-gradient(45% 40% at 92% 18%, rgb(255 255 255 / 0.7), transparent 70%), radial-gradient(50% 45% at 80% 95%, rgb(23 23 23 / 0.045), transparent 70%), radial-gradient(40% 35% at 5% 85%, rgb(23 23 23 / 0.035), transparent 70%)` |  |
 | `color/neutral/ground` | `#efefec` |  |
 | `color/neutral/surface` | `#ffffff` |  |
 | `color/neutral/surface-sunken` | `#f4f1ea` |  |

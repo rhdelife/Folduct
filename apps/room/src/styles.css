@@ -13,6 +13,8 @@
 :root {
   /* 라이트박스: 눈이 부시지 않게 살짝 낮춘 흰 판, 얇은 선, 굵은 검정 글자. 색은 파일 형식의 몫(palette.ts)이고, 상태는 잉크·모양·글자로 보여줍니다. */
   --bg: #f6f6f3;
+  /* 유리 판 뒤가 비쳐 보이게 바탕에 아주 옅은 빛 번짐을 깔아요. 색은 파일 형식 몫이라 흰빛과 잉크 그늘만 써요. */
+  --bg-wash: radial-gradient(55% 45% at 12% 8%, rgb(255 255 255 / 0.95), transparent 70%), radial-gradient(45% 40% at 92% 18%, rgb(255 255 255 / 0.7), transparent 70%), radial-gradient(50% 45% at 80% 95%, rgb(23 23 23 / 0.045), transparent 70%), radial-gradient(40% 35% at 5% 85%, rgb(23 23 23 / 0.035), transparent 70%);
   /* 판 아래 바닥(들린 판 밑)과 판의 점. 흰색끼리 겨우 갈리는 정도로 둡니다. */
   --ground: #efefec;
   --surface: #ffffff;
@@ -286,7 +288,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100dvh; background: var(--bg); }
+body { margin: 0; min-height: 100dvh; background: var(--bg-wash), var(--bg); background-attachment: fixed; }
 /* 가로로 넘친 것이 페이지를 옆으로 밀지 않게 자릅니다. hidden이 아니라 clip이라 sticky가 그대로 붙어요. */
 html, body { overflow-x: clip; }
 html[data-shell="native"] { overscroll-behavior: none; }
@@ -1506,13 +1508,22 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 
 /* ══ 글래스 ══ */
 /* 테두리를 없애고 뒤가 비치는 면과 그림자로 나눕니다. 위 규칙들을 덮으려고 맨 뒤에 둡니다. */
-.side, .sheet-body, dialog.sheet:not(.menu) .sheet-body, dialog.sheet.weekly .sheet-body, .context-menu, .sky-tip, .sky-panel, .doorstep {
+.side, .sheet-body, dialog.sheet:not(.menu) .sheet-body, dialog.sheet.weekly .sheet-body, .context-menu, .sky-tip, .sky-panel, .doorstep, .work-cal, .home-panel {
   border: 0;
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-shadow);
 }
+
+/* 홈의 유리 판 안 카드는 선 없이 한 겹 옅은 유리로 나눠요. 판이 이미 뒤를 흐리니 안쪽은 흐림을 겹치지 않아요. */
+.home-panel .trend-card { border: 0; background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
+.work-cal:hover:not(:disabled) { background: var(--glass-bg-strong); }
+/* 프로도 아래 작업 줄과 방 알약도 유리 알약이에요. 시작·다시 시작(잉크)과 멈춤·끝내기(붉은색)는 그대로예요. */
+.work-control button:not(.primary, .stop, .end), .work-control .pet-room { background: var(--glass-chip); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-chip-shadow); }
+.work-control button:not(.primary, .stop, .end):hover:not(:disabled) { background: var(--glass-chip-hover); }
+/* 메뉴 막대 작은 창의 판. 창 뒤 바탕화면은 흐릴 수 없어 조금 더 짙은 유리로 둬요. */
+.pet-card { background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); }
 
 /* 버튼·입력: 선 대신 면. 고른 상태는 잉크 고리나 굵은 글자가 말합니다. */
 :where(button, .button) { border: 0; background: var(--button-bg); box-shadow: none; }
