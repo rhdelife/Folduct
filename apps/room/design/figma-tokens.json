@@ -933,6 +933,14 @@
       "$type": "other",
       "$value": "216px"
     },
+    "pet-panel-w": {
+      "$type": "other",
+      "$value": "300px"
+    },
+    "pet-panel-art": {
+      "$type": "other",
+      "$value": "64px"
+    },
     "pet-vase": {
       "$type": "other",
       "$value": "104px"

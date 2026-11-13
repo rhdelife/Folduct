@@ -34,14 +34,16 @@ export function arrivals(items: DoorItem[], session: Session | null): DoorItem[]
   return items.filter((item) => item.since >= session.watchFrom).sort((a, b) => a.since - b.since || a.lastModified - b.lastModified);
 }
 
-// 플로팅 창 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.
+// 작은 창 설정. askEvery는 작업 상태를 묻는 주기(분)이고 0이면 묻지 않아요.
+// floating이면 작은 창을 화면에 늘 띄워 두고, 아니면(기본) 메뉴 막대 아이콘을 누를 때만 그 아래에 열어요.
+// 늘 떠 있는 창이 화면을 가린다는 말에 기본을 껐어요. 예전 hidden 값은 읽지 않아 모두 아이콘 창으로 시작해요.
 export const askChoices = [0, 5, 10, 30] as const;
-export type PetSettings = { askEvery: number; hidden: boolean };
-export const defaultPet: PetSettings = { askEvery: 10, hidden: false };
+export type PetSettings = { askEvery: number; floating: boolean };
+export const defaultPet: PetSettings = { askEvery: 10, floating: false };
 
 export function normalizePet(value: unknown): PetSettings {
   const pet = value as Partial<PetSettings> | null | undefined;
-  return { askEvery: askChoices.some((choice) => choice === pet?.askEvery) ? pet!.askEvery! : defaultPet.askEvery, hidden: pet?.hidden === true };
+  return { askEvery: askChoices.some((choice) => choice === pet?.askEvery) ? pet!.askEvery! : defaultPet.askEvery, floating: pet?.floating === true };
 }
 
 export function formatWorked(ms: number): string {

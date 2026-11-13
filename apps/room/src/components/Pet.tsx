@@ -33,7 +33,12 @@ const cursorEveryMs = 150;
 const untuckMs = 400;
 const glanceEveryMs = 9_000;
 
-// 앱 화면과 따로 늘 떠 있는 작은 창. 주름관은 지금 하는 프로젝트이고, 자세가 지금 상태를 말해요. 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
+// 그림이 차지하는 폭(아이콘 아래 작은 창). styles.css --pet-panel-art와 같아요.
+const panelPx = 64;
+// 다른 곳을 눌러 닫힌 바로 그 누름이 아이콘이면, 그 누름으로 다시 열지 않아요.
+const reopenGapMs = 300;
+
+// 메뉴 막대 아이콘 아래에 여는 작은 창(기본), 또는 앱 화면과 따로 늘 떠 있는 작은 창(띄워 두기). 주름관은 지금 하는 프로젝트이고, 자세가 지금 상태를 말해요. 작업의 시작·멈춤·끝만 정합니다. 파일은 건드리지 않아요.
 export function Pet() {
   const [session, setSession] = useState<Session | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -46,6 +51,10 @@ export function Pet() {
   const [door, setDoor] = useState<Doorstep | null>(null);
   const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room } } | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
+  // 아이콘 아래 작은 창이 열려 있는지. 띄워 두기를 켜면 쓰지 않아요.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const closedAt = useRef(0);
+  const picking = useRef(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const dragged = useRef(false);
@@ -100,7 +109,7 @@ export function Pet() {
     getPetSettings()
       .then((saved) => {
         setPet(saved);
-        if (!saved.hidden && isNative()) return setPetVisible(true);
+        if (saved.floating && isNative()) return setPetVisible(true);
       })
       .catch((error: unknown) => console.error(error));
     if (isNative()) {
@@ -118,15 +127,17 @@ export function Pet() {
   // 정한 주기마다 지금 상태가 맞는지 묻습니다. 상태를 바꾸면 주기를 처음부터 다시 세요.
   const status = session?.status;
   useEffect(() => {
-    if (!status || pet.hidden || pet.askEvery === 0) return setAsking(false);
+    if (!status || pet.askEvery === 0) return setAsking(false);
     const timer = window.setInterval(() => setAsking(true), pet.askEvery * 60_000);
     return () => window.clearInterval(timer);
-  }, [status, pet.hidden, pet.askEvery]);
+  }, [status, pet.askEvery]);
+  // 묻는 말은 보이는 동안만 30초 세요. 아이콘 창을 닫아 둔 동안은 아이콘 점으로 남아 있다가, 열면 그때부터 세요.
+  const askVisible = asking && (pet.floating || panelOpen);
   useEffect(() => {
-    if (!asking) return;
+    if (!askVisible) return;
     const timer = window.setTimeout(() => setAsking(false), askShownMs);
     return () => window.clearTimeout(timer);
-  }, [asking]);
+  }, [askVisible]);
 
   useEffect(() => {
     if (!working) return;
@@ -248,6 +259,8 @@ export function Pet() {
   async function addFolder() {
     const win = getCurrentWindow();
     const home = await win.outerPosition();
+    // 폴더 고르기 창이 뜨는 동안은 포커스가 빠져도 아이콘 창을 닫지 않아요.
+    picking.current = true;
     try {
       const folder = await pickRoomFolder(await downloadDir());
       // 선택 창이 작은 창에 붙으면서 창을 밀어내요. 제자리로 돌려놓습니다.
@@ -260,25 +273,59 @@ export function Pet() {
     } catch (error) {
       console.error(error);
       setDone({ text: "폴더를 읽지 못했어요. 권한을 확인해 주세요.", failed: true });
+    } finally {
+      picking.current = false;
+      if (!pet.floating && isNative()) invoke("set_panel_visible", { visible: true }).catch((error: unknown) => console.error(error));
     }
   }
 
+  // 아이콘 아래 작은 창 열기·닫기. 여는 순간 방 목록을 새로 읽어요.
+  function openPanel() {
+    reloadRooms();
+    setMotion(null);
+    setPanelOpen(true);
+    if (isNative()) invoke("set_panel_visible", { visible: true }).catch((error: unknown) => console.error(error));
+  }
+  function closePanel() {
+    closedAt.current = Date.now();
+    setPanelOpen(false);
+    if (isNative()) invoke("set_panel_visible", { visible: false }).catch((error: unknown) => console.error(error));
+  }
+  function togglePanel() {
+    if (panelOpen) closePanel();
+    else if (Date.now() - closedAt.current > reopenGapMs) openPanel();
+  }
+
   // 앱에서 방 이름이나 얼굴을 바꿨을 수 있어 돌아올 때마다 다시 읽습니다. 다른 곳을 누르면 메뉴를 닫아요.
+  // 아이콘 아래 작은 창은 다른 곳을 누르면 닫혀요. 화면을 가리지 않게요.
+  const onBlurPanel = useRef(() => {});
+  onBlurPanel.current = () => {
+    if (!pet.floating && panelOpen && !picking.current) closePanel();
+  };
   useEffect(() => {
     const onFocus = reloadRooms;
-    const onBlur = () => setMenuOpen(false);
+    const onBlur = () => {
+      setMenuOpen(false);
+      onBlurPanel.current();
+    };
+    // 막 연 창은 안의 단추에 포커스가 없어 main에 건 키는 오지 않아요. 창 전체에서 Esc를 들어요.
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onBlurPanel.current();
+    };
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("keydown", onKey);
     };
   }, [reloadRooms]);
 
   // 프로도가 커서를 눈으로 따라가고, 창에 들어오면 손을 흔듭니다. 멈춤 상태에서는 자고 있어요.
   const sleeping = session?.status === "paused";
   useEffect(() => {
-    if (pet.hidden || sleeping) {
+    if (!pet.floating || sleeping) {
       cue("pet", { look: null });
       return;
     }
@@ -305,7 +352,7 @@ export function Pet() {
       }).catch((error: unknown) => console.error(error));
     }, cursorEveryMs);
     return () => window.clearInterval(timer);
-  }, [pet.hidden, sleeping]);
+  }, [pet.floating, sleeping]);
 
   // 작업 중에는 가끔 폴더를 살피듯 두리번거립니다.
   useEffect(() => {
@@ -340,7 +387,7 @@ export function Pet() {
   }
 
   function onPointerMove(event: PointerEvent<HTMLElement>) {
-    if (!press.current || Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) < dragSlop) return;
+    if (!pet.floating || !press.current || Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) < dragSlop) return;
     press.current = null;
     dragged.current = true;
     if (isNative()) getCurrentWindow().startDragging().catch((error: unknown) => console.error(error));
@@ -348,45 +395,55 @@ export function Pet() {
 
   function openApp() {
     setMenuOpen(false);
+    if (panelOpen) closePanel();
     invoke("show_main").catch((error: unknown) => console.error(error));
   }
 
-  // 숨기면 메뉴 막대 아이콘으로 들어가고, 아이콘을 누르면 다시 나와요. 앱의 환경설정 스위치도 따라오게 알려요.
-  function showOrHide(hidden: boolean, fromIcon = false) {
+  // 띄워 두기를 끄면 메뉴 막대 아이콘으로 들어가고, 그 뒤로는 아이콘을 누를 때만 아래에 작은 창이 열려요. 앱의 환경설정 스위치도 따라오게 알려요.
+  function setFloating(floating: boolean, fromIcon = false) {
     setMenuOpen(false);
-    const next = { ...pet, hidden };
+    setPanelOpen(false);
+    // 띄워 둔 프로도가 아이콘으로 들어가는 동안은 프로도 모양을 그대로 둬요. 작은 창 판이 대신 미끄러져 들어가지 않게요.
+    if (!floating && pet.floating) setMotion("tuck");
+    const next = { ...pet, floating };
     setPet(next);
     void (async () => {
       try {
         await savePetSettings(next);
-        await setPetVisible(!hidden, fromIcon);
+        await setPetVisible(floating, fromIcon);
         await emit(petSettingsChanged);
       } catch (error) {
         console.error(error);
       }
     })();
   }
-  const hide = () => showOrHide(true);
+  const hide = () => setFloating(false);
   // 들어가던 중에 다른 길(환경설정)로 다시 켜져도 프로도가 사라진 채로 남지 않게 합니다.
   useEffect(() => {
-    if (!pet.hidden) setMotion((now) => (now === "tuck" ? null : now));
-  }, [pet.hidden]);
+    if (pet.floating) setMotion((now) => (now === "tuck" ? null : now));
+  }, [pet.floating]);
 
-  // 메뉴 막대 아이콘을 누르거나 그 메뉴에서 고르면 Rust가 알려 줍니다. 설정이 바뀔 때마다 새 설정으로 다시 들어요.
-  const toggleFromTray = useRef(showOrHide);
-  toggleFromTray.current = showOrHide;
+  // 메뉴 막대 아이콘을 누르면(tray-pet) 띄워 둔 창은 아이콘으로 들어가고, 아니면 아이콘 아래 작은 창을 열고 닫아요.
+  // 아이콘 메뉴의 플로팅 창 보이기·숨기기(tray-float)는 띄워 두기를 켜고 꺼요. 설정이 바뀔 때마다 새 값으로 다시 들어요.
+  const fromTray = useRef({ icon: () => {}, float: () => {} });
+  fromTray.current = {
+    icon: () => (pet.floating ? setFloating(false, true) : togglePanel()),
+    float: () => setFloating(!pet.floating, true),
+  };
   useEffect(() => {
     if (!isNative()) return;
     let left = false;
     const stops: (() => void)[] = [];
     const add = (stop: () => void) => (left ? stop() : stops.push(stop));
-    void listen<boolean>("tray-pet", (event) => toggleFromTray.current(!event.payload, true)).then(add);
+    void listen("tray-pet", () => fromTray.current.icon()).then(add);
+    void listen("tray-float", () => fromTray.current.float()).then(add);
     // 나오는 동작은 시간으로 끝냅니다. 움직임 줄이기에서는 애니메이션이 아예 돌지 않아 끝났다는 신호가 오지 않아요.
     let settle = 0;
     void listen<"tuck" | "untuck">("pet-motion", (event) => {
       window.clearTimeout(settle);
       setMotion(event.payload);
-      if (event.payload === "untuck") settle = window.setTimeout(() => setMotion((now) => (now === "untuck" ? null : now)), untuckMs);
+      // 들어가는 동작도 시간으로 끝내요. 끝난 뒤에야 작은 창 판으로 바뀌고 창 크기도 다시 맞춰요.
+      settle = window.setTimeout(() => setMotion((now) => (now === event.payload ? null : now)), untuckMs);
     }).then(add);
     return () => {
       left = true;
@@ -400,39 +457,32 @@ export function Pet() {
   const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
   const state = session ? session.status : "off";
   const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
-  return (
-    <main ref={root} className={`pet pet-${state}${motion ? ` pet-${motion}` : ""}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
-      if (press.current) cue("pet", { body: "hop" });
-      press.current = null;
-    }}>
-      <button
-        type="button"
-        className="pet-vase"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        aria-label={room ? `${room.name} 메뉴` : "Folduct 메뉴"}
-        onClick={() => {
-          if (!dragged.current) openMenu();
-        }}
-      >
-        <span key={pose} className="pet-pose">
-          <PoseArt pose={pose} actor="pet" mood={asking ? "tilt" : menuOpen ? "lookD" : poseFace[pose]} parts={room ? kindParts(room.things) : []} px={petPx} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
-        </span>
-      </button>
-      {session ? (
-        <div className="pet-bar">
-          <p className="pet-status" role="status">
-            <strong>{working ? "작업 중" : "멈춤"}</strong>
-            <time>{formatWorked(workedTime(session, now))}</time>
-            {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
-          </p>
-          <button type="button" className="pet-toggle" data-no-drag onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>
-            {working ? "멈춤" : "다시 시작"}
-          </button>
-        </div>
-      ) : (
-        <button type="button" className="pet-start" data-no-drag aria-haspopup="menu" aria-expanded={menuOpen} onClick={openMenu}>작업 시작</button>
-      )}
+  const panel = !pet.floating && motion !== "tuck";
+
+  // 아이콘 창을 닫아 둔 채로 새 파일이 오거나 상태를 물을 때가 되면 아이콘에 점을 찍어요. 열면 지워요.
+  const dot = isNative() && panel && !panelOpen && (incoming.length > 0 || asking);
+  useEffect(() => {
+    if (isNative()) invoke("set_tray_dot", { on: dot }).catch((error: unknown) => console.error(error));
+  }, [dot]);
+
+  function start(roomId: string) {
+    setMenuOpen(false);
+    change(startSession(roomId, Date.now()));
+  }
+  function endWork(current: Session) {
+    setMenuOpen(false);
+    if (isNative()) emit(sessionEnded, current.roomId).catch((error: unknown) => console.error(error));
+    change(null);
+  }
+  const quit = () => invoke("quit_app").catch((error: unknown) => console.error(error));
+  const art = (px: number) => (
+    <span key={pose} className="pet-pose">
+      <PoseArt pose={pose} actor="pet" mood={asking ? "tilt" : menuOpen ? "lookD" : poseFace[pose]} parts={room ? kindParts(room.things) : []} px={px} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
+    </span>
+  );
+  // 새 파일 넣기, 옮긴 결과와 되돌리기, 폴더 고르기, 상태 묻기. 두 모양이 함께 써요.
+  const asks = (
+    <>
       {incoming.length > 0 && room && (
         <div className="pet-ask" data-no-drag>
           <p role="status">새 파일{incoming.length > 1 ? ` ${incoming.length}개` : ""}</p>
@@ -466,6 +516,95 @@ export function Pet() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  // 아이콘 아래 작은 창: 지금 상태, 시작·멈춤·끝, 묻는 것, 아래에 앱 열기·띄워 두기·끄기. Esc나 다른 곳을 누르면 닫혀요.
+  if (panel) {
+    return (
+      <main ref={root} className={`pet pet-panel pet-${state}`}>
+        <div className="pet-card">
+          <header className="pet-panel-head">
+            <span className="pet-panel-art" aria-hidden="true">{art(panelPx)}</span>
+            <p className="pet-status" role="status">
+              {session ? (
+                <>
+                  <strong>{working ? "작업 중" : "멈춤"}</strong>
+                  <time>{formatWorked(workedTime(session, now))}</time>
+                  {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
+                </>
+              ) : (
+                <>
+                  <strong>작업 전</strong>
+                  <small>방을 고르면 시간을 재기 시작해요.</small>
+                </>
+              )}
+            </p>
+          </header>
+          {session ? (
+            <div className="pet-panel-row">
+              <button type="button" className="primary" onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>{working ? "멈춤" : "다시 시작"}</button>
+              <button type="button" onClick={() => endWork(session)}>작업 끝내기</button>
+            </div>
+          ) : choices.length > 0 ? (
+            <div className="pet-panel-rooms">
+              <p>어느 방을 시작할까요?</p>
+              <ul>
+                {choices.map((item) => (
+                  <li key={item.id}>
+                    <button type="button" onClick={() => start(item.id)}>{item.name}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="pet-panel-note">진행 중인 방이 없어요. 앱에서 방을 만들어 주세요.</p>
+          )}
+          {asks}
+          {isNative() && (
+            <footer className="pet-panel-foot">
+              <button type="button" onClick={openApp}>앱 열기</button>
+              <button type="button" onClick={() => setFloating(true)}>띄워 두기</button>
+              <button type="button" onClick={() => void quit()}>Folduct 끄기</button>
+            </footer>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main ref={root} className={`pet pet-${state}${motion ? ` pet-${motion}` : ""}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
+      if (press.current) cue("pet", { body: "hop" });
+      press.current = null;
+    }}>
+      <button
+        type="button"
+        className="pet-vase"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label={room ? `${room.name} 메뉴` : "Folduct 메뉴"}
+        onClick={() => {
+          if (!dragged.current) openMenu();
+        }}
+      >
+        {art(petPx)}
+      </button>
+      {session ? (
+        <div className="pet-bar">
+          <p className="pet-status" role="status">
+            <strong>{working ? "작업 중" : "멈춤"}</strong>
+            <time>{formatWorked(workedTime(session, now))}</time>
+            {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
+          </p>
+          <button type="button" className="pet-toggle" data-no-drag onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>
+            {working ? "멈춤" : "다시 시작"}
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="pet-start" data-no-drag aria-haspopup="menu" aria-expanded={menuOpen} onClick={openMenu}>작업 시작</button>
+      )}
+      {asks}
       {menuOpen && (
         <div className="pet-menu" data-no-drag>
           {!session && (
@@ -475,13 +614,7 @@ export function Pet() {
                 <ul>
                   {choices.map((item) => (
                     <li key={item.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          change(startSession(item.id, Date.now()));
-                        }}
-                      >
+                      <button type="button" onClick={() => start(item.id)}>
                         {item.name}
                       </button>
                     </li>
@@ -493,20 +626,13 @@ export function Pet() {
             )
           )}
           {session && (
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                if (isNative()) emit(sessionEnded, session.roomId).catch((error: unknown) => console.error(error));
-                change(null);
-              }}
-            >
+            <button type="button" onClick={() => endWork(session)}>
               작업 끝내기
             </button>
           )}
           {isNative() && <button type="button" onClick={openApp}>앱 열기</button>}
           {isNative() && <button type="button" onClick={hide}>숨기기</button>}
-          {isNative() && <button type="button" onClick={() => invoke("quit_app").catch((error: unknown) => console.error(error))}>Folduct 끄기</button>}
+          {isNative() && <button type="button" onClick={() => void quit()}>Folduct 끄기</button>}
         </div>
       )}
     </main>

@@ -188,6 +188,9 @@
 
   /* 플로팅 창 */
   --pet-w: 216px;
+  /* 메뉴 막대 아이콘 아래 작은 창의 폭과 그 안 프로도 크기(Pet.tsx panelPx) */
+  --pet-panel-w: 300px;
+  --pet-panel-art: 64px;
   --pet-vase: 104px;
   --pet-list-h: 168px;
 
@@ -1479,6 +1482,23 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .pet .pet-toggle:hover:not(:disabled), .pet .pet-toggle:active:not(:disabled) { background: var(--glass-wash-strong); }
 .pet.pet-working .pet-toggle:hover:not(:disabled), .pet.pet-working .pet-toggle:active:not(:disabled) { background: var(--glass-dark-chip); }
 .pet-ask button { border-radius: var(--radius-pill); }
+
+/* 메뉴 막대 아이콘 아래 작은 창. 투명한 창 안에 흰 판 하나를 두고, 그림자는 창 안 여백에서 끝나요. 끌어 옮기지 않아요. */
+.pet.pet-panel { width: var(--pet-panel-w); padding: var(--space-2); display: block; cursor: default; }
+.pet-card { display: grid; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--glass-chip-shadow); }
+.pet-panel-head { display: grid; grid-template-columns: var(--pet-panel-art) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.pet-panel .pet-pose > svg { width: var(--pet-panel-art); height: var(--pet-panel-art); }
+.pet-panel-row, .pet-panel-foot { display: flex; gap: var(--space-2); }
+.pet-panel-row button { flex: 1 1 0; min-width: 0; min-height: var(--control-md); border-radius: var(--radius-pill); font-size: var(--text-sm); white-space: nowrap; }
+.pet-panel-rooms { display: grid; gap: var(--space-1); }
+.pet-panel-rooms p, .pet-panel-note { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.pet-panel-rooms ul { max-height: var(--pet-list-h); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.pet-panel-rooms button { width: 100%; min-height: var(--control-md); justify-content: flex-start; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); font-size: var(--text-sm); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-panel-rooms button:hover:not(:disabled) { background: var(--surface-sunken); }
+.pet-panel .pet-ask { background: var(--surface-sunken); box-shadow: none; }
+.pet-panel-foot { padding-top: var(--space-2); border-top: 1px solid var(--line); }
+.pet-panel-foot button { flex: 1 1 0; min-width: 0; min-height: var(--control-sm); padding: 0 var(--space-1); border: 0; background: none; color: var(--ink-soft); font-size: var(--text-xs); white-space: nowrap; }
+.pet-panel-foot button:hover:not(:disabled) { color: var(--ink); background: var(--surface-sunken); }
 
 @media (prefers-reduced-transparency: reduce) {
   :root { --glass-bg: var(--surface); --glass-bg-strong: var(--surface); --glass-chip: var(--surface); --glass-dark: var(--ink); }

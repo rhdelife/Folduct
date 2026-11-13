@@ -47,7 +47,8 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
     void (async () => {
       try {
         await savePetSettings(next);
-        await setPetVisible(!next.hidden);
+        // 띄워 두기를 바꿀 때만 창을 움직여요. 주기만 바꿨는데 아이콘 창이 닫히거나 열리지 않게요.
+        if (next.floating !== before.floating) await setPetVisible(next.floating);
         await emit(petSettingsChanged);
       } catch (error) {
         console.error(error);
@@ -135,15 +136,15 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
           <>
             <label className="setting-row">
               <span>
-                <strong>플로팅 창</strong>
-                <small>어느 창에서든 작업을 시작하고 멈출 수 있게 작은 창을 띄워요. 끄면 {trayPlaceName()} 아이콘으로 들어가고, 아이콘을 누르면 다시 나와요.</small>
+                <strong>플로팅 창 띄워 두기</strong>
+                <small>꺼 두면 {trayPlaceName()} 아이콘을 누를 때만 그 아래에 작은 창이 열려요. 켜면 작은 창이 화면에 늘 떠 있어요.</small>
               </span>
-              <input type="checkbox" role="switch" checked={!pet.hidden} onChange={(event) => changePet({ ...pet, hidden: !event.target.checked })} />
+              <input type="checkbox" role="switch" checked={pet.floating} onChange={(event) => changePet({ ...pet, floating: event.target.checked })} />
             </label>
             <label className="setting-row">
               <span>
                 <strong>상태 확인 주기</strong>
-                <small>플로팅 창에서 지금 작업 중인지 물어봐요.</small>
+                <small>작은 창에서 지금 작업 중인지 물어봐요. 창을 닫아 두었으면 아이콘에 점이 찍혀요.</small>
               </span>
               <select value={pet.askEvery} onChange={(event) => changePet({ ...pet, askEvery: Number(event.target.value) })}>
                 {askChoices.map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "묻지 않기" : `${minutes}분마다`}</option>)}

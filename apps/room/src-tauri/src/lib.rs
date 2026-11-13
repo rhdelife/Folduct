@@ -169,33 +169,114 @@ fn mark_tray<R: Runtime>(app: &AppHandle<R>, out: bool) {
   }
 }
 
-// 아이콘이나 메뉴로 보이기·숨기기를 부르면 플로팅 창에 맡깁니다. 숨김 설정 저장과 애니메이션은 그 창이 해요.
-fn ask_pet_toggle<R: Runtime>(app: &AppHandle<R>) {
+// 아이콘을 누르면 작은 창에 맡깁니다. 띄워 둔 플로팅 창이면 아이콘으로 들어가고, 아니면 아이콘 아래 작은 창이 열리거나 닫혀요.
+// 메뉴의 "플로팅 창 보이기·숨기기"는 띄워 두기 자체를 켜고 끕니다. 설정 저장과 애니메이션은 그 창이 해요.
+fn ask_pet_toggle<R: Runtime>(app: &AppHandle<R>, event: &str) {
   if let Some(pet) = app.get_webview_window("pet") {
-    let _ = app.emit_to("pet", "tray-pet", !pet.is_visible().unwrap_or(false));
+    let _ = app.emit_to("pet", event, !pet.is_visible().unwrap_or(false));
   }
+}
+
+// 기다리는 새 파일이 있으면 아이콘 오른쪽 위에 잉크 점을 찍어요. 작은 창을 닫아 둬도 메뉴 막대만 보고 알 수 있어요.
+fn tray_logo(dot: bool) -> Vec<u8> {
+  let mut px = TRAY_LOGO.to_vec();
+  if dot {
+    let (cx, cy, r, ring) = (28.5_f64, 7.5_f64, 5.0_f64, 7.0_f64);
+    for y in 0..36 {
+      for x in 0..36 {
+        let d = ((x as f64 + 0.5 - cx).powi(2) + (y as f64 + 0.5 - cy).powi(2)).sqrt();
+        let at = (y * 36 + x) * 4;
+        if d <= r {
+          px[at..at + 4].copy_from_slice(&[23, 23, 23, 255]);
+        } else if d <= ring {
+          px[at..at + 4].copy_from_slice(&[255, 255, 255, 255]);
+        }
+      }
+    }
+  }
+  px
+}
+
+#[tauri::command]
+fn set_tray_dot<R: Runtime>(app: AppHandle<R>, on: bool) -> Result<(), String> {
+  let Some(tray) = app.tray_by_id(TRAY) else { return Ok(()) };
+  tray.set_icon(Some(Image::new_owned(tray_logo(on), 36, 36))).map_err(|e| e.to_string())
+}
+
+// 아이콘 아래에 작은 창을 열고 닫아요. 연 창은 바로 입력을 받아, 다른 곳을 누르면 닫힐 수 있어요(blur).
+// 메인 창 포커스를 되돌리지 않고, 띄워 두기 설정·메뉴 글자도 바꾸지 않아요.
+#[tauri::command]
+fn set_panel_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
+  let pet = app.get_webview_window("pet").ok_or("작은 창이 없어요.")?;
+  if let Some(tray) = app.try_state::<PetTray<R>>() {
+    tray.turn.fetch_add(1, Ordering::SeqCst);
+    tray.tucked.store(false, Ordering::SeqCst);
+  }
+  if !visible {
+    return pet.hide().map_err(|e| e.to_string());
+  }
+  if let Some(icon) = tray_rect(&app) {
+    let size = pet.outer_size().map_err(|e| e.to_string())?;
+    let unit = pet_unit(&pet);
+    let gap = PET_GAP * if POINTS { 1.0 } else { pet.scale_factor().unwrap_or(1.0) };
+    put_pet(&pet, spot_by_icon(icon, (size.width as f64 / unit, size.height as f64 / unit), screen_by_icon(&pet, icon), gap));
+  }
+  pet.show().map_err(|e| e.to_string())?;
+  key_without_activate(&pet);
+  Ok(())
+}
+
+// 작은 창만 입력을 받게 하고 Folduct 전체를 앞으로 데려오지는 않아요(set_focus는 앱을 활성화해 쓰던 앱의 포커스를 뺏어요).
+// 창은 canBecomeKey가 YES인 비활성 패널이라(float_everywhere) 키 창이 되고, 다른 곳을 누르면 blur가 와요.
+#[cfg(target_os = "macos")]
+fn key_without_activate<R: Runtime>(pet: &WebviewWindow<R>) {
+  let window = pet.clone();
+  let _ = pet.run_on_main_thread(move || {
+    use std::ffi::{c_char, c_void};
+    #[link(name = "objc")]
+    unsafe extern "C" {
+      fn sel_registerName(name: *const c_char) -> *const c_void;
+      fn objc_msgSend();
+    }
+    if let Ok(ns_window) = window.ns_window() {
+      unsafe {
+        let send: extern "C" fn(*mut c_void, *const c_void, *mut c_void) = std::mem::transmute(objc_msgSend as *const ());
+        send(ns_window, sel_registerName(c"makeKeyAndOrderFront:".as_ptr()), std::ptr::null_mut());
+      }
+    }
+  });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn key_without_activate<R: Runtime>(pet: &WebviewWindow<R>) {
+  let _ = pet.set_focus();
 }
 
 fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
   let toggle = MenuItem::with_id(app, "pet", "플로팅 창 보이기", true, None::<&str>)?;
   let open = MenuItem::with_id(app, "main", "Folduct 열기", true, None::<&str>)?;
   let quit = MenuItem::with_id(app, "quit", "끝내기", true, None::<&str>)?;
+  // Linux(AppIndicator)는 아이콘을 눌러도 메뉴만 열려요. 작은 창을 여는 줄을 메뉴에 둬요.
+  #[cfg(target_os = "linux")]
+  let menu = Menu::with_items(app, &[&MenuItem::with_id(app, "panel", "작은 창 열기", true, None::<&str>)?, &toggle, &open, &PredefinedMenuItem::separator(app)?, &quit])?;
+  #[cfg(not(target_os = "linux"))]
   let menu = Menu::with_items(app, &[&toggle, &open, &PredefinedMenuItem::separator(app)?, &quit])?;
   TrayIconBuilder::with_id(TRAY)
-    .icon(Image::new(TRAY_LOGO, 36, 36))
+    .icon(Image::new_owned(tray_logo(false), 36, 36))
     .tooltip("Folduct")
     .menu(&menu)
-    // 누르면 프로도가 나오거나 들어가고, 메뉴는 오른쪽 클릭으로 열어요.
+    // 누르면 아이콘 아래 작은 창이 열리고(띄워 둔 플로팅 창이면 아이콘으로 들어가고), 메뉴는 오른쪽 클릭으로 열어요.
     .show_menu_on_left_click(false)
     .on_menu_event(|app, event| match event.id.as_ref() {
-      "pet" => ask_pet_toggle(app),
+      "pet" => ask_pet_toggle(app, "tray-float"),
+      "panel" => ask_pet_toggle(app, "tray-pet"),
       "main" => show_main_window(app),
       "quit" => app.exit(0),
       _ => {}
     })
     .on_tray_icon_event(|tray, event| {
       if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-        ask_pet_toggle(tray.app_handle());
+        ask_pet_toggle(tray.app_handle(), "tray-pet");
       }
     })
     .build(app)?;
@@ -466,7 +547,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file, set_panel_visible, set_tray_dot])
     .setup(|_app| {
       // 아이콘을 못 만들어도(알림 영역이 없는 데스크톱 등) 앱은 그대로 씁니다. 숨긴 프로도는 환경설정에서 다시 켜요.
       if let Err(error) = build_tray(_app.handle()) {
@@ -512,6 +593,18 @@ mod tests {
     assert_eq!(spot_by_icon((2000.0, 1760.0, 40.0, 40.0), (400.0, 360.0), screen, 12.0), (1820.0, 1388.0));
     // 창보다 좁은 화면이어도 왼쪽 위 끝에 붙고 터지지 않아요.
     assert_eq!(spot_by_icon((10.0, 0.0, 20.0, 20.0), (400.0, 360.0), (0.0, 0.0, 300.0, 200.0), 6.0), (0.0, 0.0));
+  }
+
+  #[test]
+  fn tray_dot_marks_only_the_corner() {
+    let plain = tray_logo(false);
+    let dotted = tray_logo(true);
+    assert_eq!(plain, TRAY_LOGO);
+    assert_eq!(dotted.len(), 36 * 36 * 4);
+    // 점 가운데는 잉크, 왼쪽 아래 구석은 로고 그대로예요.
+    let at = |x: usize, y: usize| (y * 36 + x) * 4;
+    assert_eq!(&dotted[at(28, 7)..at(28, 7) + 4], &[23, 23, 23, 255]);
+    assert_eq!(&dotted[at(2, 33)..at(2, 33) + 4], &plain[at(2, 33)..at(2, 33) + 4]);
   }
   use serde_json::{Value, json};
   use tauri::test::MockRuntime;

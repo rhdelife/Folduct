@@ -73,12 +73,13 @@ describe("작업 중에 들어온 파일", () => {
 
 describe("플로팅 설정 읽기", () => {
   it("없거나 망가지면 기본값이에요", () => {
-    for (const value of [undefined, null, 3, { askEvery: 7 }, { askEvery: "자주", hidden: "네" }]) expect(normalizePet(value)).toEqual(defaultPet);
+    for (const value of [undefined, null, 3, { askEvery: 7 }, { askEvery: "자주", floating: "네" }, { askEvery: 10, hidden: false }]) expect(normalizePet(value)).toEqual(defaultPet);
   });
 
-  it("고를 수 있는 주기와 숨김은 그대로 읽어요", () => {
-    expect(normalizePet({ askEvery: 0, hidden: true })).toEqual({ askEvery: 0, hidden: true });
-    expect(normalizePet({ askEvery: 5 })).toEqual({ askEvery: 5, hidden: false });
+  it("고를 수 있는 주기와 띄워 두기는 그대로 읽고, 기본은 아이콘을 누를 때만 여는 창이에요", () => {
+    expect(normalizePet({ askEvery: 0, floating: true })).toEqual({ askEvery: 0, floating: true });
+    expect(normalizePet({ askEvery: 5 })).toEqual({ askEvery: 5, floating: false });
+    expect(defaultPet.floating).toBe(false);
   });
 });
 

@@ -227,6 +227,8 @@
 | `scene/shelf-cover` | `64px` |  |
 | `scene/shelf-cover-narrow` | `44px` |  |
 | `scene/pet-w` | `216px` |  |
+| `scene/pet-panel-w` | `300px` |  |
+| `scene/pet-panel-art` | `64px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |
 | `scene/cal-number` | `44px` |  |
