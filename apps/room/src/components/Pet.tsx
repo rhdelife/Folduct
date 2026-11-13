@@ -11,7 +11,7 @@ import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } fr
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked } from "../gateways/native";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder } from "../gateways/native";
 import { getDoorstep, getLastSweepAt, getPetSettings, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt, RoomFaceArt } from "./RoomFace";
@@ -195,10 +195,20 @@ export function Pet() {
         console.error(error);
       }
     };
-    void look();
+    // 첫 읽기에서 다운로드 폴더를 현관으로 둘 수 있어 그 뒤에 현관(맨 위층만)을 감시해요. 새 파일이 들어오면 타이머를 기다리지 않고 바로 읽어요.
+    let unwatch: (() => void) | undefined;
+    void look()
+      .then(async () => {
+        if (!isNative() || left) return;
+        const stop = await watchFolder((await getDoorstep()).folders, () => void look(), false);
+        if (left) stop();
+        else unwatch = stop;
+      })
+      .catch((error: unknown) => console.error(error));
     const timer = window.setInterval(() => void look(), watchEveryMs);
     return () => {
       left = true;
+      unwatch?.();
       window.clearInterval(timer);
     };
   }, [working]);

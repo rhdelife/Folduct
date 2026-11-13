@@ -164,7 +164,7 @@ describe("데스크톱 파일 열기", () => {
 
 describe("데스크톱 권한", () => {
   it("fs 권한은 읽기·폴더 만들기뿐이고(옮기기는 덮어쓰지 않는 move_file 명령), 고정 경로 스코프를 두지 않는다", () => {
-    const allowed = /^fs:allow-(read-dir|stat|exists|read-file|mkdir)$/;
+    const allowed = /^fs:allow-(read-dir|stat|exists|read-file|mkdir|watch|unwatch)$/;
     expect(capabilities.permissions.filter((permission) => typeof permission !== "string" || (permission.startsWith("fs:") && !allowed.test(permission)))).toEqual([]);
   });
 
@@ -172,6 +172,6 @@ describe("데스크톱 권한", () => {
     const sources = import.meta.glob(["../**/*.ts", "../**/*.tsx", "!../tests/**"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
     const names = Object.values(sources).flatMap((text) => [...text.matchAll(/import\s*{([^}]*)}\s*from\s*"@tauri-apps\/plugin-fs"/g)].flatMap((match) => match[1].split(",").map((name) => name.trim()).filter(Boolean)));
     expect(names.length).toBeGreaterThan(0);
-    expect(names.filter((name) => !["exists", "mkdir", "readDir", "readFile", "stat"].includes(name))).toEqual([]);
+    expect(names.filter((name) => !["exists", "mkdir", "readDir", "readFile", "stat", "watch"].includes(name))).toEqual([]);
   });
 });

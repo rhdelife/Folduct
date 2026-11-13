@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { exists, mkdir, readDir, readFile, stat } from "@tauri-apps/plugin-fs";
+import { exists, mkdir, readDir, readFile, stat, watch } from "@tauri-apps/plugin-fs";
 import { isSafeRelativePath } from "../domain/model";
 import { baseName, childPath, joinPath, samePath } from "../domain/platform";
 import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, scanFolder, type Access, type AccessMode, type DirectorySource, type ScanResult } from "./folder";
@@ -121,6 +121,12 @@ export async function pickParent(): Promise<{ path: string; folders: ChildFolder
     .map((entry) => ({ name: entry.name.normalize("NFC"), path: joinPath(path, entry.name) }))
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
   return { path, folders };
+}
+
+// Finder에서 넣고 빼고 이름을 바꾸면 곧바로 알려 줘요(0.5초 묶음). 감시는 읽기뿐이고, 현관처럼 맨 위층만 열린 폴더는 recursive를 끄세요.
+export async function watchFolder(paths: string | string[], onChange: () => void, recursive: boolean): Promise<() => void> {
+  if (paths.length === 0) return () => {};
+  return watch(paths, onChange, { recursive, delayMs: 500 });
 }
 
 // 방으로 고른 하위 폴더만 하위 전체를 읽고 옮길 수 있게 엽니다.

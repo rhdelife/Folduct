@@ -29,8 +29,8 @@ import { AiError } from "../gateways/claude";
 import { getAiSettings } from "../storage/ai";
 import { getReportEvery, getWorkReports } from "../storage/workReport";
 import { homeLimit, roomStats } from "../domain/sky";
-import { doorChanged, isNative, sessionEnded, sweepOpenAsked, workLogged } from "../gateways/native";
-import { planSweep, refreshRooms, type SweepPlan } from "../storage/box";
+import { doorChanged, isNative, sessionEnded, sweepOpenAsked, watchFolder, workLogged } from "../gateways/native";
+import { planSweep, refreshRooms, roomFolder, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
@@ -244,7 +244,25 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible" && !rereading.current) void rereadDoor();
     }, rereadEveryMs);
+    // 데스크톱 앱은 방 폴더(하위까지)와 현관(맨 위층만, 그만큼만 열려 있어요)을 감시해 바뀌는 즉시 다시 읽어요.
+    // shortcut: 켤 때의 방·현관 목록만 감시해요. 방을 더하거나 현관을 바꾸면 홈을 다시 열 때 따라가요.
+    let left = false;
+    const unwatch: (() => void)[] = [];
+    const keep = (stop: () => void) => (left ? stop() : unwatch.push(stop));
+    if (isNative()) {
+      const onChange = () => {
+        if (document.visibilityState === "visible") void reread();
+      };
+      void (async () => {
+        const rooms = (await listRooms()).filter((room) => !room.care.done);
+        const folders = (await Promise.all(rooms.map(roomFolder))).filter((folder): folder is string => typeof folder === "string");
+        keep(await watchFolder(folders, onChange, true));
+        keep(await watchFolder((await getDoorstep()).folders, onChange, false));
+      })().catch((error: unknown) => console.error(error));
+    }
     return () => {
+      left = true;
+      for (const stop of unwatch) stop();
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);

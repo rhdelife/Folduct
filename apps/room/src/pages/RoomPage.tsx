@@ -16,7 +16,7 @@ import { freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type ScanResult } from "../gateways/folder";
-import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
+import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
@@ -206,8 +206,17 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     const timer = window.setInterval(() => {
       if (!document.querySelector("dialog[open]")) back();
     }, rereadEveryMs);
+    // 데스크톱 앱은 폴더를 감시해 바뀌는 즉시 읽어요. 위 타이머는 감시가 놓친 때를 받쳐 줘요.
+    let unwatch: (() => void) | undefined;
+    if (isNative() && typeof handle === "string") {
+      watchFolder(handle, back, true).then(
+        (stop) => (left ? stop() : (unwatch = stop)),
+        (error: unknown) => console.error(error),
+      );
+    }
     return () => {
       left = true;
+      unwatch?.();
       window.clearInterval(timer);
       window.removeEventListener("focus", back);
       document.removeEventListener("visibilitychange", back);
