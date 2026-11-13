@@ -1512,6 +1512,13 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .cover-option[aria-pressed="true"] > span:last-child { color: var(--ink); font-weight: 700; }
 .room-page .cover-option[aria-pressed="true"], dialog.sheet:not(.menu) .cover-option[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
 .cover-empty { display: block; width: calc(var(--space-12) + var(--space-2)); height: calc(var(--space-12) + var(--space-2)); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+/* 방 색 고르기: 방 얼굴 색 동그라미 여덟 개. 고른 것은 잉크 테를 둘러요. 썸네일 미리보기도 고른 색으로 칠해요. */
+.face-picker { display: grid; gap: var(--space-2); }
+.face-swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.face-swatch { width: var(--space-10); min-width: 0; height: var(--space-10); min-height: 0; padding: 0; border: var(--space-1) solid var(--surface); border-radius: var(--radius-pill); background: var(--room-color); box-shadow: 0 0 0 var(--room-hair) var(--line); transform: none; }
+.face-swatch:hover:not(:disabled), .face-swatch:active:not(:disabled) { background: var(--room-color); transform: none; }
+.face-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.cover-options .room-cover { --ink: var(--room-color); }
 .settings-foot { position: sticky; bottom: calc(var(--space-6) * -1); margin: 0 calc(var(--space-6) * -1) calc(var(--space-6) * -1); padding: var(--space-3) var(--space-6); border-top: 1px solid var(--line); background: inherit; }
 
 /* ══ 글래스 ══ */

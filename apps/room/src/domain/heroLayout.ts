@@ -29,8 +29,8 @@ const maxScale = 2.4;
 const shrink = 0.88;
 // 파일 칸을 프로도 아래에 둘 때 프로도가 쓰는 높이의 몫. 나머지는 먹은 방 파일 칸이에요.
 const narrowShare = 0.56;
-// 이 폭부터 파일 칸을 프로도 오른쪽에 둬요.
-const sideBySide = 1000;
+// 이 폭부터 파일 칸을 프로도 오른쪽에 둬요. 1280 창에서 미리보기 창이 열려 판이 좁아져도(약 880) 파일 칸이 프로도 아래로 뛰어내리지 않게 낮춰 뒀어요.
+const sideBySide = 860;
 // 넓은 창의 파일 칸 폭. 가장 좁아도 종이 몇 장이 한 줄에 들어가요.
 const filesMax = 560;
 const filesMin = 240;

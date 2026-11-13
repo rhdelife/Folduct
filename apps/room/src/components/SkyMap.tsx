@@ -16,7 +16,7 @@ import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { useReadableFolders, useThumb } from "../storage/thumbs";
 import { Meta } from "./Meta";
-import { RoomCover } from "./RoomCover";
+import { faceHex, RoomCover } from "./RoomCover";
 
 type Tip = { star: Card; room: Room };
 
@@ -498,7 +498,7 @@ const MapLayers = memo(function MapLayers({
                   onMouseEnter={(event) => cue(homeActor, { look: centerOf(event.currentTarget) })}
                   onMouseLeave={() => cue(homeActor, { look: null })}
                 >
-                  <RoomCover room={room} folder={folders.get(room.id) ?? null} px={64} />
+                  <RoomCover room={room} folder={folders.get(room.id) ?? null} px={64} color={faceHex(room.face.color)} />
                   <span className="room-label">{room.name}</span>
                   <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
                 </button>

@@ -40,7 +40,7 @@ export const kindTones = byKind<PaperTones>(({ label, color, edge }) => ({ ...pa
 
 export const boxColor = "#5f6670";
 
-const mix = (from: string, to: string, amount: number) =>
+export const mix = (from: string, to: string, amount: number) =>
   `#${[1, 3, 5].map((at) => {
     const [a, b] = [from, to].map((hex) => parseInt(hex.slice(at, at + 2), 16));
     return Math.round(a + (b - a) * amount).toString(16).padStart(2, "0");
