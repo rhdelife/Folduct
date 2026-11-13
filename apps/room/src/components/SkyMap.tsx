@@ -430,8 +430,6 @@ const MapLayers = memo(function MapLayers({
           </div>
         )}
         {bandTip && bandTip.room === picked?.id && <p className="band-tip" aria-hidden="true" style={{ left: bandTip.x, top: bandTip.y }}>{bandTip.text}</p>}
-        {/* 아무것도 안 먹은 프로도 위에 먹이는 법을 한 줄로 알려요. */}
-        {frodo && !picked && <p className="feed-hint" aria-hidden="true" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>방을 끌어다 프로도에게 주세요</p>}
         {shelf && (
           <div className="room-shelf" role="group" aria-label="내 방들. 방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고, 그 방 용량만큼 길어지며 그 방 파일을 보여 줘요." aria-describedby="sky-hint" style={{ top: shelf.top, height: shelf.height, "--n": rooms.length } as CSSProperties}>
             {rooms.map((room) => {
