@@ -11,6 +11,7 @@ import { usePicture } from "../../storage/pictures";
 import { useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
+import { tokenMs } from "../tokens";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -136,7 +137,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     const timers = goneTimers.current;
     clearTimeout(timers.get(label));
     setGone((list) => [...list.filter((item) => item.label !== label), { label, swap }]);
-    const ms = parseFloat(getComputedStyle(self.current ?? document.documentElement).getPropertyValue("--dur-drawer"));
+    const ms = tokenMs("--dur-drawer", self.current ?? undefined);
     timers.set(label, setTimeout(() => {
       timers.delete(label);
       setGone((list) => list.filter((item) => item.label !== label));
@@ -154,7 +155,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     const tokens = getComputedStyle(element);
     element.animate(
       { transform: [`translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})`, "none"] },
-      { duration: parseFloat(tokens.getPropertyValue("--dur-drawer")), easing: tokens.getPropertyValue("--ease-drawer") },
+      { duration: tokenMs("--dur-drawer", element), easing: tokens.getPropertyValue("--ease-drawer") },
     );
   };
   // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
