@@ -826,7 +826,11 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 /* ── 빈 화면: 로고, 한 문장, 검은 버튼 하나 ── */
 .home .home-empty { gap: var(--space-6); padding-bottom: var(--topbar-h); }
 .home .home-empty p { color: var(--ink-hover); font-size: var(--empty-text); line-height: var(--lh-caption); letter-spacing: -0.01em; }
-.home .home-empty .mark { margin-bottom: var(--space-2); }
+/* 빈 홈: 프로도 위에 테두리 없는 흰 말풍선. 꼬리는 아래 가운데에서 프로도 머리를 가리켜요. */
+.home .home-empty .home-bubble { position: relative; max-width: min(100%, calc(var(--space-12) * 12)); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); word-break: keep-all; text-wrap: balance; }
+.home-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; width: var(--space-4); height: var(--space-4); background: var(--surface); translate: -50% -50%; rotate: 45deg; }
+.home-frodo { display: block; width: calc(var(--space-12) * 5); margin-top: calc(var(--space-6) * -1); }
+.home-frodo svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* ── 메뉴와 패널에 함께 쓰는 종이말 ── */
 .home .menu .sheet-body, .home .sky-panel { background-color: var(--bg); }

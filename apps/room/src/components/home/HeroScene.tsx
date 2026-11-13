@@ -3,7 +3,7 @@ import type { WorkLog } from "../../domain/worklog";
 import { isNative } from "../../gateways/native";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
-import { BrandMark } from "../Icon";
+import { PoseArt } from "../RoomFace";
 import { SkyMap } from "../SkyMap";
 import type { SceneProps } from "./engine";
 import { HomeStack } from "./HomeStack";
@@ -28,8 +28,11 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
     <section className="scene scene-hero" aria-label="첫 화면">
       {rooms.length === 0 ? (
         <div className="home-empty">
-          <BrandMark size={120} />
-          <p>작업 폴더를 골라 첫 방을 만들어 보세요.</p>
+          {/* 방이 하나도 없으면 로고 대신 프로도가 말풍선으로 첫 방을 권해요. 말은 프로도 말투(반말)예요. */}
+          <p className="home-bubble">작업 폴더를 골라 첫 방을 만들어 봐.</p>
+          <span className="home-frodo">
+            <PoseArt pose="idle" px={240} mood="lookU" />
+          </span>
           <button type="button" className="primary big" onClick={actions.openNew}>첫 방 만들기</button>
         </div>
       ) : (
