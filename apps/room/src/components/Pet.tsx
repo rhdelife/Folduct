@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
@@ -9,13 +9,12 @@ import { localDay } from "../domain/care";
 import { faceColorVar } from "../domain/face";
 import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
-import { arrivals, checkpointSession, defaultPet, emptyTags, formatWorked, pauseSession, pickTag, restoreSession, resumeSession, startSession, tagMaxLength, tagOrder, workedTime, type PetSettings, type Session, type TagList } from "../domain/session";
+import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
 import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked } from "../gateways/native";
 import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
-import { getTags, saveTags } from "../storage/workReport";
-import { PoseArt } from "./RoomFace";
+import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { Meta } from "./Meta";
 
@@ -45,10 +44,6 @@ export function Pet() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
-  // 시작할 방을 고른 뒤 분류를 고르는 동안의 방. 분류를 누르면 그때 시간을 세기 시작해요.
-  const [pickedRoom, setPickedRoom] = useState<string | null>(null);
-  const [tags, setTags] = useState<TagList>(emptyTags);
-  const [tagDraft, setTagDraft] = useState<string | null>(null);
   // 메뉴 막대 아이콘으로 들어가거나(tuck) 나오는(untuck) 중. 창은 Rust가 미끄러뜨리고, 여기서는 프로도를 줄였다 키워요.
   const [motion, setMotion] = useState<"tuck" | "untuck" | null>(null);
   const [pet, setPet] = useState<PetSettings>(defaultPet);
@@ -366,17 +361,10 @@ export function Pet() {
   });
 
   function openMenu() {
-    if (!menuOpen) {
-      reloadRooms();
-      setPickedRoom(null);
-      setTagDraft(null);
-    }
+    if (!menuOpen) reloadRooms();
     setMenuOpen(!menuOpen);
   }
 
-  useEffect(() => {
-    getTags().then(setTags, (error: unknown) => console.error(error));
-  }, []);
 
   function onPointerDown(event: PointerEvent<HTMLElement>) {
     dragged.current = false;
@@ -479,17 +467,11 @@ export function Pet() {
     if (isNative()) invoke("set_tray_dot", { on: dot }).catch((error: unknown) => console.error(error));
   }, [dot]);
 
-  function start(roomId: string, picked: string | null) {
-    const tag = picked?.trim().slice(0, tagMaxLength) || null;
+  function start(roomId: string) {
     setMenuOpen(false);
-    setPickedRoom(null);
-    setTagDraft(null);
-    change(startSession(roomId, Date.now(), tag));
-    if (!tag) return;
-    const next = pickTag(tags, tag);
-    setTags(next);
-    saveTags(next).catch((error: unknown) => console.error(error));
+    change(startSession(roomId, Date.now()));
   }
+
   function endWork(current: Session) {
     setMenuOpen(false);
     if (isNative()) emit(sessionEnded, current.roomId).catch((error: unknown) => console.error(error));
@@ -534,41 +516,18 @@ export function Pet() {
     </>
   );
 
-  // 방을 고른 뒤 묻는 분류. 하나를 누르면 바로 시작하고, + 로 새 분류를 더해요. 색은 파일 형식에만 쓰니 잉크 테두리로만 그려요.
-  const tagStep = pickedRoom && (
-    <div className="pet-tag-step">
-      <p className="pet-tag-title">무엇에 집중할까요?</p>
-      <div className="pet-tags">
-        {tagOrder(tags).map((tag) => (
-          <button key={tag} type="button" className="pet-tag" onClick={() => start(pickedRoom, tag)}>{tag}</button>
-        ))}
-        {tagDraft === null ? (
-          <button type="button" className="pet-tag pet-tag-add" aria-label="분류 더하기" onClick={() => setTagDraft("")}>+</button>
-        ) : (
-          <input
-            className="pet-tag pet-tag-input"
-            autoFocus
-            value={tagDraft}
-            maxLength={tagMaxLength}
-            placeholder="새 분류"
-            aria-label="새 분류 이름, Enter로 시작"
-            onChange={(event) => setTagDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && tagDraft.trim()) start(pickedRoom, tagDraft);
-              if (event.key === "Escape") {
-                // 창 전체의 Esc(창 닫기)까지 가지 않게 여기서 멈춰요.
-                event.stopPropagation();
-                setTagDraft(null);
-              }
-            }}
-          />
-        )}
-      </div>
-      <div className="pet-tag-more">
-        <button type="button" onClick={() => start(pickedRoom, null)}>고르지 않고 시작</button>
-        <button type="button" onClick={() => setPickedRoom(null)}>다른 방</button>
-      </div>
-    </div>
+  // 시작할 방 고르기. 방마다 얼굴 색 알약과 작은 주름관이라 한눈에 골라요. 누르면 바로 시간을 재요.
+  const roomPills = (
+    <ul className="pet-rooms">
+      {choices.map((item) => (
+        <li key={item.id}>
+          <button type="button" className="pet-room" style={{ "--room-color": faceColorVar(item.face.color) } as CSSProperties} onClick={() => start(item.id)}>
+            <RoomFaceArt face={item.face} px={22} className="pet-room-art" />
+            <span>{item.name}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 
   // 아이콘 아래 작은 창: 지금 상태, 시작·멈춤·끝, 묻는 것, 아래에 앱 열기·띄워 두기·끄기. Esc나 다른 곳을 누르면 닫혀요.
@@ -588,7 +547,7 @@ export function Pet() {
               ) : (
                 <>
                   <strong>작업 전</strong>
-                  <small>방과 분류를 고르면 시간을 재요.</small>
+                  <small>방을 누르면 바로 시간을 재요.</small>
                 </>
               )}
             </p>
@@ -598,18 +557,10 @@ export function Pet() {
               <button type="button" className="primary" onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>{working ? "멈춤" : "다시 시작"}</button>
               <button type="button" onClick={() => endWork(session)}>작업 끝내기</button>
             </div>
-          ) : tagStep ? (
-            tagStep
           ) : choices.length > 0 ? (
             <div className="pet-panel-rooms">
               <p>어느 방을 시작할까요?</p>
-              <ul>
-                {choices.map((item) => (
-                  <li key={item.id}>
-                    <button type="button" onClick={() => setPickedRoom(item.id)}>{item.name}</button>
-                  </li>
-                ))}
-              </ul>
+              {roomPills}
             </div>
           ) : (
             <p className="pet-panel-note">진행 중인 방이 없어요. 앱에서 방을 만들어 주세요.</p>
@@ -661,20 +612,11 @@ export function Pet() {
       {asks}
       {menuOpen && (
         <div className="pet-menu" data-no-drag>
-          {!session && tagStep}
-          {!session && !pickedRoom && (
+          {!session && (
             choices.length > 0 ? (
               <>
                 <p>어느 방을 시작할까요?</p>
-                <ul>
-                  {choices.map((item) => (
-                    <li key={item.id}>
-                      <button type="button" onClick={() => setPickedRoom(item.id)}>
-                        {item.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                {roomPills}
               </>
             ) : (
               <p>진행 중인 방이 없어요. 앱에서 방을 만들어 주세요.</p>

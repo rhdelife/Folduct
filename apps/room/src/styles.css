@@ -1697,17 +1697,12 @@ p.kind-folder-more { color: var(--ink-caption); }
 @keyframes kind-card-in { from { translate: 0 calc(var(--space-6) * -1); opacity: 0; } }
 @keyframes kind-cabinet-in { from { translate: 0 var(--space-12); scale: 0.96; opacity: 0.3; } }
 
-/* 작업 시작 때 고르는 분류. 색은 파일 형식에만 쓰니 잉크 테두리 알약으로만 그려요. */
-.pet-tag-step { display: grid; gap: var(--space-2); }
-.pet-tag-title { margin: 0; color: var(--ink); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; }
-.pet-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.pet-tag-step .pet-tag { width: auto; min-width: var(--control-md); max-width: 100%; min-height: var(--control-md); justify-content: center; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font-size: var(--text-sm); font-weight: 500; text-align: center; box-shadow: none; }
-.pet-tag-step .pet-tag:hover:not(:disabled), .pet-tag-step .pet-tag:focus-visible { border-color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--ink); }
-.pet-tag-step .pet-tag-add { padding: 0; font-size: var(--text-md); }
-.pet-tag-step .pet-tag-input { flex: 1 0 calc(var(--space-12) * 2); min-width: 0; border-color: var(--ink); font: inherit; font-size: var(--text-sm); text-align: left; }
-.pet-tag-more { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.pet-tag-step .pet-tag-more button { width: auto; min-height: var(--control-sm); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink-soft); font-size: var(--text-xs); box-shadow: none; }
-.pet-tag-step .pet-tag-more button:hover:not(:disabled) { background: var(--surface-sunken); color: var(--ink); }
+/* 작업 시작 때 고르는 방. 방 얼굴 색(--face-*)을 옅게 깐 알약과 작은 주름관이에요. 사용자가 고르기 쉽게 색을 써 달라고 한 예외예요. */
+.pet .pet-rooms { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pet .pet-rooms .pet-room { display: inline-flex; align-items: center; gap: var(--space-1); width: auto; max-width: 100%; min-height: var(--control-md); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--room-color) 30%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--ink); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
+.pet .pet-rooms .pet-room:hover:not(:disabled), .pet .pet-rooms .pet-room:focus-visible { border-color: var(--room-color); background: color-mix(in srgb, var(--room-color) 20%, var(--surface)); }
+.pet .pet-rooms .pet-room span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pet-room-art { flex: none; display: block; height: var(--control-sm); width: auto; }
 
 /* 작업 보고 창 */
 .report-period { display: flex; align-items: center; gap: var(--space-2); }
