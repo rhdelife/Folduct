@@ -497,8 +497,9 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .sky-summary dd { margin: 0; font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 700; letter-spacing: -0.02em; }
 .sky-summary dd small { font-size: var(--text-sm); font-weight: 600; margin-left: 2px; color: var(--ink-soft); letter-spacing: 0; }
 
-.sky-tip { position: absolute; z-index: 20; transform: translate(-50%, calc(-100% - 18px)); display: grid; gap: 2px; min-width: 140px; max-width: 240px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); pointer-events: auto; animation: fade-in var(--dur-1) var(--ease-standard); }
-.sky-tip.below { transform: translate(-50%, 18px); }
+.sky-tip { position: absolute; z-index: 20; transform: translate(-50%, calc(var(--half, 0px) + var(--space-2))); display: grid; gap: 2px; min-width: 140px; max-width: 240px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-xs); pointer-events: auto; animation: fade-in var(--dur-1) var(--ease-standard); }
+/* --half는 종이 높이의 반. 말풍선은 종이 아래 끝에서 열고, 자리가 모자라면 위 끝에서 열어요. */
+.sky-tip.above { transform: translate(-50%, calc(-100% - var(--half, 0px) - var(--space-2))); }
 .sky-tip button { justify-self: start; margin-top: var(--space-1); min-height: 0; padding: var(--space-1) var(--space-2); font-size: var(--text-xs); }
 .sky-tip strong { overflow-wrap: anywhere; }
 .sky-tip span { color: var(--ink-soft); }

@@ -66,8 +66,11 @@ export function SkyMap({
     const el = tipBox.current;
     if (!el) return;
     el.style.translate = "";
-    const box = el.getBoundingClientRect();
+    // 말풍선은 종이 아래에 열어 위쪽 찾기 칸·형식 단추를 가리지 않아요. 아래 자리가 모자랄 때만 위로 올려요.
+    el.classList.remove("above");
     const area = el.closest(".sky-layout")!.getBoundingClientRect();
+    if (el.getBoundingClientRect().bottom > Math.min(area.bottom, window.innerHeight)) el.classList.add("above");
+    const box = el.getBoundingClientRect();
     const open = document.querySelector(".sky-panel.open")?.getBoundingClientRect();
     // 폰의 아래 패널은 폭 전체를 쓰니 옆 패널만 오른쪽 끝을 줄입니다.
     const right = open && open.left > area.left ? open.left : area.right;
@@ -197,9 +200,9 @@ export function SkyMap({
         {tip && (
           <div
             ref={tipBox}
-            className={`sky-tip${tipY < 140 ? " below" : ""}`}
+            className="sky-tip"
             aria-hidden="true"
-            style={{ left: `${(Math.min(880, Math.max(120, tipX)) / sky.width) * 100}%`, top: `${(tipY / sky.height) * 100}%` }}
+            style={{ left: `${(Math.min(880, Math.max(120, tipX)) / sky.width) * 100}%`, top: `${(tipY / sky.height) * 100}%`, "--half": `${tip.star.height / 2}px` } as CSSProperties}
             onMouseEnter={() => clearTimeout(closeTimer.current)}
             onMouseLeave={hideTip}
           >
