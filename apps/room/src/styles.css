@@ -1251,6 +1251,10 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .work-control { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--space-12); white-space: nowrap; }
 .work-control button { min-height: var(--space-12); padding: 0 var(--space-5); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
 .work-start { min-width: calc(var(--space-12) * 3); }
+/* 작업 시작을 누르면 그 자리에서 방 알약이 펼쳐져요. 넓으면 한 줄, 좁으면 프로도 폭 안에서 줄을 바꿔요. */
+.work-control.picking { flex-wrap: wrap; max-width: min(calc(100vw - 2 * var(--space-4)), calc(var(--space-12) * 14)); white-space: normal; }
+.work-control.picking .pet-rooms { justify-content: center; margin: 0; padding: 0; list-style: none; }
+.work-control.picking .pet-rooms .pet-room { min-height: var(--control-lg); font-size: var(--text-md); }
 /* 멈추고 끝내는 단추만 붉게 표시해요(사용자가 정한 예외). 멈춤은 꽉 찬 붉은색, 끝내기는 붉은 글자예요. */
 .work-control .stop { border-color: var(--status-danger); background: var(--status-danger); color: var(--on-ink); }
 .work-control .stop:hover:not(:disabled) { border-color: var(--status-danger); background: var(--status-danger); filter: brightness(0.92); }
@@ -1259,7 +1263,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .work-control.on > * { animation: work-split var(--dur-3) var(--ease-spring) backwards; }
 .work-control.on > :nth-child(2) { animation-delay: calc(var(--dur-1) / 2); }
 .work-control.on > :nth-child(3) { animation-delay: var(--dur-1); }
-.work-control:not(.on) > * { animation: work-split var(--dur-3) var(--ease-spring) backwards; }
+.work-control:not(.on) > *, .work-control.picking .pet-rooms li { animation: work-split var(--dur-3) var(--ease-spring) backwards; }
 .work-clock { display: grid; justify-items: end; margin-right: var(--space-2); line-height: 1; }
 .work-clock b { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: 800; font-variant-numeric: tabular-nums; }
 .work-clock small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
@@ -1728,10 +1732,10 @@ p.kind-folder-more { color: var(--ink-caption); }
 @keyframes kind-cabinet-in { from { translate: 0 var(--space-12); scale: 0.96; opacity: 0.3; } }
 
 /* 작업 시작 때 고르는 방. 방 얼굴 색(--face-*)을 옅게 깐 알약과 작은 주름관이에요. 사용자가 고르기 쉽게 색을 써 달라고 한 예외예요. */
-.pet .pet-rooms { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.pet .pet-rooms .pet-room { display: inline-flex; align-items: center; gap: var(--space-1); width: auto; max-width: 100%; min-height: var(--control-md); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--room-color) 30%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--ink); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
-.pet .pet-rooms .pet-room:hover:not(:disabled), .pet .pet-rooms .pet-room:focus-visible { border-color: var(--room-color); background: color-mix(in srgb, var(--room-color) 20%, var(--surface)); }
-.pet .pet-rooms .pet-room span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.pet, .work-control) .pet-rooms { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+:is(.pet, .work-control) .pet-rooms .pet-room { display: inline-flex; align-items: center; gap: var(--space-1); width: auto; max-width: 100%; min-height: var(--control-md); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--room-color) 30%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--ink); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
+:is(.pet, .work-control) .pet-rooms .pet-room:hover:not(:disabled), :is(.pet, .work-control) .pet-rooms .pet-room:focus-visible { border-color: var(--room-color); background: color-mix(in srgb, var(--room-color) 20%, var(--surface)); }
+:is(.pet, .work-control) .pet-rooms .pet-room span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pet-room-art { flex: none; display: block; height: var(--control-sm); width: auto; }
 
 /* 작업 보고 창 */
