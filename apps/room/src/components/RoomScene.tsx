@@ -75,6 +75,9 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   useLayoutEffect(() => {
     if (farLane) setOpened((now) => (now.includes(farLane) ? now : [...now, farLane]));
   }, [selectedId, farLane]);
+  // 정리 상자는 닫혀 있어요. 열기 전에는 상자 안 종이(삐져나온 것도)를 보이지 않아요. 찾는 중이거나 상자 안 파일을 고르면 열어 둬요.
+  const [boxOpen, setBoxOpen] = useState(false);
+  const boxShown = boxOpen || searching || groups.some(({ lane, things }) => lane === "box" && things.some((thing) => thing.id === selectedId));
   // 줄은 번호·제목·개수만으로 읽혀요. 줄을 나누는 기준은 care.ts laneOf에 있어요.
   const titles: Record<Lane, string> = { new: "새로 왔어요", use: "요즘 써요", quiet: "잠잠해요", box: "정리 상자" };
   return (
@@ -89,11 +92,14 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
           // 빈 줄은 한 줄로 얇게 접어 파일이 있는 줄이 먼저 보여요.
           <section key={lane} className={`lane lane-${lane}${things.length ? "" : " lane-empty"}`} aria-labelledby={`lane-${lane}`}>
             <div className="lane-head">
-              {lane === "box" && <span className="lane-box-art"><CardboardBox things={things} /></span>}
+              {lane === "box" && <span className="lane-box-art"><CardboardBox things={boxShown ? things : []} /></span>}
               {/* 줄 순서(파일이 흘러가는 차례)를 번호로 보여 줘요. 줄은 넷이라 5단계를 넘지 않아요. */}
               <h2 id={`lane-${lane}`}><span className="lane-no">{index + 1}</span>{" "}{title} <span className="lane-count">{things.length}</span></h2>
+              {lane === "box" && things.length > 0 && !searching && (
+                <button type="button" className="quiet lane-box-toggle" aria-expanded={boxShown} aria-controls="lane-box-body" onClick={() => setBoxOpen(!boxShown)}>{boxShown ? "닫기" : "열기"}</button>
+              )}
             </div>
-            <div className="lane-body">
+            <div className="lane-body" id={lane === "box" ? "lane-box-body" : undefined} hidden={lane === "box" && !boxShown}>
             {shown.length > 0 && (
               <ul className="lane-things">
                 {shown.map((thing, order) => (

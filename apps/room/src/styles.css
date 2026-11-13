@@ -1071,6 +1071,9 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .lane-box { margin-top: var(--space-3); border-radius: var(--room-radius); background: var(--ground); }
 .lane + .lane-box { border-top: 0; }
 .lane-box .lane-head { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-5); }
+/* 정리 상자는 열기 전까지 속을 보이지 않아요(RoomScene). */
+.lane-body[hidden] { display: none; }
+.lane-box-toggle { grid-column: 2; justify-self: start; min-height: var(--control-sm); padding: 0 var(--space-3); }
 .lane-head { display: grid; gap: var(--space-1); }
 .lane-head h2 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; color: var(--ink); }
 .lane-count { font-size: var(--text-sm); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
