@@ -11,7 +11,7 @@ import { usePicture } from "../../storage/pictures";
 import { canThumb, useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
-import { tokenMs } from "../tokens";
+import { cssToken, tokenMs } from "../tokens";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -54,11 +54,13 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const slip = useRef<HTMLDivElement>(null);
   // 닫으면 포커스를 돌려줄, 마지막으로 누른 앞판이에요.
   const front = useRef<HTMLButtonElement | null>(null);
-  // 여는 동안 목록 종이를 숨겨 두는 움직임과, 속 종이 자리에서 커지기 시작할 타이머예요(growFrom).
-  const grow = useRef<{ hold?: Animation; timer?: ReturnType<typeof setTimeout> }>({});
+  // 여는 동안 목록 종이를 숨겨 두는 움직임, 꺼내기 시작할 타이머, 꺼내 간 서랍 속 종이예요(growFrom).
+  const grow = useRef<{ hold?: Animation; timer?: ReturnType<typeof setTimeout>; sheet?: Animation }>({});
   const stopGrow = () => {
     clearTimeout(grow.current.timer);
     grow.current.hold?.cancel();
+    // 꺼내 간 서랍 속 종이를 제자리에 되돌려요.
+    grow.current.sheet?.cancel();
     grow.current = {};
   };
   useEffect(() => stopGrow, []);
@@ -215,28 +217,48 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     stage.style.setProperty("--kind-slip-alpha", "0");
     stage.style.setProperty("--kind-slip-scale", "0.35");
   };
+  // 서랍이 빠져나오고 속 종이가 튀어 오르면, 맨 앞 종이 한 장을 위로 꺼내 들어(제 모양으로 펴지며) 오른쪽 목록 창 자리로 옮겨 펼쳐요.
+  // 꺼낸 동안 서랍 속 그 종이는 비어 있고, 닫거나 다른 서랍을 열면 돌아와요(stopGrow).
   const growFrom = (pressed: HTMLElement) => {
     const paper = slip.current?.querySelector<HTMLElement>(".kind-slip-paper:not([data-leaving])");
     if (!paper || !wide() || reducedMotion()) return;
-    // 서랍과 속 종이가 먼저 나오는 동안(--dur-2) 목록 종이는 숨어 있어요.
+    // 서랍과 속 종이가 먼저 나오는 동안(--dur-3) 목록 종이는 숨어 있어요.
     const hold = paper.animate({ opacity: [0, 0] }, { duration: 60_000, fill: "forwards" });
     grow.current = {
       hold,
       timer: setTimeout(() => {
-        // 서랍장이 아직 움직이는 중이라, 이 순간 속 종이가 보이는 자리에서 떠나요.
-        const tray = pressed.closest(".kind-drawer")?.querySelector(".kind-drawer-tray")?.getBoundingClientRect();
+        const sheets = pressed.closest(".kind-drawer")?.querySelectorAll<HTMLElement>(".kind-drawer-sheet");
+        const sheet = sheets?.[sheets.length - 1];
+        // 서랍장이 아직 움직이는 중이라, 이 순간 종이가 보이는 자리에서 꺼내요.
+        const from = sheet?.getBoundingClientRect();
         const to = paper.getBoundingClientRect();
         hold.cancel();
-        if (!tray || to.width === 0) return;
-        const dx = tray.left + tray.width / 2 - (to.left + to.width / 2);
-        const dy = tray.top + tray.height / 2 - (to.top + to.height / 2);
-        // 속 종이 한 장만 한 크기에서 출발해요(서랍 폭과 속 높이 중 작은 쪽에 맞춰요).
-        const s = Math.min(1, (tray.width * 0.8) / to.width, (tray.height * 2) / to.height);
+        if (!sheet || !from || from.width === 0 || to.width === 0) return;
+        const tokens = getComputedStyle(paper);
+        const center = (box: { left: number; top: number; width: number; height: number }) => [box.left + box.width / 2 - (to.left + to.width / 2), box.top + box.height / 2 - (to.top + to.height / 2)];
+        // 1) 서랍 속 종이와 꼭 같은 자리·크기. 2) 같은 폭으로 제 비율까지 펴지며 서랍 위로 들려 나옴. 3) 목록 창 자리.
+        const sx = from.width / to.width;
+        const [x0, y0] = center(from);
+        // 들린 종이는 서랍 위 남은 자리(화면 위 끝까지 --space-4 남김) 안에 들어가게 줄여요. 가운데는 서랍 속 종이에 맞춰요.
+        const sl = Math.min(sx, (from.top - parseFloat(cssToken("--space-4", paper))) / to.height);
+        const lifted = { left: from.left + (from.width - to.width * sl) / 2, width: to.width * sl, height: to.height * sl, top: from.top - to.height * sl };
+        const [x1, y1] = center(lifted);
+        const ms = tokenMs("--dur-drawer", paper) * 1.5;
+        grow.current = { sheet: sheet.animate({ opacity: [0, 0] }, { duration: 60_000, fill: "forwards" }) };
+        // 들린 종이는 윗부분이 뒤로 기운 채 서랍 위에 서 있다가, 화면 앞으로 다가오며 똑바로 서고 조금 넘치게 커졌다가 창 자리에 내려앉아요.
+        // 원근 깊이는 창 높이에 맞춰요. 모든 단계의 변환 함수 목록을 같게 둬야 행렬로 뭉개지지 않고 각각 이어져요.
+        const depth = `perspective(${Math.round(to.height * 2)}px)`;
+        const at = (x: number, y: number, tilt: number, scale: string) => `translate(${x}px, ${y}px) ${depth} rotateX(${tilt}deg) scale(${scale})`;
         paper.animate(
-          [{ transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 0 }, { opacity: 1, offset: 0.12 }, { transform: "none", opacity: 1 }],
-          { duration: tokenMs("--dur-drawer", paper), easing: getComputedStyle(paper).getPropertyValue("--ease-drawer") },
+          [
+            { transform: at(x0, y0, 0, `${sx}, ${from.height / to.height}`), boxShadow: tokens.getPropertyValue("--shadow-1"), easing: tokens.getPropertyValue("--ease-settle") },
+            { transform: at(x1, y1, 18, `${sl}`), offset: 0.3, easing: tokens.getPropertyValue("--ease-standard") },
+            { transform: at(0, 0, 0, "1.04"), boxShadow: tokens.getPropertyValue("--shadow-3"), offset: 0.8, easing: tokens.getPropertyValue("--ease-settle") },
+            { transform: at(0, 0, 0, "1"), boxShadow: tokens.getPropertyValue("--shadow-2") },
+          ],
+          { duration: ms },
         );
-      }, tokenMs("--dur-2", paper)),
+      }, tokenMs("--dur-3", paper)),
     };
   };
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {

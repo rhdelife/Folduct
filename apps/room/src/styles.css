@@ -1755,8 +1755,8 @@ p.kind-folder-more { color: var(--ink-caption); }
   .shelf-paper { transition: translate var(--dur-2) var(--ease-settle), box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-1) var(--ease-standard); }
   /* 처음 놓이는 12장만 차례로 내려앉아요. "더 보기"로 늘어난 100여 장이 한꺼번에 움직이지 않아요. */
   .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation: kind-card-in var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-1) + var(--i) * 30ms); }
-  /* 넓은 창에서는 목록 종이가 서랍 속 종이 자리에서 커지는 동안(--dur-2 기다린 뒤) 카드가 그 뒤를 이어 내려앉아요. */
-  @media (min-width: 721px) { .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation-delay: calc(var(--dur-2) + var(--dur-3) + var(--i) * 30ms); } }
+  /* 넓은 창에서는 서랍에서 꺼낸 종이가 목록 창 자리에 거의 닿을 때(KindShelf growFrom) 카드가 차례로 내려앉아요. */
+  @media (min-width: 721px) { .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation-delay: calc(var(--dur-3) + var(--dur-drawer) * 1.2 + var(--i) * 30ms); } }
   @supports (animation-timeline: view()) {
     .kind-cabinet-wrap { animation: kind-cabinet-in linear both; animation-timeline: --kind-scene; animation-range: entry 0% entry 100%; }
   }
