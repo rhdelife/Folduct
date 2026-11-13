@@ -551,6 +551,12 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node.dragging { z-index: 3; cursor: grabbing; scale: 1.06; }
 /* 고른 카드는 그림이 커져서 골랐다는 게 보여요. 가리킨 카드는 그림 외곽선이 빛나요. */
 .room-node.fed .room-cover { scale: var(--room-picked-scale); }
+/* 썸네일 테두리는 메뉴 막대 방 알약처럼 그 방 얼굴 색으로 그려요(종이 잉크만 바꿔요). */
+.room-node .room-cover { --ink: var(--room-color); }
+/* 한 방을 먹이면 나머지 방 카드는 살짝 옅어져요. 가리키면 조금 돌아와요. */
+.room-node { transition: opacity var(--dur-2) var(--ease-standard); }
+.room-shelf:has(.room-node.fed) .room-node:not(.fed) { opacity: 0.45; }
+.room-shelf:has(.room-node.fed) .room-node:not(.fed):is(:hover, :focus-visible) { opacity: 0.8; }
 @media (hover: hover) { .room-node:hover .room-cover { filter: var(--room-glow); } }
 .room-node:focus-visible .room-cover { filter: var(--room-glow); }
 .room-sub b { font-weight: 700; color: var(--ink); }

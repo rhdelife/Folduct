@@ -449,6 +449,7 @@ const MapLayers = memo(function MapLayers({
                   type="button"
                   data-room-id={room.id}
                   className={`room-node${fed ? " fed" : ""}`}
+                  style={{ "--room-color": faceColorVar(room.face.color) } as CSSProperties}
                   tabIndex={room.id === tabStop ? 0 : -1}
                   aria-pressed={fed}
                   aria-label={`${room.name} 방, ${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}${fed ? `. 프로도가 먹었어요${shares ? `: ${shares}` : ""}. 한 번 더 누르면 방으로 들어가요` : ""}`}
