@@ -314,10 +314,13 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       {shelves.length > 0 && (
         <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
           <div className="kind-cabinet-wrap">
-            <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
-              {shelves.map((shelf) => (
-                <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
-              ))}
+            {/* 서랍장이 아래로 물러나는 판이에요. 바깥 판의 스크롤 등장 애니메이션과 따로 움직여야 transition이 막히지 않아요. */}
+            <div className="kind-cabinet-sink">
+              <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
+                {shelves.map((shelf) => (
+                  <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
+                ))}
+              </div>
             </div>
           </div>
           <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
