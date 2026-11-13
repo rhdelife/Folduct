@@ -185,6 +185,9 @@
   --shelf-card-max: 160px;
   --shelf-cover: 64px;
   --shelf-cover-narrow: 44px;
+  /* 방 카드: 고르면 그림이 커지고, 가리키면 그림 외곽선에 잉크 빛이 돌아요. */
+  --room-picked-scale: 1.22;
+  --room-glow: drop-shadow(0 0 2px rgb(23 23 23 / 0.7)) drop-shadow(0 0 10px rgb(23 23 23 / 0.35));
 
   /* 플로팅 창 */
   --pet-w: 216px;
@@ -524,7 +527,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .vase-float { transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
 .vase-art { width: 100%; height: 100%; overflow: visible; }
 /* 방 카드의 그림: 가장 최근 사진, 없으면 첫 파일의 종이. */
-.room-cover { display: block; flex: none; width: var(--shelf-cover); rotate: -4deg; pointer-events: none; }
+.room-cover { display: block; flex: none; width: var(--shelf-cover); rotate: -4deg; pointer-events: none; transition: scale var(--dur-2) var(--ease-standard), filter var(--dur-2) var(--ease-standard); }
 .room-cover .object { display: block; width: 100%; height: auto; }
 /* 주름관 그림의 색. 받침은 고른 방 색, 들고 있는 종이는 파일 형식 색이고 없으면 흰색이에요. */
 .duct-ink { fill: var(--ink); }
@@ -539,11 +542,11 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node:active:where(:not(:disabled)) { transform: none; background: none; }
 .room-node .room-label, .room-node .room-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-node.dragging { z-index: 3; cursor: grabbing; scale: 1.06; }
-/* 먹은 카드는 그림만 흐려요. 이름은 한 번 더 누르면 들어갈 자리라 그대로 읽혀요. */
-.room-node.fed .room-cover { opacity: 0.3; }
+/* 고른 카드는 그림이 커져서 골랐다는 게 보여요. 가리킨 카드는 그림 외곽선이 빛나요. */
+.room-node.fed .room-cover { scale: var(--room-picked-scale); }
+@media (hover: hover) { .room-node:hover .room-cover { filter: var(--room-glow); } }
+.room-node:focus-visible .room-cover { filter: var(--room-glow); }
 .feed-hint { position: absolute; margin: 0; translate: -50% calc(-100% - var(--space-3)); color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--lh-sm); white-space: nowrap; pointer-events: none; animation: fade-in var(--dur-3) var(--ease-standard); }
-/* 먹이러 날아가는 카드 조각(heroMotion). */
-.feed-morsel { position: absolute; z-index: var(--hero-tip-z); display: grid; justify-items: center; align-content: center; gap: var(--space-1); padding: var(--space-1); pointer-events: none; text-align: center; }
 .room-sub b { font-weight: 700; color: var(--ink); }
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out 3; }
 .room-label, .room-sub { text-shadow: 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo), 0 0 var(--space-1) var(--halo); }

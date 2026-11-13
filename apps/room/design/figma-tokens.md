@@ -226,6 +226,8 @@
 | `scene/shelf-card-max` | `160px` |  |
 | `scene/shelf-cover` | `64px` |  |
 | `scene/shelf-cover-narrow` | `44px` |  |
+| `scene/room-picked-scale` | `1.22` |  |
+| `scene/room-glow` | `drop-shadow(0 0 2px rgb(23 23 23 / 0.7)) drop-shadow(0 0 10px rgb(23 23 23 / 0.35))` |  |
 | `scene/pet-w` | `216px` |  |
 | `scene/pet-panel-w` | `300px` |  |
 | `scene/pet-panel-art` | `64px` |  |

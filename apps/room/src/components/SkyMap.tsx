@@ -115,12 +115,7 @@ export function SkyMap({
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
   const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId, filter), [rooms, selectedId, now, view, doorOpen, filter]);
   const ids = useMemo(() => shelfRooms.map((room) => room.id), [shelfRooms]);
-  // 프로도가 먹는 방 카드가 날아오는 자리(창 좌표). 끌어다 놓은 자리이거나 누른 카드의 가운데예요.
-  const feedFrom = useRef<{ x: number; y: number } | null>(null);
-  const feed = useCallback((id: string | null, from: { x: number; y: number } | null) => {
-    feedFrom.current = from;
-    onSelectRoom(id);
-  }, [onSelectRoom]);
+  const feed = onSelectRoom;
 
   // 현관에 새 파일이 오면 고개를 들어 그쪽을 봅니다.
   useEffect(() => {
@@ -128,7 +123,7 @@ export function SkyMap({
   }, [doorOpen]);
 
   // 평소에는 프로도만 보입니다. 먹은 방의 파일만 입에서 나와요.
-  useHeroMotion(canvas, cards, frodo, view, selectedId, feedFrom);
+  useHeroMotion(canvas, cards, frodo, view, selectedId);
 
   // 화살표와 휠로 방 카드 사이를 옮겨 다니면 프로도가 그 방을 먹고 파일을 뱉어요.
   const step = useRef<(key: string) => void>(() => {});
@@ -136,8 +131,7 @@ export function SkyMap({
     const next = stepRoom(ids, selectedId, key);
     if (!next || next === selectedId) return;
     closeTip();
-    const card = canvas.current?.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(next)}"]`);
-    feed(next, card ? centerOf(card) : null);
+    feed(next);
     // Enter를 한 번 더 누르면 그 방으로 들어가도록 포커스도 따라갑니다.
     canvas.current?.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(next)}"]`)?.focus({ preventScroll: true });
   };
@@ -191,7 +185,7 @@ export function SkyMap({
         <div
           className="sky-backdrop"
           onClick={() => {
-            feed(null, null);
+            feed(null);
             closeTip();
           }}
         />
@@ -274,7 +268,7 @@ const MapLayers = memo(function MapLayers({
   stats: Map<string, RoomStat>;
   selectedId: string | null;
   focusId: string | null;
-  onFeed: (id: string | null, from: { x: number; y: number } | null) => void;
+  onFeed: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
@@ -294,7 +288,7 @@ const MapLayers = memo(function MapLayers({
       return;
     }
     if (event.key === "Escape") {
-      onFeed(null, null);
+      onFeed(null);
       onCloseTip();
       return;
     }
@@ -304,11 +298,11 @@ const MapLayers = memo(function MapLayers({
     const card = event.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-room-id="${CSS.escape(next)}"]`);
     card?.focus();
     // 옮겨 간 방을 프로도가 먹어요.
-    onFeed(next, card ? centerOf(card) : null);
+    onFeed(next);
   }
 
   // 처음 누르면 프로도가 그 방을 먹고 파일을 뱉고, 먹은 방 카드를 한 번 더 누르면 방으로 들어갑니다.
-  const pick = (id: string, from: { x: number; y: number }) => (id === selectedId ? onOpenRoom(id) : onFeed(id, from));
+  const pick = (id: string) => (id === selectedId ? onOpenRoom(id) : onFeed(id));
 
   // 카드 끌기. 프로도 위에 놓으면 먹이고, 다른 데 놓으면 제자리로 돌아가요. 6px 넘게 움직여야 끌기로 봐서 그냥 누르기와 섞이지 않아요.
   const drag = useRef<{ id: string; pointer: number; x: number; y: number; moved: boolean; over: boolean; eyed: number } | null>(null);
@@ -365,7 +359,7 @@ const MapLayers = memo(function MapLayers({
     el.closest(".sky-canvas")?.classList.remove("feed-over");
     cue(homeActor, { look: null });
     if (event.type === "pointerup" && now.over) {
-      if (now.id !== selectedId) onFeed(now.id, { x: event.clientX, y: event.clientY });
+      if (now.id !== selectedId) onFeed(now.id);
       return;
     }
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) el.animate([{ translate: at }, { translate: "0px 0px" }], { duration: 260, easing: "cubic-bezier(.2,.8,.3,1)" });
@@ -483,7 +477,7 @@ const MapLayers = memo(function MapLayers({
                       dragged.current = false;
                       return;
                     }
-                    pick(room.id, centerOf(event.currentTarget));
+                    pick(room.id);
                   }}
                   onPointerDown={(event) => onCardDown(event, room.id)}
                   onPointerMove={onCardMove}

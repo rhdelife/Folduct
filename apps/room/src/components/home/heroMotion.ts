@@ -3,7 +3,7 @@ import { toPx, type View } from "../../domain/sky";
 import type { Card, HeroFrodo } from "../../domain/heroLayout";
 import { cue, homeActor } from "../useFrodo";
 
-// 첫 화면의 움직임: 방 카드를 먹이면 카드가 프로도 입으로 날아들고, 삼킨 뒤 그 방 용량만큼 몸이 받침에서 솟고, 입에서 그 방 파일이 제 칸으로 나옵니다.
+// 첫 화면의 움직임: 방 카드를 고르면 그 방 용량만큼 몸이 받침에서 솟고, 입에서 그 방 파일이 제 칸으로 나옵니다.
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // 종이 한 장의 등장: 자기 방 주름관의 입에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
@@ -16,15 +16,11 @@ export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
   ];
 }
 
-// 한 방을 먹는 시간: 카드가 입으로 날아들고(flyMs) 꿀꺽 삼키는(gulpMs) 끝무렵부터 그 방 용량만큼 받침에서 솟아요(growMs).
-// 솟는 동안 형식 색도 받침에서 함께 차올라(fillMs) 한 번에 이어져 보여요. 따로따로 멈췄다 움직이면 끊겨 보였어요.
-const flyMs = 380;
-const gulpMs = 220;
+// 방을 고르면 바로 그 방 용량만큼 받침에서 솟아요(growMs). 솟는 동안 형식 색도 받침에서 함께 차올라(fillMs) 한 번에 이어져 보여요.
 const growMs = 640;
-const growFrom = flyMs + gulpMs - 60;
 const fillMs = growMs + 160;
 // 다 솟자마자 웅크렸다가 파일을 하나씩 뱉어요.
-const windFrom = growFrom + growMs + 40;
+const windFrom = growMs + 40;
 const windUp = 420;
 const spillFrom = windFrom + windUp;
 // 파일이 많아도 다 나오는 데 1.6초를 넘지 않게 간격을 줄여요.
@@ -38,52 +34,25 @@ const player = (anims: Animation[]) => (el: Element | null | undefined, frames: 
   if (el) anims.push(el.animate(frames, { fill: "backwards", ...options }));
 };
 
-// 먹기: 먹을 방 카드를 본뜬 조각이 카드 자리(끌어다 놓았으면 놓은 자리)에서 입으로 날아들어 작아지며 사라져요.
-// 삼키면 늘어난 몸이 받침 아래에서 솟아올라요. 받침 선 아래는 가려 두니(styles.css .frodo-clip) 아직 안 솟은 몸은 보이지 않아요.
-// 움직이는 건 translate·scale·opacity뿐이라 합성 스레드에서 돌아요.
-function playFeed(root: HTMLElement, frodo: HeroFrodo, roomId: string, from: { x: number; y: number } | null, grownBy: number): Play {
+// 고르기: 늘어난 몸이 받침 아래에서 솟아올라요. 받침 선 아래는 가려 두니(styles.css .frodo-clip) 아직 안 솟은 몸은 보이지 않아요.
+// 움직이는 건 translate·scale뿐이라 합성 스레드에서 돌아요. 고른 방 카드는 CSS(.room-node.fed)로 그림만 커져요.
+function playFeed(root: HTMLElement, grownBy: number): Play {
   const anims: Animation[] = [];
-  const timers: number[] = [];
-  const box = root.getBoundingClientRect();
-  const card = root.querySelector<HTMLElement>(`.room-node[data-room-id="${CSS.escape(roomId)}"]`);
-  if (card) {
-    const rect = card.getBoundingClientRect();
-    // 단추를 통째로 복제하면 WebKit에서 단추 바탕(회색 알약)이 따라와요. 속(그림·이름)만 옮긴 div로 날려요.
-    const morsel = document.createElement("div");
-    morsel.className = "feed-morsel";
-    morsel.setAttribute("aria-hidden", "true");
-    morsel.append(...[...card.childNodes].map((node) => node.cloneNode(true)));
-    const start = from ?? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    Object.assign(morsel.style, { left: `${start.x - box.left - rect.width / 2}px`, top: `${start.y - box.top - rect.height / 2}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-    root.append(morsel);
-    const dx = frodo.mouth.x - (start.x - box.left);
-    const dy = frodo.mouth.y - (start.y - box.top);
-    const fly = morsel.animate([
-      { translate: "0px 0px", scale: "1", opacity: 1, easing: "cubic-bezier(.5,0,.75,0)" },
-      { offset: 0.85, opacity: 1 },
-      { translate: `${dx}px ${dy}px`, scale: "0.12", opacity: 0 },
-    ], { duration: flyMs, fill: "forwards" });
-    anims.push(fly);
-    fly.finished.catch(() => undefined).finally(() => morsel.remove());
-  }
-  timers.push(window.setTimeout(() => cue(homeActor, { face: "wide", ms: flyMs }), 0));
-  timers.push(window.setTimeout(() => cue(homeActor, { face: "shut", ms: gulpMs }), flyMs));
   const add = player(anims);
   // 형식 색을 칠한 겹 그림의 칸을 받침에서 위로 걷어 올려요. 바깥 칸은 아래에서 올라오고 안쪽 그림은 그만큼 거꾸로 움직여 제자리에 있어요.
   // 둘 다 translate라 다시 그리지 않고 레이어만 움직여요.
   const fill = root.querySelector(".frodo-home .frodo-fill");
   const fillEase = "cubic-bezier(.33,0,.2,1)";
-  add(fill, [{ translate: "0 100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs, delay: growFrom });
-  add(fill?.firstElementChild, [{ translate: "0 -100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs, delay: growFrom });
+  add(fill, [{ translate: "0 100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs });
+  add(fill?.firstElementChild, [{ translate: "0 -100%", easing: fillEase }, { translate: "0 0" }], { duration: fillMs });
   if (grownBy > 0) {
     // 한 번에 부드럽게 솟고 끝에서 살며시 멈춰요. 받침 선 아래는 .frodo-clip이 늘 가려요.
     add(root.querySelector(".frodo-lift"), [
-      { translate: `0px ${grownBy}px` },
-      { offset: growFrom / (growFrom + growMs), translate: `0px ${grownBy}px`, easing: "cubic-bezier(.22,1,.36,1)" },
+      { translate: `0px ${grownBy}px`, easing: "cubic-bezier(.22,1,.36,1)" },
       { translate: "0px 0px" },
-    ], { duration: growFrom + growMs });
+    ], { duration: growMs });
   }
-  return { anims, endsAt: windFrom, timers };
+  return { anims, endsAt: windFrom, timers: [] };
 }
 
 // 고른 방: 프로도가 웅크렸다가 머리를 부풀리며 파일을 한 장씩 뱉고, 파일은 아래 칸에 앉습니다. 종이는 그린 순서대로 .paper예요.
@@ -114,7 +83,7 @@ function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: Vie
   return { anims, endsAt: spillFrom + spitting + spillMs * 0.4, spitting, timers: [] };
 }
 
-export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], frodo: HeroFrodo | null, view: View, selectedId: string | null, feedFrom: RefObject<{ x: number; y: number } | null>) {
+export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], frodo: HeroFrodo | null, view: View, selectedId: string | null) {
   // 먹기 전 몸 높이(그림 판 단위). 창 크기가 바뀌어도 그대로라, 먹은 뒤 늘어난 만큼만 지금 크기로 받침에서 솟게 해요.
   const lastBoard = useRef(frodo ? frodo.height / frodo.scale : 0);
 
@@ -122,22 +91,19 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
   useLayoutEffect(() => {
     const before = lastBoard.current;
     lastBoard.current = frodo ? frodo.height / frodo.scale : 0;
-    const from = feedFrom.current;
-    feedFrom.current = null;
     if (!frodo || !selectedId || reduced()) return;
     const root = canvas.current!;
-    const ate = playFeed(root, frodo, selectedId, from, frodo.height - before * frodo.scale);
+    const ate = playFeed(root, frodo.height - before * frodo.scale);
     const { anims, spitting } = playSpill(root, cards, frodo, view);
     // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 웃는 얼굴로 돌아가요. 뱉을 파일이 없는 방은 웅크리지 않아요.
     const id = homeActor;
-    const timers = [...ate.timers, ...(cards.length === 0 ? [] : [
+    const timers = [...(cards.length === 0 ? [] : [
       window.setTimeout(() => cue(id, { face: "shut", ms: windUp }), windFrom),
       window.setTimeout(() => cue(id, { face: "wide", ms: spitting }), spillFrom),
     ])];
     return () => {
       timers.forEach(clearTimeout);
       [...ate.anims, ...anims].forEach((anim) => anim.cancel());
-      root.querySelectorAll(".feed-morsel").forEach((el) => el.remove());
     };
   }, [selectedId]);
 }

@@ -929,6 +929,14 @@
       "$type": "other",
       "$value": "44px"
     },
+    "room-picked-scale": {
+      "$type": "other",
+      "$value": "1.22"
+    },
+    "room-glow": {
+      "$type": "other",
+      "$value": "drop-shadow(0 0 2px rgb(23 23 23 / 0.7)) drop-shadow(0 0 10px rgb(23 23 23 / 0.35))"
+    },
     "pet-w": {
       "$type": "other",
       "$value": "216px"
