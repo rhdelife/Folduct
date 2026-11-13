@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { ObjectShape, pickArt } from "../art/ObjectShape";
-import { kindColors } from "../art/palette";
+import { colorGroups, kindColors } from "../art/palette";
 import { kindParts, kindSummary } from "../art/duct";
 import { StackArt } from "./RoomFace";
 import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, lastActivity, relativeDay } from "../domain/care";
-import { fedLengths, heroLayout, namedPaper, type Card, type HeroFrodo, type MoreSpot } from "../domain/heroLayout";
+import { fedLengths, heroLayout, namedPaper, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { sky, stepRoom, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
@@ -105,8 +105,15 @@ export function SkyMap({
     return () => observer.disconnect();
   }, []);
 
+  // 먹은 방에서 찾는 말과 고른 형식(색 띠 이름). 다른 방을 먹이면 처음부터예요.
+  const [finding, setFinding] = useState<{ room: string | null; query: string; label: string | null }>({ room: null, query: "", label: null });
+  const own = finding.room === selectedId;
+  const query = own ? finding.query : "";
+  const label = own ? finding.label : null;
+  const filter = useMemo<FedFilter>(() => ({ query, kinds: colorGroups.find((group) => group.label === label)?.kinds ?? null }), [query, label]);
+  const onFind = useCallback((patch: { query?: string; label?: string | null }) => setFinding((old) => ({ ...(old.room === selectedId ? old : { query: "", label: null }), room: selectedId, ...patch })), [selectedId]);
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const { shelf, rooms: shelfRooms, frodo, cards, more } = useMemo(() => heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId), [rooms, selectedId, now, view, doorOpen]);
+  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId, filter), [rooms, selectedId, now, view, doorOpen, filter]);
   const ids = useMemo(() => shelfRooms.map((room) => room.id), [shelfRooms]);
   // 프로도가 먹는 방 카드가 날아오는 자리(창 좌표). 끌어다 놓은 자리이거나 누른 카드의 가운데예요.
   const feedFrom = useRef<{ x: number; y: number } | null>(null);
@@ -121,7 +128,6 @@ export function SkyMap({
   }, [doorOpen]);
 
   // 평소에는 프로도만 보입니다. 먹은 방의 파일만 입에서 나와요.
-  const opener = more[0] ?? null;
   useHeroMotion(canvas, cards, frodo, view, selectedId, feedFrom);
 
   // 화살표와 휠로 방 카드 사이를 옮겨 다니면 프로도가 그 방을 먹고 파일을 뱉어요.
@@ -194,7 +200,10 @@ export function SkyMap({
           rooms={shelfRooms}
           frodo={frodo}
           cards={cards}
-          opener={opener}
+          find={find}
+          query={query}
+          label={label}
+          onFind={onFind}
           ids={ids}
           stats={stats}
           selectedId={selectedId}
@@ -236,7 +245,10 @@ const MapLayers = memo(function MapLayers({
   rooms,
   frodo,
   cards,
-  opener,
+  find,
+  query,
+  label,
+  onFind,
   ids,
   stats,
   selectedId,
@@ -254,7 +266,10 @@ const MapLayers = memo(function MapLayers({
   rooms: Room[];
   frodo: HeroFrodo | null;
   cards: Card[];
-  opener: MoreSpot | null;
+  find: FindSpot | null;
+  query: string;
+  label: string | null;
+  onFind: (patch: { query?: string; label?: string | null }) => void;
   ids: string[];
   stats: Map<string, RoomStat>;
   selectedId: string | null;
@@ -359,8 +374,8 @@ const MapLayers = memo(function MapLayers({
   const folders = useReadableFolders(rooms);
   const picked = rooms.find((room) => room.id === selectedId);
   const lengths = useMemo(() => fedLengths(picked), [picked]);
-  // 파일을 다 세지 못한 방은 색을 칠하지 않아요(방 그림과 같은 규칙).
-  const parts = useMemo(() => (picked && stats.get(picked.id)?.usage.exact ? kindParts(picked.things) : []), [picked, stats]);
+  // 다 세지 못한 방(읽지 못한 파일이 있거나 아직 세는 중)도 센 파일만으로 색을 칠해요. 큰 방일수록 그런 경우가 많아 색이 안 차 보였어요.
+  const parts = useMemo(() => (picked ? kindParts(picked.things) : []), [picked]);
   // 먹은 방의 형식별 비율 전부. 색 띠 이름표를 못 보는 화면 읽기·키보드 사용자는 먹은 카드 이름표에서 들어요.
   const shares = useMemo(() => {
     const total = parts.reduce((sum, item) => sum + item.size, 0);
@@ -377,6 +392,12 @@ const MapLayers = memo(function MapLayers({
     const share = Math.round((part.size / total) * 100);
     const box = event.currentTarget.closest(".sky-canvas")!.getBoundingClientRect();
     setBandTip({ room: picked.id, x: event.clientX - box.left, y: event.clientY - box.top, text: `${part.label} ${share < 1 ? "1% 미만" : `${share}%`} · ${formatBytes(part.size)}` });
+  };
+  // 색 띠를 누르면 그 형식 파일만 남겨요. 한 번 더 누르면 다시 다 보여요.
+  const pickBand = (event: { target: EventTarget }) => {
+    const target = event.target as Element;
+    const part = target.classList.contains("feed-band") ? parts.find((item) => item.color === target.getAttribute("fill")) : undefined;
+    if (part) onFind({ label: label === part.label ? null : part.label });
   };
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
@@ -427,7 +448,7 @@ const MapLayers = memo(function MapLayers({
       </div>
       <div className="sky-rooms">
         {frodo && (
-          <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)}>
+          <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)} onClick={pickBand}>
             <span className="frodo-clip">
             <span className="frodo-lift">
               <span className="vase-float">
@@ -491,11 +512,43 @@ const MapLayers = memo(function MapLayers({
             })}
           </div>
         )}
-        {/* 먹은 방 파일 칸 아래의 방 열기. 칸에 다 못 놓은 파일 수도 함께 알려요. */}
-        {opener && (
-          <button key={opener.room.id} type="button" className="room-more" style={{ left: `${(opener.x / sky.width) * 100}%`, top: `${(opener.y / sky.height) * 100}%` }} onClick={() => onOpenRoom(opener.room.id)} onMouseEnter={() => cue(homeActor, { body: "nod" })}>
-            {opener.count > 0 ? <Meta items={["방 열기", `${opener.count}개 더`]} /> : "방 열기"}
-          </button>
+        {/* 먹은 방 파일 칸 맨 위의 찾기 줄. 이름·폴더로 찾거나 형식 하나만 남겨요. Enter는 맨 앞 파일을 열어요. */}
+        {find && (
+          <div className="fed-find" style={{ left: find.left, top: find.top, width: find.width }}>
+            <input
+              type="search"
+              className="fed-search"
+              value={query}
+              placeholder="이름이나 폴더로 찾기"
+              aria-label={`${find.room.name} 방에서 파일 이름이나 폴더 이름으로 찾기. Enter를 누르면 맨 앞 파일을 열어요.`}
+              onChange={(event) => onFind({ query: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && cards[0]) {
+                  event.preventDefault();
+                  onOpenThing(find.room.id, cards[0].thing.id);
+                }
+                // 찾는 말이 있으면 Esc는 말만 지우고, 프로도는 그대로 둬요.
+                if (event.key === "Escape" && query) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onFind({ query: "" });
+                }
+              }}
+            />
+            {parts.length > 1 && (
+              <div className="fed-kinds" role="group" aria-label="형식으로 좁히기">
+                {parts.map((part) => (
+                  <button key={part.label} type="button" className="fed-kind" aria-pressed={label === part.label} onClick={() => onFind({ label: label === part.label ? null : part.label })}>
+                    <span className="fed-dot" style={{ background: part.color }} aria-hidden="true" />
+                    {part.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <span className="fed-count" role="status">
+              {find.found === 0 ? "맞는 파일이 없어요" : cards.length < find.found ? `${find.found.toLocaleString("ko-KR")}개 중 ${cards.length}개` : `${find.found.toLocaleString("ko-KR")}개`}
+            </span>
+          </div>
         )}
       </div>
     </div>
