@@ -60,7 +60,7 @@ export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; n
               <li key={id}>
                 <span className="trend-room-name">{names.get(id) ?? "지운 방"}</span>
                 <span className="trend-room-time">{work(ms)}</span>
-                <span className="trend-room-bar" style={{ "--share": ms / topRoom, background: roomColor(id) } as CSSProperties} aria-hidden="true" />
+                <span className="trend-room-bar" style={{ "--share": ms / topRoom, "--c": roomColor(id) } as CSSProperties} aria-hidden="true" />
               </li>
             ))}
           </ul>
@@ -93,7 +93,7 @@ function BarChart({ series, rooms }: { series: Bucket[]; rooms: Room[] }) {
         {series.map((bucket, at) => (
           <span key={bucket.label} className={`trend-col${hover === at && bucket.ms > 0 ? " on" : ""}`} style={{ "--share": bucket.ms / top } as CSSProperties}>
             {order.filter((id) => bucket.rooms[id]).map((id) => (
-              <i key={id} style={{ flexGrow: bucket.rooms[id], background: color(id) }} />
+              <i key={id} style={{ flexGrow: bucket.rooms[id], "--c": color(id) } as CSSProperties} />
             ))}
           </span>
         ))}
@@ -102,7 +102,7 @@ function BarChart({ series, rooms }: { series: Bucket[]; rooms: Room[] }) {
             <small>{shown.label}</small>
             <strong>{work(shown.ms)}</strong>
             {order.filter((id) => shown.rooms[id]).slice(0, 4).map((id) => (
-              <small key={id} className="trend-tip-room"><i style={{ background: color(id) }} />{name(id)} {work(shown.rooms[id])}</small>
+              <small key={id} className="trend-tip-room"><i style={{ "--c": color(id) } as CSSProperties} />{name(id)} {work(shown.rooms[id])}</small>
             ))}
           </p>
         )}
@@ -110,7 +110,7 @@ function BarChart({ series, rooms }: { series: Bucket[]; rooms: Room[] }) {
       {order.length > 0 && (
         <ul className="trend-legend" aria-label="방 색">
           {order.slice(0, roomsShown).map((id) => (
-            <li key={id}><i style={{ background: color(id) }} />{name(id)}</li>
+            <li key={id}><i style={{ "--c": color(id) } as CSSProperties} />{name(id)}</li>
           ))}
         </ul>
       )}

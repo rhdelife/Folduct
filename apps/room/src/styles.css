@@ -1318,22 +1318,26 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-stack { display: flex; align-items: flex-end; gap: var(--cal-gap); }
 .trend-col { flex: 1 1 0; display: flex; flex-direction: column-reverse; min-width: 0; height: calc(var(--share) * 100%); overflow: hidden; border-radius: var(--space-1) var(--space-1) 0 0; transition: opacity var(--dur-1) var(--ease-standard); }
 .trend-col i { display: block; flex-basis: 0; min-height: 0; }
+/* 방 색은 원색 그대로 칠하지 않고 유리처럼: 위는 빛을 받아 옅고 아래로 갈수록 방 색이 비쳐요. 칸 사이는 얇은 빛 줄로 나눠요. */
+.trend-col i, .trend-room-bar { background: linear-gradient(to bottom, color-mix(in srgb, var(--c) 38%, var(--surface)), color-mix(in srgb, var(--c) 62%, transparent)); box-shadow: inset 0 1px 0 var(--glass-chip-hover); }
+.trend-col i + i { border-bottom: 1px solid var(--glass-bg); }
+.trend-col { box-shadow: var(--glass-chip-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 .trend-stack:has(.trend-col.on) .trend-col:not(.on) { opacity: 0.45; }
 .trend-tip-room { display: flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
-.trend-tip-room i, .trend-legend i { flex: none; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-pill); }
+.trend-tip-room i, .trend-legend i { background: color-mix(in srgb, var(--c) 60%, var(--surface)); flex: none; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-pill); }
 .trend-legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0 0; padding: 0; list-style: none; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .trend-legend li { display: inline-flex; align-items: center; gap: var(--space-1); }
 .trend-tip small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .trend-tip strong { font-size: var(--text-md); line-height: var(--lh-md); font-variant-numeric: tabular-nums; }
 .trend-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); height: var(--trend-chart-h); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .trend-bars li { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: var(--space-1); }
-.trend-bar { align-self: end; width: 100%; height: calc(var(--share) * 100%); border-radius: var(--space-1) var(--space-1) 0 0; background: var(--ink); }
+.trend-bar { align-self: end; width: 100%; height: calc(var(--share) * 100%); border-radius: var(--space-1) var(--space-1) 0 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--ink) 50%, var(--surface)), color-mix(in srgb, var(--ink) 28%, transparent)); box-shadow: inset 0 1px 0 var(--glass-chip-hover), var(--glass-chip-shadow); }
 .trend-bars small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .trend-rooms { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .trend-rooms li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .trend-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trend-room-time { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.trend-room-bar { grid-column: 1 / -1; width: calc(var(--share) * 100%); height: var(--space-2); border-radius: var(--radius-pill); background: var(--ink); }
+.trend-room-bar { grid-column: 1 / -1; width: calc(var(--share) * 100%); height: var(--space-2); border-radius: var(--radius-pill); }
 
 /* ══ 플로팅 창 ══ */
 /* 창 자체가 투명해서 주름관과 조작창만 바탕화면 위에 뜹니다. 상태는 색 대신 바탕의 반전, 굵은 글자, 움직임으로 말해요. */
