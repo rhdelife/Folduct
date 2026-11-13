@@ -118,7 +118,7 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
   // 세로는 0.8배로 눌러 놓으니, 위아래로도 커진 주름관에 닿지 않게 그만큼 더 띄웁니다.
   const inner = (half * vaseLift) / 0.8 + 8 * scale;
   return picked.map((thing) => {
-    const { stale, days } = thingAge(thing, room.care, room.workDays, now);
+    const { stale, days } = thingAge(thing, room, now);
     // 제자리 물건은 방 둘레 어디에나, 손대지 않은 물건은 하늘 바깥쪽으로 흘러가 다른 방과 섞이지 않습니다.
     const outward = Math.atan2(center.y - sky.centerY, center.x - sky.centerX);
     // 머리글 곁에 있는 방은 바깥쪽이 따로 없으니 둘레 어디로든 흘러갑니다.
@@ -146,7 +146,7 @@ export function roomStars(room: Room, center: Point, spread: number, now: number
 
 // 상자 밖 물건 중 오래된 것의 수.
 export function staleCount(room: Room, now: number): number {
-  return room.things.filter((thing) => !thing.box && thingAge(thing, room.care, room.workDays, now).stale).length;
+  return room.things.filter((thing) => !thing.box && thingAge(thing, room, now).stale).length;
 }
 
 export type RoomProgress = { lastActivityAt: number | null; recentCount: number };

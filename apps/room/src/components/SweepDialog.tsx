@@ -10,11 +10,15 @@ import { useModal } from "./useModal";
 import { toggled } from "./sets";
 import { Meta } from "./Meta";
 
+// 방마다 처음부터 체크해 두는 파일 수(큰 것부터)
+const prechecked = 5;
+
 // 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
 export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const [selected, setSelected] = useState(() => new Set(plans.flatMap((plan) => plan.candidates.map((thing) => thing.id))));
+  // 방마다 큰 파일 몇 개만 골라 둡니다. 새로 이은 방은 잠잠한 파일이 한꺼번에 많을 수 있어요.
+  const [selected, setSelected] = useState(() => new Set(plans.flatMap((plan) => plan.candidates.slice(0, prechecked).map((thing) => thing.id))));
   // 지금 옮기는 대상: "all"은 처음 정리, 방 id는 그 방만 다시 시도.
   const [busy, setBusy] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<SweepOutcome[] | null>(null);
@@ -165,7 +169,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
                             <input type="checkbox" checked={selected.has(thing.id)} onChange={(event) => toggle([thing.id], event.target.checked)} />
                             <ObjectShape kind={thing.kind} size={24} seed={thing.id} />
                             <span className="name">{thing.name}</span>
-                            <Meta className="soft" items={[`${thingAge(thing, plan.room.care, plan.room.workDays, now).days}일째 그대로`, formatBytes(thing.size)]} />
+                            <Meta className="soft" items={[`${thingAge(thing, plan.room, now).days}일째 그대로`, formatBytes(thing.size)]} />
                           </label>
                           {note && <p className="note-line">“{note}”</p>}
                         </li>
@@ -175,7 +179,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
                 </section>
               );
             })}
-            {plans.length > 0 && <p className="soft">다른 앱에서 쓰는 파일이면 체크를 빼 주세요.</p>}
+            {plans.length > 0 && <p className="soft">방마다 큰 파일 {prechecked}개까지만 골라 뒀어요. 다른 앱에서 쓰는 파일이면 체크를 빼 주세요.</p>}
             {permits > 0 && <p className="soft">정리하기를 누르면 브라우저가 폴더 {permits}개에 대해 ‘수정 허용’을 물어요.</p>}
             <div className="row end">
               <button type="button" onClick={() => void later()} disabled={busy !== null}>다음 주에</button>

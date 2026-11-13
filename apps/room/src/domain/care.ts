@@ -54,22 +54,19 @@ export function relativeDay(at: number, now: number): string {
 }
 
 // shortcut: 기기 시계만 믿습니다. 시계가 뒤로 가면 판정이 늦어질 뿐이고, 옮기기 전에는 항상 사용자 확인을 거칩니다.
-export function thingAge(thing: Thing, care: CareSettings, workDays: string[], now: number): { stale: boolean; days: number } {
-  // 방에서 손댄 적 없는 파일은 처음 본 날부터 셉니다. 오래된 폴더를 이어도 한꺼번에 오래됨이 되지 않아요.
-  const last = thing.touchedAt === null ? Math.max(lastActivity(thing), thing.seenAt) : lastActivity(thing);
-  const days = Math.max(0, Math.floor((now - last) / dayMs));
-  if (care.done || thing.pinned || thing.missing || thing.box) return { stale: false, days };
-  // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 합니다.
-  const lastDay = localDay(last);
+// 주간 정리 후보는 방 안 '잠잠해요' 줄과 같은 날짜(실제 활동)로 정해요. 처음 본 날부터 세면 새 방은 30일 동안 아무것도 없다가 한꺼번에 몰려왔어요.
+export function thingAge(thing: Thing, room: Pick<Room, "care" | "workDays" | "createdAt">, now: number): { stale: boolean; days: number } {
+  const days = activityDays(thing, now);
+  if (laneOf(thing, room, now) !== "quiet") return { stale: false, days };
+  // 방 자체를 쓰지 않은 기간은 방치가 아닙니다. 이 물건의 마지막 활동 날 뒤로 방을 쓴 날이 하루라도 있어야 해요. 그런 방은 방 하나로 물어요(doneOfferDue).
+  const lastDay = localDay(lastActivity(thing));
   const today = localDay(now);
-  if (!workDays.some((day) => day > lastDay && day <= today)) return { stale: false, days };
-  return { stale: days >= care.staleAfterDays, days };
+  return { stale: room.workDays.some((day) => day > lastDay && day <= today), days };
 }
 
 // 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
 export function sweepCandidates(room: Room, now: number): Thing[] {
-  if (room.care.done) return [];
-  return room.things.filter((thing) => thingAge(thing, room.care, room.workDays, now).stale).sort((a, b) => b.size - a.size);
+  return room.things.filter((thing) => thingAge(thing, room, now).stale).sort((a, b) => b.size - a.size);
 }
 
 // 방 안 네 줄. 파일은 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자로 흘러갑니다.
@@ -81,7 +78,7 @@ export const activityDays = (thing: Pick<Thing, "touchedAt" | "lastModified" | "
 
 // 새 파일: 방을 만든 뒤에 들어와 아직 방에서 열지 않은, 들어온 지 7일 안의 파일.
 // 잠잠: 실제 활동이 '오래됨 기준'(기본 30일)보다 오래된 파일. 화면은 파일 날짜대로 정직하게 나눠요.
-// 주간 정리 후보(thingAge)는 따로예요. 오래된 폴더를 이은 직후 한꺼번에 옮기자고 하지 않게, 거기서는 처음 본 날부터 세는 보호를 그대로 둬요.
+// 주간 정리 후보(thingAge)도 이 줄을 따라요. 한꺼번에 많아도 정리 창은 큰 파일 몇 개만 골라 둬요.
 export function laneOf(thing: Thing, room: Pick<Room, "care" | "workDays" | "createdAt">, now: number): Lane {
   if (thing.box) return "box";
   if (thing.touchedAt === null && thing.seenAt > room.createdAt && withinWeek(thing.seenAt, now)) return "new";
@@ -175,8 +172,8 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
   const sure = scan.complete && scan.failed === 0;
   const moved = movedFiles(room, files, scan);
   const used = new Set<string>();
-  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false });
-  const things = room.things.map((thing): Thing => {
+  const seen = (thing: Thing, file: ScannedFile): Thing => ({ ...thing, path: file.path, name: file.name, kind: file.kind, size: file.size, lastModified: file.lastModified, lastUsedAt: Math.max(thing.lastUsedAt ?? 0, file.lastUsedAt ?? 0) || null, missing: false, box: thing.box ?? foundInBox(file.path, now) });
+  const things = room.things.map((thing): Thing | null => {
     const entry = thing.box;
     // 옮기던 중 멈춘 물건은 두 자리 다 이 물건 몫으로 잡아 같은 파일이 두 번 생기지 않게 합니다. 실제 위치는 reconcileBox가 맞춥니다.
     if (entry?.state === "moving-in" || entry?.state === "moving-out") {
@@ -191,15 +188,23 @@ export function mergeScan(room: Room, files: ScannedFile[], scan: { complete: bo
       return { ...seen(thing, back), box: null };
     }
     const found = byPath.get(thing.path) ?? moved.get(thing.id);
+    // 상자에 든 파일을 Finder에서 비웠다면 상자 기록도 뺍니다. 상자는 지울 것을 모아 두는 곳이라 남겨 둘 이유가 없어요.
+    if (!found && sure && entry) return null;
     if (!found) return sure ? { ...thing, missing: true } : thing;
     used.add(found.path);
     return seen(thing, found);
   });
-  for (const file of files) if (!used.has(file.path)) things.push(lateFind(room, file, scan) ? { ...newThing(file, now), seenAt: room.createdAt } : newThing(file, now));
+  const kept = things.filter((thing) => thing !== null);
+  for (const file of files) if (!used.has(file.path)) kept.push({ ...newThing(file, now), ...(lateFind(room, file, scan) ? { seenAt: room.createdAt } : {}), box: foundInBox(file.path, now) });
   const before = roomUsage(room).totalBytes;
-  const next = { ...room, things, workDays: mergeActivityDays(room.workDays, things, now), scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
+  const next = { ...room, things: kept, workDays: mergeActivityDays(room.workDays, kept, now), scan: { complete: scan.complete, failed: scan.failed, at: now, freedBytes: 0 } };
   next.scan.freedBytes = Math.max(0, before - roomUsage(next).totalBytes);
   return next;
+}
+
+// 상자 폴더 안에서 처음 보는 파일은 상자에 든 파일로 칩니다(사용자가 직접 넣었거나 옛 기록이 사라진 경우). 원래 자리는 상자 밖 같은 경로예요.
+function foundInBox(path: string, now: number): Thing["box"] {
+  return isInBox(path) && path !== boxFolderName ? { state: "boxed", fromPath: path.slice(boxFolderName.length + 1), boxPath: path, at: now } : null;
 }
 
 // 고른 폴더가 이 방의 폴더가 맞는지: 지금 있는(없어지지도 상자에 들지도 않은) 물건 중 몇 개가 스캔에 보이는지.
@@ -235,7 +240,7 @@ function movedFiles(room: Room, files: ScannedFile[], scan: { complete: boolean;
 export function newFileCount(room: Room, files: ScannedFile[], scan: { complete: boolean; failed: number }): number {
   const known = knownPaths(room);
   const moved = new Set([...movedFiles(room, files, scan).values()].map((file) => file.path));
-  return files.filter((file) => !known.has(file.path) && !moved.has(file.path) && !lateFind(room, file, scan)).length;
+  return files.filter((file) => !known.has(file.path) && !moved.has(file.path) && !isInBox(file.path) && !lateFind(room, file, scan)).length;
 }
 
 // 다 읽지 못한 큰 방에서, 방을 만들기 전부터 있던 파일이 이제야 읽힌 경우. 새로 들어온 게 아니니 '새로 왔어요'와 새 파일 알림에서 빼요.

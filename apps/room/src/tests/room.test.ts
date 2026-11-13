@@ -18,6 +18,9 @@ function thing(patch: Partial<Thing> = {}): Thing {
   return { id: crypto.randomUUID(), path: "참고/a.png", name: "a.png", kind: "image", size: 10, lastModified: 0, lastUsedAt: null, missing: false, spot: { x: 3, y: 3 }, note: "", touchedAt: start, seenAt: start, pinned: false, box: null, ...patch };
 }
 
+// 옛 시험의 (물건, 돌보기, 방 쓴 날, 지금) 꼴을 그대로 둡니다. 방은 시작 날에 만들었어요.
+const age = (item: Thing, care: Room["care"], workDays: string[], now: number) => thingAge(item, { care, workDays, createdAt: start }, now);
+
 function room(things: Thing[], patch: Partial<Room> = {}): Room {
   return { id: "r", name: "방", createdAt: start, source: "handle", rootName: "방", scan: { complete: true, failed: 0, at: start, freedBytes: 0 }, things, workDays: [], care: defaultCare, doneOfferAt: null, face: { shape: 0, color: 0 }, ...patch };
 }
@@ -45,23 +48,23 @@ describe("물건 크기", () => {
 describe("방치 판정", () => {
   it("방을 쓴 날이 없으면 오래돼도 오래됨이 아니고, 있으면 30일부터 오래됨이다", () => {
     const item = thing();
-    expect(thingAge(item, defaultCare, [], start + 60 * dayMs).stale).toBe(false);
+    expect(age(item, defaultCare, [], start + 60 * dayMs).stale).toBe(false);
     const workDays = [localDay(start + dayMs)];
-    expect(thingAge(item, defaultCare, workDays, start + 29 * dayMs)).toEqual({ stale: false, days: 29 });
-    expect(thingAge(item, defaultCare, workDays, start + 30 * dayMs)).toEqual({ stale: true, days: 30 });
+    expect(age(item, defaultCare, workDays, start + 29 * dayMs)).toEqual({ stale: false, days: 29 });
+    expect(age(item, defaultCare, workDays, start + 30 * dayMs)).toEqual({ stale: true, days: 30 });
   });
 
   it("방마다 정한 기준을 따른다", () => {
     const workDays = [localDay(start + dayMs)];
-    expect(thingAge(thing(), { ...defaultCare, staleAfterDays: 7 }, workDays, start + 7 * dayMs).stale).toBe(true);
+    expect(age(thing(), { ...defaultCare, staleAfterDays: 7 }, workDays, start + 7 * dayMs).stale).toBe(true);
   });
 
   it("고정·누락·원본이 나중에 고쳐진 물건은 오래됨이 아니다", () => {
     const workDays = [localDay(start + dayMs)];
     const later = start + 31 * dayMs;
-    expect(thingAge(thing({ pinned: true }), defaultCare, workDays, later).stale).toBe(false);
-    expect(thingAge(thing({ missing: true }), defaultCare, workDays, later).stale).toBe(false);
-    expect(thingAge(thing({ lastModified: start + 2 * dayMs }), defaultCare, workDays, later).stale).toBe(false);
+    expect(age(thing({ pinned: true }), defaultCare, workDays, later).stale).toBe(false);
+    expect(age(thing({ missing: true }), defaultCare, workDays, later).stale).toBe(false);
+    expect(age(thing({ lastModified: start + 2 * dayMs }), defaultCare, workDays, later).stale).toBe(false);
   });
 
   it("정리 후보는 상자 밖 오래된 물건이고(바닥에 놓지 않았던 것도), 큰 파일이 먼저다", () => {
@@ -73,8 +76,8 @@ describe("방치 판정", () => {
     const fallen = thing();
     const onShelf = thing({ spot: null });
     const boxed = thing({ box: { state: "virtual", fromPath: "참고/a.png", boxPath: "참고/a.png", at: start } });
-    // 방에서 손댄 적 없는 파일은 처음 본 날부터 세서, 11일째라 아직 후보가 아니에요.
-    const justSeen = thing({ touchedAt: null, seenAt: start + 20 * dayMs });
+    // 이번 주에 새로 들어와 아직 열지 않은 파일은 '새로 왔어요' 줄이라 후보가 아니에요.
+    const justSeen = thing({ touchedAt: null, seenAt: start + 28 * dayMs });
     const candidates = sweepCandidates(room([fallen, onShelf, boxed, justSeen], { workDays: [localDay(start + dayMs), localDay(start + 25 * dayMs)] }), start + 31 * dayMs);
     expect(candidates.map((item) => item.id)).toEqual([fallen.id, onShelf.id]);
     expect(markWorkDay(["2026-10-01"], start)).toEqual(["2026-10-01", "2026-10-05"]);
@@ -95,23 +98,23 @@ describe("방 밖 작업", () => {
   it("방 밖에서 쓰면 그때부터 다시 세고, 그 뒤로 방을 쓴 날이 있어야 오래됨이다", () => {
     const item = thing({ lastUsedAt: day(5) });
     const workDays = [localDay(day(1)), localDay(day(6))];
-    expect(thingAge(item, defaultCare, workDays, day(7))).toEqual({ stale: false, days: 2 });
-    expect(thingAge(item, defaultCare, workDays, day(35))).toEqual({ stale: true, days: 30 });
+    expect(age(item, defaultCare, workDays, day(7))).toEqual({ stale: false, days: 2 });
+    expect(age(item, defaultCare, workDays, day(35))).toEqual({ stale: true, days: 30 });
     // 마지막 활동 날이나 그 전에만 방을 썼으면 오래돼도 그대로입니다.
-    expect(thingAge(item, defaultCare, [localDay(day(1)), localDay(day(5))], day(60))).toEqual({ stale: false, days: 55 });
+    expect(age(item, defaultCare, [localDay(day(1)), localDay(day(5))], day(60))).toEqual({ stale: false, days: 55 });
     // 고친 날도 같은 기준입니다.
-    expect(thingAge(thing({ lastModified: day(2) }), defaultCare, [localDay(day(3))], day(32))).toEqual({ stale: true, days: 30 });
-    // 방에서 손대지 않은 파일도 같은 기준이고, 처음 본 날보다 앞으로는 세지 않아요.
-    expect(thingAge(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(60))).toEqual({ stale: true, days: 59 });
-    expect(thingAge(thing({ touchedAt: null, lastModified: day(1), seenAt: day(40) }), defaultCare, [localDay(day(45))], day(60))).toEqual({ stale: false, days: 20 });
+    expect(age(thing({ lastModified: day(2) }), defaultCare, [localDay(day(3))], day(32))).toEqual({ stale: true, days: 30 });
+    // 방에서 손대지 않은 파일도 같은 기준이고, 처음 본 날이 아니라 실제 날짜로 세요(잠잠해요 줄과 같아요).
+    expect(age(thing({ touchedAt: null, lastUsedAt: day(1) }), defaultCare, workDays, day(60))).toEqual({ stale: true, days: 59 });
+    expect(age(thing({ touchedAt: null, lastModified: day(1), seenAt: day(40) }), defaultCare, [localDay(day(45))], day(60))).toEqual({ stale: true, days: 59 });
   });
 
-  it("오래된 폴더로 방을 막 만들어도 오래 쉰 파일은 바로 잠잠해요에 보이고, 주간 정리는 아직 묻지 않아요", () => {
+  it("오래된 폴더로 방을 막 만들면 오래 쉰 파일은 바로 잠잠해요에 보이고, 주간 정리도 같은 파일을 물어요", () => {
     const made = day(100);
     const r = room([], { createdAt: made, workDays: [localDay(made)] });
     const old = thing({ touchedAt: null, seenAt: made, lastModified: day(0) });
     expect(laneOf(old, r, made + dayMs)).toBe("quiet");
-    expect(thingAge(old, r.care, r.workDays, made + dayMs).stale).toBe(false);
+    expect(thingAge(old, r, made + dayMs).stale).toBe(true);
     expect(laneOf(thing({ touchedAt: null, seenAt: made, lastModified: day(95) }), r, made + dayMs)).toBe("use");
   });
   it("줄 안 순서: 요즘 써요는 최근 것, 잠잠해요는 오래 쉰 것부터", () => {
@@ -126,9 +129,11 @@ describe("방 밖 작업", () => {
     expect(laneOf(thing({ touchedAt: null, seenAt: day(48) }), r, now)).toBe("new");
     expect(laneOf(thing({ touchedAt: day(49), seenAt: day(48) }), r, now)).toBe("use");
     expect(laneOf(thing({ touchedAt: null, seenAt: start, lastModified: day(49) }), r, now)).toBe("use");
-    // 줄은 실제 날짜로 나눠요. 방을 만든 뒤 처음 봤어도 고친 지 오래면 잠잠해요(주간 정리 후보는 아직 아니에요).
+    // 줄은 실제 날짜로 나눠요. 방을 만든 뒤 처음 봤어도 고친 지 오래면 잠잠해요이고, 주간 정리 후보도 돼요.
     expect(laneOf(thing({ touchedAt: null, seenAt: day(40) }), r, now)).toBe("quiet");
-    expect(thingAge(thing({ touchedAt: null, seenAt: day(40) }), r.care, r.workDays, now).stale).toBe(false);
+    expect(thingAge(thing({ touchedAt: null, seenAt: day(40) }), r, now).stale).toBe(true);
+    // 새로 왔어요 줄의 파일은 고친 날이 오래돼도 후보가 아니에요.
+    expect(thingAge(thing({ touchedAt: null, seenAt: day(48) }), r, now).stale).toBe(false);
     // 홈에서 뺀 방은 잠잠해요로 보내지 않아요.
     expect(laneOf(thing({ touchedAt: day(2) }), { ...r, care: { ...r.care, done: true } }, now)).toBe("use");
     expect(laneOf(thing({ touchedAt: day(2) }), r, now)).toBe("quiet");
@@ -179,7 +184,7 @@ describe("방 밖 작업", () => {
   it("다른 파일을 밖에서 쓴 날이 있으면 그대로인 물건은 오래됨이 된다", () => {
     const still = thing({ path: "a" });
     const next = mergeScan(room([still]), [scanned("a", 0), scanned("b", day(4), day(5))], sure, day(8));
-    expect(thingAge(next.things[0], defaultCare, next.workDays, day(40)).stale).toBe(true);
+    expect(age(next.things[0], defaultCare, next.workDays, day(40)).stale).toBe(true);
   });
 
   it("아무도 쓰지 않은 방은 오래됨으로 세지 않는다: 활동이 없거나, 모든 파일의 마지막 활동이 같은 옛날 하루여도", () => {
@@ -278,6 +283,20 @@ describe("다시 보기", () => {
   });
 
   const file = (path: string, size = 10): ScannedFile => ({ path, name: path.split("/").pop()!, kind: kindOf(path), size, lastModified: 0 });
+
+  it("상자 폴더에서 처음 보는 파일은 상자에 든 파일이고, 상자에서 비운 파일은 기록도 빠진다", () => {
+    const found = mergeScan(room([]), [file("_Folduct 정리상자/참고/b.png"), file("a.png")], { complete: true, failed: 0 }, start);
+    expect(found.things.find((item) => item.path === "a.png")?.box).toBeNull();
+    const inBox = found.things.find((item) => item.path.startsWith("_Folduct"))!;
+    expect(inBox.box).toEqual({ state: "boxed", fromPath: "참고/b.png", boxPath: "_Folduct 정리상자/참고/b.png", at: start });
+    expect(laneOf(inBox, found, start)).toBe("box");
+    expect(newFileCount(room([]), [file("_Folduct 정리상자/b.png"), file("a.png")], { complete: true, failed: 0 })).toBe(1);
+
+    const emptied = mergeScan(found, [file("a.png")], { complete: true, failed: 0 }, start);
+    expect(emptied.things.map((item) => item.path)).toEqual(["a.png"]);
+    // 다 못 읽은 스캔에서는 상자 기록을 지우지 않아요.
+    expect(mergeScan(found, [file("a.png")], { complete: false, failed: 0 }, start).things).toHaveLength(2);
+  });
 
   it("옮기던 중 멈춘 물건의 파일이 상자 쪽에만 있어도 물건은 하나다", () => {
     const moving = thing({ path: "a.png", note: "메모", box: { state: "moving-in", fromPath: "a.png", boxPath: "_Folduct 정리상자/a.png", at: start } });
@@ -657,8 +676,8 @@ describe("완료한 프로젝트", () => {
   it("오래됨으로 세지 않고, 주간 정리 후보도 없지만 다시 진행 중으로 돌리면 돌아온다", () => {
     const done = { ...defaultCare, done: true };
     const workDays = [localDay(start + dayMs)];
-    expect(thingAge(thing(), done, workDays, start + 31 * dayMs).stale).toBe(false);
-    expect(thingAge(thing(), defaultCare, workDays, start + 31 * dayMs).stale).toBe(true);
+    expect(age(thing(), done, workDays, start + 31 * dayMs).stale).toBe(false);
+    expect(age(thing(), defaultCare, workDays, start + 31 * dayMs).stale).toBe(true);
     const finished = room([thing({ size: 6 * GB })], { care: done, workDays });
     expect(sweepCandidates(finished, start + 31 * dayMs)).toEqual([]);
   });

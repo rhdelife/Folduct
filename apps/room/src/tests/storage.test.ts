@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultCare, localDay, dayMs, sweepCandidates } from "../domain/care";
 import type { Room, ScannedFile, Thing } from "../domain/model";
 import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
-import { answerDoneOffer, planSweep, reconcileBox, refreshRooms, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
+import { answerDoneOffer, boxThing, planSweep, reconcileBox, refreshRooms, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
 import { sampleRooms } from "../storage/sample";
 import { ductIndex } from "../art/duct";
 import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
@@ -340,5 +340,33 @@ describe("제자리로", () => {
     expect(result.patch).toEqual({ box: null, path: entry.fromPath, touchedAt: now });
     expect(stored().things[0]).toMatchObject({ ...result.patch, note: "메모" });
     expect(has(raw, entry.fromPath)).toBe("원본");
+  });
+});
+
+describe("방 안에서 바로 상자에 넣기", () => {
+  it("파일 하나를 상자 폴더로 옮기고, 주간 정리를 한 것으로 치지 않는다", async () => {
+    const raw = seed();
+    const item = thing("참고/시안.psd");
+    store(room([item]));
+    const result = await boxThing(room([item]), folder(raw), item.id, now);
+    expect(result.error).toBeNull();
+    expect(result.room.things[0]).toMatchObject({ path: `${box}/참고/시안.psd`, box: { state: "boxed", fromPath: "참고/시안.psd" } });
+    expect(has(raw, `${box}/참고/시안.psd`)).toBe("원본");
+    expect(has(raw, "참고/시안.psd")).toBeUndefined();
+    expect(vi.mocked(setLastSweepAt)).not.toHaveBeenCalled();
+  });
+
+  it("폴더가 없는 방은 Folduct 안에서만, 권한을 못 받으면 옮기지 않는다", async () => {
+    const item = thing("참고/시안.psd");
+    store(room([item]));
+    expect((await boxThing(room([item]), null, item.id, now)).room.things[0].box).toMatchObject({ state: "virtual", fromPath: "참고/시안.psd" });
+
+    const raw = seed();
+    const other = thing("참고/시안.psd");
+    store(room([other]));
+    vi.mocked(folderAccess).mockResolvedValue("prompt");
+    vi.mocked(askFolder).mockResolvedValue(false);
+    expect((await boxThing(room([other]), folder(raw), other.id, now)).error).toBe("폴더 수정 권한을 받지 못해 옮기지 않았어요.");
+    expect(has(raw, "참고/시안.psd")).toBe("원본");
   });
 });

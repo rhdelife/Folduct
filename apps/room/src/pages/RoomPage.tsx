@@ -17,7 +17,7 @@ import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, type Folder } from "../gateways/native";
-import { reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
+import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { useHues } from "../storage/thumbs";
@@ -442,6 +442,26 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     }
   }
 
+  // 방 안에서 파일 하나를 바로 정리 상자에 넣어요. 주간 정리를 기다리지 않아요. 되돌리기는 상자 줄의 '제자리로'예요.
+  async function putInBox(id: string) {
+    if (!latest.current) return;
+    flush();
+    setBusy("상자에 넣는 중…");
+    try {
+      const result = await boxThing(latest.current, room?.source === "handle" ? handle : null, id);
+      if (result.error) return toast(result.error);
+      const saved = result.room.things.find((thing) => thing.id === id);
+      if (!saved?.box) return;
+      update((current) => ({ ...current, things: current.things.map((thing) => (thing.id === id ? { ...thing, box: saved.box, path: saved.path } : thing)) }));
+      cue(roomId, { body: "bye", face: "happy", ms: 950 });
+      toast(saved.box.state === "virtual" ? "Folduct 안에서만 상자에 넣었어요. 실제 파일은 그대로예요." : "정리 상자 폴더로 옮겼어요.");
+    } catch {
+      toast("상자에 넣지 못했어요. 잠시 뒤 다시 해 주세요.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (missing) {
     return (
       <main className="page-status">
@@ -564,6 +584,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
                 onToast={toast}
                 onForget={forgetThing}
+                onBox={busy === null ? (id) => void putInBox(id) : undefined}
               />
               <VersionLog room={room} thing={selected} folder={access === "granted" ? handle : null} now={now} onPick={setSelectedId} />
               </>
@@ -673,8 +694,8 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   );
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast, onForget }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void }) {
-  const age = thingAge(thing, room.care, room.workDays, now);
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast, onForget, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onBox?: (id: string) => void }) {
+  const age = thingAge(thing, room, now);
   const last = lastActivity(thing);
   return (
     <div className="thing-panel">
@@ -703,7 +724,8 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
         {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
-        {thing.missing && <button type="button" onClick={() => onForget(thing.id)}>기록 빼기</button>}
+        {thing.missing ? <button type="button" onClick={() => onForget(thing.id)}>기록 빼기</button>
+          : <button type="button" aria-disabled={!onBox} onClick={() => onBox?.(thing.id)}><Icon name="sweep" />정리 상자에 넣기</button>}
       </div>
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />

@@ -107,7 +107,7 @@ export function SkyPanel({
     box.scrollTo({ top: top - box.clientHeight / 2, behavior: scrollBehavior() });
   }, [focusId]);
 
-  const things = room.things.filter((thing) => !thing.missing).map((thing) => ({ thing, ...thingAge(thing, room.care, room.workDays, now) }));
+  const things = room.things.filter((thing) => !thing.missing).map((thing) => ({ thing, ...thingAge(thing, room, now) }));
   things.sort((a, b) => (thingSort === "size" ? b.thing.size - a.thing.size : (a.thing.touchedAt === null ? Infinity : lastActivity(a.thing)) - (b.thing.touchedAt === null ? Infinity : lastActivity(b.thing))));
   // 고른 순서로 100개, 그리고 지도에 뜬 파일은 모두 넣어 지도의 별마다 줄이 있게 합니다. 뺀 방은 지도에 없어요.
   const starIds = new Set(room.care.done ? [] : pickStarThings(room, 40).map((thing) => thing.id));

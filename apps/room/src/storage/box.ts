@@ -134,7 +134,7 @@ export function answerDoneOffer(roomId: string, done: boolean, now = Date.now())
 }
 
 // 기록은 방마다 두 번만: 옮기기 전 moving-in 한 번, 끝난 뒤 결과 한 번. 중간에 꺼져도 moving-in을 보고 reconcileBox가 맞춥니다.
-async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], outcome: SweepOutcome, now: number) {
+async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], outcome: SweepOutcome, now: number): Promise<Room | null> {
   const fail = (thing: Thing, message: string) => outcome.failures.push({ id: thing.id, path: thing.path, name: thing.name, message });
   // 1. 상자 안 이름을 먼저 모두 정합니다. 같은 묶음 안에서 'a (2).txt'와 'a.txt'의 두 번째 이름이 겹치지 않게 잡아 둡니다.
   const reserved = new Set<string>();
@@ -174,8 +174,23 @@ async function boxRoom(roomId: string, root: MoveDirectory, things: Thing[], out
     }
   }
   // 4. 결과를 한 번에 적습니다. 그사이 다른 쪽이 맞춘 기록은 그대로 둡니다.
-  if (results.size === 0) return;
-  await patchThings(roomId, (thing) => (thing.box?.state === "moving-in" && thing.box.boxPath === targets.get(thing.id)?.boxPath ? (results.get(thing.id) ?? null) : null));
+  if (results.size === 0) return null;
+  return patchThings(roomId, (thing) => (thing.box?.state === "moving-in" && thing.box.boxPath === targets.get(thing.id)?.boxPath ? (results.get(thing.id) ?? null) : null));
+}
+
+// 방 안에서 파일 하나를 바로 상자에 넣습니다. 버튼 클릭 안에서 불러야 합니다(쓰기 권한 요청). 주간 정리를 한 것으로 치지 않아요.
+// 옮길 수 없는 방(샘플·브라우저 입력)은 주간 정리처럼 Folduct 안에서만 넣어요.
+export async function boxThing(room: Room, handle: Folder | null, thingId: string, now = Date.now()): Promise<{ room: Room; error: string | null }> {
+  const thing = room.things.find((item) => item.id === thingId);
+  if (!thing || thing.box || thing.missing) return { room, error: "상자에 넣을 수 없는 파일이에요." };
+  if (!handle || !canMoveIn(handle)) {
+    const saved = await patchThings(room.id, (item) => (item.id === thingId && !item.box ? { box: { state: "virtual", fromPath: item.path, boxPath: item.path, at: now } } : null));
+    return { room: saved, error: null };
+  }
+  if ((await folderAccess(handle, "readwrite")) !== "granted" && !(await askFolder(handle, "readwrite"))) return { room, error: "폴더 수정 권한을 받지 못해 옮기지 않았어요." };
+  const outcome: SweepOutcome = { roomId: room.id, roomName: room.name, mode: "real", moved: 0, movedBytes: 0, failures: [], skipped: null };
+  const saved = await boxRoom(room.id, folderMover(handle), [thing], outcome, now);
+  return { room: saved ?? room, error: outcome.failures[0]?.message ?? null };
 }
 
 // 방 폴더 자체를 못 읽으면(옮겨짐·드라이브 분리·권한) 파일이 두 자리 모두 없어 보여서, 맞추기 전에 확인합니다.
