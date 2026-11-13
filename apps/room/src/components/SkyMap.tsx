@@ -12,7 +12,6 @@ import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { awayFromHome } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
-import { AxisWindow, axisMs, WheelStepper } from "../domain/wheelStep";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
 import { coverOf, useReadableFolders, useThumb } from "../storage/thumbs";
@@ -125,7 +124,7 @@ export function SkyMap({
   // 평소에는 프로도만 보입니다. 먹은 방의 파일만 입에서 나와요.
   useHeroMotion(canvas, cards, frodo, view, selectedId);
 
-  // 화살표와 휠로 방 카드 사이를 옮겨 다니면 프로도가 그 방을 먹고 파일을 뱉어요.
+  // 화살표로 방 카드 사이를 옮겨 다니면 프로도가 그 방을 먹고 파일을 뱉어요.
   const step = useRef<(key: string) => void>(() => {});
   step.current = (key) => {
     const next = stepRoom(ids, selectedId, key);
@@ -145,32 +144,10 @@ export function SkyMap({
       event.preventDefault();
       step.current(event.key);
     };
-    // 좌우 쓸기(트랙패드)·Shift+휠 한 번마다 한 칸 갑니다(domain/wheelStep.ts). 세로 휠은 페이지를 아래 형식별 칸으로 내려요.
-    // 막혀 있을 때도 흐름은 읽어 둬야
-    // 대화상자를 닫은 뒤 남은 관성을 새 손짓으로 착각하지 않아요.
-    const wheel = new WheelStepper();
-    const axis = new AxisWindow();
-    let later: ReturnType<typeof setTimeout> | undefined;
-    const onWheel = (event: WheelEvent) => {
-      if (event.ctrlKey) return;
-      axis.add(event.deltaX, event.deltaY, event.timeStamp);
-      const dir = wheel.push({ deltaX: event.deltaX, deltaY: 0, deltaMode: event.deltaMode, timeStamp: event.timeStamp });
-      if (dir === 0 || blocked(event.target)) return;
-      // 세로로 쓸 때도 첫 값은 가로로 기울 수 있어요. 잠깐 모아 보고 가로가 클 때만 한 칸 가요(KindShelf의 장면 넘기기와 같은 판단).
-      axis.open(event.deltaX, event.deltaY, event.timeStamp);
-      clearTimeout(later);
-      const target = event.target;
-      later = setTimeout(() => {
-        if (axis.sideways() && !blocked(target)) step.current(dir > 0 ? "ArrowRight" : "ArrowLeft");
-      }, axisMs);
-    };
+    // 좌우로 쓸거나 Shift+휠로는 방을 바꾸지 않아요. 파일을 보다가 손이 조금만 옆으로 흘러도 다른 방으로 넘어갔어요.
+    // 방은 카드를 누르거나 끌어 놓거나 화살표로만 바꿔요. 세로 휠은 페이지를 아래 형식별 칸으로 내려요.
     document.addEventListener("keydown", onKey);
-    addEventListener("wheel", onWheel, { passive: true });
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      removeEventListener("wheel", onWheel);
-      clearTimeout(later);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   // 주름관이 사라지면 mouseleave가 오지 않으니, 지도에서 빠진 방의 강조와 말풍선은 여기서 지웁니다.
@@ -211,7 +188,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표나 좌우로 쓸어서 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div
             ref={tipBox}
