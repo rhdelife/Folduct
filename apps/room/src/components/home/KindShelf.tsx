@@ -54,6 +54,14 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const slip = useRef<HTMLDivElement>(null);
   // 닫으면 포커스를 돌려줄, 마지막으로 누른 앞판이에요.
   const front = useRef<HTMLButtonElement | null>(null);
+  // 여는 동안 목록 종이를 숨겨 두는 움직임과, 속 종이 자리에서 커지기 시작할 타이머예요(growFrom).
+  const grow = useRef<{ hold?: Animation; timer?: ReturnType<typeof setTimeout> }>({});
+  const stopGrow = () => {
+    clearTimeout(grow.current.timer);
+    grow.current.hold?.cancel();
+    grow.current = {};
+  };
+  useEffect(() => stopGrow, []);
   const shown = kinds.length > 0;
   useImperativeHandle(ref, () => self.current as HTMLElement, [shown]);
   // 집 화면과 이 장면은 휠 한 칸·한 번 쓸기에 한 장면씩 넘어가요. CSS scroll-snap 만으로는 휠 한 칸이 제자리로 튕겨 돌아와서 여기서 넘겨요.
@@ -162,6 +170,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   };
   // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
   const close = () => {
+    stopGrow();
     moveCabinet(() => {
       if (open) letGo(open, false);
       setOpen(null);
@@ -192,14 +201,12 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   // 바꿔 열면 옛 목록 종이가 새 종이 밑에 잠깐 남아요. 서랍 순서대로 놓아 React가 종이를 옮기지 않으니 옛 종이는 다시 그려지지 않고 그 자리에서 사라져요. 새 종이는 CSS z-index로 위에 와요.
   const leaving = new Set(gone.filter((item) => item.swap && item.label !== last).map((item) => item.label));
   const papers = shelves.filter((shelf) => shelf === listed || leaving.has(shelf.label));
-  // 넓은 창에서 목록 종이는 옆에서 밀려오지 않고, 누른 서랍 자리에서 작게 떠올라 오른쪽 칸으로 커지며 올라와요(styles.css @starting-style).
-  // 좁은 창은 지금처럼 아래에서 올라와요.
-  const riseFrom = (pressed: HTMLElement) => {
-    const stage = pressed.closest<HTMLElement>(".kind-stage");
-    const drawer = pressed.closest(".kind-drawer")?.getBoundingClientRect();
-    const box = slip.current?.getBoundingClientRect();
-    if (!stage || !drawer || !box || !matchMedia("(min-width: 721px)").matches) {
-      for (const name of ["--kind-slip-from", "--kind-slip-alpha", "--kind-slip-scale"]) stage?.style.removeProperty(name);
+  // 넓은 창에서 목록 종이는 서랍이 빠져나오고 속 종이가 튀어 오른 뒤, 그 종이들 자리에서 작은 종이로 떠올라 오른쪽 칸까지 커지며 펼쳐져요(growFrom).
+  // 닫을 때는 처음 누른 서랍 자리로 작아지며 들어가요(아래 CSS 변수와 styles.css transition). 좁은 창은 지금처럼 아래에서 올라와요.
+  const wide = () => matchMedia("(min-width: 721px)").matches;
+  const riseFrom = (stage: HTMLElement, drawer: DOMRect, box: DOMRect) => {
+    if (!wide()) {
+      for (const name of ["--kind-slip-from", "--kind-slip-alpha", "--kind-slip-scale"]) stage.style.removeProperty(name);
       return;
     }
     const x = drawer.left + drawer.width / 2 - (box.left + box.width / 2);
@@ -208,12 +215,45 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     stage.style.setProperty("--kind-slip-alpha", "0");
     stage.style.setProperty("--kind-slip-scale", "0.35");
   };
+  const growFrom = (pressed: HTMLElement) => {
+    const paper = slip.current?.querySelector<HTMLElement>(".kind-slip-paper:not([data-leaving])");
+    if (!paper || !wide() || reducedMotion()) return;
+    // 서랍과 속 종이가 먼저 나오는 동안(--dur-2) 목록 종이는 숨어 있어요.
+    const hold = paper.animate({ opacity: [0, 0] }, { duration: 60_000, fill: "forwards" });
+    grow.current = {
+      hold,
+      timer: setTimeout(() => {
+        // 서랍장이 아직 움직이는 중이라, 이 순간 속 종이가 보이는 자리에서 떠나요.
+        const tray = pressed.closest(".kind-drawer")?.querySelector(".kind-drawer-tray")?.getBoundingClientRect();
+        const to = paper.getBoundingClientRect();
+        hold.cancel();
+        if (!tray || to.width === 0) return;
+        const dx = tray.left + tray.width / 2 - (to.left + to.width / 2);
+        const dy = tray.top + tray.height / 2 - (to.top + to.height / 2);
+        // 속 종이 한 장만 한 크기에서 출발해요(서랍 폭과 속 높이 중 작은 쪽에 맞춰요).
+        const s = Math.min(1, (tray.width * 0.8) / to.width, (tray.height * 2) / to.height);
+        paper.animate(
+          [{ transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 0 }, { opacity: 1, offset: 0.12 }, { transform: "none", opacity: 1 }],
+          { duration: tokenMs("--dur-drawer", paper), easing: getComputedStyle(paper).getPropertyValue("--ease-drawer") },
+        );
+      }, tokenMs("--dur-2", paper)),
+    };
+  };
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
     const next = open === shelf.label ? null : shelf.label;
     // 앞판을 다시 눌러 닫을 때도 Esc·닫기처럼 앞판에 포커스를 둬요. WebKit은 눌러도 버튼에 포커스를 주지 않아요.
     if (next === null) return close();
-    riseFrom(pressed);
+    stopGrow();
+    const stage = pressed.closest<HTMLElement>(".kind-stage");
+    const drawer = pressed.closest(".kind-drawer")?.getBoundingClientRect();
+    const box = slip.current?.getBoundingClientRect();
+    // 넓은 창에서 여는 움직임은 growFrom이 맡아요. CSS 첫 모습(@starting-style)은 제자리로 둬요.
+    if (stage && wide()) {
+      stage.style.setProperty("--kind-slip-from", "0px 0px");
+      stage.style.setProperty("--kind-slip-alpha", "1");
+      stage.style.setProperty("--kind-slip-scale", "1");
+    }
     moveCabinet(() => {
       // 닫혀 있다가 열면 목록 칸과 함께 빠져나가던 옛 종이를 되살리지 않아요. 되살리면 반쯤 사라진 종이가 제자리로 튀어요.
       if (open) letGo(open, true);
@@ -221,6 +261,9 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       setOpen(next);
       if (next) setLast(next);
     });
+    growFrom(pressed);
+    // 닫을 때 돌아갈 자리(처음 누른 서랍)는 연 뒤에 적어요. 먼저 적으면 여는 첫 모습으로 쓰여요.
+    if (stage && drawer && box) riseFrom(stage, drawer, box);
   };
   // 나누기를 바꾸면 열린 서랍과 붙들던 서랍을 모두 내려놓아요. 서랍 이름이 서로 달라 옛 서랍이 남아 있을 자리가 없어요.
   const switchMode = (next: "kind" | "hue") => {
