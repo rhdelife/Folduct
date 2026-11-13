@@ -1226,8 +1226,11 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* ══ 홈 왼쪽 아래: 작업 시작과 탭 카드 ══ */
 /* 자리와 창 기준은 domain/sky.ts calendarSpot과 맞춰요. 좁거나 낮은 창에서는 숨기고 현관 줄을 머리 아래에 펼쳐요. */
 .home-stack { position: absolute; left: var(--space-6); bottom: var(--space-4); z-index: var(--hero-tip-z); display: grid; gap: var(--space-3); width: var(--stack-w); }
-/* 판이 열려 있는 동안은 그 판이 이 자리를 대신해요. */
-.home-stack[inert] { visibility: hidden; }
+/* 판이 열려 있는 동안은 그 판이 이 자리를 대신해요. 누른 탭에서 판이 자라는 동안 나머지는 옅어지고, 위 인사말도 한 발 물러나요. */
+.home-stack { transition: opacity var(--dur-2) var(--ease-standard); }
+.home-stack[inert] { opacity: 0; }
+.home:has(.home-panel) .caption-layer { opacity: 0.35; }
+.caption-layer { transition: opacity var(--dur-3) var(--ease-standard); }
 .home-start { min-height: var(--space-12); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
 .home-tabs { display: grid; }
 /* 뒤 카드가 앞 카드 아랫단을 덮어 겹쳐 꽂힌 것처럼 보여요. 가리키면 살짝 올라와요. */
@@ -1236,7 +1239,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .home-tab:hover:not(:disabled) { translate: 0 calc(-1 * var(--space-1)); }
 .home-tab b { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; }
 .home-tab small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); white-space: nowrap; }
-.home-panel { position: absolute; left: var(--space-4); top: calc(var(--topbar-h) + var(--space-2)); bottom: var(--space-4); z-index: var(--hero-layer-z); display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(var(--home-panel-w), calc(100% - 2 * var(--space-4))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); animation: fade-in var(--dur-2) var(--ease-standard); }
+.home-panel { position: absolute; left: var(--space-4); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(var(--home-panel-w), calc(100% - 2 * var(--space-4))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
 .home-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); }
 .home-panel-head h2 { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 700; }
 .home-panel-head h2:focus { outline: none; }
