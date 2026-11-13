@@ -188,20 +188,19 @@ export function savePetSettings(pet: PetSettings): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(pet, "pet"));
 }
 
-// key "workTags"는 같은 꼴로 분류별 시간을 담아요(날짜 → 분류 → 밀리초).
-export async function getWorkLog(key: "workLog" | "workTags" = "workLog"): Promise<WorkLog> {
-  return normalizeWorkLog(await run<unknown>("meta", "readonly", (store) => store.get(key)));
+export async function getWorkLog(): Promise<WorkLog> {
+  return normalizeWorkLog(await run<unknown>("meta", "readonly", (store) => store.get("workLog")));
 }
 
-export async function patchWorkLog(mutate: (log: WorkLog) => WorkLog, key: "workLog" | "workTags" = "workLog"): Promise<WorkLog> {
+export async function patchWorkLog(mutate: (log: WorkLog) => WorkLog): Promise<WorkLog> {
   const db = await open();
   const tx = db.transaction("meta", "readwrite");
   const store = tx.objectStore("meta");
   let saved: WorkLog = {};
-  const request = store.get(key);
+  const request = store.get("workLog");
   request.onsuccess = () => {
     saved = mutate(normalizeWorkLog(request.result));
-    store.put(saved, key);
+    store.put(saved, "workLog");
   };
   await settle(tx);
   return saved;

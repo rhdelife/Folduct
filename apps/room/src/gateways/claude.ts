@@ -69,7 +69,7 @@ export async function summarize(apiKey: string, thing: Thing, neighbors: string[
   return { ...parsed, read, size: thing.size, lastModified: thing.lastModified, at: Date.now(), model: response.model };
 }
 
-// 작업 보고. 기간·방 이름과 분·분류와 분·날마다의 분·적어 둔 줄(reportInput)만 보내요.
+// 작업 보고. 기간·방 이름과 분·날마다의 분·적어 둔 줄(reportInput)만 보내요.
 export async function reportWork(apiKey: string, input: string): Promise<{ text: string; model: string }> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2, timeout: 90_000 });
   let response: Anthropic.Beta.Messages.BetaMessage;

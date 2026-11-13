@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSession, normalizeTags, pickTag, startSession, tagOrder } from "../domain/session";
 import { currentPeriod, lastPeriod, normalizeEvery, normalizeNotes, normalizeReports, periodLabel, periodWork, reportDue, reportInput, shiftPeriod, withReport, type WorkNote } from "../domain/workReport";
 import { addWork } from "../domain/worklog";
 
@@ -40,23 +39,20 @@ describe("보고 기간", () => {
 describe("기간 안의 작업과 보내는 내용", () => {
   const hour = 3_600_000;
   const log = addWork(addWork(addWork({}, "2026-11-10", "a", 2 * hour), "2026-11-11", "b", hour), "2026-11-20", "a", hour);
-  const tags = addWork({}, "2026-11-10", "글쓰기", 2 * hour);
   const notes: WorkNote[] = [{ id: "1", day: "2026-11-11", roomId: "a", text: "표지 고침", at: 2 }, { id: "2", day: "2026-11-30", roomId: null, text: "밖", at: 3 }];
   const names = new Map([["a", "졸업 작품"]]);
   const week = { from: "2026-11-09", to: "2026-11-15" };
 
   it("기간 밖은 빼고, 지운 방은 이름 대신 지운 방으로 모아요", () => {
-    const work = periodWork(log, tags, notes, week, names);
+    const work = periodWork(log, notes, week, names);
     expect(work.totalMs).toBe(3 * hour);
     expect(work.rooms).toEqual([["졸업 작품", 2 * hour], ["지운 방", hour]]);
-    expect(work.tags).toEqual([["글쓰기", 2 * hour]]);
     expect(work.notes.map((note) => note.id)).toEqual(["1"]);
   });
 
-  it("시간·분류·적은 줄만 보내고 방 id는 보내지 않아요", () => {
-    const input = reportInput(week, periodWork(log, tags, notes, week, names), names);
+  it("시간·적은 줄만 보내고 방 id는 보내지 않아요", () => {
+    const input = reportInput(week, periodWork(log, notes, week, names), names);
     expect(input).toContain("졸업 작품: 120분");
-    expect(input).toContain("글쓰기: 120분");
     expect(input).toContain("[졸업 작품] 표지 고침");
     expect(input).not.toMatch(/\ba:|\bb:/);
   });
@@ -74,20 +70,5 @@ describe("저장된 값 읽기", () => {
   it("같은 기간 보고는 바꿔 끼워요", () => {
     const old = { from: "2026-11-02", to: "2026-11-08", text: "옛", at: 1, model: "m" };
     expect(withReport([old], { ...old, text: "새", at: 2 })).toEqual([{ ...old, text: "새", at: 2 }]);
-  });
-});
-
-describe("시작할 때 고르는 분류", () => {
-  it("예전 작업 기록은 분류 없이 읽어요", () => {
-    expect(normalizeSession({ roomId: "r", status: "paused", workedMs: 0, since: null, watchFrom: 0 })?.tag).toBeNull();
-    expect(startSession("r", 1, "운동").tag).toBe("운동");
-  });
-
-  it("더한 분류는 이름을 다듬고 마지막에 고른 것을 앞에 둬요", () => {
-    const list = pickTag(pickTag(normalizeTags(undefined), " 글쓰기 "), "자료 찾기");
-    expect(list).toEqual({ tags: ["글쓰기", "자료 찾기"], last: "자료 찾기" });
-    expect(tagOrder(pickTag(list, "글쓰기"))).toEqual(["글쓰기", "자료 찾기"]);
-    expect(pickTag(list, "   ")).toBe(list);
-    expect(normalizeTags({ tags: ["a", "a", 3, " "], last: "없음" })).toEqual({ tags: ["a"], last: null });
   });
 });

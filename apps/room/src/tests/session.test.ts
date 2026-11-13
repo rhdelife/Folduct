@@ -41,9 +41,8 @@ describe("저장된 작업 읽기", () => {
   });
 
   it("망가진 칸은 멈춤과 0으로 고쳐요", () => {
-    expect(normalizeSession({ roomId: "r", status: "working", workedMs: "많이", since: "어제" })).toEqual({ roomId: "r", status: "paused", workedMs: 0, since: null, watchFrom: 0, tag: null });
-    expect(normalizeSession({ roomId: "r", status: "working", workedMs: 5, since: 10 })).toEqual({ roomId: "r", status: "working", workedMs: 5, since: 10, watchFrom: 10, tag: null });
-    expect(normalizeSession({ roomId: "r", status: "paused", workedMs: 5, since: null, tag: "글쓰기" })?.tag).toBe("글쓰기");
+    expect(normalizeSession({ roomId: "r", status: "working", workedMs: "많이", since: "어제" })).toEqual({ roomId: "r", status: "paused", workedMs: 0, since: null, watchFrom: 0 });
+    expect(normalizeSession({ roomId: "r", status: "working", workedMs: 5, since: 10 })).toEqual({ roomId: "r", status: "working", workedMs: 5, since: 10, watchFrom: 10 });
   });
 });
 

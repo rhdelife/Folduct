@@ -69,12 +69,9 @@ export function Pet() {
     saveSession(next).catch((error: unknown) => console.error(error));
     if (before?.since == null) return;
     const at = Date.now();
-    const ms = workedTime(before, at) - before.workedMs;
-    patchWorkLog((log) => addWork(log, localDay(at), before.roomId, ms))
+    patchWorkLog((log) => addWork(log, localDay(at), before.roomId, workedTime(before, at) - before.workedMs))
       .then(() => (isNative() ? emit(workLogged) : undefined))
       .catch((error: unknown) => console.error(error));
-    const tag = before.tag;
-    if (tag) patchWorkLog((log) => addWork(log, localDay(at), tag, ms), "workTags").catch((error: unknown) => console.error(error));
   }, []);
 
   const change = useCallback((next: Session | null) => {
@@ -542,7 +539,7 @@ export function Pet() {
                 <>
                   <strong>{working ? "작업 중" : "멈춤"}</strong>
                   <time>{formatWorked(workedTime(session, now))}</time>
-                  {room && <small><Meta items={[room.name, session.tag, !roomLinked && "파일 연결 안 됨"]} /></small>}
+                  {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
                 </>
               ) : (
                 <>
@@ -600,7 +597,7 @@ export function Pet() {
           <p className="pet-status" role="status">
             <strong>{working ? "작업 중" : "멈춤"}</strong>
             <time>{formatWorked(workedTime(session, now))}</time>
-            {room && <small><Meta items={[room.name, session.tag, !roomLinked && "파일 연결 안 됨"]} /></small>}
+            {room && <small><Meta items={[room.name, !roomLinked && "파일 연결 안 됨"]} /></small>}
           </p>
           <button type="button" className="pet-toggle" data-no-drag onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>
             {working ? "멈춤" : "다시 시작"}

@@ -69,7 +69,7 @@ export function AiSettingsRows({ onError }: { onError: (message: string) => void
         <label className="setting-row">
           <span>
             <strong>작업 보고</strong>
-            <small>고른 기간이 끝나면 방·분류별 시간과 적어 둔 한 일을 Anthropic에 보내 짧은 보고를 받아요. 파일은 보내지 않아요.</small>
+            <small>고른 기간이 끝나면 방별 시간과 적어 둔 한 일을 Anthropic에 보내 짧은 보고를 받아요. 파일은 보내지 않아요.</small>
           </span>
           <select value={every} onChange={(event) => changeEvery(event.target.value as ReportEvery)}>
             {reportChoices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}

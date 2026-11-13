@@ -15,9 +15,9 @@ const roomNames = (rooms: Room[]) => new Map(rooms.map((room) => [room.id, room.
 
 // 기간 하나의 보고를 Claude에게 받아 저장해요. 그 기간에 기록이 없으면 보내지 않고 null이에요.
 export async function createReport(apiKey: string, period: Period, rooms: Room[]): Promise<WorkReport | null> {
-  const [log, tagLog, notes] = await Promise.all([getWorkLog(), getWorkLog("workTags"), getWorkNotes()]);
+  const [log, notes] = await Promise.all([getWorkLog(), getWorkNotes()]);
   const names = roomNames(rooms);
-  const work = periodWork(log, tagLog, notes, period, names);
+  const work = periodWork(log, notes, period, names);
   if (!hasWork(work)) return null;
   const { text, model } = await reportWork(apiKey, reportInput(period, work, names));
   const report: WorkReport = { ...period, text, at: Date.now(), model };
@@ -54,7 +54,6 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
   const [every, setEvery] = useState<ReportEvery>("off");
   const [period, setPeriod] = useState<Period>(() => start ?? currentPeriod("week", now));
   const [log, setLog] = useState<WorkLog>({});
-  const [tagLog, setTagLog] = useState<WorkLog>({});
   const [notes, setNotes] = useState<WorkNote[]>([]);
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [ai, setAi] = useState<AiSettings>(defaultAi);
@@ -65,11 +64,10 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
   useEffect(() => {
     void (async () => {
       try {
-        const [savedEvery, savedLog, savedTags, savedNotes, savedReports, savedAi] = await Promise.all([getReportEvery(), getWorkLog(), getWorkLog("workTags"), getWorkNotes(), getWorkReports(), getAiSettings()]);
+        const [savedEvery, savedLog, savedNotes, savedReports, savedAi] = await Promise.all([getReportEvery(), getWorkLog(), getWorkNotes(), getWorkReports(), getAiSettings()]);
         setEvery(savedEvery);
         if (!opened.start && savedEvery !== "off") setPeriod(currentPeriod(savedEvery, opened.now));
         setLog(savedLog);
-        setTagLog(savedTags);
         setNotes(savedNotes);
         setReports(savedReports);
         setAi(savedAi);
@@ -82,7 +80,7 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
 
   const unit = every === "off" ? "week" : every;
   const names = roomNames(rooms);
-  const work = periodWork(log, tagLog, notes, period, names);
+  const work = periodWork(log, notes, period, names);
   const report = reports.find((item) => item.from === period.from && item.to === period.to);
   const today = localDay(now);
   const holdsToday = today >= period.from && today <= period.to;
@@ -162,7 +160,6 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
           <small>{work.days.length > 0 ? `${work.days.length}일 작업` : "작업 기록이 없어요"}</small>
         </p>
         <Bars title="방별" rows={work.rooms} />
-        <Bars title="분류별" rows={work.tags} />
 
         <section className="report-notes" aria-labelledby="report-notes-title">
           <h3 id="report-notes-title">한 일</h3>
@@ -199,7 +196,7 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
           {report && <p className="soft">{new Date(report.at).toLocaleDateString("ko-KR")}에 정리했어요.</p>}
           {canAsk ? (
             <>
-              {!report && <p className="soft">기간, 방 이름과 시간, 분류, 적은 한 일만 Anthropic에 보내요. 파일은 보내지 않아요.</p>}
+              {!report && <p className="soft">기간, 방 이름과 시간, 적은 한 일만 Anthropic에 보내요. 파일은 보내지 않아요.</p>}
               <button type="button" aria-disabled={busy} onClick={() => void ask()}>{busy ? "정리하는 중…" : report ? "다시 정리" : "AI로 정리하기"}</button>
             </>
           ) : (

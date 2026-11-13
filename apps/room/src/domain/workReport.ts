@@ -1,8 +1,8 @@
 import { localDay } from "./care";
 import type { WorkLog } from "./worklog";
 
-// 작업 보고: 고른 주기마다 지난 기간의 작업 시간(방별·분류별)과 적어 둔 한 일을 모아 보여 주고, AI를 켜 두었으면 Claude가 짧게 정리해요.
-// Claude에는 기간, 방 이름과 분, 분류와 분, 날마다의 분, 사용자가 적은 줄만 보내요. 파일 이름·위치·내용은 보내지 않아요.
+// 작업 보고: 고른 주기마다 지난 기간의 방별 작업 시간과 적어 둔 한 일을 모아 보여 주고, AI를 켜 두었으면 Claude가 짧게 정리해요.
+// Claude에는 기간, 방 이름과 분, 날마다의 분, 사용자가 적은 줄만 보내요. 파일 이름·위치·내용은 보내지 않아요.
 
 export type ReportEvery = "off" | "day" | "week" | "month";
 export const reportChoices: [ReportEvery, string][] = [["off", "끄기"], ["day", "매일"], ["week", "매주"], ["month", "매달"]];
@@ -57,12 +57,11 @@ export function reportDue(every: ReportEvery, reports: WorkReport[], now: number
 const inPeriod = (day: string, period: Period) => day >= period.from && day <= period.to;
 const sorted = (map: Map<string, number>) => [...map].sort((a, b) => b[1] - a[1]);
 
-export type PeriodWork = { totalMs: number; rooms: [string, number][]; tags: [string, number][]; days: [string, number][]; notes: WorkNote[] };
+export type PeriodWork = { totalMs: number; rooms: [string, number][]; days: [string, number][]; notes: WorkNote[] };
 
 // 기간 안의 작업. 방은 이름으로 바꿔 오래 일한 순으로, 지운 방은 "지운 방"으로 모아요.
-export function periodWork(log: WorkLog, tagLog: WorkLog, notes: WorkNote[], period: Period, roomNames: Map<string, string>): PeriodWork {
+export function periodWork(log: WorkLog, notes: WorkNote[], period: Period, roomNames: Map<string, string>): PeriodWork {
   const rooms = new Map<string, number>();
-  const tags = new Map<string, number>();
   const days = new Map<string, number>();
   let totalMs = 0;
   for (const [day, byRoom] of Object.entries(log)) {
@@ -74,14 +73,9 @@ export function periodWork(log: WorkLog, tagLog: WorkLog, notes: WorkNote[], per
       totalMs += ms;
     }
   }
-  for (const [day, byTag] of Object.entries(tagLog)) {
-    if (!inPeriod(day, period)) continue;
-    for (const [tag, ms] of Object.entries(byTag)) tags.set(tag, (tags.get(tag) ?? 0) + ms);
-  }
   return {
     totalMs,
     rooms: sorted(rooms),
-    tags: sorted(tags),
     days: [...days].sort((a, b) => a[0].localeCompare(b[0])),
     notes: notes.filter((note) => inPeriod(note.day, period)).sort((a, b) => a.at - b.at),
   };
@@ -95,7 +89,6 @@ const minutes = (ms: number) => Math.max(1, Math.round(ms / 60_000));
 export function reportInput(period: Period, work: PeriodWork, roomNames: Map<string, string>): string {
   const lines = [`기간: ${period.from} ~ ${period.to}`, `전체: ${work.totalMs > 0 ? minutes(work.totalMs) : 0}분`];
   if (work.rooms.length) lines.push("방별:", ...work.rooms.map(([name, ms]) => `- ${name}: ${minutes(ms)}분`));
-  if (work.tags.length) lines.push("분류별:", ...work.tags.map(([tag, ms]) => `- ${tag}: ${minutes(ms)}분`));
   if (work.days.length) lines.push("날짜별:", ...work.days.map(([day, ms]) => `- ${day}: ${minutes(ms)}분`));
   if (work.notes.length) lines.push("적어 둔 한 일:", ...work.notes.map((note) => `- ${note.day}${note.roomId ? ` [${roomNames.get(note.roomId) ?? "지운 방"}]` : ""} ${note.text}`));
   return lines.join("\n");
