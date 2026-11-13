@@ -1514,7 +1514,11 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .shelf-hint { position: absolute; left: 50%; bottom: var(--space-5); z-index: 3; translate: -50% 0; font-size: var(--text-sm); font-weight: 500; color: var(--ink-caption); background: var(--bg); }
 .shelf-hint:hover:not(:disabled) { color: var(--ink); }
 .kind-shelves { container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); scroll-snap-align: start; view-timeline: --kind-scene block; }
-.kind-shelves-head { display: grid; gap: var(--space-2); }
+.kind-shelves-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+/* 숨긴 라디오가 문서 기준으로 놓이면 누를 때 문서가 밀려 올라가요. 단추 안에 붙들어 둬요. */
+.kind-shelves-head .seg label { position: relative; }
+/* 컬러별로 볼 때 색을 읽는 동안·읽을 이미지가 없을 때 한 줄. */
+.kind-shelves-note { flex-basis: 100%; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-caption); }
 .kind-shelves-head h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
 /* 무대: 닫혀 있으면 서랍장이 폭을 다 쓰고, 열면 오른쪽에 목록 종이 자리를 비워요. 크기는 한 번에 바뀌고, 그 사이 움직임은 KindShelf의 moveCabinet이 transform으로 이어 줘요. */
 .kind-stage { --kind-slip-w: min(42cqw, calc(var(--space-12) * 9)); --kind-slip-from: var(--space-12) 0; position: relative; display: grid; min-height: 0; }

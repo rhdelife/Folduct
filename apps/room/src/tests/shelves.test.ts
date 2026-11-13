@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Room, Thing } from "../domain/model";
-import { kindShelves } from "../domain/shelves";
+import { hueShelves, kindShelves, shelfItems } from "../domain/shelves";
 
 const thing = (path: string, lastModified: number, over: Partial<Thing> = {}): Thing => ({ id: path, path, name: path.split("/").pop()!, kind: "image", size: 10, lastModified, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, seenAt: 0, pinned: false, box: null, ...over });
 const room = (id: string, things: Thing[], done = false) => ({ id, name: id, things, care: { done, staleAfterDays: 14 } }) as unknown as Room;
@@ -18,5 +18,16 @@ describe("형식별 칸", () => {
     const box = { fromPath: "a/x.png" } as unknown as Thing["box"];
     const shelves = kindShelves([room("a", [thing("a/포스터.png", 1), thing("a/포스터_최종.png", 2), thing("a/x.png", 3, { box }), thing("a/y.png", 4, { missing: true })]), room("done", [thing("d/z.png", 9)], true)], groups);
     expect(shelves[0].items.map((item) => [item.thing.path, item.versions])).toEqual([["a/포스터_최종.png", 2]]);
+  });
+});
+
+describe("컬러별 칸", () => {
+  it("이미지를 색 순서대로 새것부터 모으고, 못 읽은 이미지와 빈 색은 빼요", () => {
+    const items = shelfItems([room("a", [thing("a/1.png", 1), thing("a/2.png", 2), thing("a/3.png", 3)]), room("b", [thing("b/4.png", 4), thing("b/5.png", 5)])]);
+    const found = new Map([["a/1.png", "파랑"], ["a/2.png", "빨강"], ["a/3.png", "파랑"], ["b/4.png", null]] as const);
+    expect(hueShelves(items, new Map(found)).map((shelf) => [shelf.label, shelf.items.map((item) => item.thing.path)])).toEqual([
+      ["빨강", ["a/2.png"]],
+      ["파랑", ["a/3.png", "a/1.png"]],
+    ]);
   });
 });

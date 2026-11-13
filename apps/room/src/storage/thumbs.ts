@@ -31,7 +31,10 @@ export function canThumb(thing: Pick<Thing, "kind" | "name" | "size" | "missing"
 }
 
 // 방의 대표 이미지: 고정한 이미지 중 가장 최근에 고친 것, 없으면 가장 최근에 고친 이미지. 상자에 든 파일과 사라진 파일은 빼요.
-export function coverOf(room: Pick<Room, "things">): Thing | null {
+export function coverOf(room: Pick<Room, "things" | "cover">): Thing | null {
+  // 방 설정에서 고른 파일이 아직 방에 있고 그릴 수 있으면 그 파일이에요. 사용자가 올린 그림은 RoomCover가 따로 그려요.
+  const chosen = room.cover ? room.things.find((thing) => thing.id === room.cover && !thing.box && canThumb(thing)) : undefined;
+  if (chosen) return chosen;
   let best: Thing | null = null;
   for (const thing of room.things) {
     if (thing.box || !canThumb(thing)) continue;
@@ -127,14 +130,19 @@ export function useThumb(ref: RefObject<Element | null>, folder: Folder | null, 
 
 // 색으로 볼 때만 켜요(on). 화면 밖 이미지도 3장씩 읽어 색을 세요. hues는 이미지 id → 색이고, 아직 못 읽은 이미지는 빠져요. total은 색을 읽을 수 있는 이미지 수예요.
 export function useHues(folder: Folder | null, things: Thing[], on: boolean): { hues: Map<string, Hue | null>; total: number } {
-  const all = folder ? things.filter((thing) => !thing.box && canThumb(thing)) : [];
+  return useHuesOf(folder ? things.filter((thing) => !thing.box).map((thing) => ({ folder, thing })) : [], on);
+}
+
+// 여러 방에 걸친 이미지의 색(홈 컬러별 칸). 이미지마다 그 방 폴더에서 읽어요. 이미지가 아닌 파일은 걸러요.
+export function useHuesOf(list: { folder: Folder; thing: Thing }[], on: boolean): { hues: Map<string, Hue | null>; total: number } {
+  const all = list.filter(({ thing }) => canThumb(thing));
   const images = on ? all : [];
   const version = useSyncExternalStore(subscribe, () => huesMade.size, () => 0);
   useEffect(() => {
-    if (folder) for (const thing of images) request(keyOf(thing), () => readFolderFile(folder, thing.path));
-  }, [folder, images.map(keyOf).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+    for (const { folder, thing } of images) request(keyOf(thing), () => readFolderFile(folder, thing.path));
+  }, [images.map(({ thing }) => keyOf(thing)).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const found = new Map<string, Hue | null>();
-  for (const thing of images) if (huesMade.has(keyOf(thing))) found.set(thing.id, huesMade.get(keyOf(thing))!);
+  for (const { thing } of images) if (huesMade.has(keyOf(thing))) found.set(thing.id, huesMade.get(keyOf(thing))!);
   void version;
   return { hues: found, total: all.length };
 }

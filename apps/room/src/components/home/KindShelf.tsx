@@ -3,11 +3,12 @@ import { flushSync } from "react-dom";
 import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
-import { kindShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
+import { hueColors, type Hue } from "../../domain/hue";
+import { hueShelves, kindShelves, shelfItems, type Shelf, type ShelfItem } from "../../domain/shelves";
 import { AxisWindow, axisMs, SceneWheelGate } from "../../domain/wheelStep";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
-import { useReadableFolders, useThumb } from "../../storage/thumbs";
+import { useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 
@@ -21,7 +22,8 @@ const cardArtPx = 40;
 const snapOffMs = 700;
 const slipId = "kind-slip";
 
-const colorOf = (shelf: Shelf) => colorGroups.find((group) => group.label === shelf.label)?.color;
+// 형식 서랍은 형식 색, 컬러별 서랍은 그 색 네모(HueSwatches와 같은 --hue-*)예요.
+const colorOf = (shelf: Shelf) => colorGroups.find((group) => group.label === shelf.label)?.color ?? hueColors[shelf.label as Hue];
 const countText = (count: number) => count.toLocaleString("ko-KR");
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -29,8 +31,14 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // 서랍을 누르면 앞으로 빠져나오며 안의 종이가 튀어 오르고, 나머지 서랍은 흐려지고, 옆에 그 서랍의 목록 종이가 펼쳐져요. 한 번에 한 서랍만 열려요.
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
 export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void }>(function KindShelf({ rooms, onOpenFile }, ref) {
-  const shelves = useMemo(() => kindShelves(rooms, colorGroups), [rooms]);
+  // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
+  const [mode, setMode] = useState<"kind" | "hue">("kind");
+  const kinds = useMemo(() => kindShelves(rooms, colorGroups), [rooms]);
+  const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
+  const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
+  const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
+  const shelves = useMemo(() => (mode === "kind" ? kinds : hueShelves(items, hues)), [mode, kinds, items, hues]);
   const [open, setOpen] = useState<string | null>(null);
   // 닫히는 동안에도 목록 종이가 빈 채로 빠지지 않게 마지막으로 연 서랍을 붙들어 둬요.
   const [last, setLast] = useState<string | null>(null);
@@ -43,7 +51,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const slip = useRef<HTMLDivElement>(null);
   // 닫으면 포커스를 돌려줄, 마지막으로 누른 앞판이에요.
   const front = useRef<HTMLButtonElement | null>(null);
-  const shown = shelves.length > 0;
+  const shown = kinds.length > 0;
   useImperativeHandle(ref, () => self.current as HTMLElement, [shown]);
   // 집 화면과 이 장면은 휠 한 칸·한 번 쓸기에 한 장면씩 넘어가요. CSS scroll-snap 만으로는 휠 한 칸이 제자리로 튕겨 돌아와서 여기서 넘겨요.
   // 목록 종이 안에 더 내릴 파일이 있으면 그 종이가 먼저 내려가요.
@@ -194,26 +202,47 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       if (next) setLast(next);
     });
   };
+  // 나누기를 바꾸면 열린 서랍과 붙들던 서랍을 모두 내려놓아요. 서랍 이름이 서로 달라 옛 서랍이 남아 있을 자리가 없어요.
+  const switchMode = (next: "kind" | "hue") => {
+    goneTimers.current.forEach((timer) => clearTimeout(timer));
+    goneTimers.current.clear();
+    setGone([]);
+    setOpen(null);
+    setLast(null);
+    setMode(next);
+  };
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
-        <h2 id="kind-shelves-title">형식별로 보기</h2>
+        <h2 id="kind-shelves-title">{mode === "kind" ? "형식별로 보기" : "컬러별로 보기"}</h2>
+        <div className="seg" role="radiogroup" aria-label="서랍 나누기">
+          {(["kind", "hue"] as const).map((value) => (
+            <label key={value}>
+              <input type="radio" name="kind-shelves-mode" checked={mode === value} onChange={() => switchMode(value)} />
+              {value === "kind" ? "형식별" : "컬러별"}
+            </label>
+          ))}
+        </div>
+        {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}
+        {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">색을 읽을 수 있는 이미지가 없어요.</p>}
       </header>
-      <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
-        <div className="kind-cabinet-wrap">
-          <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
-            {shelves.map((shelf) => (
-              <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
+      {shelves.length > 0 && (
+        <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
+          <div className="kind-cabinet-wrap">
+            <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
+              {shelves.map((shelf) => (
+                <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
+              ))}
+            </div>
+          </div>
+          <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
+            {papers.map((shelf) => (
+              // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 새 종이가 다시 내려앉아요.
+              <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} />
             ))}
           </div>
         </div>
-        <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
-          {papers.map((shelf) => (
-            // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 새 종이가 다시 내려앉아요.
-            <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} />
-          ))}
-        </div>
-      </div>
+      )}
     </section>
   );
 });
