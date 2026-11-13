@@ -45,7 +45,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     }
   });
 
-  it("먹이면 그 방 용량만큼 늘어나고, 큰 방일수록 길다. 크기·받침·좌우 자리는 그대로다", () => {
+  it("먹이면 그 방 용량만큼 늘어나고, 큰 방일수록 길다. 크기·좌우 자리는 그대로고, 넓은 창에서는 프로도가 늘 빈자리 가운데에 있다", () => {
     const rooms = [big("small", 16), big("mid", 512 * MB), big("huge", 64 * 1024 * MB)];
     for (const view of views.filter((v) => v.w >= 375)) {
       const label = `${view.w}x${view.h}`;
@@ -57,7 +57,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
       for (const fed of [small, mid, huge]) {
         expect(fed.scale, label).toBe(hungry.scale);
         expect(fed.left, label).toBe(hungry.left);
-        expect(fed.floor, label).toBe(hungry.floor);
+        if (view.w >= 1000) expect(fed.top + fed.floor, label).toBeCloseTo(hungry.top + hungry.floor, 5);
         expect(fed.mouth.y, label).toBeLessThan(fed.floor);
       }
     }

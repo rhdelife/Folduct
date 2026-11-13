@@ -197,11 +197,15 @@
   --pet-vase: 104px;
   --pet-list-h: 168px;
 
-  /* 일력 */
-  --cal-number: 44px;
-  --cal-dot: 5px;
-  --cal-gap: 2px;
-  --cal-w: 217px;
+  /* 홈 머리의 큰 제목(오늘 작업 시간) */
+  --text-hero: 32px;
+  --lh-hero: 1.1;
+  /* 홈 왼쪽 아래 작업 시작·탭 카드 묶음과, 탭을 누르면 열리는 왼쪽 판 */
+  --stack-w: 248px;
+  --home-panel-w: 380px;
+  /* 추세 판의 큰 숫자와 그래프 높이 */
+  --trend-number: 32px;
+  --trend-chart-h: 120px;
 
   /* 방 머리의 주름관 */
   --room-head-duct: 56px;
@@ -456,7 +460,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .home-caption.visible { opacity: 1; }
 /* 요약 두 줄: 방 수와 용량을 굵게, 그 아래 할 일을 한 줄로. */
 .caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8) + var(--space-3)); top: 0; translate: 0 -50%; display: grid; white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.caption-layer strong { font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.caption-layer strong { font-size: var(--text-hero); line-height: var(--lh-hero); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
 @media (max-width: 1199.98px) {
   :root { --topbar-h: var(--topbar-stacked-h); }
 }
@@ -503,7 +507,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 /* 홈의 프로도 한 명: 받침 위에 서서 주름으로 숨쉬어요. 방 카드를 먹이면 그 방 용량만큼 몸이 늘어나요.
    transform만 움직여 합성 레이어에서 돌아가므로 지도를 다시 그리지 않습니다. */
 .sky-rooms { position: absolute; inset: 0; pointer-events: none; }
-.frodo-home { position: absolute; display: block; pointer-events: none; }
+.frodo-home { position: absolute; display: block; pointer-events: none; will-change: translate; }
 .frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
 /* 받침 선 아래만 가리는 칸. 솟는 몸의 아직 안 나온 부분을 숨겨요. clip-path 대신 overflow라 앱(WebKit)에서도 레이어만 움직여요. */
 .frodo-clip { position: absolute; inset: -100vh -100vw 0 -100vw; display: block; overflow: hidden; pointer-events: none; }
@@ -787,9 +791,9 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .fed-count { grid-row: 1; grid-column: 2; color: var(--ink-soft); font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .frodo-home .feed-band { cursor: pointer; }
 /* 잠긴 동안 머리 줄이 공책을 가리지 않게 먼저 비켜 줍니다. */
-.doorstep, .work-cal { transition: opacity var(--dur-focus) var(--ease-glide); }
+.doorstep { transition: opacity var(--dur-focus) var(--ease-glide); }
 .hero-extras { display: contents; }
-.sky-layout.focused :is(.doorstep, .work-cal) { opacity: 0; pointer-events: none; }
+.sky-layout.focused .doorstep { opacity: 0; pointer-events: none; }
 
 /* 컨테이너 쿼리 대신 창 폭으로 봅니다. 지도가 곧 창이에요. */
 @media (max-width: 560px) {
@@ -1219,21 +1223,65 @@ main.page-status { min-height: 100dvh; align-content: center; }
   .topnav-title { grid-row: 2; grid-column: 1 / -1; margin-top: var(--space-2); }
 }
 
-/* ══ 일력 ══ */
-.work-cal { position: absolute; left: calc(var(--chrome-x) - var(--space-4)); bottom: var(--space-4); z-index: var(--hero-tip-z); box-sizing: content-box; display: grid; gap: var(--space-2); width: var(--cal-w); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); }
-.work-cal-total { display: flex; align-items: baseline; gap: var(--space-1); }
-.work-cal-total strong { font-size: var(--cal-number); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.work-cal-total span { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; }
-.work-cal-total small { margin-left: var(--space-2); color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
-.work-cal-days { display: grid; gap: var(--cal-gap); }
-.work-cal-days div { display: flex; gap: var(--cal-gap); }
-.work-cal-days i { display: block; width: var(--cal-dot); height: var(--cal-dot); border-radius: 50%; background: var(--line); }
-.work-cal-days i.past { background: var(--line-strong); }
-.work-cal-days i.on { background: var(--ink); }
-.work-cal-rooms { display: -webkit-box; overflow: hidden; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+/* ══ 홈 왼쪽 아래: 작업 시작과 탭 카드 ══ */
+/* 자리와 창 기준은 domain/sky.ts calendarSpot과 맞춰요. 좁거나 낮은 창에서는 숨기고 현관 줄을 머리 아래에 펼쳐요. */
+.home-stack { position: absolute; left: var(--space-6); bottom: var(--space-4); z-index: var(--hero-tip-z); display: grid; gap: var(--space-3); width: var(--stack-w); }
+/* 판이 열려 있는 동안은 그 판이 이 자리를 대신해요. */
+.home-stack[inert] { visibility: hidden; }
+.home-start { min-height: var(--space-12); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
+.home-tabs { display: grid; }
+/* 뒤 카드가 앞 카드 아랫단을 덮어 겹쳐 꽂힌 것처럼 보여요. 가리키면 살짝 올라와요. */
+.home-tab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-height: var(--space-12); padding: var(--space-3) var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); text-align: left; transform: none; transition: translate var(--dur-2) var(--ease-standard); }
+.home-tab + .home-tab { margin-top: calc(-1 * var(--space-3)); background: var(--surface-sunken); }
+.home-tab:hover:not(:disabled) { translate: 0 calc(-1 * var(--space-1)); }
+.home-tab b { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; }
+.home-tab small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); white-space: nowrap; }
+.home-panel { position: absolute; left: var(--space-4); top: calc(var(--topbar-h) + var(--space-2)); bottom: var(--space-4); z-index: var(--hero-layer-z); display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(var(--home-panel-w), calc(100% - 2 * var(--space-4))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); animation: fade-in var(--dur-2) var(--ease-standard); }
+.home-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); }
+.home-panel-head h2 { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 700; }
+.home-panel-head h2:focus { outline: none; }
+.home-panel-body { display: grid; align-content: start; gap: var(--space-3); min-height: 0; overflow: auto; padding: 0 var(--space-5) var(--space-5); }
+.home-panel .doorstep { position: static; padding: 0; border: 0; background: none; box-shadow: none; }
+.home-panel .door-row { flex-wrap: wrap; overflow: visible; }
+.home-panel-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); font-size: var(--text-sm); line-height: var(--lh-sm); }
 @media (max-width: 719.98px), (max-height: 639.98px) {
-  .work-cal { display: none; }
+  .home-stack { display: none; }
 }
+@media (min-width: 720px) and (min-height: 640px) {
+  .hero-extras .doorstep { display: none; }
+}
+
+/* 추세 판: 잉크 한 가지로 그려요. 색은 파일 형식 몫이에요. */
+.trend { display: grid; gap: var(--space-3); }
+.trend-periods { display: flex; width: 100%; }
+.trend-periods label { position: relative; flex: 1; justify-content: center; }
+.trend-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.trend-card h3 { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--ink-caption); }
+.trend-number { font-size: var(--trend-number); line-height: var(--lh-hero); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.trend-number small { margin-left: var(--space-1); font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; letter-spacing: 0; }
+.trend-sub, .trend-empty { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.trend-empty { font-size: var(--text-sm); line-height: var(--lh-sm); }
+.trend-days { display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.trend-days li { flex: 1; height: var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); }
+.trend-days li[data-on] { border-color: var(--ink); background: var(--ink); }
+.trend-chart { position: relative; height: var(--trend-chart-h); margin-top: var(--space-6); touch-action: pan-y; }
+.trend-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.trend-area { fill: var(--ink-wash); }
+.trend-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.trend-cross { stroke: var(--line-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.trend-dot { position: absolute; width: var(--space-3); height: var(--space-3); translate: -50% -50%; border: 2px solid var(--surface); border-radius: var(--radius-pill); background: var(--ink); pointer-events: none; }
+.trend-tip { position: absolute; top: 0; display: grid; margin: 0; padding: var(--space-1) var(--space-2); translate: -50% -100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); pointer-events: none; white-space: nowrap; }
+.trend-tip small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.trend-tip strong { font-size: var(--text-md); line-height: var(--lh-md); font-variant-numeric: tabular-nums; }
+.trend-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); height: var(--trend-chart-h); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.trend-bars li { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: var(--space-1); }
+.trend-bar { align-self: end; width: 100%; height: calc(var(--share) * 100%); border-radius: var(--space-1) var(--space-1) 0 0; background: var(--ink); }
+.trend-bars small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
+.trend-rooms { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.trend-rooms li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.trend-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trend-room-time { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.trend-room-bar { grid-column: 1 / -1; width: calc(var(--share) * 100%); height: var(--space-2); border-radius: var(--radius-pill); background: var(--ink); }
 
 /* ══ 플로팅 창 ══ */
 /* 창 자체가 투명해서 주름관과 조작창만 바탕화면 위에 뜹니다. 상태는 색 대신 바탕의 반전, 굵은 글자, 움직임으로 말해요. */

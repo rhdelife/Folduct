@@ -23,6 +23,8 @@ export const shelfHeight = (view: View) => (view.w < 720 ? 92 : 124);
 const hintSpace = 56;
 // 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
 const maxScale = 2.4;
+// 가장 길게 자라도 빈자리를 다 채우지 않게 조금 작게 그려요.
+const shrink = 0.88;
 // 파일 칸을 프로도 아래에 둘 때 프로도가 쓰는 높이의 몫. 나머지는 먹은 방 파일 칸이에요.
 const narrowShare = 0.56;
 // 이 폭부터 파일 칸을 프로도 오른쪽에 둬요.
@@ -40,7 +42,7 @@ export type Card = Star & {
   kick: number;
 };
 // 프로도 그림 상자(px). scale은 그림 판 1칸의 px, mouth는 파일이 나오는 입, floor는 받침 아래 선이에요.
-// 먹은 방이 바뀌어도 scale·left·floor는 그대로이고, 몸 길이(top·height)만 바뀌어요.
+// 먹은 방이 바뀌어도 scale·left는 그대로예요. 프로도를 빈자리 가운데에 두니 몸이 늘면 받침이 그 절반만큼 내려가요.
 export type HeroFrodo = { left: number; top: number; width: number; height: number; scale: number; mouth: Point; floor: number };
 // 파일 칸 맨 위 찾기 줄 자리(px). found는 찾는 말·형식에 맞는 파일 수, 그중 칸에 놓은 수는 cards.length예요.
 export type FindSpot = { room: Room; left: number; top: number; width: number; found: number };
@@ -80,7 +82,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const unit = stageUnit(view);
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
-  const shelf = { top: (doorOpen ? doorBottom(view) : headerBottom(view)) + edge, height: shelfHeight(view) };
+  // 현관 줄은 왼쪽 아래 탭이 없는 좁은 창에서만 머리 아래에 펼쳐져요. 넓은 창에서는 '진행 중' 탭 안에 있어요.
+  const shelf = { top: (doorOpen && calendarSpot(view).length === 0 ? doorBottom(view) : headerBottom(view)) + edge, height: shelfHeight(view) };
   const top = shelf.top + shelf.height + gap;
   const room = active.find((item) => item.id === selectedId);
 
@@ -92,16 +95,18 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const [calendar] = calendarSpot(view);
   const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - hintSpace;
   const tall = Math.max(1, below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top);
+  // 프로도를 빈자리(방 카드 줄 아래) 가운데에 둬요. 좁은 창에서 방을 먹으면 아래에 파일 칸이 오니 위쪽 몫(tall) 가운데로 올라가요.
+  const area = room || !below ? tall : Math.max(1, above - top);
   // 프로도는 늘 창 가운데에 서요. 넓은 창은 파일 칸이 프로도 오른쪽에 들어가도록 프로도 크기를 맞춰요.
   // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게만 오른쪽으로 비켜요.
   const leftMin = calendar && !below ? calendar.x + calendar.hw + edge : edge;
   const across = below ? view.w - 2 * edge : view.w - 2 * (filesMin + 2 * edge);
-  const scale = Math.min(maxScale, tall / full[3], across / full[2]);
+  const scale = shrink * Math.min(maxScale, tall / full[3], across / full[2]);
   const width = bw * scale;
   const left = Math.max(below ? edge : leftMin, (view.w - width) / 2);
   const filesWidth = below ? 0 : Math.max(findWidth, Math.min(filesMax, view.w - edge - (left + width + 2 * edge)));
-  const floor = top + tall;
   const height = bh * scale;
+  const floor = top + (area + height) / 2;
   const frodoTop = floor - height;
   const px = (x: number, y: number): Point => ({ x: left + (x - bx) * scale, y: frodoTop + (y - by) * scale });
   const frodo: HeroFrodo = { left, top: frodoTop, width, height, scale, mouth: px(...stackGeometry(fedLengths(room)).mouth), floor };

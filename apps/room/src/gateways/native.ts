@@ -17,6 +17,8 @@ export const petSettingsChanged = "pet-settings";
 export const doorChanged = "door-changed";
 export const sessionEnded = "session-ended";
 export const workLogged = "work-logged";
+// 메인 창 홈의 '작업 시작' 단추: 플로팅 창을 열고 어느 방을 시작할지 묻게 해요.
+export const workStartAsked = "work-start";
 
 // fromIcon: 메뉴 막대 아이콘을 눌러 부른 때. 프로도가 그 아이콘 아래로 내려와요.
 export const setPetVisible = (visible: boolean, fromIcon = false): Promise<void> => invoke("set_pet_visible", { visible, fromIcon });

@@ -90,7 +90,7 @@ export function starRadius(bytes: number, scale = 1): number {
 
 export type Placed = { room: Room; at: Point; scale: number; spread: number; limit: number };
 
-// 왼쪽 아래 일력 자리입니다. 좁거나 낮은 창에서는 일력을 숨겨요. 크기와 창 기준은 styles.css의 .work-cal에 맞춰요.
+// 왼쪽 아래 '작업 시작' 단추와 탭 카드 자리예요. 좁거나 낮은 창에서는 숨겨요. 크기와 창 기준은 styles.css의 .home-stack에 맞춰요.
 export function calendarSpot(view: View): Box[] {
   return view.w >= 720 && view.h >= 640 ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
 }

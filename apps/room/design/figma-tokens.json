@@ -348,6 +348,10 @@
       "2xl": {
         "$type": "dimension",
         "$value": "28px"
+      },
+      "hero": {
+        "$type": "dimension",
+        "$value": "32px"
       }
     },
     "lineHeight": {
@@ -394,6 +398,11 @@
       "2xl": {
         "$type": "number",
         "$value": 1.15,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
+      "hero": {
+        "$type": "number",
+        "$value": 1.1,
         "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
       }
     },
@@ -957,21 +966,21 @@
       "$type": "other",
       "$value": "168px"
     },
-    "cal-number": {
+    "stack-w": {
       "$type": "other",
-      "$value": "44px"
+      "$value": "248px"
     },
-    "cal-dot": {
+    "home-panel-w": {
       "$type": "other",
-      "$value": "5px"
+      "$value": "380px"
     },
-    "cal-gap": {
+    "trend-number": {
       "$type": "other",
-      "$value": "2px"
+      "$value": "32px"
     },
-    "cal-w": {
+    "trend-chart-h": {
       "$type": "other",
-      "$value": "217px"
+      "$value": "120px"
     },
     "room-head-duct": {
       "$type": "other",

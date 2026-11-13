@@ -110,6 +110,7 @@
 | `size/text/caption` | `20px` |  |
 | `size/text/xl` | `22px` |  |
 | `size/text/2xl` | `28px` |  |
+| `size/text/hero` | `32px` |  |
 | `size/lineHeight/2xs` | `1.35` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/xs` | `1.4` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/sm` | `1.45` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
@@ -119,6 +120,7 @@
 | `size/lineHeight/caption` | `1.2` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/xl` | `1.25` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/2xl` | `1.15` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
+| `size/lineHeight/hero` | `1.1` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 
 ### Text styles
 | 이름 | 크기 | 줄 높이 | 굵기 | 쓰는 곳 |
@@ -233,10 +235,10 @@
 | `scene/pet-panel-art` | `64px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |
-| `scene/cal-number` | `44px` |  |
-| `scene/cal-dot` | `5px` |  |
-| `scene/cal-gap` | `2px` |  |
-| `scene/cal-w` | `217px` |  |
+| `scene/stack-w` | `248px` |  |
+| `scene/home-panel-w` | `380px` |  |
+| `scene/trend-number` | `32px` |  |
+| `scene/trend-chart-h` | `120px` |  |
 | `scene/room-head-duct` | `56px` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |

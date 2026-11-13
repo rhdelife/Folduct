@@ -21,6 +21,7 @@ import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
+import { todayWork } from "../domain/trends";
 import type { WorkLog } from "../domain/worklog";
 import { periodLabel, reportDue, type Period } from "../domain/workReport";
 import { AiError } from "../gateways/claude";
@@ -504,7 +505,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       <EngineContext.Provider value={engine}>
         <div className="home-stage">
           {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-          <HomeHeader rooms={rooms ?? []} ready={ready} overdue={overdue} newFiles={door.items.length} staleFiles={staleFiles} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+          <HomeHeader rooms={rooms ?? []} ready={ready} overdue={overdue} now={now} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
           <div className="home-sheet">
             {loadFailed ? (
               <div className="scene page-status" role="alert">
@@ -514,7 +515,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} />
+              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} />
             )}
           </div>
           {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}

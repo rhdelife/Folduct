@@ -36,9 +36,11 @@ const player = (anims: Animation[]) => (el: Element | null | undefined, frames: 
 
 // 고르기: 늘어난 몸이 받침 아래에서 솟아올라요. 받침 선 아래는 가려 두니(styles.css .frodo-clip) 아직 안 솟은 몸은 보이지 않아요.
 // 움직이는 건 translate·scale뿐이라 합성 스레드에서 돌아요. 고른 방 카드는 CSS(.room-node.fed)로 그림만 커져요.
-function playFeed(root: HTMLElement, grownBy: number): Play {
+function playFeed(root: HTMLElement, grownBy: number, drop: number): Play {
   const anims: Animation[] = [];
   const add = player(anims);
+  // 프로도는 빈자리 가운데에 있어서, 몸이 늘면 받침이 옛 자리에서 새 자리로 내려가요.
+  if (drop !== 0) add(root.querySelector(".frodo-home"), [{ translate: `0px ${-drop}px`, easing: "cubic-bezier(.22,1,.36,1)" }, { translate: "0px 0px" }], { duration: growMs });
   // 형식 색을 칠한 겹 그림의 칸을 받침에서 위로 걷어 올려요. 바깥 칸은 아래에서 올라오고 안쪽 그림은 그만큼 거꾸로 움직여 제자리에 있어요.
   // 둘 다 translate라 다시 그리지 않고 레이어만 움직여요.
   const fill = root.querySelector(".frodo-home .frodo-fill");
@@ -86,6 +88,8 @@ function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: Vie
 export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card[], frodo: HeroFrodo | null, view: View, selectedId: string | null) {
   // 먹기 전 몸 높이(그림 판 단위). 창 크기가 바뀌어도 그대로라, 먹은 뒤 늘어난 만큼만 지금 크기로 받침에서 솟게 해요.
   const lastBoard = useRef(frodo ? frodo.height / frodo.scale : 0);
+  // 지난 그림의 받침 선(px). 그림마다 아래 효과에서 새로 적어 두니 창 크기가 바뀌어도 지금 크기의 값이에요.
+  const lastFloor = useRef(frodo?.floor ?? 0);
 
   // 방을 먹일 때마다 삼키고, 늘어나고, 그 방 파일을 뱉어요. 다른 방을 먹이거나 비우면 남은 움직임은 멈춰요.
   useLayoutEffect(() => {
@@ -93,7 +97,7 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
     lastBoard.current = frodo ? frodo.height / frodo.scale : 0;
     if (!frodo || !selectedId || reduced()) return;
     const root = canvas.current!;
-    const ate = playFeed(root, frodo.height - before * frodo.scale);
+    const ate = playFeed(root, frodo.height - before * frodo.scale, frodo.floor - lastFloor.current);
     const { anims, spitting } = playSpill(root, cards, frodo, view);
     // 웅크릴 때는 눈을 질끈 감고, 뱉는 동안은 눈을 크게 떠요. 끝나면 웃는 얼굴로 돌아가요. 뱉을 파일이 없는 방은 웅크리지 않아요.
     const id = homeActor;
@@ -106,4 +110,7 @@ export function useHeroMotion(canvas: RefObject<HTMLElement | null>, cards: Card
       [...ate.anims, ...anims].forEach((anim) => anim.cancel());
     };
   }, [selectedId]);
+  useLayoutEffect(() => {
+    lastFloor.current = frodo?.floor ?? 0;
+  });
 }
