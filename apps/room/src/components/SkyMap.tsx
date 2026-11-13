@@ -40,6 +40,7 @@ export function SkyMap({
   onOpenThing,
   onRoomMenu,
   underFrodo,
+  overFrodo,
   paneOpen = false,
 }: {
   rooms: Room[];
@@ -55,6 +56,8 @@ export function SkyMap({
   onRoomMenu: OpenRoomMenu;
   // 프로도 받침 바로 아래에 둘 것(작업 시작 줄). 자리는 heroLayout이 startSpace만큼 비워 둬요.
   underFrodo?: ReactNode;
+  // 프로도 머리 위에 띄우는 말풍선 자리예요(이번 주 정리).
+  overFrodo?: ReactNode;
   // 오른쪽 미리보기 창(--preview-w)이 열리면 넓은 창에서는 판이 그만큼 좁아져(styles.css .pane-open) 왼쪽 폭에만 배치해요.
   paneOpen?: boolean;
 }) {
@@ -199,6 +202,7 @@ export function SkyMap({
           onCloseTip={closeTip}
         />
         {frodo && underFrodo && <div className="under-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.floor }}>{underFrodo}</div>}
+        {frodo && overFrodo && <div className="over-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>{overFrodo}</div>}
         <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div

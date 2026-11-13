@@ -16,12 +16,15 @@ type HeroProps = SceneProps & {
   onDoorMenu: OpenRoomMenu;
   workLog: WorkLog;
   staleFiles: number;
+  // 이번 주 정리할 때가 되면 홈 프로도가 말풍선으로 알려요.
+  sweepDue: boolean;
+  onSweepLater: () => void;
   // 오른쪽 미리보기 창이 열려 있으면 홈 배치가 그 폭만큼 비켜요.
   paneOpen: boolean;
 };
 
 // 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
-export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, paneOpen }: HeroProps) {
+export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, sweepDue, onSweepLater, paneOpen }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
 
   return (
@@ -29,7 +32,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
       {rooms.length === 0 ? (
         <div className="home-empty">
           {/* 방이 하나도 없으면 로고 대신 프로도가 말풍선으로 첫 방을 권해요. 말은 프로도 말투(반말)예요. */}
-          <p className="home-bubble">작업 폴더를 골라 첫 방을 만들어 봐.</p>
+          <p className="frodo-bubble">작업 폴더를 골라 첫 방을 만들어 봐.</p>
           <span className="home-frodo">
             <PoseArt pose="idle" px={240} mood="lookU" />
           </span>
@@ -38,7 +41,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} paneOpen={paneOpen} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>
@@ -54,5 +57,18 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
         </div>
       )}
     </section>
+  );
+}
+
+// 이번 주 정리 말풍선: 프로도 말투(반말). 안 쓴 파일이 없으면 오래 안 쓴 방 때문에 뜬 거예요.
+function SweepBubble({ staleFiles, onOpen, onLater }: { staleFiles: number; onOpen: () => void; onLater: () => void }) {
+  return (
+    <div className="frodo-bubble sweep-bubble" role="status">
+      <p>{staleFiles > 0 ? `안 쓴 파일이 ${staleFiles}개 쌓였어. 이번 주 정리할까?` : "오래 안 쓴 방이 있어. 이번 주 정리할까?"}</p>
+      <div className="sweep-bubble-actions">
+        <button type="button" className="primary" aria-haspopup="dialog" onClick={onOpen}>보기</button>
+        <button type="button" className="quiet" onClick={onLater}>다음 주에</button>
+      </div>
+    </div>
   );
 }

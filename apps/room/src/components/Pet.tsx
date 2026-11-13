@@ -548,25 +548,6 @@ export function Pet() {
           {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
         </div>
       )}
-      {sweepNotice !== null && (
-        <div className="pet-ask" data-no-drag>
-          <p role="status">이번 주 정리</p>
-          <small>안 쓴 파일이나 방 {sweepNotice}개를 정리할 수 있어요.</small>
-          <div>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                dismissSweep(false);
-                if (isNative()) emit(sweepOpenAsked).catch((error: unknown) => console.error(error));
-              }}
-            >
-              보기
-            </button>
-            <button type="button" onClick={() => dismissSweep(true)}>다음 주에</button>
-          </div>
-        </div>
-      )}
       {asking && session && (
         <div className="pet-ask" data-no-drag>
           <p role="status">{working ? "계속 작업 중인가요?" : "다시 시작할까요?"}</p>
@@ -577,6 +558,26 @@ export function Pet() {
         </div>
       )}
     </>
+  );
+
+  // 이번 주 정리 알림: 프로도 바로 아래 말풍선으로, 프로도 말투(반말)예요. 꼬리는 위의 프로도를 가리켜요.
+  const sweepBubble = sweepNotice !== null && (
+    <div className="pet-ask frodo-bubble tail-up" data-no-drag>
+      <p role="status">안 쓴 파일이나 방이 {sweepNotice}개 있어. 이번 주 정리할까?</p>
+      <div>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            dismissSweep(false);
+            if (isNative()) emit(sweepOpenAsked).catch((error: unknown) => console.error(error));
+          }}
+        >
+          보기
+        </button>
+        <button type="button" onClick={() => dismissSweep(true)}>다음 주에</button>
+      </div>
+    </div>
   );
 
   // 시작할 방 고르기. 방마다 얼굴 색 알약과 작은 주름관이라 한눈에 골라요. 누르면 바로 시간을 재요.
@@ -615,6 +616,7 @@ export function Pet() {
               )}
             </p>
           </header>
+          {sweepBubble}
           {session ? (
             <div className="pet-panel-row">
               <button type="button" className="primary" onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>{working ? "멈춤" : "다시 시작"}</button>
@@ -658,6 +660,7 @@ export function Pet() {
       >
         {art(petPx)}
       </button>
+      {sweepBubble}
       {session ? (
         <div className="pet-bar">
           <p className="pet-status" role="status">

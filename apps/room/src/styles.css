@@ -1837,9 +1837,12 @@ p.kind-folder-more { color: var(--ink-caption); }
 }
 /* 넓은 창: 목록 종이는 실제 A4 비율(210:297)이에요. 높이가 모자라면 무대 높이에 맞춰요.
    서랍에서 꺼낸 종이가 앞으로 다가오기 시작하면(KindShelf growFrom, --dur-3 뒤 들어 올림이 끝날 때) 서랍장은 아래로 내려가며 조금 작아져 뒤로 물러나요. 닫으면 바로 돌아와요. */
+/* 목록 종이는 오른쪽 칸이 아니라 서랍장 앞 가운데에 떠요. 서랍장은 자리를 비키지 않고 그 뒤에서 물러나요. 종이 밖은 눌림이 서랍으로 지나가요. */
 @media (min-width: 721px) {
-  .kind-slip { align-items: center; }
-  .kind-slip-paper { aspect-ratio: 210 / 297; max-height: 100%; }
+  .kind-stage[data-open="true"] { padding-right: 0; }
+  .kind-slip { inset: 0; z-index: 3; width: auto; justify-items: center; align-items: center; pointer-events: none; }
+  .kind-slip-paper { aspect-ratio: 210 / 297; max-height: 100%; pointer-events: auto; }
+  body:has(.preview-pane) .kind-stage[data-open="true"] .kind-slip { translate: calc((var(--kind-slip-w) - 100cqw) / 2) 0; }
   .kind-stage[data-open="true"] .kind-cabinet-sink { translate: 0 25%; scale: 0.88; }
 }
 @media (min-width: 721px) and (prefers-reduced-motion: no-preference) {

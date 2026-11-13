@@ -351,6 +351,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   let staleFiles = 0;
   for (const stat of stats.values()) staleFiles += stat.stale;
   const overdue = sweepDue(lastSweepAt, now) && (staleFiles > 0 || (rooms ?? []).some((room) => doneOfferDue(room, now)));
+  // 홈 프로도의 '다음 주에': 플로팅 창 알림과 같이 이번 주 정리를 한 주 미뤄요.
+  const sweepLater = () => {
+    const at = Date.now();
+    setLastSweep(at);
+    setLastSweepAt(at).catch((error: unknown) => console.error(error));
+  };
 
   const fail = (message: string) => (error: unknown) => {
     console.error(error);
@@ -542,7 +548,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} paneOpen={Boolean(viewingThing)} />
+              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} sweepDue={overdue} onSweepLater={sweepLater} paneOpen={Boolean(viewingThing)} />
             )}
           </div>
           {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}
