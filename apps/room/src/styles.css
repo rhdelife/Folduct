@@ -1571,7 +1571,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-shelves-note { flex-basis: 100%; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-caption); }
 .kind-shelves-head h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
 /* 무대: 닫혀 있으면 서랍장이 폭을 다 쓰고, 열면 오른쪽에 목록 종이 자리를 비워요. 크기는 한 번에 바뀌고, 그 사이 움직임은 KindShelf의 moveCabinet이 transform으로 이어 줘요. */
-.kind-stage { --kind-slip-w: min(42cqw, calc(var(--space-12) * 9)); --kind-slip-from: var(--space-12) 0; position: relative; display: grid; min-height: 0; }
+/* 넓으면 목록 종이가 오른쪽 끝 밖에서 통째로 밀려 들어오고, 그만큼 서랍장이 왼쪽으로 비켜요(같은 시간·곡선). 미는 동안 종이는 옅어지지 않아요. */
+.kind-stage { --kind-slip-w: min(42cqw, calc(var(--space-12) * 9)); --kind-slip-from: calc(100% + var(--space-6)) 0; --kind-slip-alpha: 1; position: relative; display: grid; min-height: 0; }
 .kind-stage[data-open="true"] { padding-right: var(--kind-slip-w); }
 /* 서랍장: 서랍 한 칸이 가로 2 : 세로 1. 남은 폭과 높이 안에 들어가는 가장 큰 크기로 가운데 놓여요. 아래는 빠져나온 서랍이 걸칠 자리예요. */
 .kind-cabinet-wrap { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; padding: var(--space-2) 0 var(--space-12); }
@@ -1617,7 +1618,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-slip[data-open="true"] { visibility: visible; }
 .kind-folder:focus-visible { outline: none; }
 .kind-slip-paper:has(.kind-folder:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
-.kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; padding: var(--space-5); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-2); opacity: 0; translate: var(--kind-slip-from); }
+.kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; padding: var(--space-5); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-2); opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); will-change: translate; }
 .kind-slip[data-open="true"] .kind-slip-paper { opacity: 1; translate: 0 0; }
 /* 서랍을 바꿔 열면 두 장이 같은 칸에 겹쳐요. 새 종이가 위로 밀려 들어오고, 옛 종이는 그 밑에서 살짝 가라앉으며 사라져요. */
 .kind-slip-paper { grid-area: 1 / 1; }
@@ -1654,7 +1655,7 @@ p.kind-folder-more { color: var(--ink-caption); }
 /* 좁으면 서랍장은 두 줄, 목록 종이는 아래에서 올라와 서랍장 위에 덮여요. */
 @media (max-width: 720px) {
   .kind-shelves { gap: var(--space-4); padding: var(--space-8) var(--gutter) var(--space-6); }
-  .kind-stage { --kind-slip-from: 0 calc(100% + var(--space-8)); }
+  .kind-stage { --kind-slip-from: 0 calc(100% + var(--space-8)); --kind-slip-alpha: 0; }
   .kind-stage[data-open="true"] { padding-right: 0; }
   .kind-cabinet-wrap { place-items: start center; }
   .kind-drawer-front { padding: var(--space-2) var(--space-3); }
@@ -1683,10 +1684,9 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-slip { transition: visibility 0s linear var(--dur-drawer); }
   .kind-slip[data-open="true"] { transition-delay: 0s; }
   .kind-slip-paper { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-3) var(--ease-standard), scale var(--dur-3) var(--ease-settle); }
-  .kind-slip[data-open="true"] .kind-slip-paper { transition-delay: var(--dur-1); }
   /* 옛 종이는 바로 가라앉되, 새 종이가 거의 덮은 뒤(--dur-3)에야 옅어져요. 아직 들어오던 종이였으면 그 미끄러짐을 끊지 않고 이어 가요. */
   .kind-slip[data-open="true"] .kind-slip-paper[data-leaving] { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-2) var(--ease-standard) var(--dur-3), scale var(--dur-3) var(--ease-settle); }
-  @starting-style { .kind-slip[data-open="true"] .kind-slip-paper { opacity: 0; translate: var(--kind-slip-from); } }
+  @starting-style { .kind-slip[data-open="true"] .kind-slip-paper { opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); } }
   .shelf-paper { transition: translate var(--dur-2) var(--ease-settle), box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-1) var(--ease-standard); }
   /* 처음 놓이는 12장만 차례로 내려앉아요. "더 보기"로 늘어난 100여 장이 한꺼번에 움직이지 않아요. */
   .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation: kind-card-in var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-1) + var(--i) * 30ms); }

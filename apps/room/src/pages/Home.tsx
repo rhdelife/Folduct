@@ -608,7 +608,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
               setViewing(null);
               onOpen(viewingRoom.id);
             }}
-            onError={toast}
           />
         </Suspense>
       )}

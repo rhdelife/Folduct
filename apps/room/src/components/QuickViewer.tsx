@@ -9,7 +9,7 @@ import { patchRoom } from "../storage/db";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "./FileViewer";
 
 // 집 화면에서 방에 들어가지 않고 파일을 봅니다. 폴더 연결은 방 화면의 일이라, 연결이 없으면 그 방으로 보냅니다.
-export function QuickViewer({ room, thing, onClose, onToRoom, onError }: { room: Room; thing: Thing; onClose: () => void; onToRoom: () => void; onError: (message: string) => void }) {
+export function QuickViewer({ room, thing, onClose, onToRoom }: { room: Room; thing: Thing; onClose: () => void; onToRoom: () => void }) {
   const [state, setState] = useState<ViewerState | null>(null);
   const [tries, retry] = useReducer((count: number) => count + 1, 0);
   const folder = useRef<Folder | null>(null);
@@ -41,11 +41,8 @@ export function QuickViewer({ room, thing, onClose, onToRoom, onError }: { room:
         folder.current ??= await roomFolder(room);
         const found = folder.current;
         if (!found) return setState({ status: "need-folder" });
-        if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) {
-          const error = await openApp(found);
-          if (error) onError(error);
-          return onClose();
-        }
+        // 바로 앱을 열지 않고 창을 띄워, 무슨 파일인지 본 뒤 '기본 앱으로 열기'를 누르게 해요.
+        if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) return setState({ status: "outside", big: previewMode(thing) !== "none" });
         setState({ status: "loading" });
         if ((await folderAccess(found)) !== "granted" && !(await askFolder(found))) return setState({ status: "denied" });
         setState({ status: "ready", file: await readFolderFile(found, thing.path) });

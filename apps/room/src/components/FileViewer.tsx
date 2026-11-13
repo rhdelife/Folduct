@@ -13,6 +13,8 @@ export type ViewerState =
   | { status: "need-folder" }
   | { status: "denied" }
   | { status: "sample" }
+  // 앱에서 읽지 않고 기본 앱으로 열 파일(미리 볼 수 없는 형식이거나 너무 큰 파일). 열지 말지는 사용자가 골라요.
+  | { status: "outside"; big: boolean }
   | { status: "error"; message: string };
 
 type Mode = "image" | "video" | "audio" | "pdf" | "text" | "none";
@@ -120,6 +122,12 @@ export function FileViewer({
                 <button type="button" className="primary" onClick={onRetry}>다시 허용하고 열기</button>
                 {canConnect && <button type="button" disabled={busy} onClick={onConnect}>{busy ? "폴더를 읽는 중…" : "폴더 다시 고르기"}</button>}
               </div>
+            </div>
+          )}
+          {state.status === "outside" && (
+            <div className="viewer-note">
+              <p>{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>
+              {openApp && <button type="button" className="primary" onClick={openApp}>기본 앱으로 열기</button>}
             </div>
           )}
           {state.status === "error" && (
