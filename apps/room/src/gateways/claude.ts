@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { aiContext, aiLimits, aiNoteSchema, aiSystem, parseAiNote, type AiNote, type AiRead } from "../domain/aiNote";
+import { reportSystem } from "../domain/workReport";
 import type { Thing } from "../domain/model";
 import { shrink } from "../storage/pictures";
 
@@ -59,18 +60,45 @@ export async function summarize(apiKey: string, thing: Thing, neighbors: string[
       messages: [{ role: "user", content: [...blocks, { type: "text", text: aiContext(thing, neighbors, read) }] }],
     });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) throw new AiError("API 키를 확인해 주세요. 환경설정에서 바꿀 수 있어요.");
-    if (error instanceof Anthropic.APIError && (error.type === "billing_error" || /credit balance/i.test(error.message))) throw new AiError("API 크레딧이 부족해요. Anthropic 콘솔에서 확인해 주세요.");
-    if (error instanceof Anthropic.RateLimitError) throw new AiError("요청이 많아요. 잠시 뒤 다시 해 주세요.");
-    if (error instanceof Anthropic.BadRequestError || (error instanceof Anthropic.APIError && error.status === 413)) throw new AiError("이 파일은 보낼 수 없었어요. 너무 크거나 읽을 수 없는 형식일 수 있어요.");
-    if (error instanceof Anthropic.APIConnectionTimeoutError) throw new AiError("응답이 늦어요. 잠시 뒤 다시 해 주세요.");
-    if (error instanceof Anthropic.APIConnectionError) throw new AiError("인터넷 연결을 확인해 주세요.");
-    if (error instanceof Anthropic.APIError) throw new AiError("AI가 지금 답하지 못했어요. 잠시 뒤 다시 해 주세요.");
-    throw error;
+    throw failure(error);
   }
   if (response.stop_reason === "refusal") throw new AiError("이 파일은 요약하지 못했어요.");
   const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
   const parsed = parseAiNote(text);
   if (!parsed) throw new AiError("요약을 읽지 못했어요. 다시 해 주세요.");
   return { ...parsed, read, size: thing.size, lastModified: thing.lastModified, at: Date.now(), model: response.model };
+}
+
+// 작업 보고. 기간·방 이름과 분·분류와 분·날마다의 분·적어 둔 줄(reportInput)만 보내요.
+export async function reportWork(apiKey: string, input: string): Promise<{ text: string; model: string }> {
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2, timeout: 90_000 });
+  let response: Anthropic.Beta.Messages.BetaMessage;
+  try {
+    response = await client.beta.messages.create({
+      model: aiModel,
+      max_tokens: 2000,
+      output_config: { effort: "low" },
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system: reportSystem,
+      messages: [{ role: "user", content: input }],
+    });
+  } catch (error) {
+    throw failure(error);
+  }
+  const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("").trim();
+  if (response.stop_reason === "refusal" || !text) throw new AiError("보고를 만들지 못했어요. 다시 해 주세요.");
+  return { text, model: response.model };
+}
+
+// SDK 오류를 화면에 보일 말로 바꿔요. 모르는 오류는 그대로 돌려줘요.
+function failure(error: unknown): unknown {
+  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) return new AiError("API 키를 확인해 주세요. 환경설정에서 바꿀 수 있어요.");
+  if (error instanceof Anthropic.APIError && (error.type === "billing_error" || /credit balance/i.test(error.message))) return new AiError("API 크레딧이 부족해요. Anthropic 콘솔에서 확인해 주세요.");
+  if (error instanceof Anthropic.RateLimitError) return new AiError("요청이 많아요. 잠시 뒤 다시 해 주세요.");
+  if (error instanceof Anthropic.BadRequestError || (error instanceof Anthropic.APIError && error.status === 413)) return new AiError("이 파일은 보낼 수 없었어요. 너무 크거나 읽을 수 없는 형식일 수 있어요.");
+  if (error instanceof Anthropic.APIConnectionTimeoutError) return new AiError("응답이 늦어요. 잠시 뒤 다시 해 주세요.");
+  if (error instanceof Anthropic.APIConnectionError) return new AiError("인터넷 연결을 확인해 주세요.");
+  if (error instanceof Anthropic.APIError) return new AiError("AI가 지금 답하지 못했어요. 잠시 뒤 다시 해 주세요.");
+  return error;
 }

@@ -15,11 +15,17 @@ import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
+import { createReport, WorkReportDialog } from "../components/WorkReportDialog";
+import { aiReady } from "../domain/aiNote";
 import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
 import type { WorkLog } from "../domain/worklog";
+import { periodLabel, reportDue, type Period } from "../domain/workReport";
+import { AiError } from "../gateways/claude";
+import { getAiSettings } from "../storage/ai";
+import { getReportEvery, getWorkReports } from "../storage/workReport";
 import { homeLimit, roomStats } from "../domain/sky";
 import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
 import { planSweep, refreshRooms, type SweepPlan } from "../storage/box";
@@ -62,6 +68,10 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 작업 보고 창. true면 지금 기간, Period면 그 기간으로 열어요.
+  const [reportOpen, setReportOpen] = useState<Period | true | null>(null);
+  const reportBusy = useRef(false);
+  const reportTried = useRef("");
   const [importing, setImporting] = useState(false);
   const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
   const shelf = useRef<HTMLElement>(null);
@@ -154,6 +164,26 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   useEffect(() => {
     getWorkLog().then(setWorkLog, (error: unknown) => console.error(error));
   }, []);
+
+  // 고른 주기가 끝났으면 그 기간의 작업 보고를 받아요. AI를 켜고 키를 넣었을 때만 보내고, 한 번 켜 둔 동안 같은 기간은 다시 시도하지 않아요.
+  useEffect(() => {
+    if (!isNative() || !rooms || reportBusy.current) return;
+    reportBusy.current = true;
+    void (async () => {
+      try {
+        const [every, ai, reports] = await Promise.all([getReportEvery(), getAiSettings(), getWorkReports()]);
+        const due = aiReady(ai) ? reportDue(every, reports, now) : null;
+        if (!due || reportTried.current === `${due.from}~${due.to}`) return;
+        reportTried.current = `${due.from}~${due.to}`;
+        if (await createReport(ai.apiKey, due, rooms)) toast(`${periodLabel(due)} 작업 보고가 나왔어요.`, { label: "보기", run: () => setReportOpen(due) });
+      } catch (error) {
+        console.error(error);
+        if (error instanceof AiError) toast(`작업 보고를 받지 못했어요. ${error.message}`);
+      } finally {
+        reportBusy.current = false;
+      }
+    })();
+  }, [rooms, now, toast]);
 
   // 플로팅 창이 파일을 옮겼거나 작업을 끝냈을 때입니다. 끝낸 방에 치울 파일이 있으면 정리 창을 띄워요.
   useEffect(() => {
@@ -534,6 +564,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                   {importing ? "가져오는 중…" : "목록 파일 가져오기"}
                 </button>
               )}
+              <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
               {hasSample ? (
                 <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
               ) : (
@@ -543,6 +574,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }
         />
       )}
+      {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
       {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
         <NewRoomDialog
@@ -592,7 +624,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }}
         />
       )}
-      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !settingsRoom && (
+      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !reportOpen && !settingsRoom && (
         <HomeRoomsDialog rooms={onHome} prefer={[raised.current, returnTo]} now={now} onKeep={keepOnHome} />
       )}
       {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}
