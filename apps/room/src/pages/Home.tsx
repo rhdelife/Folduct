@@ -15,6 +15,7 @@ import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
+import { PreviewPane } from "../components/home/PreviewPane";
 import { createReport, WorkReportDialog } from "../components/WorkReportDialog";
 import { aiReady } from "../domain/aiNote";
 import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
@@ -28,14 +29,13 @@ import { AiError } from "../gateways/claude";
 import { getAiSettings } from "../storage/ai";
 import { getReportEvery, getWorkReports } from "../storage/workReport";
 import { homeLimit, roomStats } from "../domain/sky";
-import { doorChanged, isNative, sessionEnded, workLogged } from "../gateways/native";
+import { doorChanged, isNative, sessionEnded, sweepOpenAsked, workLogged } from "../gateways/native";
 import { planSweep, refreshRooms, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
 
 // 파일 보기는 방 화면과 같은 묶음이라 첫 화면에 싣지 않습니다.
-const QuickViewer = lazy(() => import("../components/QuickViewer").then((m) => ({ default: m.QuickViewer })));
 
 // 주간 정리는 앱을 켤 때 한 번만 저절로 뜹니다. 창으로 돌아올 때는 시각만 새로 고치고, 밀린 정리는 주간 정리 버튼 글자로 알립니다.
 let sweepChecked = false;
@@ -131,7 +131,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
         return;
       }
       setLastSweep(last);
-      if (sweepChecked) return;
+      // 데스크톱 앱은 메뉴 막대 작은 창이 한 주에 한 번 알려요. 켤 때마다 정리 창을 띄우지 않아요.
+      if (sweepChecked || isNative()) return;
       sweepChecked = true;
       if (!sweepDue(last, Date.now())) return;
       await findSweep(list);
@@ -200,10 +201,13 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       void getDoorstep().then(setDoor, (error: unknown) => console.error(error));
       void load();
     }).then(add);
-    void listen<string>(sessionEnded, (event) => {
+    // 작업을 끝낼 때마다 정리를 묻지 않아요. 기록만 새로 읽어요.
+    void listen(sessionEnded, () => void load()).then(add);
+    // 작은 창 알림의 '보기': 메인 창을 앞으로 가져와 이번 주 정리 창을 열어요.
+    void listen(sweepOpenAsked, () => {
       void (async () => {
-        const room = (await load())?.find((item) => item.id === event.payload);
-        if (room && (await findSweep([room]))) await invoke("show_main");
+        await invoke("show_main");
+        if (!(await findSweep())) toast("지금은 정리할 파일이 없어요.");
       })().catch((error: unknown) => console.error(error));
     }).then(add);
     return () => {
@@ -283,6 +287,11 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   }, [panelOpen, selectRoom]);
   // 지도(MapLayers)는 memo라 함수가 그릴 때마다 새로 생기면 매번 다시 그려져요.
   const openFile = useCallback((roomId: string, thingId: string) => setViewing({ roomId, thingId }), []);
+  // 연 파일이 최근 작업이 됐으니 닫을 때 더미 순서도 맞춥니다.
+  const closePreview = useCallback(() => {
+    setViewing(null);
+    void load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const focusThing = useCallback((roomId: string, thingId: string) => {
     setSelectedId(roomId);
     setFocusId(thingId);
@@ -515,7 +524,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             ) : !scene ? (
               <p className="scene loading">저장된 방을 불러오는 중…</p>
             ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} />
+              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} paneOpen={Boolean(viewingThing)} />
             )}
           </div>
           {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}
@@ -565,6 +574,10 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                   {importing ? "가져오는 중…" : "목록 파일 가져오기"}
                 </button>
               )}
+              <button type="button" className="quiet" onClick={fromMenu(actions.openSweep)}>
+                <Icon name="sweep" />
+                이번 주 정리 보기
+              </button>
               <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
               {hasSample ? (
                 <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
@@ -594,22 +607,18 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
         />
       )}
       {viewingRoom && viewingThing && (
-        <Suspense fallback={null}>
-          <QuickViewer
-            key={viewingThing.id}
-            room={viewingRoom}
-            thing={viewingThing}
-            onClose={() => {
-              setViewing(null);
-              // 연 파일이 최근 작업이 됐으니 더미 순서도 맞춥니다.
-              void load();
-            }}
-            onToRoom={() => {
-              setViewing(null);
-              onOpen(viewingRoom.id);
-            }}
-          />
-        </Suspense>
+        <PreviewPane
+          key={viewingThing.id}
+          room={viewingRoom}
+          thing={viewingThing}
+          onClose={closePreview}
+          onToRoom={() => {
+            setViewing(null);
+            onOpen(viewingRoom.id);
+          }}
+          onChanged={() => void load()}
+          toast={toast}
+        />
       )}
       {plans && entered && (
         <SweepDialog

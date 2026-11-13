@@ -978,6 +978,10 @@
       "$type": "other",
       "$value": "32px"
     },
+    "preview-w": {
+      "$type": "other",
+      "$value": "380px"
+    },
     "cal-dot": {
       "$type": "other",
       "$value": "5px"

@@ -3,6 +3,7 @@ import { defaultCare, localDay, dayMs, sweepCandidates } from "../domain/care";
 import type { Room, ScannedFile, Thing } from "../domain/model";
 import { askFolder, folderAccess, scanRoomFolder, type Folder } from "../gateways/native";
 import { answerDoneOffer, boxThing, planSweep, reconcileBox, refreshRooms, restoreFromBox, runSweep, type SweepPlan } from "../storage/box";
+import { renameThing } from "../storage/rename";
 import { sampleRooms } from "../storage/sample";
 import { ductIndex } from "../art/duct";
 import { getHandle, listRooms, patchRoom, saveRoom, setLastSweepAt } from "../storage/db";
@@ -368,5 +369,34 @@ describe("방 안에서 바로 상자에 넣기", () => {
     vi.mocked(askFolder).mockResolvedValue(false);
     expect((await boxThing(room([other]), folder(raw), other.id, now)).error).toBe("폴더 수정 권한을 받지 못해 옮기지 않았어요.");
     expect(has(raw, "참고/시안.psd")).toBe("원본");
+  });
+});
+
+describe("파일 이름 바꾸기", () => {
+  it("실제 폴더에서 같은 폴더 안 이름을 바꾸고 기록도 맞춘다", async () => {
+    const raw = seed();
+    const item = thing("참고/시안.psd");
+    store(room([item]));
+    vi.mocked(getHandle).mockResolvedValue(folder(raw) as unknown as FileSystemDirectoryHandle);
+    const result = await renameThing(room([item]), item.id, " 최종.psd ", now);
+    expect(result.error).toBeNull();
+    expect(stored().things[0]).toMatchObject({ name: "최종.psd", path: "참고/최종.psd", touchedAt: now });
+    expect(has(raw, "참고/최종.psd")).toBe("원본");
+    expect(has(raw, "참고/시안.psd")).toBeUndefined();
+  });
+
+  it("겹치는 이름이면 바꾸지 않고, 샘플 방은 기록만 바꾼다", async () => {
+    const raw = seed({ "참고/시안.psd": "원본", "참고/b.psd": "다른" });
+    const item = thing("참고/시안.psd");
+    store(room([item]));
+    vi.mocked(getHandle).mockResolvedValue(folder(raw) as unknown as FileSystemDirectoryHandle);
+    expect((await renameThing(room([item]), item.id, "b.psd", now)).error).toBe("같은 이름의 파일이 이미 있어요.");
+    expect(stored().things[0].name).toBe("시안.psd");
+    expect(has(raw, "참고/b.psd")).toBe("다른");
+
+    const sample = room([item], { source: "sample" });
+    store(sample);
+    expect((await renameThing(sample, item.id, "샘플.psd", now)).error).toBeNull();
+    expect(stored().things[0].path).toBe("참고/샘플.psd");
   });
 });

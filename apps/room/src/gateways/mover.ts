@@ -1,8 +1,9 @@
 import { boxPathCandidate, isInBox, numberedName } from "../domain/care";
 import { isSafeRelativePath } from "../domain/model";
 import { fileManagerName, osErrorKind } from "../domain/platform";
+import { isExcludedName } from "./folder";
 
-// 실제 폴더에 하는 변경은 이 파일의 두 가지 이동뿐입니다. 상자 안팎 이동(moveFile)과 현관 문서를 방으로 옮기는 이동(moveDoorFile). 지우거나 내용을 고쳐 쓰지 않습니다.
+// 실제 폴더에 하는 변경은 이 파일의 세 가지 이동뿐입니다. 상자 안팎 이동(moveFile), 현관 문서를 방으로 옮기는 이동(moveDoorFile), 같은 폴더 안 이름 바꾸기(renameFile). 지우거나 내용을 고쳐 쓰지 않습니다.
 export type MoveDirectory = {
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MoveDirectory>;
   getFileHandle(name: string): Promise<MoveFile>;
@@ -66,6 +67,36 @@ export async function moveFile(root: MoveDirectory, fromPath: string, toPath: st
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: "failed", message: moveMessage(error) };
+  }
+}
+
+// 파일 하나의 이름만 바꿉니다. 같은 폴더 안에서만, 정리 상자 밖 파일만이에요. 새 이름에 같은 이름의 파일이 있으면 덮어쓰지 않습니다.
+export async function renameFile(root: MoveDirectory, path: string, newName: string): Promise<MoveResult> {
+  const parts = path.split("/");
+  const oldName = parts[parts.length - 1];
+  const toPath = [...parts.slice(0, -1), newName].join("/");
+  // 점으로 시작하거나 시스템 파일 이름이면 다시 읽을 때 목록에서 빠져(folder.ts isExcludedName) 파일을 잃은 것처럼 보여요.
+  if (!isSafeRelativePath(path) || !newName.trim() || newName.includes("/") || newName.startsWith(".") || isExcludedName(newName) || !isSafeRelativePath(toPath) || isInBox(path)) {
+    return { ok: false, reason: "invalid", message: "쓸 수 없는 이름이에요." };
+  }
+  if (newName === oldName) return { ok: true };
+  try {
+    // 대소문자만 바꾸면 macOS·Windows에서는 같은 파일이 '있다'고 나와요. 그때는 자기 자신이라 겹침으로 보지 않아요.
+    const caseOnly = newName.toLowerCase() === oldName.toLowerCase();
+    if (!caseOnly && (await fileExists(root, toPath))) return { ok: false, reason: "occupied", message: "같은 이름의 파일이 이미 있어요." };
+    const directory = await walk(root, parts.slice(0, -1), false);
+    let file: MoveFile;
+    try {
+      file = await directory.getFileHandle(oldName);
+    } catch (error) {
+      if (isNotFound(error)) return { ok: false, reason: "missing", message: "폴더에서 이 파일을 찾지 못했어요." };
+      throw error;
+    }
+    if (typeof file.move !== "function") return { ok: false, reason: "unsupported", message: "이 브라우저는 파일 이름 바꾸기를 지원하지 않아요." };
+    await file.move(directory, newName);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: "failed", message: moveMessage(error).replace("옮기지 못했어요", "이름을 바꾸지 못했어요") };
   }
 }
 

@@ -16,10 +16,12 @@ type HeroProps = SceneProps & {
   onDoorMenu: OpenRoomMenu;
   workLog: WorkLog;
   staleFiles: number;
+  // 오른쪽 미리보기 창이 열려 있으면 홈 배치가 그 폭만큼 비켜요.
+  paneOpen: boolean;
 };
 
 // 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
-export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles }: HeroProps) {
+export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, paneOpen }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
 
   return (
@@ -33,7 +35,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} paneOpen={paneOpen} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>

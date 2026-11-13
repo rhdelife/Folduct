@@ -8,7 +8,7 @@ import { previewMode } from "../components/FileViewer";
 import { clusterSpread, hash, homeActivity, homeLimit, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
 import { kindParts } from "../art/duct";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
-import { fileExists, freeBoxPath, moveFile } from "../gateways/mover";
+import { fileExists, freeBoxPath, moveFile, renameFile } from "../gateways/mover";
 import { seed, view } from "./fakeFolder";
 
 const MB = 1024 ** 2;
@@ -482,6 +482,25 @@ describe("폴더 읽기", () => {
 });
 
 describe("정리 상자 폴더 이동", () => {
+  it("같은 폴더 안에서 이름만 바꾸고, 겹치는 이름·다른 폴더·상자 안 파일은 거절한다", async () => {
+    const raw = seed();
+    const root = view(raw);
+    expect(await renameFile(root, "참고/시안.psd", "최종 시안.psd")).toEqual({ ok: true });
+    expect(await fileExists(root, "참고/최종 시안.psd")).toBe(true);
+    expect(await fileExists(root, "참고/시안.psd")).toBe(false);
+    expect(await renameFile(root, "참고/최종 시안.psd", "최종 시안.psd")).toEqual({ ok: true });
+    await moveFile(root, "참고/최종 시안.psd", "_Folduct 정리상자/참고/최종 시안.psd");
+    expect(await renameFile(root, "_Folduct 정리상자/참고/최종 시안.psd", "다른.psd")).toMatchObject({ ok: false, reason: "invalid" });
+    expect(await renameFile(root, "참고/없음.psd", "b/c.psd")).toMatchObject({ ok: false, reason: "invalid" });
+    expect(await renameFile(root, "참고/없음.psd", "")).toMatchObject({ ok: false, reason: "invalid" });
+    expect(await renameFile(root, "참고/없음.psd", "새.psd")).toMatchObject({ ok: false, reason: "missing" });
+    // 점으로 시작하거나 시스템 파일 이름이면 다음에 읽을 때 목록에서 빠지니 거절해요.
+    expect(await renameFile(view(seed({ "a.txt": "1" })), "a.txt", ".a.txt")).toMatchObject({ ok: false, reason: "invalid" });
+    expect(await renameFile(view(seed({ "a.txt": "1" })), "a.txt", "Thumbs.db")).toMatchObject({ ok: false, reason: "invalid" });
+    const two = view(seed({ "a.txt": "1", "b.txt": "2" }));
+    expect(await renameFile(two, "a.txt", "b.txt")).toMatchObject({ ok: false, reason: "occupied" });
+    expect(await fileExists(two, "a.txt")).toBe(true);
+  });
   it("파일을 상자로 옮기고 원래 자리로 되돌린다", async () => {
     const root = view(seed());
     const boxPath = await freeBoxPath(root, "참고/시안.psd");

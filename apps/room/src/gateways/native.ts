@@ -25,6 +25,8 @@ export const workPauseAsked = "work-pause";
 export const workEndAsked = "work-end";
 // 메인 창 홈에서 고른 방으로 작업을 시작해요(payload는 방 id). 작은 창은 열지 않아요.
 export const workStartRoom = "work-start-room";
+// 작은 창의 '이번 주 정리' 알림에서 '보기'를 누르면 메인 창이 정리 창을 열어요.
+export const sweepOpenAsked = "sweep-open";
 
 // fromIcon: 메뉴 막대 아이콘을 눌러 부른 때. 프로도가 그 아이콘 아래로 내려와요.
 export const setPetVisible = (visible: boolean, fromIcon = false): Promise<void> => invoke("set_pet_visible", { visible, fromIcon });

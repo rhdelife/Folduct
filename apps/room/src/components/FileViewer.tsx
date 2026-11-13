@@ -17,7 +17,7 @@ export type ViewerState =
   | { status: "outside"; big: boolean }
   | { status: "error"; message: string };
 
-type Mode = "image" | "video" | "audio" | "pdf" | "text" | "none";
+export type Mode = "image" | "video" | "audio" | "pdf" | "text" | "none";
 
 const textLimit = 300_000;
 export const previewLimit = 300 * 1024 ** 2;
@@ -162,7 +162,8 @@ export function FileViewer({
   );
 }
 
-function Preview({ file, mode, fallback, unsupported }: { file: File; mode: Mode; fallback: string; unsupported: string }) {
+// onVideo: 영상이 장면을 그릴 준비가 되면 그 영상 요소를 받아요(미리보기 창의 '이 장면을 썸네일로').
+export function Preview({ file, mode, fallback, unsupported, onVideo }: { file: File; mode: Mode; fallback: string; unsupported: string; onVideo?: (video: HTMLVideoElement | null) => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -196,7 +197,7 @@ function Preview({ file, mode, fallback, unsupported }: { file: File; mode: Mode
   return (
     <div className="viewer-stage">
       {mode === "image" && <img src={url} alt={file.name} onError={fail} />}
-      {mode === "video" && <video src={url} controls onError={fail} />}
+      {mode === "video" && <video src={url} controls playsInline preload="metadata" onError={() => { onVideo?.(null); fail(); }} onLoadedData={(event) => onVideo?.(event.currentTarget)} />}
       {mode === "audio" && <audio src={url} controls onError={fail} />}
       {mode === "pdf" && <iframe src={url} title={file.name} />}
     </div>

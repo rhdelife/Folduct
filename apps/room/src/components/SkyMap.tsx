@@ -40,6 +40,7 @@ export function SkyMap({
   onOpenThing,
   onRoomMenu,
   underFrodo,
+  paneOpen = false,
 }: {
   rooms: Room[];
   stats: Map<string, RoomStat>;
@@ -54,6 +55,8 @@ export function SkyMap({
   onRoomMenu: OpenRoomMenu;
   // 프로도 받침 바로 아래에 둘 것(작업 시작 줄). 자리는 heroLayout이 startSpace만큼 비워 둬요.
   underFrodo?: ReactNode;
+  // 오른쪽 미리보기 창(--preview-w)이 열리면 넓은 창에서는 판이 그만큼 좁아져(styles.css .pane-open) 왼쪽 폭에만 배치해요.
+  paneOpen?: boolean;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(() => ({ w: window.innerWidth || 1, h: window.innerHeight || 1 }));
@@ -71,7 +74,7 @@ export function SkyMap({
     const area = el.closest(".sky-layout")!.getBoundingClientRect();
     if (el.getBoundingClientRect().bottom > Math.min(area.bottom, window.innerHeight)) el.classList.add("above");
     const box = el.getBoundingClientRect();
-    const open = document.querySelector(".sky-panel.open")?.getBoundingClientRect();
+    const open = (document.querySelector(".sky-panel.open") ?? (document.querySelector(".sky-canvas.pane-open") && document.querySelector(".preview-pane")))?.getBoundingClientRect();
     // 폰의 아래 패널은 폭 전체를 쓰니 옆 패널만 오른쪽 끝을 줄입니다.
     const right = open && open.left > area.left ? open.left : area.right;
     el.style.translate = `${Math.max(area.left - box.left, Math.min(0, right - box.right))}px 0`;
@@ -165,7 +168,7 @@ export function SkyMap({
   const tipY = tip ? tip.star.y : 0;
 
   return (
-      <div className={`sky-canvas${selectedId ? " has-selection" : ""}`} ref={canvas}>
+      <div className={`sky-canvas${selectedId ? " has-selection" : ""}${paneOpen ? " pane-open" : ""}`} ref={canvas}>
         <div
           className="sky-backdrop"
           onClick={() => {

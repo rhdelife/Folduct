@@ -5,14 +5,14 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { cursorPosition, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, poseFace, type DuctPose } from "../art/duct";
 import { kindTones } from "../art/palette";
-import { localDay } from "../domain/care";
+import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue, sweepIntervalDays } from "../domain/care";
 import { faceColorVar } from "../domain/face";
 import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom } from "../gateways/native";
-import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked } from "../gateways/native";
+import { getDoorstep, getLastSweepAt, getPetSettings, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
@@ -100,6 +100,28 @@ export function Pet() {
       }
     })();
   }, [change, loadRooms]);
+
+  // 이번 주 정리 알림: 정리할 때가 됐고 이번 주에 아직 알리지 않았으면 이 창에 한 번만 띄워요(메인 창에 정리 창을 띄우지 않아요).
+  // 다시 보려면 앱 메뉴의 '이번 주 정리 보기'나 머리의 '주간 정리'를 눌러요.
+  const [sweepNotice, setSweepNotice] = useState<number | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const [last, noticed] = await Promise.all([getLastSweepAt(), getSweepNoticeAt()]);
+      const now = Date.now();
+      if (last === null || !sweepDue(last, now)) return setSweepNotice(null);
+      if (noticed !== null && noticed > last && now - noticed < sweepIntervalDays * dayMs) return;
+      const active = rooms.filter((item) => !item.care.done);
+      const count = active.reduce((sum, item) => sum + sweepCandidates(item, now).length, 0) + active.filter((item) => doneOfferDue(item, now)).length;
+      setSweepNotice(count > 0 ? count : null);
+    })().catch((error: unknown) => console.error(error));
+  }, [rooms]);
+  const sweepSeen = useRef(false);
+  const dismissSweep = (later: boolean) => {
+    const at = Date.now();
+    setSweepNotice(null);
+    setSweepNoticeAt(at).catch((error: unknown) => console.error(error));
+    if (later) setLastSweepAt(at).catch((error: unknown) => console.error(error));
+  };
 
   // 설정을 읽은 뒤에 창을 띄웁니다. 앱의 환경설정에서 바꾸면 바로 따라와요.
   useEffect(() => {
@@ -468,7 +490,13 @@ export function Pet() {
   const panel = !pet.floating && motion !== "tuck";
 
   // 아이콘 창을 닫아 둔 채로 새 파일이 오거나 상태를 물을 때가 되면 아이콘에 점을 찍어요. 열면 지워요.
-  const dot = isNative() && panel && !panelOpen && (incoming.length > 0 || asking);
+  const dot = isNative() && panel && !panelOpen && (incoming.length > 0 || asking || sweepNotice !== null);
+  // 알림을 한 번 보여 줬으면(창이 열려 있었으면) 다시 켜도 또 띄우지 않아요.
+  useEffect(() => {
+    if (sweepNotice === null || sweepSeen.current || !(panelOpen || pet.floating)) return;
+    sweepSeen.current = true;
+    setSweepNoticeAt(Date.now()).catch((error: unknown) => console.error(error));
+  }, [sweepNotice, panelOpen, pet.floating]);
   useEffect(() => {
     if (isNative()) invoke("set_tray_dot", { on: dot }).catch((error: unknown) => console.error(error));
   }, [dot]);
@@ -508,6 +536,25 @@ export function Pet() {
         <div className="pet-ask" data-no-drag>
           <p role="status">{done.text}</p>
           {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
+        </div>
+      )}
+      {sweepNotice !== null && (
+        <div className="pet-ask" data-no-drag>
+          <p role="status">이번 주 정리</p>
+          <small>안 쓴 파일이나 방 {sweepNotice}개를 정리할 수 있어요.</small>
+          <div>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                dismissSweep(false);
+                if (isNative()) emit(sweepOpenAsked).catch((error: unknown) => console.error(error));
+              }}
+            >
+              보기
+            </button>
+            <button type="button" onClick={() => dismissSweep(true)}>다음 주에</button>
+          </div>
         </div>
       )}
       {asking && session && (

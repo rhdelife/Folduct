@@ -171,6 +171,16 @@ export function setLastSweepAt(at: number): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(at, "lastSweepAt"));
 }
 
+// 메뉴 막대 작은 창에 '이번 주 정리'를 마지막으로 알린 때. 한 주에 한 번만 알려요.
+export async function getSweepNoticeAt(): Promise<number | null> {
+  const at = await run<unknown>("meta", "readonly", (store) => store.get("sweepNoticeAt"));
+  return typeof at === "number" ? at : null;
+}
+
+export function setSweepNoticeAt(at: number): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(at, "sweepNoticeAt"));
+}
+
 // 끈 적이 없으면 켜져 있습니다.
 export async function getSession(): Promise<Session | null> {
   return normalizeSession(await run<unknown>("meta", "readonly", (store) => store.get("session")));
