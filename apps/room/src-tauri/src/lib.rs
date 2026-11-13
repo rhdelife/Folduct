@@ -549,6 +549,10 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file, set_panel_visible, set_tray_dot])
     .setup(|_app| {
+      // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
+      if let Ok(downloads) = _app.path().download_dir() {
+        let _ = _app.fs_scope().allow_directory(&downloads, false);
+      }
       // 아이콘을 못 만들어도(알림 영역이 없는 데스크톱 등) 앱은 그대로 씁니다. 숨긴 프로도는 환경설정에서 다시 켜요.
       if let Err(error) = build_tray(_app.handle()) {
         eprintln!("메뉴 막대 아이콘을 만들지 못했어요: {error}");

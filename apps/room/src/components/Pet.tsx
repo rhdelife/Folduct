@@ -11,7 +11,7 @@ import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } fr
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, emptyTags, formatWorked, pauseSession, pickTag, restoreSession, resumeSession, startSession, tagMaxLength, tagOrder, workedTime, type PetSettings, type Session, type TagList } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, pickRoomFolder, sessionEnded, setPetVisible, workLogged, workStartAsked } from "../gateways/native";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked } from "../gateways/native";
 import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { getTags, saveTags } from "../storage/workReport";
@@ -59,7 +59,6 @@ export function Pet() {
   // 아이콘 아래 작은 창이 열려 있는지. 띄워 두기를 켜면 쓰지 않아요.
   const [panelOpen, setPanelOpen] = useState(false);
   const closedAt = useRef(0);
-  const picking = useRef(false);
   const root = useRef<HTMLElement>(null);
   const press = useRef<{ x: number; y: number } | null>(null);
   const dragged = useRef(false);
@@ -164,8 +163,14 @@ export function Pet() {
     if (!working) return;
     let left = false;
     let count: number | null = null;
+    let doorTried = false;
     const look = async () => {
       try {
+        // 현관이 비어 있으면 묻지 않고 다운로드 폴더를 현관으로 둬요(앱이 맨 위층만 읽고 옮길 수 있게 열어 둬요). 방으로 쓰는 폴더면 두지 않아요.
+        if (isNative() && !doorTried && (await getDoorstep()).folders.length === 0) {
+          doorTried = true;
+          await addDoorFolder(await downloadDir()).catch((error: unknown) => console.error(error));
+        }
         const state = isNative() ? (await refreshDoorstep()).state : await getDoorstep();
         if (left) return;
         setDoor(state);
@@ -264,29 +269,6 @@ export function Pet() {
     reloadRooms();
   }
 
-  async function addFolder() {
-    const win = getCurrentWindow();
-    const home = await win.outerPosition();
-    // 폴더 고르기 창이 뜨는 동안은 포커스가 빠져도 아이콘 창을 닫지 않아요.
-    picking.current = true;
-    try {
-      const folder = await pickRoomFolder(await downloadDir());
-      // 선택 창이 작은 창에 붙으면서 창을 밀어내요. 제자리로 돌려놓습니다.
-      await win.setPosition(home);
-      if (!folder) return;
-      const { state, error } = await addDoorFolder(folder);
-      setDoor(state);
-      if (error) setDone({ text: error, failed: true });
-      tellMain();
-    } catch (error) {
-      console.error(error);
-      setDone({ text: "폴더를 읽지 못했어요. 권한을 확인해 주세요.", failed: true });
-    } finally {
-      picking.current = false;
-      if (!pet.floating && isNative()) invoke("set_panel_visible", { visible: true }).catch((error: unknown) => console.error(error));
-    }
-  }
-
   // 아이콘 아래 작은 창 열기·닫기. 여는 순간 방 목록을 새로 읽어요.
   function openPanel() {
     reloadRooms();
@@ -308,7 +290,7 @@ export function Pet() {
   // 아이콘 아래 작은 창은 다른 곳을 누르면 닫혀요. 화면을 가리지 않게요.
   const onBlurPanel = useRef(() => {});
   onBlurPanel.current = () => {
-    if (!pet.floating && panelOpen && !picking.current) closePanel();
+    if (!pet.floating && panelOpen) closePanel();
   };
   useEffect(() => {
     const onFocus = reloadRooms;
@@ -477,6 +459,16 @@ export function Pet() {
   const choices = rooms.filter((item) => !item.care.done);
   const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
   const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
+  // 작업 중에 현관으로 새 파일이 오면 묻지 않고 지금 방으로 옮겨요(덮어쓰지 않고, '되돌리기'가 남아요).
+  // 한 번 시도한 파일은 다시 자동으로 옮기지 않아요. 못 옮긴 파일만 아래 '넣기·빼기'로 물어요.
+  const autoTried = useRef(new Set<string>());
+  useEffect(() => {
+    if (!working || !room || !roomLinked || fileBusy) return;
+    const fresh = incoming.filter((item) => !autoTried.current.has(item.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((item) => autoTried.current.add(item.id));
+    void bring(fresh, room);
+  }, [working, room?.id, roomLinked, fileBusy, incoming.map((item) => item.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = session ? session.status : "off";
   const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   const panel = !pet.floating && motion !== "tuck";
@@ -528,12 +520,6 @@ export function Pet() {
         <div className="pet-ask" data-no-drag>
           <p role="status">{done.text}</p>
           {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
-        </div>
-      )}
-      {working && roomLinked && door && door.folders.length === 0 && isNative() && (
-        <div className="pet-ask" data-no-drag>
-          <p role="status">새 파일이 들어오는 폴더를 골라 주세요.</p>
-          <button type="button" className="primary" onClick={() => void addFolder()}>폴더 고르기</button>
         </div>
       )}
       {asking && session && (
