@@ -1636,7 +1636,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-shelves-note { flex-basis: 100%; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-caption); }
 .kind-shelves-head h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
 /* 무대: 닫혀 있으면 서랍장이 폭을 다 쓰고, 열면 오른쪽에 목록 종이 자리를 비워요. 크기는 한 번에 바뀌고, 그 사이 움직임은 KindShelf의 moveCabinet이 transform으로 이어 줘요. */
-/* 넓으면 목록 종이가 오른쪽 끝 밖에서 통째로 밀려 들어오고, 그만큼 서랍장이 왼쪽으로 비켜요(같은 시간·곡선). 미는 동안 종이는 옅어지지 않아요. */
+/* 넓으면 목록 종이가 누른 서랍 자리에서 작게 떠올라 오른쪽 칸으로 커지며 올라오고(KindShelf riseFrom), 그만큼 서랍장이 왼쪽으로 비켜요(같은 시간·곡선). */
 .kind-stage { --kind-slip-w: min(42cqw, calc(var(--space-12) * 9)); --kind-slip-from: calc(100% + var(--space-6)) 0; --kind-slip-alpha: 1; position: relative; display: grid; min-height: 0; }
 .kind-stage[data-open="true"] { padding-right: var(--kind-slip-w); }
 /* 서랍장: 서랍 한 칸이 가로 2 : 세로 1. 남은 폭과 높이 안에 들어가는 가장 큰 크기로 가운데 놓여요. 아래는 빠져나온 서랍이 걸칠 자리예요. */
@@ -1751,7 +1751,7 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-slip-paper { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-3) var(--ease-standard), scale var(--dur-3) var(--ease-settle); }
   /* 옛 종이는 바로 가라앉되, 새 종이가 거의 덮은 뒤(--dur-3)에야 옅어져요. 아직 들어오던 종이였으면 그 미끄러짐을 끊지 않고 이어 가요. */
   .kind-slip[data-open="true"] .kind-slip-paper[data-leaving] { transition: translate var(--dur-drawer) var(--ease-drawer), opacity var(--dur-2) var(--ease-standard) var(--dur-3), scale var(--dur-3) var(--ease-settle); }
-  @starting-style { .kind-slip[data-open="true"] .kind-slip-paper { opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); } }
+  @starting-style { .kind-slip[data-open="true"] .kind-slip-paper { opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); scale: var(--kind-slip-scale, 1); } }
   .shelf-paper { transition: translate var(--dur-2) var(--ease-settle), box-shadow var(--dur-2) var(--ease-standard), border-color var(--dur-1) var(--ease-standard); }
   /* 처음 놓이는 12장만 차례로 내려앉아요. "더 보기"로 늘어난 100여 장이 한꺼번에 움직이지 않아요. */
   .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation: kind-card-in var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-1) + var(--i) * 30ms); }
@@ -1793,7 +1793,7 @@ p.kind-folder-more { color: var(--ink-caption); }
 .report-ai button { justify-self: start; }
 
 /* ══ 홈 오른쪽 미리보기 창(PreviewPane): 유리 한 장. 좁은 창에서는 아래에서 올라와요. ══ */
-.preview-pane { position: fixed; z-index: calc(var(--z-intro) - 1); top: var(--topbar-h); right: var(--space-4); bottom: var(--space-4); width: min(var(--preview-w), calc(100vw - 2 * var(--space-4))); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--ink); animation: preview-in var(--dur-3) var(--ease-drawer); }
+.preview-pane { position: fixed; z-index: calc(var(--z-intro) - 1); top: var(--topbar-h); right: var(--space-4); bottom: var(--space-4); width: min(var(--preview-w), calc(100vw - 2 * var(--space-4))); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--glass-chip-hover); border-radius: var(--radius-xl); background: linear-gradient(to bottom, var(--glass-bg-strong), var(--glass-bg)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--ink); animation: preview-in var(--dur-3) var(--ease-drawer); }
 .preview-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-4) var(--space-3); }
 .preview-head h2 { overflow: hidden; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .preview-head h2:focus { outline: none; }
@@ -1801,18 +1801,35 @@ p.kind-folder-more { color: var(--ink-caption); }
 .preview-body .viewer-stage { min-height: calc(var(--space-12) * 4); max-height: 45dvh; overflow: hidden; }
 .preview-body .viewer-stage iframe { min-height: calc(var(--space-12) * 6); }
 .preview-body .viewer-stage video, .preview-body .viewer-stage img { width: 100%; max-height: 45dvh; }
-.preview-section { display: grid; gap: var(--space-2); }
+/* 창 안은 선 대신 옅은 유리 카드로 나눠요(미리보기·썸네일·이름·메모). */
+.preview-section { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
+.preview-body .viewer-stage, .preview-body .viewer-note { border: 0; border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
 .preview-section h3 { color: var(--ink-caption); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 500; }
 .preview-thumb { width: calc(var(--space-12) * 2); height: auto; border-radius: var(--radius-sm); border: 1px solid var(--line); }
 .preview-rename { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
-.preview-name-field { flex: 1; display: flex; align-items: center; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.preview-name-field { flex: 1; display: flex; align-items: center; min-width: 0; border: 1px solid var(--glass-chip-hover); border-radius: var(--radius-md); background: var(--surface); }
 .preview-name-field input { flex: 1; min-width: 0; border: 0; background: none; }
 .preview-ext { padding-right: var(--space-3); color: var(--ink-soft); font-size: var(--text-sm); }
 .preview-section textarea { width: 100%; resize: vertical; }
-.preview-foot { padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--line); }
+.preview-foot { padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--glass-wash); }
+.preview-section textarea, .preview-name-field { background: var(--glass-chip-hover); }
+.preview-thumb { border-color: var(--glass-chip-hover); box-shadow: var(--glass-chip-shadow); }
 /* 아주 넓은 창에서는 미리보기 창이 열린 동안 홈 판이 그 폭만큼 좁아져, 방 카드·프로도·파일이 창에 가리지 않아요.
    좁아진 판도 720 이상이어야 왼쪽 아래 일력 자리를 비워 두므로(sky.ts calendarSpot) 그보다 좁은 창에서는 창이 위에 떠요. */
 @media (min-width: 1200px) { .sky-canvas.pane-open { width: calc(100% - var(--preview-w) - var(--space-4)); } }
+/* 형식별로 보기에서 목록의 파일을 누르면 미리보기 창이 오른쪽에 붙고, 목록 종이는 왼쪽으로 옮겨 가요. 그동안 서랍장은 물러나 숨어요.
+   창을 닫으면 서랍장과 오른쪽 목록으로 돌아와요. 겹치지 않게 무대 전체가 창 폭만큼 비켜요. */
+@media (prefers-reduced-motion: no-preference) {
+  .kind-cabinet-wrap { transition: opacity var(--dur-3) var(--ease-standard), visibility 0s linear 0s; }
+  .kind-slip { transition: translate var(--dur-drawer) var(--ease-drawer), visibility 0s linear var(--dur-drawer); }
+  .kind-slip[data-open="true"] { transition: translate var(--dur-drawer) var(--ease-drawer), visibility 0s linear 0s; }
+}
+@media (min-width: 721px) {
+  body:has(.preview-pane) .kind-stage[data-open="true"] .kind-cabinet-wrap { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity var(--dur-2) var(--ease-standard), visibility 0s linear var(--dur-2); }
+  body:has(.preview-pane) .kind-stage[data-open="true"] .kind-slip { translate: calc(var(--kind-slip-w) - 100cqw) 0; }
+}
+.kind-shelves { transition: padding-right var(--dur-3) var(--ease-drawer); }
+@media (min-width: 960px) { body:has(.preview-pane) .kind-shelves { padding-right: calc(var(--gutter) + var(--preview-w) + var(--space-4)); } }
 @keyframes preview-in { from { opacity: 0; translate: var(--space-8) 0; } }
 @media (max-width: 719.98px) {
   .preview-pane { top: auto; left: var(--space-4); height: min(78dvh, calc(100dvh - 2 * var(--space-4))); width: auto; animation-name: preview-up; }

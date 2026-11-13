@@ -177,8 +177,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         if (target?.closest(".kind-shelves") && (event.key === "Enter" || event.key === " " || ((event.key === "PageDown" || event.key === "PageUp") && target.closest(".kind-folder")))) event.preventDefault();
         return;
       }
-      // 대화상자·메뉴가 떠 있거나 글을 쓰는 중이면 Esc는 그쪽 몫이에요. 그쪽이 먼저 닫혀 버리기 전에 보려고 캡처 단계에서 들어요.
-      if (event.key !== "Escape" || !open || document.querySelector("dialog[open], .context-menu") || target?.closest("input, textarea, select, [contenteditable]")) return;
+      // 대화상자·메뉴·미리보기 창이 떠 있거나 글을 쓰는 중이면 Esc는 그쪽 몫이에요. 그쪽이 먼저 닫혀 버리기 전에 보려고 캡처 단계에서 들어요.
+      if (event.key !== "Escape" || !open || document.querySelector("dialog[open], .context-menu, .preview-pane") || target?.closest("input, textarea, select, [contenteditable]")) return;
       event.preventDefault();
       close();
     };
@@ -192,11 +192,28 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   // 바꿔 열면 옛 목록 종이가 새 종이 밑에 잠깐 남아요. 서랍 순서대로 놓아 React가 종이를 옮기지 않으니 옛 종이는 다시 그려지지 않고 그 자리에서 사라져요. 새 종이는 CSS z-index로 위에 와요.
   const leaving = new Set(gone.filter((item) => item.swap && item.label !== last).map((item) => item.label));
   const papers = shelves.filter((shelf) => shelf === listed || leaving.has(shelf.label));
+  // 넓은 창에서 목록 종이는 옆에서 밀려오지 않고, 누른 서랍 자리에서 작게 떠올라 오른쪽 칸으로 커지며 올라와요(styles.css @starting-style).
+  // 좁은 창은 지금처럼 아래에서 올라와요.
+  const riseFrom = (pressed: HTMLElement) => {
+    const stage = pressed.closest<HTMLElement>(".kind-stage");
+    const drawer = pressed.closest(".kind-drawer")?.getBoundingClientRect();
+    const box = slip.current?.getBoundingClientRect();
+    if (!stage || !drawer || !box || !matchMedia("(min-width: 721px)").matches) {
+      for (const name of ["--kind-slip-from", "--kind-slip-alpha", "--kind-slip-scale"]) stage?.style.removeProperty(name);
+      return;
+    }
+    const x = drawer.left + drawer.width / 2 - (box.left + box.width / 2);
+    const y = drawer.top + drawer.height / 2 - (box.top + box.height / 2);
+    stage.style.setProperty("--kind-slip-from", `${Math.round(x)}px ${Math.round(y)}px`);
+    stage.style.setProperty("--kind-slip-alpha", "0");
+    stage.style.setProperty("--kind-slip-scale", "0.35");
+  };
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
     const next = open === shelf.label ? null : shelf.label;
     // 앞판을 다시 눌러 닫을 때도 Esc·닫기처럼 앞판에 포커스를 둬요. WebKit은 눌러도 버튼에 포커스를 주지 않아요.
     if (next === null) return close();
+    riseFrom(pressed);
     moveCabinet(() => {
       // 닫혀 있다가 열면 목록 칸과 함께 빠져나가던 옛 종이를 되살리지 않아요. 되살리면 반쯤 사라진 종이가 제자리로 튀어요.
       if (open) letGo(open, true);
