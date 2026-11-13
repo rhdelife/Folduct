@@ -175,7 +175,6 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open]);
   if (!shown) return null;
-  const total = shelves.reduce((sum, shelf) => sum + shelf.items.length, 0);
   const listed = shelves.find((shelf) => shelf.label === last) ?? null;
   // 다른 서랍이 닫히는 중에 연 서랍은 그 서랍이 들어가기 시작한 뒤에 따라 나와요(CSS data-handoff). 들어가던 서랍을 다시 열면 멈칫하지 않고 바로 돌아 나와요.
   const handoff = open !== null && gone.length > 0 && !gone.some((item) => item.label === open);
@@ -199,7 +198,6 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
         <h2 id="kind-shelves-title">형식별로 보기</h2>
-        <p>홈에 둔 방의 파일 {countText(total)}개를 종류대로 서랍에 나눠 담았어요. 버전이 여럿인 파일은 최신본만 보여요.</p>
       </header>
       <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
         <div className="kind-cabinet-wrap">

@@ -1514,7 +1514,6 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-shelves { container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); scroll-snap-align: start; view-timeline: --kind-scene block; }
 .kind-shelves-head { display: grid; gap: var(--space-2); }
 .kind-shelves-head h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
-.kind-shelves-head p { font-size: var(--text-sm); color: var(--ink-caption); }
 /* 무대: 닫혀 있으면 서랍장이 폭을 다 쓰고, 열면 오른쪽에 목록 종이 자리를 비워요. 크기는 한 번에 바뀌고, 그 사이 움직임은 KindShelf의 moveCabinet이 transform으로 이어 줘요. */
 .kind-stage { --kind-slip-w: min(42cqw, calc(var(--space-12) * 9)); --kind-slip-from: var(--space-12) 0; position: relative; display: grid; min-height: 0; }
 .kind-stage[data-open="true"] { padding-right: var(--kind-slip-w); }
