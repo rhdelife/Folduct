@@ -3,7 +3,7 @@ import { formatWork } from "../../domain/worklog";
 import { BrandMark, Icon } from "../Icon";
 
 // 머리 왼쪽은 오늘 작업 시간을 크게. 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
-export function HomeHeader({ rooms, ready, overdue, today, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; today: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+export function HomeHeader({ rooms, ready, today, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; today: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const awake = rooms.length > 0;
   return (
     <header className={`home-header${awake ? " has-caption" : ""}`}>
@@ -19,7 +19,7 @@ export function HomeHeader({ rooms, ready, overdue, today, onWeekly, onMenu, onN
       <div className="home-actions">
         {ready && awake && (
           <button type="button" className="quiet" aria-haspopup="dialog" onClick={onWeekly}>
-            주간 정리{overdue && <b> 할 때예요</b>}
+            주간 정리
           </button>
         )}
         <button type="button" className="quiet" aria-haspopup="dialog" disabled={!ready} onClick={onMenu}>메뉴</button>
