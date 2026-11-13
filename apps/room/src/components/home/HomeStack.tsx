@@ -1,17 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
-import { streak } from "../../domain/trends";
-import type { WorkLog } from "../../domain/worklog";
+import { localDay } from "../../domain/care";
+import { formatWork, workAmount, yearMonths, yearWork, type WorkLog } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
 import { TrendPanel } from "./TrendPanel";
 
-type Tab = "now" | "trend";
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-// 판의 자리(위·아래·왼쪽·폭)와 모서리·바탕을 px로. 판은 누른 탭 카드의 자리와 모습에서 자라 나오고, 닫으면 그 자리로 접혀 들어가요.
+// 판의 자리(위·아래·왼쪽·폭)와 모서리·바탕을 px로. 판은 일력 카드의 자리와 모습에서 자라 나오고, 닫으면 그 자리로 접혀 들어가요.
 // clip-path·transform 대신 자리 자체를 움직여요. 앱의 WebKit은 판의 clip-path 애니메이션을 그리지 않아 판이 그냥 튀어나왔어요.
 type Frame = { top: string; bottom: string; left: string; width: string; borderRadius: string; backgroundColor: string };
 function frameOf(box: DOMRect, parent: DOMRect, from: Element): Frame {
@@ -28,20 +27,21 @@ function pinInside(panel: HTMLElement, width: string): () => void {
   for (const kid of kids) kid.style.width = `calc(${width} - 2px)`;
   return () => kids.forEach((kid) => kid.style.removeProperty("width"));
 }
-const titles: Record<Tab, string> = { now: "진행 중", trend: "추세" };
+const roomsShown = 3;
 
-// 홈 왼쪽 아래: 큰 '작업 시작' 단추와 그 아래 겹쳐 꽂은 탭 카드. 탭을 누르면 그 탭 카드가 자라나 판이 되고, 닫으면 다시 탭으로 접혀요.
-// 진행 중: 현관에 새로 온 파일과 안 쓴 파일. 추세: 작업 시간 대시보드.
-export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep, onStartWork }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void; onStartWork?: () => void }) {
-  const [open, setOpen] = useState<Tab | null>(null);
+// 홈 왼쪽 아래: 올해 일력 한 장(한 줄이 한 달, 점 하나가 하루). 누르면 그 자리에서 판이 자라나 진행 중(새 파일·안 쓴 파일)과 작업 추세를 보여 주고, 닫으면 다시 일력으로 접혀요.
+export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void }) {
+  const [open, setOpen] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
-  const run = streak(log, now);
-  const summary: Record<Tab, string> = {
-    now: doorItems.length > 0 ? `새 파일 ${doorItems.length}개` : staleFiles > 0 ? `안 쓴 파일 ${staleFiles}개` : "조용해요",
-    trend: run > 0 ? `연속 ${run}일` : "작업 기록",
-  };
-  // closing은 탭 묶음을 다시 띄우는 표시, folding은 Esc를 거푸 눌러도 한 번만 접게 막는 표시(Esc 듣기는 연 때의 close를 붙잡고 있어요).
+  const year = new Date(now).getFullYear();
+  const today = localDay(now);
+  const work = useMemo(() => yearWork(log, year), [log, year]);
+  const months = useMemo(() => yearMonths(year), [year]);
+  const amount = workAmount(work.totalMs);
+  const names = new Map(rooms.map((room) => [room.id, room.name]));
+  const lines = work.rooms.filter(([id]) => names.has(id)).slice(0, roomsShown);
+  // closing은 일력을 다시 띄우는 표시, folding은 Esc를 거푸 눌러도 한 번만 접게 막는 표시(Esc 듣기는 연 때의 close를 붙잡고 있어요).
   const [closing, setClosing] = useState(false);
   const folding = useRef(false);
   // 펼치는 중인 움직임을 멈추는 손잡이. 다 펼쳐지기 전에 닫으면 그 자리에서 바로 접기 시작해요.
@@ -50,20 +50,20 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
     const el = panel.current;
     const tab = opener.current;
     const done = () => {
-      // 탭 묶음의 inert가 먼저 풀려야 포커스를 받을 수 있어요.
+      // 일력의 inert가 먼저 풀려야 포커스를 받을 수 있어요.
       folding.current = false;
       flushSync(() => {
         setClosing(false);
-        setOpen(null);
+        setOpen(false);
       });
       tab?.focus({ preventScroll: true });
     };
     if (!el || !tab || reduced()) return done();
     if (folding.current) return;
-    // 판을 연 채 창을 줄이면 탭 묶음이 숨어(display: none) 접혀 들어갈 자리가 없어요. 그때는 바로 닫아요.
+    // 판을 연 채 창을 줄이면 일력이 숨어(display: none) 접혀 들어갈 자리가 없어요. 그때는 바로 닫아요.
     if (tab.getBoundingClientRect().width === 0) return done();
     folding.current = true;
-    // 접히는 동안 탭 묶음이 다시 떠올라, 판이 다 접히면 그 자리에 탭 카드가 그대로 있어요.
+    // 접히는 동안 일력이 다시 떠올라, 판이 다 접히면 그 자리에 일력이 그대로 있어요.
     setClosing(true);
     // 지금 보이는 자리·투명도에서 접기 시작해요. 펼치는 중이면 그 움직임을 멈추고 이어 받아요.
     const [from, shown] = frames(el, tab);
@@ -77,7 +77,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
       done();
     }, done);
   };
-  // 열 때: 판을 누른 탭 카드의 자리·모서리·바탕으로 두었다가 제자리로 펼치고, 속은 거의 다 펼쳐질 무렵 떠올라요.
+  // 열 때: 판을 일력 카드의 자리·모서리·바탕으로 두었다가 제자리로 펼치고, 속은 거의 다 펼쳐질 무렵 떠올라요.
   useLayoutEffect(() => {
     const el = panel.current;
     const tab = opener.current;
@@ -102,7 +102,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
     }, () => undefined);
     return stop;
   }, [open]);
-  // 열면 판 제목으로 포커스를 옮기고, Esc로 닫으면 누른 탭으로 돌려줘요. 대화상자·메뉴가 떠 있으면 Esc는 그쪽 몫이에요.
+  // 열면 판 제목으로 포커스를 옮기고, Esc로 닫으면 일력으로 돌려줘요. 대화상자·메뉴가 떠 있으면 Esc는 그쪽 몫이에요.
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
@@ -117,51 +117,51 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
   return (
     <>
       <div className={`home-stack${closing ? " returning" : ""}`} inert={open ? true : undefined}>
-        {onStartWork && (
-          <button type="button" className="primary home-start" aria-haspopup="dialog" onClick={onStartWork}>
-            작업 시작
-          </button>
-        )}
-        <div className="home-tabs">
-          {(Object.keys(titles) as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className="home-tab"
-              aria-expanded={open === tab}
-              aria-controls="home-panel"
-              onClick={(event) => {
-                opener.current = event.currentTarget;
-                setOpen(tab);
-              }}
-            >
-              <b>{titles[tab]}</b>
-              <small>{summary[tab]}</small>
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className="work-cal"
+          aria-expanded={open}
+          aria-controls="home-panel"
+          aria-label={`올해 작업 ${amount.value}${amount.unit}, ${work.days.size}일. 누르면 작업 기록을 열어요`}
+          onClick={(event) => {
+            opener.current = event.currentTarget;
+            setOpen(true);
+          }}
+        >
+          <span className="work-cal-total">
+            <strong>{amount.value}</strong>
+            <span>{amount.unit}</span>
+            {work.days.size > 0 && <small>{work.days.size}일 작업</small>}
+          </span>
+          <span className="trend-cal" aria-hidden="true">
+            {months.map((days, month) => (
+              <span key={month}>
+                {days.map((day) => <i key={day} className={work.days.get(day) ? "on" : day < today ? "past" : undefined} />)}
+              </span>
+            ))}
+          </span>
+          <span className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(", ") : "플로팅 창에서 작업을 시작하면 쌓여요."}</span>
+        </button>
       </div>
       {open && (
         <section ref={panel} id="home-panel" className="home-panel" aria-labelledby="home-panel-title">
           <header className="home-panel-head">
-            <h2 id="home-panel-title" tabIndex={-1}>{titles[open]}</h2>
+            <h2 id="home-panel-title" tabIndex={-1}>작업 기록</h2>
             <button type="button" className="quiet" onClick={close}>닫기</button>
           </header>
           <div className="home-panel-body">
-            {open === "trend" ? (
-              <TrendPanel log={log} rooms={rooms} now={now} />
-            ) : (
-              <>
-                {doorItems.length === 0 && <p className="trend-sub">새로 온 파일이 없어요.</p>}
-                <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />
-                {staleFiles > 0 && (
-                  <p className="home-panel-row">
-                    <span>안 쓴 파일 {staleFiles}개</span>
-                    <button type="button" aria-haspopup="dialog" onClick={onSweep}>주간 정리</button>
-                  </p>
-                )}
-              </>
-            )}
+            <section className="trend-card" aria-labelledby="home-now">
+              <h3 id="home-now">진행 중</h3>
+              {doorItems.length === 0 && <p className="trend-sub">새로 온 파일이 없어요.</p>}
+              <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />
+              {staleFiles > 0 && (
+                <p className="home-panel-row">
+                  <span>안 쓴 파일 {staleFiles}개</span>
+                  <button type="button" aria-haspopup="dialog" onClick={onSweep}>주간 정리</button>
+                </p>
+              )}
+            </section>
+            <TrendPanel log={log} rooms={rooms} now={now} />
           </div>
         </section>
       )}

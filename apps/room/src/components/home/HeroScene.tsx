@@ -1,13 +1,13 @@
-import { emit } from "@tauri-apps/api/event";
 import type { DoorItem } from "../../domain/doorstep";
 import type { WorkLog } from "../../domain/worklog";
-import { isNative, workStartAsked } from "../../gateways/native";
+import { isNative } from "../../gateways/native";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { BrandMark } from "../Icon";
 import { SkyMap } from "../SkyMap";
 import type { SceneProps } from "./engine";
 import { HomeStack } from "./HomeStack";
+import { WorkControl } from "./WorkControl";
 
 type HeroProps = SceneProps & {
   selectedId: string | null;
@@ -21,8 +21,6 @@ type HeroProps = SceneProps & {
 // 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
 export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
-  // 작업 시간은 플로팅 창이 재요. 브라우저에는 그 창이 없어 단추를 두지 않아요.
-  const startWork = isNative() ? () => void emit(workStartAsked).catch((error: unknown) => console.error(error)) : undefined;
 
   return (
     <section className="scene scene-hero" aria-label="첫 화면">
@@ -35,7 +33,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>
@@ -47,7 +45,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
           <div className="hero-extras" inert={selected ? true : undefined}>
             <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />
           </div>
-          <HomeStack rooms={rooms} log={workLog} now={now} doorItems={doorItems} onDoorMenu={onDoorMenu} staleFiles={staleFiles} onSweep={actions.openSweep} onStartWork={startWork} />
+          <HomeStack rooms={rooms} log={workLog} now={now} doorItems={doorItems} onDoorMenu={onDoorMenu} staleFiles={staleFiles} onSweep={actions.openSweep} />
         </div>
       )}
     </section>

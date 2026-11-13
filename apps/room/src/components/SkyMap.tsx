@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ObjectShape, pickArt } from "../art/ObjectShape";
 import { colorGroups, kindColors } from "../art/palette";
 import { kindParts, kindSummary } from "../art/duct";
@@ -39,6 +39,7 @@ export function SkyMap({
   onFocusThing,
   onOpenThing,
   onRoomMenu,
+  underFrodo,
 }: {
   rooms: Room[];
   stats: Map<string, RoomStat>;
@@ -51,6 +52,8 @@ export function SkyMap({
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
+  // 프로도 받침 바로 아래에 둘 것(작업 시작 줄). 자리는 heroLayout이 startSpace만큼 비워 둬요.
+  underFrodo?: ReactNode;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>(() => ({ w: window.innerWidth || 1, h: window.innerHeight || 1 }));
@@ -189,6 +192,7 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
+        {frodo && underFrodo && <div className="under-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.floor }}>{underFrodo}</div>}
         <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div

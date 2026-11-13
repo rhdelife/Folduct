@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buckets, periodTotal, recentDays, roomTotals, streak, todayWork, weekdayAverage } from "../domain/trends";
+import { buckets, periodTotal, roomTotals, todayWork, weekdayAverage } from "../domain/trends";
 import type { WorkLog } from "../domain/worklog";
 
 const hour = 60 * 60 * 1000;
@@ -15,13 +15,8 @@ const log: WorkLog = {
 };
 
 describe("추세", () => {
-  it("오늘 시간과, 오늘부터 이어 작업한 날을 세요", () => {
+  it("오늘 시간을 세요", () => {
     expect(todayWork(log, now)).toBe(hour);
-    expect(streak(log, now)).toBe(3);
-    // 오늘 아직 안 했으면 어제까지로 세요.
-    expect(streak(log, new Date(2026, 10, 14, 9).getTime())).toBe(3);
-    expect(streak({}, now)).toBe(0);
-    expect(recentDays(log, now, 5)).toEqual([true, false, true, true, true]);
   });
 
   it("주는 월요일부터 하루씩, 년은 달마다 모아요", () => {

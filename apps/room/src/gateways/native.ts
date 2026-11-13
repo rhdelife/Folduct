@@ -19,6 +19,10 @@ export const sessionEnded = "session-ended";
 export const workLogged = "work-logged";
 // 메인 창 홈의 '작업 시작' 단추: 플로팅 창을 열고 어느 방을 시작할지 묻게 해요.
 export const workStartAsked = "work-start";
+// 플로팅 창의 작업 상태가 바뀔 때마다 메인 창에 알리고(payload는 Session 또는 null), 메인 창 홈의 멈춤·끝내기는 플로팅 창에 부탁해요.
+export const sessionChanged = "session-changed";
+export const workPauseAsked = "work-pause";
+export const workEndAsked = "work-end";
 
 // fromIcon: 메뉴 막대 아이콘을 눌러 부른 때. 프로도가 그 아이콘 아래로 내려와요.
 export const setPetVisible = (visible: boolean, fromIcon = false): Promise<void> => invoke("set_pet_visible", { visible, fromIcon });

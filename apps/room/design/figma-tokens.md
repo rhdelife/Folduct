@@ -238,6 +238,8 @@
 | `scene/stack-w` | `248px` |  |
 | `scene/home-panel-w` | `380px` |  |
 | `scene/trend-number` | `32px` |  |
+| `scene/cal-dot` | `5px` |  |
+| `scene/cal-gap` | `2px` |  |
 | `scene/trend-chart-h` | `120px` |  |
 | `scene/room-head-duct` | `56px` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |

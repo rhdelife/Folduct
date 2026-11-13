@@ -11,7 +11,7 @@ import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } fr
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked } from "../gateways/native";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked } from "../gateways/native";
 import { getDoorstep, getPetSettings, getSession, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt, RoomFaceArt } from "./RoomFace";
@@ -67,6 +67,7 @@ export function Pet() {
     latest.current = next;
     setSession(next);
     saveSession(next).catch((error: unknown) => console.error(error));
+    if (isNative()) emit(sessionChanged, next).catch((error: unknown) => console.error(error));
     if (before?.since == null) return;
     const at = Date.now();
     patchWorkLog((log) => addWork(log, localDay(at), before.roomId, workedTime(before, at) - before.workedMs))
@@ -408,7 +409,7 @@ export function Pet() {
 
   // 메뉴 막대 아이콘을 누르면(tray-pet) 띄워 둔 창은 아이콘으로 들어가고, 아니면 아이콘 아래 작은 창을 열고 닫아요.
   // 아이콘 메뉴의 플로팅 창 보이기·숨기기(tray-float)는 띄워 두기를 켜고 꺼요. 설정이 바뀔 때마다 새 값으로 다시 들어요.
-  const fromTray = useRef({ icon: () => {}, float: () => {}, start: () => {} });
+  const fromTray = useRef({ icon: () => {}, float: () => {}, start: () => {}, pause: () => {}, end: () => {} });
   fromTray.current = {
     icon: () => (pet.floating ? setFloating(false, true) : togglePanel()),
     float: () => setFloating(!pet.floating, true),
@@ -417,6 +418,9 @@ export function Pet() {
       if (!pet.floating) openPanel();
       if (!menuOpen) openMenu();
     },
+    // 메인 창 홈의 멈춤(다시 시작)·끝내기.
+    pause: () => session && change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now())),
+    end: () => session && endWork(session),
   };
   useEffect(() => {
     if (!isNative()) return;
@@ -426,6 +430,8 @@ export function Pet() {
     void listen("tray-pet", () => fromTray.current.icon()).then(add);
     void listen("tray-float", () => fromTray.current.float()).then(add);
     void listen(workStartAsked, () => fromTray.current.start()).then(add);
+    void listen(workPauseAsked, () => fromTray.current.pause()).then(add);
+    void listen(workEndAsked, () => fromTray.current.end()).then(add);
     // 나오는 동작은 시간으로 끝냅니다. 움직임 줄이기에서는 애니메이션이 아예 돌지 않아 끝났다는 신호가 오지 않아요.
     let settle = 0;
     void listen<"tuck" | "untuck">("pet-motion", (event) => {

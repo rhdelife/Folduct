@@ -978,6 +978,14 @@
       "$type": "other",
       "$value": "32px"
     },
+    "cal-dot": {
+      "$type": "other",
+      "$value": "5px"
+    },
+    "cal-gap": {
+      "$type": "other",
+      "$value": "2px"
+    },
     "trend-chart-h": {
       "$type": "other",
       "$value": "120px"

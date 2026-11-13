@@ -1,18 +1,16 @@
 import { useMemo, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Room } from "../../domain/model";
-import { buckets, periods, periodTotal, recentDays, roomTotals, streak, weekdayAverage, type Bucket, type Period } from "../../domain/trends";
+import { buckets, periods, periodTotal, roomTotals, weekdayAverage, type Bucket, type Period } from "../../domain/trends";
 import { formatWork, type WorkLog } from "../../domain/worklog";
 
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 const work = (ms: number) => (ms > 0 ? formatWork(ms) : "0분");
 const roomsShown = 6;
 
-// 홈 '추세' 판의 몸: 기간 고르기 아래 카드 넷(연속 작업, 작업 시간 그래프, 요일별 평균, 방별 시간).
+// 홈 '작업 기록' 판의 추세: 기간 고르기 아래 카드 셋(작업 시간 그래프, 요일별 평균, 방별 시간).
 // 색은 파일 형식 몫이라 그래프는 잉크 한 가지로만 그려요. 계열이 하나라 범례는 두지 않아요.
 export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; now: number }) {
   const [period, setPeriod] = useState<Period>("week");
-  const days = useMemo(() => recentDays(log, now), [log, now]);
-  const run = useMemo(() => streak(log, now), [log, now]);
   const series = useMemo(() => buckets(log, period, now), [log, period, now]);
   const total = useMemo(() => periodTotal(log, period, now), [log, period, now]);
   const week = useMemo(() => weekdayAverage(log, period, now), [log, period, now]);
@@ -31,13 +29,6 @@ export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; n
           </label>
         ))}
       </div>
-      <section className="trend-card" aria-labelledby="trend-streak">
-        <h3 id="trend-streak">연속 작업</h3>
-        <p className="trend-number">{run > 0 ? <>{run}<small>일</small></> : <small>오늘 시작해 보세요</small>}</p>
-        <ol className="trend-days" aria-label={`최근 ${days.length}일 중 ${days.filter(Boolean).length}일 작업`}>
-          {days.map((on, at) => <li key={at} data-on={on || undefined} />)}
-        </ol>
-      </section>
       <section className="trend-card" aria-labelledby="trend-time">
         <h3 id="trend-time">작업 시간</h3>
         <p className="trend-number">{work(total)}</p>

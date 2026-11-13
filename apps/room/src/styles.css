@@ -205,6 +205,9 @@
   --home-panel-w: 380px;
   /* 추세 판의 큰 숫자와 그래프 높이 */
   --trend-number: 32px;
+  /* 홈 왼쪽 아래 일력의 하루 점과 간격(31일이 --stack-w 안에 들어가요) */
+  --cal-dot: 5px;
+  --cal-gap: 2px;
   --trend-chart-h: 120px;
 
   /* 방 머리의 주름관 */
@@ -1229,22 +1232,34 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 판이 열려 있는 동안은 그 판이 이 자리를 대신해요. 누른 탭 카드 자리에서 판이 자라 위로 덮는 동안 나머지는 옅어지고, 위 제목도 한 발 물러나요. */
 .home-stack { transition: opacity var(--dur-2) var(--ease-standard); }
 .home-stack[inert] { opacity: 0; }
-/* 판이 접혀 들어가는 동안 탭 묶음이 다시 떠올라, 다 접히면 그 자리에 누른 탭 카드가 그대로 있어요. 판은 탭 묶음 뒤로 들어가요. */
+/* 판이 접혀 들어가는 동안 일력이 다시 떠올라, 다 접히면 그 자리에 일력이 그대로 있어요. 판은 일력 뒤로 들어가요. */
 .home-stack.returning[inert] { opacity: 1; z-index: calc(var(--hero-tip-z) + 2); }
 .home:has(.home-panel) .caption-layer { opacity: 0.35; }
 .caption-layer { transition: opacity var(--dur-3) var(--ease-standard); }
-.home-start { min-height: var(--space-12); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
-.home-tabs { display: grid; }
-/* 뒤 카드가 앞 카드 아랫단을 덮어 겹쳐 꽂힌 것처럼 보여요. 가리키면 살짝 올라와요. */
-.home-tab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-height: var(--space-12); padding: var(--space-3) var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); text-align: left; transform: none; transition: translate var(--dur-2) var(--ease-standard); }
-.home-tab + .home-tab { margin-top: calc(-1 * var(--space-3)); background: var(--surface-sunken); }
-/* 단추 공통 hover 바탕(반투명)이 덮으면 뒤 카드가 비쳐 보여서, 탭은 제 바탕을 지켜요. */
-.home-tab:hover:not(:disabled) { translate: 0 calc(-1 * var(--space-1)); background: var(--surface); }
-.home-tab + .home-tab:hover:not(:disabled) { background: var(--surface-sunken); }
-.home-tab b { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; }
-.home-tab small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); white-space: nowrap; }
-/* 판은 탭 묶음과 같은 왼쪽·아래에 서서, 누른 탭 카드에서 위·오른쪽으로 자라요(HomeStack이 자리를 움직여요). 자라는 동안 속은 판 밖으로 나가지 않아요. */
+/* 예전 일력 한 장: 올해 합계, 한 줄이 한 달·점 하나가 하루, 오래 한 방 셋. 누르면 그 자리에서 작업 기록 판이 자라요. 가리키면 살짝 올라와요. */
+.work-cal { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); text-align: left; font-weight: 400; transform: none; transition: translate var(--dur-2) var(--ease-standard); }
+.work-cal:hover:not(:disabled) { translate: 0 calc(-1 * var(--space-1)); background: var(--surface); }
+.work-cal-total { display: flex; align-items: baseline; gap: var(--space-1); }
+.work-cal-total strong { font-size: var(--trend-number); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.work-cal-total span { font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; }
+.work-cal-total small { margin-left: var(--space-2); color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.work-cal-rooms { display: -webkit-box; overflow: hidden; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+/* 판은 일력과 같은 왼쪽·아래에 서서, 일력 카드에서 위·오른쪽으로 자라요(HomeStack이 자리를 움직여요). 자라는 동안 속은 판 밖으로 나가지 않아요. */
 .home-panel { position: absolute; left: var(--space-6); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; width: min(var(--home-panel-w), calc(100% - 2 * var(--space-6))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
+/* 프로도 받침 바로 아래 작업 줄(heroLayout startSpace 자리). 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
+.under-frodo { position: absolute; z-index: 3; translate: -50% var(--space-4); transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
+.work-control { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--space-12); white-space: nowrap; }
+.work-control button { min-height: var(--space-12); padding: 0 var(--space-5); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
+.work-start { min-width: calc(var(--space-12) * 3); }
+.work-control.on > * { animation: work-split var(--dur-3) var(--ease-spring) backwards; }
+.work-control.on > :nth-child(2) { animation-delay: calc(var(--dur-1) / 2); }
+.work-control.on > :nth-child(3) { animation-delay: var(--dur-1); }
+.work-control:not(.on) > * { animation: work-split var(--dur-3) var(--ease-spring) backwards; }
+.work-clock { display: grid; justify-items: end; margin-right: var(--space-2); line-height: 1; }
+.work-clock b { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: 800; font-variant-numeric: tabular-nums; }
+.work-clock small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
+@keyframes work-split { from { opacity: 0; scale: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .work-control > * { animation: none; } }
 .home-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); }
 .home-panel-head h2 { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 700; }
 .home-panel-head h2:focus { outline: none; }
@@ -1269,9 +1284,11 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-number small { margin-left: var(--space-1); font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; letter-spacing: 0; }
 .trend-sub, .trend-empty { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .trend-empty { font-size: var(--text-sm); line-height: var(--lh-sm); }
-.trend-days { display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.trend-days li { flex: 1; height: var(--space-5); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); }
-.trend-days li[data-on] { border-color: var(--ink); background: var(--ink); }
+.trend-cal { display: grid; gap: var(--cal-gap); }
+.trend-cal > span { display: flex; gap: var(--cal-gap); }
+.trend-cal i { display: block; flex: none; width: var(--cal-dot); height: var(--cal-dot); border-radius: 50%; background: var(--line); }
+.trend-cal i.past { background: var(--line-strong); }
+.trend-cal i.on { background: var(--ink); }
 .trend-chart { position: relative; height: var(--trend-chart-h); margin-top: var(--space-6); touch-action: pan-y; }
 .trend-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .trend-area { fill: var(--ink-wash); }

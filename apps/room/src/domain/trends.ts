@@ -23,24 +23,6 @@ const monthLabel = (y: number, m: number) => `${y}년 ${m + 1}월`;
 
 export const todayWork = (log: WorkLog, now: number) => dayTotal(log, localDay(now));
 
-// 오늘까지 이어서 작업한 날 수. 오늘 아직 안 했으면 어제까지로 세요.
-export function streak(log: WorkLog, now: number): number {
-  let day = new Date(now).setHours(12, 0, 0, 0);
-  if (!(dayTotal(log, localDay(day)) > 0)) day = shift(day, -1);
-  let count = 0;
-  while (dayTotal(log, localDay(day)) > 0) {
-    count += 1;
-    day = shift(day, -1);
-  }
-  return count;
-}
-
-// 최근 count일의 작업 여부, 오래된 날부터.
-export function recentDays(log: WorkLog, now: number, count = 14): boolean[] {
-  const today = new Date(now).setHours(12, 0, 0, 0);
-  return Array.from({ length: count }, (_, at) => dayTotal(log, localDay(shift(today, at - count + 1))) > 0);
-}
-
 // 기간의 첫날·끝날(포함). 합계는 기록의 첫날부터 오늘까지예요. 주는 월요일부터예요.
 function range(log: WorkLog, period: Period, now: number): { from: number; to: number } {
   const date = new Date(now);
