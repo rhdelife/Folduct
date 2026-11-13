@@ -1,35 +1,81 @@
-import { useRef, useState } from "react";
-import { ductLength, kindParts } from "../art/duct";
-import { roomUsage } from "../domain/care";
-import type { CareSettings, Room } from "../domain/model";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ownCoverId, type CareSettings, type Room } from "../domain/model";
+import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { forgetRoom, patchRoom } from "../storage/db";
-import { FacePicker } from "./RoomFace";
-import { cue } from "./useFrodo";
+import { canThumb, coverOf, useReadableFolders } from "../storage/thumbs";
+import { CoverPaper, OwnCover } from "./RoomCover";
 import { useModal } from "./useModal";
 
 const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
+// 썸네일로 고를 수 있게 보여 주는 방 그림 수. 최근 것부터예요.
+const coverChoices = 23;
+const choicePx = 56;
 
-// 홈에서 방을 우클릭해 여는 방 설정. 고칠 때마다 바로 저장하고, 닫으면 홈이 방 목록을 다시 읽어요.
-export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { room: Room; onClose: () => void; onForgotten: () => void }) {
+type Draft = { name: string; care: CareSettings; cover: string | null };
+
+// 홈에서 방을 우클릭해 여는 방 설정. 고친 것은 아래 저장을 눌러야 방에 들어가요. 저장하지 않고 닫으면 한 번 물어요.
+export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room; onClose: () => void; onForgotten: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
-  const [room, setRoom] = useState(initial);
-  const [nameDraft, setNameDraft] = useState(initial.name);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const start: Draft = { name: room.name, care: room.care, cover: room.cover ?? null };
+  const [draft, setDraft] = useState<Draft>(start);
+  const [nameDraft, setNameDraft] = useState(room.name);
+  // 새로 고른 내 그림. 저장할 때 그림 저장소에 넣어요.
+  const [upload, setUpload] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   useModal(dialog);
-  // 고르기 칸의 프로도도 방 화면처럼 용량만큼 길고, 다 읽은 방이면 형식 색 주름을 입어요.
-  const usage = roomUsage(room);
+  const folder = useReadableFolders([room]).get(room.id) ?? null;
+  const own = ownCoverId(room.id);
+  const savedOwnUrl = usePicture(own);
+  const ownUrl = upload?.url ?? savedOwnUrl;
+  useEffect(() => () => (upload ? URL.revokeObjectURL(upload.url) : undefined), [upload]);
 
-  function change(mutate: (room: Room) => Room) {
-    setRoom(mutate);
-    setError(null);
-    patchRoom(room.id, mutate).catch((cause: unknown) => {
-      console.error(cause);
-      setError(saveFailed);
-    });
-  }
-  const onCare = (patch: Partial<CareSettings>) => change((current) => ({ ...current, care: { ...current.care, ...patch } }));
+  // 고를 수 있는 그림: 방에 있는 그릴 수 있는 파일, 최근 것부터. 지금 고른 파일이 목록 밖이면 앞에 둬요.
+  const choices = useMemo(() => {
+    const list = room.things.filter((thing) => !thing.box && canThumb(thing)).sort((a, b) => b.lastModified - a.lastModified);
+    const shown = list.slice(0, coverChoices);
+    const picked = list.find((thing) => thing.id === room.cover);
+    return picked && !shown.includes(picked) ? [picked, ...shown.slice(0, -1)] : shown;
+  }, [room.things, room.cover]);
+  const auto = coverOf({ things: room.things, cover: null });
+
+  const changed = draft.name !== start.name || draft.care.done !== start.care.done || draft.care.staleAfterDays !== start.care.staleAfterDays || draft.cover !== start.cover || upload !== null;
+  const onCare = (patch: Partial<CareSettings>) => setDraft((now) => ({ ...now, care: { ...now.care, ...patch } }));
   const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
+  const pick = (cover: string | null) => {
+    setError(null);
+    setDraft((now) => ({ ...now, cover }));
+  };
+
+  function choose(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setError("그림 파일만 고를 수 있어요.");
+    setUpload({ file, url: URL.createObjectURL(file) });
+    pick(own);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      if (draft.cover === own && upload) await setPicture(room.id, own, upload.file);
+      await patchRoom(room.id, (current) => ({ ...current, name: draft.name, care: draft.care, cover: draft.cover }));
+      // 내 그림을 그만 쓰면 저장소에서도 지워요. 앱 저장소에만 있던 그림이에요.
+      if (draft.cover !== own && savedOwnUrl) await clearPicture(room.id, own).catch((cause: unknown) => console.error(cause));
+      onClose();
+    } catch (cause) {
+      console.error(cause);
+      setError(cause instanceof PictureError ? cause.message : saveFailed);
+      setSaving(false);
+    }
+  }
+
+  async function close() {
+    if (changed && !(await window.confirm("고친 내용을 저장하지 않고 닫을까요?"))) return;
+    onClose();
+  }
 
   async function forget() {
     if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 방 기록만 사라져요.`))) return;
@@ -49,45 +95,73 @@ export function RoomSettingsDialog({ room: initial, onClose, onForgotten }: { ro
       aria-labelledby="room-settings-title"
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        void close();
       }}
       onPointerDown={(event) => {
         pressedOutside.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
-        if (pressedOutside.current && event.target === event.currentTarget) onClose();
+        if (pressedOutside.current && event.target === event.currentTarget) void close();
       }}
     >
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="room-settings-title">방 설정</h2>
-          <button type="button" className="quiet" onClick={onClose}>닫기</button>
         </header>
         {/* 모달이 열려 있으면 페이지 알림이 보이지 않아 오류는 창 안에 보여 줍니다. */}
         {error && <p className="banner danger" role="alert">{error}</p>}
-        {/* 칸이 비어 있는 동안에는 연 때의 이름을 저장해 두고, 칸을 떠나면 그 이름으로 채워요. 빈 이름은 폴더 이름으로 바뀌어 지은 이름이 사라졌어요. */}
+        {/* 칸을 비우면 연 때의 이름으로 저장해요. 빈 이름은 폴더 이름으로 바뀌어 지은 이름이 사라졌어요. */}
         <label className="field">방 이름 <input value={nameDraft} maxLength={40} onChange={(event) => {
           setNameDraft(event.target.value);
-          change((current) => ({ ...current, name: event.target.value.trim() || initial.name }));
-        }} onBlur={() => setNameDraft(room.name)} /></label>
-        {!nameDraft.trim() && <p className="soft" role="status">비워 두면 ‘{initial.name}’(으)로 돌아가요.</p>}
-        <FacePicker face={room.face} length={ductLength(usage.totalBytes)} parts={usage.exact ? kindParts(room.things) : []} onChange={(face) => {
-          change((current) => ({ ...current, face }));
-          cue(room.id, { body: "hop" });
-        }} />
+          setDraft((now) => ({ ...now, name: event.target.value.trim() || room.name }));
+        }} onBlur={() => setNameDraft(draft.name)} /></label>
+        {!nameDraft.trim() && <p className="soft" role="status">비워 두면 ‘{room.name}’(으)로 돌아가요.</p>}
+        <fieldset className="cover-picker">
+          <legend>방 썸네일</legend>
+          <p className="soft">홈 방 카드에 보여요. 고르지 않으면 가장 최근 그림을 써요.</p>
+          <div className="cover-options" role="group" aria-label="방 썸네일 고르기">
+            <button type="button" className="cover-option" aria-pressed={draft.cover === null} onClick={() => pick(null)}>
+              {auto ? <CoverPaper thing={auto} folder={folder} px={choicePx} /> : <span className="cover-empty" aria-hidden="true" />}
+              <span>자동</span>
+            </button>
+            {ownUrl && (
+              <button type="button" className="cover-option" aria-pressed={draft.cover === own} onClick={() => pick(own)}>
+                <OwnCover seed={room.id} url={ownUrl} px={choicePx} />
+                <span>내 그림</span>
+              </button>
+            )}
+            {choices.map((thing) => (
+              <button key={thing.id} type="button" className="cover-option" aria-pressed={draft.cover === thing.id} title={thing.name} onClick={() => pick(thing.id)}>
+                <CoverPaper thing={thing} folder={folder} px={choicePx} />
+                <span>{thing.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="row">
+            <button type="button" onClick={() => fileInput.current?.click()}>{ownUrl ? "다른 그림 올리기" : "내 그림 올리기"}</button>
+            <input ref={fileInput} type="file" accept="image/*" hidden onChange={(event) => {
+              choose(event.target.files?.[0]);
+              event.target.value = "";
+            }} />
+          </div>
+        </fieldset>
         <fieldset className="care">
           <legend>방 돌보기</legend>
           <div className="seg" role="radiogroup" aria-label="홈에 둘지">
-            <label><input type="radio" name="room-status" checked={!room.care.done} onChange={() => onCare({ done: false })} />홈에 둠</label>
-            <label><input type="radio" name="room-status" checked={room.care.done} onChange={() => onCare({ done: true })} />홈에서 뺌</label>
+            <label><input type="radio" name="room-status" checked={!draft.care.done} onChange={() => onCare({ done: false })} />홈에 둠</label>
+            <label><input type="radio" name="room-status" checked={draft.care.done} onChange={() => onCare({ done: true })} />홈에서 뺌</label>
           </div>
-          <p className="soft">{room.care.done ? "홈에서 뺌: 주간 정리를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
+          <p className="soft">{draft.care.done ? "홈에서 뺌: 주간 정리를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
           <div className="row">
-            <label>오래됨 기준 <input type="number" min={1} max={365} value={room.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
+            <label>오래됨 기준 <input type="number" min={1} max={365} value={draft.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
           </div>
         </fieldset>
         <button type="button" className="danger" aria-describedby="forget-note" onClick={() => void forget()}>Folduct에서 이 방 지우기</button>
         <p id="forget-note" className="soft">폴더와 파일은 그대로예요. 방 기록만 사라져요.</p>
+        <div className="row end settings-foot">
+          <button type="button" onClick={() => void close()}>닫기</button>
+          <button type="button" className="primary" disabled={!changed || saving} onClick={() => void save()}>{saving ? "저장하는 중" : "저장"}</button>
+        </div>
       </div>
     </dialog>
   );

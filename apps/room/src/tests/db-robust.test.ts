@@ -53,6 +53,10 @@ describe("망가진 기록", () => {
     const fixed = normalizeRoom({ id: "r", rootName: "폴더", workDays: ["2026-11-01", 3], things: "망가짐", care: null, scan: null, face: "망가짐" });
     expect(fixed).toMatchObject({ name: "폴더", createdAt: 0, things: [], workDays: ["2026-11-01"], care: { done: false }, scan: { complete: false } });
     expect(normalizeRoom({ id: "r" }).name).toBe("이름 없는 방");
+    // 방 썸네일 칸이 없던 예전 기록이나 망가진 값은 자동(null)이에요.
+    expect(normalizeRoom({ id: "r" }).cover).toBeNull();
+    expect(normalizeRoom({ id: "r", cover: 3 }).cover).toBeNull();
+    expect(normalizeRoom({ id: "r", cover: "t1" }).cover).toBe("t1");
   });
 
   it("예전 한도 값이 남은 방도 그대로 열리고, 값은 지우지 않는다", () => {

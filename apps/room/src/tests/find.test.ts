@@ -36,6 +36,13 @@ describe("방의 대표 이미지", () => {
   it("고정한 이미지가 있으면 그게 먼저예요", () => {
     expect(coverOf({ things: [thing("new", { lastModified: 9 }), thing("pin", { lastModified: 1, pinned: true })] })?.id).toBe("pin");
   });
+  it("방 설정에서 고른 썸네일이 먼저이고, 그 파일이 상자에 들었거나 없어지면 자동으로 돌아가요", () => {
+    const things = [thing("new", { lastModified: 9 }), thing("pick", { lastModified: 1 })];
+    expect(coverOf({ things, cover: "pick" })?.id).toBe("pick");
+    expect(coverOf({ things, cover: "없는 파일" })?.id).toBe("new");
+    expect(coverOf({ things: [things[0], thing("pick", { box: { from: "a.png", at: 0 } as unknown as Thing["box"] })], cover: "pick" })?.id).toBe("new");
+    expect(coverOf({ things, cover: null })?.id).toBe("new");
+  });
   it("상자에 든 파일과 사라진 파일은 빼고, 없으면 null이에요", () => {
     const box = { from: "a.png", at: 0 } as unknown as Thing["box"];
     expect(coverOf({ things: [thing("boxed", { lastModified: 9, box }), thing("gone", { missing: true })] })).toBeNull();

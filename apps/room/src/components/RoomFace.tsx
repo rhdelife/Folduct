@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 import { useMemo, type CSSProperties, type RefObject } from "react";
-import { drawPose, drawRoom, drawStack, ductLayers, ductShapeCount, ductSilhouetteUnder, faceCell, faceFrames, type DuctDrawing, type DuctFaceSlot, type DuctGroup, type DuctPiece, type DuctPose, type DuctTone, type FaceExpr } from "../art/duct";
+import { drawPose, drawRoom, drawStack, ductLayers, ductSilhouetteUnder, faceCell, faceFrames, type DuctDrawing, type DuctFaceSlot, type DuctGroup, type DuctPiece, type DuctPose, type DuctTone, type FaceExpr } from "../art/duct";
 import faceSheet from "../art/duct-faces.png";
-import { faceColors, faceColorVar } from "../domain/face";
+import { faceColorVar } from "../domain/face";
 import type { RoomFace } from "../domain/model";
 import { useFrodo, type BodyAct } from "./useFrodo";
 
@@ -149,27 +149,3 @@ export function StackArt({ lengths, parts = [], px, foot, className, actor, mood
   );
 }
 
-const pickerPx = 64;
-
-// 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다. 모양만 바꿔 보여 주고, 길이와 주름 색은 그 방의 용량·형식 그대로예요.
-export function FacePicker({ face, length, parts, onChange }: { face: RoomFace; length: number; parts: Parts; onChange: (face: RoomFace) => void }) {
-  return (
-    <fieldset className="face-picker">
-      <legend>방 얼굴</legend>
-      <div className="face-options" role="group" aria-label="주름관 모양">
-        {Array.from({ length: ductShapeCount }, (_, shape) => (
-          <button key={shape} type="button" className="face-option" aria-label={`모양 ${shape + 1}`} aria-pressed={face.shape === shape} onClick={() => onChange({ ...face, shape })}>
-            <RoomFaceArt face={{ ...face, shape }} length={length} parts={parts} px={pickerPx} className="face-art" />
-          </button>
-        ))}
-      </div>
-      <div className="face-options" role="group" aria-label="방 색">
-        {faceColors.map((name, color) => (
-          <button key={name} type="button" className="face-option" aria-label={name} title={name} aria-pressed={face.color === color} onClick={() => onChange({ ...face, color })}>
-            <span className="face-swatch" style={{ background: faceColorVar(color) }} />
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-}

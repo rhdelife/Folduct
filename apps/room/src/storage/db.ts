@@ -267,5 +267,7 @@ export function normalizeRoom(value: unknown): Room {
     scan: { complete: scan.complete === true, failed: count(scan.failed, 0), at: count(scan.at, room.createdAt), freedBytes: count(scan.freedBytes, 0) },
     doneOfferAt: typeof room.doneOfferAt === "number" ? room.doneOfferAt : null,
     face: normalizeFace(room.face, room.id),
+    // 방 썸네일은 2026-11-13에 생겼어요. 그 전 기록이나 망가진 값은 자동(가장 최근 그림)이에요.
+    cover: typeof room.cover === "string" && room.cover ? room.cover : null,
   };
 }

@@ -1395,13 +1395,16 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .menu-about > :not(summary) { margin-top: var(--space-4); }
 
 /* 방 설정의 얼굴 고르기. 고른 칸은 굵은 테두리로 보여 줍니다. */
-.face-picker { display: grid; gap: var(--space-2); }
-.face-options { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-1); }
-.face-option { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); min-height: 0; aspect-ratio: 1; padding: var(--space-1); background: var(--bg); transform: none; }
-.face-option[aria-pressed="true"]::before { content: none; }
-.room-page .face-option[aria-pressed="true"], dialog.sheet:not(.menu) .face-option[aria-pressed="true"] { background: var(--bg); border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: -2px; }
-.face-art { width: 100%; height: 100%; overflow: visible; }
-.face-swatch { display: block; width: 100%; height: 100%; }
+/* 방 설정의 방 썸네일 고르기. 고른 칸은 굵은 잉크 테두리로 보여 줘요. 그림 크기는 RoomSettingsDialog choicePx(56)와 맞춰요. */
+.cover-picker { display: grid; gap: var(--space-2); }
+.cover-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-12) + var(--space-6)), 1fr)); gap: var(--space-2); max-height: calc(var(--space-12) * 5); overflow-y: auto; padding: var(--space-1); }
+.cover-option { display: grid; justify-items: center; gap: var(--space-1); min-height: 0; padding: var(--space-2) var(--space-1); background: var(--bg); transform: none; }
+.cover-option[aria-pressed="true"]::before { content: none; }
+.cover-option > span:last-child { max-width: 100%; overflow: hidden; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.cover-option[aria-pressed="true"] > span:last-child { color: var(--ink); font-weight: 700; }
+.room-page .cover-option[aria-pressed="true"], dialog.sheet:not(.menu) .cover-option[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+.cover-empty { display: block; width: calc(var(--space-12) + var(--space-2)); height: calc(var(--space-12) + var(--space-2)); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+.settings-foot { position: sticky; bottom: calc(var(--space-6) * -1); margin: 0 calc(var(--space-6) * -1) calc(var(--space-6) * -1); padding: var(--space-3) var(--space-6); border-top: 1px solid var(--line); background: inherit; }
 
 /* ══ 글래스 ══ */
 /* 테두리를 없애고 뒤가 비치는 면과 그림자로 나눕니다. 위 규칙들을 덮으려고 맨 뒤에 둡니다. */
@@ -1453,9 +1456,8 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :
 .list button { border-radius: var(--radius-pill); }
 .thing-image { border-radius: var(--radius-sm); background: var(--glass-wash); }
 .state-stale { border-radius: var(--radius-sm); }
-.face-option { border-radius: var(--radius-sm); background: var(--button-bg); }
-.room-page .face-option[aria-pressed="true"], dialog.sheet:not(.menu) .face-option[aria-pressed="true"] { background: var(--button-bg-pressed); outline: 2px solid var(--ink); outline-offset: -2px; }
-.face-swatch { border-radius: var(--radius-xs); }
+.cover-option { border-radius: var(--radius-sm); background: var(--button-bg); }
+.room-page .cover-option[aria-pressed="true"], dialog.sheet:not(.menu) .cover-option[aria-pressed="true"] { background: var(--button-bg-pressed); outline: 2px solid var(--ink); outline-offset: -2px; }
 
 /* 대화상자: 폴더 탭을 떼고 유리 한 장으로 둡니다. */
 dialog.sheet:not(.menu) { padding-top: 0; }

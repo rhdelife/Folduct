@@ -14,8 +14,9 @@ import { awayFromHome } from "./home/engine";
 import { useHeroMotion } from "./home/heroMotion";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";
-import { coverOf, useReadableFolders, useThumb } from "../storage/thumbs";
+import { useReadableFolders, useThumb } from "../storage/thumbs";
 import { Meta } from "./Meta";
+import { RoomCover } from "./RoomCover";
 
 type Tip = { star: Card; room: Room };
 
@@ -523,24 +524,6 @@ const MapLayers = memo(function MapLayers({
     </div>
   );
 });
-
-// 방 카드의 그림. 이름만으로 방을 찾지 않게, 방에서 가장 최근의 그림을 보여 줘요. 그림이 없는 방은 첫 파일의 종이를 둬요.
-function RoomCover({ room, folder, px }: { room: Room; folder: Folder | null; px: number }) {
-  const cover = useMemo(() => coverOf(room) ?? room.things.find((thing) => !thing.missing), [room.things]); // eslint-disable-line react-hooks/exhaustive-deps
-  return cover ? <CoverPaper thing={cover} folder={folder} px={px} /> : null;
-}
-
-function CoverPaper({ thing, folder, px }: { thing: Thing; folder: Folder | null; px: number }) {
-  const self = useRef<HTMLSpanElement>(null);
-  const own = usePicture(thing.id);
-  const thumb = useThumb(self, own ? null : folder, thing);
-  const url = own ?? thumb;
-  return (
-    <span ref={self} className="room-cover" aria-hidden="true">
-      <ObjectShape kind={thing.kind} size={px} seed={thing.id} picture={url} />
-    </span>
-  );
-}
 
 // 고른 방 아래에 놓인 파일 종이. 이미지면 진짜 미리보기를 끼워요(방 안과 같은 캐시).
 function PaperShape({ card, folder }: { card: Card; folder: Folder | null }) {

@@ -55,7 +55,12 @@ export type Room = {
   // 오래 안 쓴 방을 홈에서 뺄지 마지막으로 물은 시각. 그 뒤로 방을 다시 쓰기 전까지 묻지 않습니다.
   doneOfferAt: number | null;
   face: RoomFace;
+  // 방 썸네일로 고른 것. 방 파일 id이거나 ownCoverId(방 id)(사용자가 올린 그림)예요. 없으면 가장 최근 그림을 써요.
+  cover?: string | null;
 };
+
+// 사용자가 올린 방 썸네일 그림의 자리. 파일 그림과 같은 저장소(pictures.ts)에 이 이름으로 둬요.
+export const ownCoverId = (roomId: string) => `cover:${roomId}`;
 
 export type ScannedFile = { path: string; name: string; kind: Kind; size: number; lastModified: number; lastUsedAt?: number | null };
 
