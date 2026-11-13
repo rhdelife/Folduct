@@ -7,6 +7,7 @@ import { formatWork, workAmount, yearMonths, yearWork, type WorkLog } from "../.
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
+import { isNative } from "../../gateways/native";
 import { TrendPanel } from "./TrendPanel";
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -140,7 +141,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
               </span>
             ))}
           </span>
-          <span className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(", ") : "플로팅 창에서 작업을 시작하면 쌓여요."}</span>
+          <span className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(", ") : isNative() ? "플로팅 창에서 작업을 시작하면 쌓여요." : "작업 시간은 데스크톱 앱에서 재요."}</span>
         </button>
       </div>
       {open && (

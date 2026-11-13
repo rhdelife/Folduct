@@ -137,7 +137,9 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
 
   const nextName = `${nameDraft.trim()}${ext}`;
   const hiddenName = nameDraft.trim().startsWith(".") || isExcludedName(nextName);
-  const nameOk = nameDraft.trim() !== "" && !/[/:\\]/.test(nameDraft) && !hiddenName && nextName !== thing.name;
+  // 폴더가 없는 방은 실제 파일 이름을 바꿀 수 없어, 누르기 전에 잠그고 이유를 적어요.
+  const unlinked = state?.status === "need-folder";
+  const nameOk = nameDraft.trim() !== "" && !/[/:\\]/.test(nameDraft) && !hiddenName && nextName !== thing.name && !unlinked;
   // 미리보기가 다시 읽히거나 실패하면 예전 영상 요소로 장면을 잡지 않아요.
   const liveVideo = state?.status === "ready" ? video : null;
   const found = folder.current;
@@ -228,7 +230,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
             </label>
             <button type="submit" disabled={!nameOk || busy !== null}>{busy === "rename" ? "바꾸는 중…" : "바꾸기"}</button>
           </form>
-          <p className="soft">{hiddenName ? "점으로 시작하는 이름이나 시스템 파일 이름은 쓸 수 없어요. 폴더에서 숨겨져요." : room.source === "sample" ? "샘플 방은 Folduct 안 이름만 바뀌어요." : "폴더의 실제 파일 이름이 바뀌어요. 같은 이름이 있으면 바꾸지 않아요."}</p>
+          <p className="soft">{hiddenName ? "점으로 시작하는 이름이나 시스템 파일 이름은 쓸 수 없어요. 폴더에서 숨겨져요." : unlinked ? "폴더를 연결하면 실제 파일 이름을 바꿀 수 있어요." : room.source === "sample" ? "샘플 방은 Folduct 안 이름만 바뀌어요." : "폴더의 실제 파일 이름이 바뀌어요. 같은 이름이 있으면 바꾸지 않아요."}</p>
         </section>
 
         <section className="preview-section" aria-labelledby="preview-note">

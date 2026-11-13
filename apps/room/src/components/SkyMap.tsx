@@ -390,8 +390,8 @@ const MapLayers = memo(function MapLayers({
 
   return (
     <div className="sky-camera">
-      {/* 종이는 마우스로만 고릅니다. 키보드와 화면 읽기 프로그램은 같은 파일을 오른쪽 목록에서 만납니다. */}
-      <div className="papers" aria-hidden="true">
+      {/* 먹은 방 종이는 단추예요. Tab으로 하나씩, 찾기 칸에서 ↓로 맨 앞 종이로 가요. 장면 순서(프로도가 종이 위) 때문에 DOM은 방 카드보다 앞이에요. */}
+      <div className="papers" role="group" aria-label={picked ? `${picked.name} 방 파일` : undefined}>
         {cards.map((card, index) => {
           const own = card.room.id === selectedId;
           const focused = card.thing.id === focusId;
@@ -404,9 +404,18 @@ const MapLayers = memo(function MapLayers({
             >
               <div
                 className="paper-art"
+                role="button"
+                tabIndex={0}
+                data-paper={index}
+                aria-label={`${card.thing.name}, ${kindLabels[card.thing.kind]}, ${formatBytes(card.thing.size)}`}
                 style={{ rotate: `${card.rot}deg` }}
                 onClick={() => {
                   cue(homeActor, { body: "nod" });
+                  onOpenThing(card.room.id, card.thing.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
                   onOpenThing(card.room.id, card.thing.id);
                 }}
                 onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
@@ -501,12 +510,16 @@ const MapLayers = memo(function MapLayers({
               className="fed-search"
               value={query}
               placeholder="이름이나 폴더로 찾기"
-              aria-label={`${find.room.name} 방에서 파일 이름이나 폴더 이름으로 찾기. Enter를 누르면 맨 앞 파일을 열어요.`}
+              aria-label={`${find.room.name} 방에서 파일 이름이나 폴더 이름으로 찾기. Enter를 누르면 맨 앞 파일을 열고, 아래 화살표로 파일로 가요.`}
               onChange={(event) => onFind({ query: event.target.value })}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && cards[0]) {
                   event.preventDefault();
                   onOpenThing(find.room.id, cards[0].thing.id);
+                }
+                if (event.key === "ArrowDown" && cards[0]) {
+                  event.preventDefault();
+                  event.currentTarget.closest(".sky-camera")?.querySelector<HTMLElement>('[data-paper="0"]')?.focus();
                 }
                 // 찾는 말이 있으면 Esc는 말만 지우고, 프로도는 그대로 둬요.
                 if (event.key === "Escape" && query) {

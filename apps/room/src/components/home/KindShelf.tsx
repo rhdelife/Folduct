@@ -8,7 +8,7 @@ import { hueShelves, kindShelves, shelfItems, type Shelf, type ShelfItem } from 
 import { AxisWindow, axisMs, SceneWheelGate } from "../../domain/wheelStep";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
-import { useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
+import { canThumb, useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 import { tokenMs } from "../tokens";
@@ -39,6 +39,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
   const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
   const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
+  // 이미지는 있는데 읽을 폴더가 없으면(샘플·폴더 연결 전 방) 빈 화면 대신 이유를 적어요.
+  const unreadImages = useMemo(() => items.some(({ thing }) => canThumb(thing)), [items]);
   const shelves = useMemo(() => (mode === "kind" ? kinds : hueShelves(items, hues)), [mode, kinds, items, hues]);
   const [open, setOpen] = useState<string | null>(null);
   // 닫히는 동안에도 목록 종이가 빈 채로 빠지지 않게 마지막으로 연 서랍을 붙들어 둬요.
@@ -225,7 +227,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
           ))}
         </div>
         {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}
-        {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">색을 읽을 수 있는 이미지가 없어요.</p>}
+        {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">{unreadImages ? "이미지가 있는 방의 폴더를 연결하면 색으로 볼 수 있어요. 샘플 방은 실제 파일이 없어 색을 읽지 못해요." : "색을 읽을 수 있는 이미지가 없어요."}</p>}
       </header>
       {shelves.length > 0 && (
         <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
