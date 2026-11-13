@@ -9,7 +9,8 @@ export const periods: { value: Period; label: string }[] = [
   { value: "month", label: "월" },
   { value: "week", label: "주" },
 ];
-export type Bucket = { label: string; ms: number };
+// rooms: 그 칸의 방별 시간(방 id → 밀리초). 막대를 방 색으로 쌓아요.
+export type Bucket = { label: string; ms: number; rooms: Record<string, number> };
 
 const dayTotal = (log: WorkLog, day: string) => Object.values(log[day] ?? {}).reduce((sum, ms) => sum + ms, 0);
 // 정오로 맞춰 두면 하루를 더하고 빼도 서머타임에 날짜가 밀리지 않아요.
@@ -54,11 +55,16 @@ export const periodTotal = (log: WorkLog, period: Period, now: number) => daysIn
 export function buckets(log: WorkLog, period: Period, now: number): Bucket[] {
   const { from, to } = range(log, period, now);
   const worked = new Map(daysIn(log, period, now));
+  const add = (into: Record<string, number>, day: string) => {
+    for (const [room, ms] of Object.entries(log[day] ?? {})) if (ms > 0) into[room] = (into[room] ?? 0) + ms;
+    return into;
+  };
   if (period === "week" || period === "month") {
     const list: Bucket[] = [];
     for (let day = from; day <= to; day = shift(day, 1)) {
       const date = new Date(day);
-      list.push({ label: `${date.getMonth() + 1}월 ${date.getDate()}일`, ms: worked.get(localDay(day)) ?? 0 });
+      const key = localDay(day);
+      list.push({ label: `${date.getMonth() + 1}월 ${date.getDate()}일`, ms: worked.get(key) ?? 0, rooms: worked.has(key) ? add({}, key) : {} });
     }
     return list;
   }
@@ -68,8 +74,13 @@ export function buckets(log: WorkLog, period: Period, now: number): Bucket[] {
   for (let y = start.getFullYear(), m = start.getMonth(); y < end.getFullYear() || (y === end.getFullYear() && m <= end.getMonth()); m === 11 ? ((y += 1), (m = 0)) : (m += 1)) {
     const prefix = `${y}-${String(m + 1).padStart(2, "0")}-`;
     let ms = 0;
-    for (const [day, total] of worked) if (day.startsWith(prefix)) ms += total;
-    list.push({ label: monthLabel(y, m), ms });
+    const rooms: Record<string, number> = {};
+    for (const [day, total] of worked) {
+      if (!day.startsWith(prefix)) continue;
+      ms += total;
+      add(rooms, day);
+    }
+    list.push({ label: monthLabel(y, m), ms, rooms });
   }
   return list;
 }

@@ -25,7 +25,10 @@ describe("추세", () => {
     expect(week[0].label).toBe("11월 9일");
     const year = buckets(log, "year", now);
     expect(year).toHaveLength(12);
-    expect(year[2]).toEqual({ label: "2026년 3월", ms: 3 * hour });
+    expect(year[2]).toEqual({ label: "2026년 3월", ms: 3 * hour, rooms: { c: 3 * hour } });
+    // 칸마다 방별 시간도 모아요(막대를 방 색으로 쌓아요).
+    expect(week[0].rooms).toEqual({ a: 4 * hour });
+    expect(year[10].rooms).toEqual({ a: 8 * hour, b: 3 * hour });
     expect(year[10].ms).toBe(11 * hour);
     expect(buckets(log, "month", now)).toHaveLength(30);
     // 합계는 기록의 첫 달(3월)부터 이번 달까지예요.
