@@ -42,8 +42,8 @@ export function WorkControl({ rooms }: { rooms: Room[] }) {
         <b>{formatWorked(workedTime(session, now))}</b>
         <small>{room?.name ?? "방"} · {working ? "작업 중" : "멈춤"}</small>
       </span>
-      <button type="button" className={working ? undefined : "primary"} onClick={() => ask(workPauseAsked)}>{working ? "멈춤" : "다시 시작"}</button>
-      <button type="button" onClick={() => ask(workEndAsked)}>끝내기</button>
+      <button type="button" className={working ? "stop" : "primary"} onClick={() => ask(workPauseAsked)}>{working ? "멈춤" : "다시 시작"}</button>
+      <button type="button" className="end" onClick={() => ask(workEndAsked)}>끝내기</button>
     </div>
   );
 }
