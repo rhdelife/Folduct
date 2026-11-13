@@ -24,8 +24,9 @@ import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
+import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 
-// 방 설정은 홈에서 방을 우클릭해 엽니다(RoomSettingsDialog).
+// 방 설정(RoomSettingsDialog)은 방 머리의 단추나 홈에서 방을 우클릭해 엽니다.
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
@@ -51,6 +52,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [room, setRoom] = useState<Room | null>(null);
   const [missing, setMissing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [saveError, setSaveError] = useState(false);
   const [handle, setHandle] = useState<Folder | null>(null);
@@ -499,12 +501,36 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         <div className="topnav-title">
           <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" actor={room.id} mood={saveError || folderIssue ? "worried" : selected?.missing ? "wide" : room.care.done ? "shut" : "base"} />
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
-          <p className="eyebrow"><Meta items={[room.source === "sample" ? "샘플 방" : room.source === "input" ? room.rootName : `${room.rootName} 폴더`, room.source === "input" && "보기 전용", room.care.done && "홈에서 뺌"]} /></p>
+          <p className="eyebrow"><Meta items={[room.source === "sample" ? "샘플 방" : room.rootName === room.name ? null : room.source === "input" ? room.rootName : `${room.rootName} 폴더`, room.source === "input" && "보기 전용", room.care.done && "홈에서 뺌"]} /></p>
         </div>
         <div className="row">
           <div aria-live="polite">{busy && <span className="scanning">{busy}</span>}</div>
           {room.source === "handle" && <button type="button" onClick={() => void rescan()} disabled={busy !== null}>폴더 다시 보기</button>}
+          <button
+            type="button"
+            onClick={() => {
+              // 남은 저장을 먼저 끝내요. 설정 창이 저장한 이름·기준을 이 화면의 옛 기록이 덮지 않게요.
+              flush();
+              setSettingsOpen(true);
+            }}
+          >
+            방 설정
+          </button>
         </div>
+        {settingsOpen && (
+          <RoomSettingsDialog
+            room={room}
+            onClose={() => {
+              setSettingsOpen(false);
+              void getRoom(room.id).then((saved) => {
+                if (!saved) return;
+                latest.current = saved;
+                setRoom(saved);
+              });
+            }}
+            onForgotten={onBack}
+          />
+        )}
       </header>
 
       <div className="banners">

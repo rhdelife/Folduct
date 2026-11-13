@@ -195,4 +195,11 @@ describe("등장 경로", () => {
     expect(frames[0]).toMatchObject({ opacity: 0, translate: "100px 50px" });
     expect(frames[frames.length - 1]).toMatchObject({ opacity: 1, translate: "0px 0px", scale: "1", rotate: "0deg" });
   });
+
+  it("화면 끝에 붙은 종이는 지나칠 때도 화면 밖으로 나가지 않는다", () => {
+    // 입이 왼쪽 600px에 있고 종이는 오른쪽 끝에서 10px 떨어져 있어요. 그대로면 36px 지나쳐요.
+    expect(spillFrames(-600, 0, 10, { left: 500, right: 10 })[2]).toMatchObject({ translate: "10px 0px" });
+    expect(spillFrames(-600, 0, 10, { left: 500, right: -4 })[2]).toMatchObject({ translate: "0px 0px" });
+    expect(spillFrames(-600, 0, 10)[2]).toMatchObject({ translate: "36px 0px" });
+  });
 });

@@ -7,11 +7,13 @@ import { cue, homeActor } from "../useFrodo";
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // 종이 한 장의 등장: 자기 방 주름관의 입에서 튀어나와 살짝 지나쳤다가 제자리에 앉습니다.
-export function spillFrames(dx: number, dy: number, kick: number): Keyframe[] {
+// room은 제자리에서 화면 왼쪽·오른쪽 끝까지 남은 거리(px)예요. 끝에 붙은 종이가 지나치며 화면 밖으로 잘리지 않게 그만큼만 지나쳐요.
+export function spillFrames(dx: number, dy: number, kick: number, room = { left: Infinity, right: Infinity }): Keyframe[] {
+  const past = Math.min(Math.max(-0.06 * dx, -Math.max(0, room.left)), Math.max(0, room.right));
   return [
     { offset: 0, opacity: 0, translate: `${dx}px ${dy}px`, scale: "0.2", rotate: `${2 * kick}deg`, easing: "cubic-bezier(.16,1,.3,1)" },
     { offset: 0.12, opacity: 1 },
-    { offset: 0.72, translate: `${-0.06 * dx}px ${-0.06 * dy}px`, scale: "1.06", rotate: `${-0.2 * kick}deg`, easing: "ease-in-out" },
+    { offset: 0.72, translate: `${past}px ${-0.06 * dy}px`, scale: "1.06", rotate: `${-0.2 * kick}deg`, easing: "ease-in-out" },
     { offset: 1, opacity: 1, translate: "0px 0px", scale: "1", rotate: "0deg" },
   ];
 }
@@ -67,7 +69,9 @@ function playSpill(root: HTMLElement, cards: Card[], frodo: HeroFrodo, view: Vie
   const papers = [...root.querySelectorAll<HTMLElement>(".paper")];
   cards.forEach((card, index) => {
     const rest = toPx(card, view);
-    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick), { duration: spillMs, delay: spillFrom + index * step });
+    // 지나칠 때 1.06배로 커지고 조금 기우니(최대 3도쯤) 반 폭에 그만큼 더해 둬요.
+    const half = (card.size * 1.06) / 2 + card.height * 0.05;
+    add(papers[index], spillFrames(origin.x - rest.x, origin.y - rest.y, card.kick, { left: rest.x - half, right: view.w - rest.x - half }), { duration: spillMs, delay: spillFrom + index * step });
   });
   const spitting = cards.length ? (cards.length - 1) * step + spillMs * 0.6 : 0;
   const node = root.querySelector(".frodo-home");
