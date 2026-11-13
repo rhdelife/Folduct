@@ -2,13 +2,8 @@ import type { Room } from "../../domain/model";
 import { formatWork } from "../../domain/worklog";
 import { BrandMark, Icon } from "../Icon";
 
-const greeting = (now: number) => {
-  const hour = new Date(now).getHours();
-  return hour < 5 ? "좋은 밤이에요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "좋은 저녁이에요";
-};
-
-// 머리 왼쪽은 인사 한 줄과 오늘 작업 시간을 크게. 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
-export function HomeHeader({ rooms, ready, overdue, now, today, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; now: number; today: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+// 머리 왼쪽은 오늘 작업 시간을 크게. 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
+export function HomeHeader({ rooms, ready, overdue, today, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; overdue: boolean; today: number; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const awake = rooms.length > 0;
   return (
     <header className={`home-header${awake ? " has-caption" : ""}`}>
@@ -18,7 +13,6 @@ export function HomeHeader({ rooms, ready, overdue, now, today, onWeekly, onMenu
       </div>
       <div className={`home-caption${awake ? " visible" : ""}`}>
         <div className="caption-layer">
-          <span>{greeting(now)}</span>
           <strong>{today > 0 ? `오늘 ${formatWork(today)}` : "오늘은 아직 시작 전이에요"}</strong>
         </div>
       </div>
