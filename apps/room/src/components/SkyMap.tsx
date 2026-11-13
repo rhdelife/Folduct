@@ -4,7 +4,7 @@ import { colorGroups, kindColors } from "../art/palette";
 import { kindParts, kindSummary } from "../art/duct";
 import { StackArt } from "./RoomFace";
 import { centerOf, cue, homeActor } from "./useFrodo";
-import { laneOf, lastActivity, relativeDay } from "../domain/care";
+import { laneOf, relativeDay, shownActivity } from "../domain/care";
 import { fedLengths, heroLayout, namedPaper, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { sky, stepRoom, type RoomStat, type View } from "../domain/sky";
@@ -211,7 +211,7 @@ export function SkyMap({
           >
             <strong>{tip.star.thing.name}</strong>
             <Meta items={[tip.room.name, kindLabels[tip.star.thing.kind], formatBytes(tip.star.thing.size)]} />
-            <span>{relativeDay(lastActivity(tip.star.thing), now)} 작업</span>
+            <span>{relativeDay(shownActivity(tip.star.thing, tip.room), now)} 작업</span>
             {tip.star.stale && <em>{tip.star.days}일째 그대로</em>}
             {laneOf(tip.star.thing, tip.room, now) === "new" && <em className="calm">새로 왔어요</em>}
           </div>

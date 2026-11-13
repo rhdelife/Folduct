@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { dayMs, defaultCare, doneOfferDue, GB, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, sizeRatio, laneOf, laneOrder, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, handTouchedAt, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, shownActivity, sizeRatio, laneOf, laneOrder, sweepCandidates, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -93,6 +93,20 @@ describe("방 밖 작업", () => {
     expect(lastActivity(thing({ touchedAt: null, lastModified: 3, lastUsedAt: null }))).toBe(3);
     expect(lastActivity(thing({ touchedAt: 9, lastModified: 3, lastUsedAt: 5 }))).toBe(9);
     expect(lastActivity(thing({ touchedAt: 1, lastModified: 3, lastUsedAt: 5 }))).toBe(5);
+  });
+
+  it("방을 만들 때 넣은 손댄 때는 화면 날짜에서 빼고, 정리 판정에는 남긴다", () => {
+    const made = buildRoom({ name: "방", source: "input", rootName: "방", files: [scanned("기획서.pdf", day(-15))], scan: sure, done: false, workDays: [], now: day(0) });
+    const plan = made.things[0];
+    expect(plan.touchedAt).toBe(day(0));
+    expect(handTouchedAt(plan, made)).toBeNull();
+    expect(relativeDay(shownActivity(plan, made), day(0))).toBe("15일 전");
+    expect(lastActivity(plan)).toBe(day(0));
+    // 방을 만든 뒤 실제로 손대면 그 날짜를 보여 줘요.
+    expect(shownActivity({ ...plan, touchedAt: day(2) }, made)).toBe(day(2));
+    // 함께 손댄 것으로 친 파일끼리는 고친 날 순서예요.
+    const both = buildRoom({ name: "방", source: "input", rootName: "방", files: [scanned("옛.pdf", day(-15)), scanned("새.pdf", day(-6))], scan: sure, done: false, workDays: [], now: day(0) });
+    expect([...both.things].sort(laneOrder.use).map((item) => item.name)).toEqual(["새.pdf", "옛.pdf"]);
   });
 
   it("방 밖에서 쓰면 그때부터 다시 세고, 그 뒤로 방을 쓴 날이 있어야 오래됨이다", () => {

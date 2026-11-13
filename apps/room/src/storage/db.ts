@@ -70,7 +70,9 @@ export async function run<T>(store: string, mode: IDBTransactionMode, action: (s
 export async function listRooms(): Promise<Room[]> {
   const rooms = await run<unknown[]>("rooms", "readonly", (store) => store.getAll());
   // 읽을 수 없는 기록 하나 때문에 다른 방까지 못 보게 하지 않습니다. 저장된 기록은 지우지 않고 건너뛰기만 해요.
-  return rooms.filter(isRoomRecord).map(normalizeRoom).sort((a, b) => a.createdAt - b.createdAt);
+  // 내 방이 먼저, 샘플은 뒤예요. 샘플은 새 파일 줄을 보이려고 하루 전에 만든 것으로 저장돼, 날짜만 보면 새로고침 뒤 내 방 앞으로 왔어요.
+  const sampleLast = (room: Room) => (room.source === "sample" ? 1 : 0);
+  return rooms.filter(isRoomRecord).map(normalizeRoom).sort((a, b) => sampleLast(a) - sampleLast(b) || a.createdAt - b.createdAt);
 }
 
 export async function getRoom(id: string): Promise<Room | null> {

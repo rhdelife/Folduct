@@ -11,7 +11,7 @@ import { RoomScene } from "../components/RoomScene";
 import { AiNotePanel } from "../components/AiNotePanel";
 import { useToast } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
-import { boxFolderName, firstLine, lastActivity, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, thingAge } from "../domain/care";
+import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, shownActivity, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
@@ -696,7 +696,7 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
 
 function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast, onForget, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onBox?: (id: string) => void }) {
   const age = thingAge(thing, room, now);
-  const last = lastActivity(thing);
+  const last = shownActivity(thing, room);
   return (
     <div className="thing-panel">
       <div className="thing-head">
@@ -713,7 +713,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
         {thing.missing ? "폴더에서 찾지 못했어요."
           : thing.pinned ? "고정한 물건이라 정리 후보가 되지 않아요."
           : age.stale ? `${age.days}일째 그대로예요. 다음 주간 정리 때 물어볼게요.`
-          : last > (thing.touchedAt ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
+          : last > (handTouchedAt(thing, room) ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
           : "최근에 손댄 물건이에요."}
       </p>
       {/* 메모는 더 쓰지 않아요. 예전에 쓴 메모는 지우지 않고 보여 줍니다. */}

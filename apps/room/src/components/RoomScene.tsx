@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { boxColor, tonesFrom } from "../art/palette";
-import { activityDays, lastActivity, laneOf, laneOrder, lanes, relativeDay, type Lane } from "../domain/care";
+import { activityDays, laneOf, laneOrder, lanes, relativeDay, shownActivity, type Lane } from "../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
 import { splitLane, type Pile } from "../domain/pile";
 import { stacksOf } from "../domain/versions";
@@ -209,7 +209,7 @@ function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: 
 function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; stack?: Thing[]; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
   // 종이 아래 날짜: 새 파일은 들어온 날, 잠잠한 파일은 쉰 날수, 나머지는 마지막으로 쓴 날. 상자는 서랍에서 보여요.
   const days = lane === "quiet" ? activityDays(thing, now) : null;
-  const when = lane === "new" ? `${relativeDay(thing.seenAt, now)} 들어옴` : lane === "use" ? relativeDay(lastActivity(thing), now) : null;
+  const when = lane === "new" ? `${relativeDay(thing.seenAt, now)} 들어옴` : lane === "use" ? relativeDay(shownActivity(thing, room), now) : null;
   const self = useRef<HTMLButtonElement>(null);
   // 직접 고른 그림이 있으면 그게 먼저라, 파일은 읽지 않아요.
   const own = usePicture(thing.id);

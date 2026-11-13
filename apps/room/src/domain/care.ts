@@ -43,6 +43,10 @@ export function lastActivity(thing: Pick<Thing, "touchedAt" | "lastModified" | "
   return Math.max(thing.touchedAt ?? 0, thing.lastModified, thing.lastUsedAt ?? 0);
 }
 
+// 화면에 적는 손댄 때. 방을 만들 때 최근 파일에 넣은 손댄 때(= 방 만든 시각)는 사람이 손댄 게 아니라 빼요. 정리 판정은 lastActivity 그대로예요.
+export const handTouchedAt = (thing: Pick<Thing, "touchedAt">, room: Pick<Room, "createdAt">): number | null => (thing.touchedAt === room.createdAt ? null : thing.touchedAt);
+export const shownActivity = (thing: Pick<Thing, "touchedAt" | "lastModified" | "lastUsedAt">, room: Pick<Room, "createdAt">): number => lastActivity({ ...thing, touchedAt: handTouchedAt(thing, room) });
+
 // 최근 7일 안의 시각인지. 화면의 now가 방금 찍힌 파일보다 뒤처질 수 있어 하루는 봐주고, 그보다 먼 미래는 치지 않습니다.
 export const withinWeek = (at: number, now: number) => at > 0 && at <= now + dayMs && now - at <= 7 * dayMs;
 
@@ -89,7 +93,8 @@ export function laneOf(thing: Thing, room: Pick<Room, "care" | "workDays" | "cre
 // 줄 안 순서: 새로 왔어요는 최근에 들어온 것, 요즘 써요는 최근에 쓴 것, 잠잠해요는 가장 오래 쉰 것, 상자는 최근에 넣은 것부터.
 export const laneOrder: Record<Lane, (a: Thing, b: Thing) => number> = {
   new: (a, b) => b.seenAt - a.seenAt,
-  use: (a, b) => lastActivity(b) - lastActivity(a),
+  // 방을 만들 때 손댄 것으로 친 파일들은 손댄 때가 같아, 고치거나 쓴 날로 이어서 줄 세워요(화면 날짜와 같은 순서).
+  use: (a, b) => lastActivity(b) - lastActivity(a) || lastActivity({ ...b, touchedAt: null }) - lastActivity({ ...a, touchedAt: null }),
   quiet: (a, b) => lastActivity(a) - lastActivity(b),
   box: (a, b) => (b.box?.at ?? 0) - (a.box?.at ?? 0),
 };

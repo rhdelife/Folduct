@@ -69,6 +69,12 @@ describe("망가진 기록", () => {
     const { listRooms: list } = await import("../storage/db");
     expect((await list()).map((item) => item.id)).toEqual(["r", "b"]);
   });
+
+  it("하루 전에 만든 것으로 저장된 샘플도 내 방 뒤에 나온다(새로고침해도 순서가 같다)", async () => {
+    fakeIndexedDb([{ ...room, id: "샘플", source: "sample", createdAt: 1 }, { ...room, id: "나중 방", createdAt: 9 }, room]);
+    const { listRooms: list } = await import("../storage/db");
+    expect((await list()).map((item) => item.id)).toEqual(["r", "나중 방", "샘플"]);
+  });
 });
 
 describe("저장소가 답하지 않을 때", () => {
