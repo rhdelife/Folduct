@@ -509,6 +509,17 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     run();
   };
 
+  // 방 지우기: 방 기록만 지우고 폴더와 파일은 그대로예요. 방 설정과 방 메뉴(⋯·오른쪽 클릭)에서 같은 말로 물어요.
+  const afterForget = (id: string) => {
+    setSelectedId((current) => (current === id ? null : current));
+    toast("방을 지웠어요. 폴더와 파일은 그대로예요.");
+    void load().then(() => requestAnimationFrame(() => landFocus(id)));
+  };
+  async function forgetFromMenu(room: Room) {
+    if (!(await window.confirm(`‘${room.name}’ 방을 Folduct에서 지울까요? 폴더와 파일은 그대로예요. 방 기록만 사라져요.`))) return;
+    await forgetRoom(room.id);
+    afterForget(room.id);
+  }
   const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
   const moveFailed = "옮기지 못했어요. 폴더 권한을 확인해 주세요.";
   const hasSample = rooms?.some((room) => room.source === "sample");
@@ -670,6 +681,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           items={[
             { label: "방 설정", onSelect: fromMenu(() => setRoomSettingsId(menuRoom.id)) },
             { label: menuRoom.care.done ? "홈에 올리기" : "홈에서 빼기", onSelect: fromMenu(() => actions.toggleDone(menuRoom.id, !menuRoom.care.done)) },
+            { label: "Folduct에서 지우기", onSelect: fromMenu(() => void forgetFromMenu(menuRoom).catch(fail("방을 지우지 못했어요. 잠시 뒤 다시 해 주세요."))) },
           ]}
           onClose={() => setRoomMenu(null)}
         />
@@ -683,11 +695,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             void load();
           }}
           onForgotten={() => {
-            const id = settingsRoom.id;
             setRoomSettingsId(null);
-            setSelectedId((current) => (current === id ? null : current));
-            toast("방을 지웠어요. 폴더와 파일은 그대로예요.");
-            void load().then(() => requestAnimationFrame(() => landFocus(id)));
+            afterForget(settingsRoom.id);
           }}
         />
       )}

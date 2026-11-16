@@ -41,7 +41,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} onNewRoom={actions.openNew} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>

@@ -7,7 +7,7 @@ import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, relativeDay, shownActivity } from "../domain/care";
 import { fedLengths, heroLayout, namedPaper, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
 import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
-import { sky, stepRoom, type RoomStat, type View } from "../domain/sky";
+import { homeLimit, sky, stepRoom, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { awayFromHome } from "./home/engine";
@@ -39,6 +39,7 @@ export function SkyMap({
   onFocusThing,
   onOpenThing,
   onRoomMenu,
+  onNewRoom,
   underFrodo,
   overFrodo,
   paneOpen = false,
@@ -54,6 +55,8 @@ export function SkyMap({
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
+  // 방 카드 줄 끝의 + 카드가 여는 새 방 만들기. 없으면 + 카드를 두지 않아요.
+  onNewRoom?: () => void;
   // 프로도 받침 바로 아래에 둘 것(작업 시작 줄). 자리는 heroLayout이 startSpace만큼 비워 둬요.
   underFrodo?: ReactNode;
   // 프로도 머리 위에 띄우는 말풍선 자리예요(이번 주 정리).
@@ -197,6 +200,7 @@ export function SkyMap({
           onFocusThing={onFocusThing}
           onOpenThing={onOpenThing}
           onRoomMenu={onRoomMenu}
+          onNewRoom={onNewRoom}
           onShowTip={showTip}
           onHideTip={hideTip}
           onCloseTip={closeTip}
@@ -244,6 +248,7 @@ const MapLayers = memo(function MapLayers({
   onFocusThing,
   onOpenThing,
   onRoomMenu,
+  onNewRoom,
   onShowTip,
   onHideTip,
   onCloseTip,
@@ -265,10 +270,12 @@ const MapLayers = memo(function MapLayers({
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
   onRoomMenu: OpenRoomMenu;
+  onNewRoom?: () => void;
   onShowTip: (tip: Tip) => void;
   onHideTip: () => void;
   onCloseTip: () => void;
 }) {
+  const adding = Boolean(onNewRoom) && rooms.length < homeLimit;
   // 탭 키로는 카드 줄에 한 번만 들어옵니다. 먹은 방이 없으면 첫 방이 들어오는 자리입니다.
   const [lastFocus, setLastFocus] = useState<string | null>(null);
   const tabStop = selectedId ?? (lastFocus && ids.includes(lastFocus) ? lastFocus : ids[0]);
@@ -455,7 +462,7 @@ const MapLayers = memo(function MapLayers({
         )}
         {bandTip && bandTip.room === picked?.id && <p className="band-tip" aria-hidden="true" style={{ left: bandTip.x, top: bandTip.y }}>{bandTip.text}</p>}
         {shelf && (
-          <div className="room-shelf" role="group" aria-label="내 방들. 방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고, 그 방 용량만큼 길어지며 그 방 파일을 보여 줘요." aria-describedby="sky-hint" style={{ top: shelf.top, height: shelf.height, "--n": rooms.length } as CSSProperties}>
+          <div className="room-shelf" role="group" aria-label="내 방들. 방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고, 그 방 용량만큼 길어지며 그 방 파일을 보여 줘요." aria-describedby="sky-hint" style={{ top: shelf.top, height: shelf.height, "--n": rooms.length + (adding ? 1 : 0) } as CSSProperties}>
             {rooms.map((room) => {
               const { usage, stale } = stats.get(room.id)!;
               const parts = kindParts(room.things);
@@ -520,6 +527,15 @@ const MapLayers = memo(function MapLayers({
                 </div>
               );
             })}
+            {/* 방 더하기: 홈 줄이 차지 않았으면 줄 끝에 + 카드를 둬요. 차면 머리의 + 새 방만 남아요(6번째 방은 홈에 둘 방을 고르게 해요). */}
+            {adding && (
+              <div className="room-slot">
+                <button type="button" className="room-add" onClick={onNewRoom}>
+                  <span className="room-add-mark" aria-hidden="true">+</span>
+                  <span className="room-label">방 더하기</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
         {/* 먹은 방 파일 칸 맨 위의 찾기 줄. 이름·폴더로 찾거나 형식 하나만 남겨요. Enter는 맨 앞 파일을 열어요. */}

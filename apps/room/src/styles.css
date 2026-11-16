@@ -557,6 +557,12 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-slot > .room-node { min-width: 0; }
 .room-more { position: absolute; top: 0; right: max(0%, calc(50% - var(--space-12) - var(--space-3))); z-index: 1; min-width: var(--control-sm); min-height: var(--control-sm); padding: 0; border-radius: var(--radius-pill); color: var(--ink-soft); font-size: var(--text-md); line-height: 1; pointer-events: auto; }
 .room-more:hover:not(:disabled), .room-more:focus-visible { color: var(--ink); }
+/* 방 더하기 카드: 방 썸네일 자리에 점선 네모와 +. 면을 칠하지 않아 방 카드보다 한 단 옅어요. */
+.room-add { display: grid; justify-items: center; align-content: center; gap: var(--space-1); min-width: 0; min-height: 0; padding: var(--space-1); border: 0; background: none; color: var(--ink-soft); pointer-events: auto; transform: none; }
+.room-add:hover:not(:disabled), .room-add:active:not(:disabled) { background: none; color: var(--ink); transform: none; }
+.room-add-mark { display: grid; place-items: center; width: var(--shelf-cover); aspect-ratio: 1; border: calc(var(--room-hair) * 2) dashed var(--ink-faint); border-radius: var(--radius-sm); font-size: var(--text-2xl); font-weight: 300; }
+.room-add:hover .room-add-mark { border-color: var(--ink); }
+.room-add .room-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
 .room-node .room-label, .room-node .room-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-node.dragging { z-index: 3; cursor: grabbing; scale: 1.06; }
 /* 고른 카드는 그림이 커져서 골랐다는 게 보여요. 가리킨 카드는 그림 외곽선이 빛나요. */
