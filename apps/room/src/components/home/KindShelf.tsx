@@ -16,6 +16,9 @@ import { Icon } from "../Icon";
 import { emptyShelfViews, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
 import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
 import { ShelfEditor } from "./ShelfEditor";
+import { trashFile } from "../../gateways/mover";
+import { isNative } from "../../gateways/native";
+import { patchRoom } from "../../storage/db";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -37,7 +40,7 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // 서랍을 누르면 앞으로 빠져나오며 안의 종이가 튀어 오르고, 나머지 서랍은 흐려지고, 옆에 그 서랍의 목록 종이가 펼쳐져요. 한 번에 한 서랍만 열려요.
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
 // onListGone: 열려 있던 목록 종이가 닫히거나 다른 서랍 목록으로 바뀌면 불러요. 그 목록에서 연 미리보기 창도 같이 닫으려고요.
-export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void }>(function KindShelf({ rooms, onOpenFile, onListGone }, ref) {
+export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void; onTrashed?: (message: string) => void }>(function KindShelf({ rooms, onOpenFile, onListGone, onTrashed }, ref) {
   // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
   // 사용자가 만든 서랍장이면 그 id예요.
   const [mode, setMode] = useState<string>("kind");
@@ -362,7 +365,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
           <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
             {papers.map((shelf) => (
               // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 새 종이가 다시 내려앉아요.
-              <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} />
+              <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} onTrashed={onTrashed} />
             ))}
           </div>
         </div>
@@ -396,8 +399,40 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   );
 });
 
+const pickKey = (item: ShelfItem) => `${item.room.id}:${item.thing.id}`;
+
 // 목록 종이 한 장. 바꿔 열어 사라지는 중인 옛 종이(leaving)는 손이 닿지 않고 읽히지 않으며, 제목 id도 새 종이에 넘겨요.
-export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose }: { shelf: Shelf; leaving: boolean; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; onClose: () => void }) {
+// 데스크톱에서는 '고르기'로 여러 파일을 골라 한 번에 휴지통으로 보내요. 묻고 나서 보내고, 휴지통에서 되살릴 수 있어요.
+export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTrashed }: { shelf: Shelf; leaving: boolean; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; onClose: () => void; onTrashed?: (message: string) => void }) {
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const [busy, setBusy] = useState(false);
+  // 폴더 경로를 아는(데스크톱에서 연결한) 방의 파일만 고를 수 있어요.
+  const canPick = (item: ShelfItem) => typeof folders.get(item.room.id) === "string";
+  const pickable = isNative() && onTrashed !== undefined && shelf.items.some(canPick);
+  const trashPicked = async () => {
+    const chosen = shelf.items.filter((item) => picked?.has(pickKey(item)));
+    if (chosen.length === 0 || !(await window.confirm(`파일 ${countText(chosen.length)}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    setBusy(true);
+    const done = new Map<string, Set<string>>();
+    let failed = 0;
+    // 하나씩 차례로 보내요. 하나가 실패해도 나머지는 계속해요.
+    for (const { room, thing } of chosen) {
+      const folder = folders.get(room.id);
+      try {
+        if (typeof folder !== "string") throw new Error("폴더 없음");
+        await trashFile(folder, thing.path);
+        done.set(room.id, (done.get(room.id) ?? new Set()).add(thing.id));
+      } catch (error) {
+        console.error(error);
+        failed++;
+      }
+    }
+    await Promise.all([...done].map(([roomId, ids]) => patchRoom(roomId, (current) => ({ ...current, things: current.things.filter((thing) => !ids.has(thing.id)) })).catch((error: unknown) => console.error(error))));
+    setBusy(false);
+    setPicked(null);
+    const sent = chosen.length - failed;
+    onTrashed?.(`${sent > 0 ? `파일 ${countText(sent)}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${countText(failed)}개는 보내지 못했어요.` : ""}`.trim());
+  };
   return (
     <div className="kind-slip-paper" data-leaving={leaving || undefined} inert={leaving} aria-hidden={leaving || undefined} style={{ "--kind": colorOf(shelf) } as CSSProperties}>
       <div className="kind-folder-head">
@@ -406,9 +441,20 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose }: { sh
           {shelf.label}
         </h3>
         <Meta className="kind-folder-count" items={[`${countText(shelf.items.length)}개`, formatBytes(shelf.size)]} />
+        {pickable && <button type="button" className="quiet kind-pick-toggle" aria-pressed={picked !== null} onClick={() => setPicked(picked ? null : new Set())}>{picked ? "고르기 끝" : "고르기"}</button>}
         <button type="button" className="quiet icon-close kind-slip-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
       </div>
-      <KindFolder shelf={shelf} folders={folders} onOpenFile={onOpenFile} />
+      <KindFolder shelf={shelf} folders={folders} onOpenFile={onOpenFile} picked={picked} canPick={canPick} onPick={(item) => setPicked((current) => {
+        const next = new Set(current);
+        if (!next.delete(pickKey(item))) next.add(pickKey(item));
+        return next;
+      })} />
+      {picked && (
+        <div className="kind-pick-bar" role="status">
+          <span>{picked.size > 0 ? `${countText(picked.size)}개 골랐어요` : "보낼 파일을 눌러 골라 주세요"}</span>
+          <button type="button" disabled={picked.size === 0 || busy} onClick={() => void trashPicked()}><Icon name="trash" />{busy ? "보내는 중…" : "휴지통으로"}</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -449,7 +495,8 @@ function Drawer({ shelf, on, closing, onToggle }: { shelf: Shelf; on: boolean; c
 }
 
 // 목록 종이 몸: 파일 카드가 위아래로 겹쳐 쌓여 있고, 파일이 많으면 여기서 내려요.
-export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void }) {
+// picked가 있으면 고르는 중이라 카드를 누르면 열지 않고 골라요.
+export function KindFolder({ shelf, folders, onOpenFile, picked = null, canPick, onPick }: { shelf: Shelf; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; picked?: Set<string> | null; canPick?: (item: ShelfItem) => boolean; onPick?: (item: ShelfItem) => void }) {
   const [all, setAll] = useState(false);
   const shown = shelf.items.slice(0, all ? shownMost : shownAtFirst);
   return (
@@ -457,7 +504,7 @@ export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folde
       <ul className="kind-folder-things">
         {shown.map((item, order) => (
           <li key={item.thing.id}>
-            <ShelfPaper item={item} order={order} folder={folders.get(item.room.id) ?? null} onOpen={() => onOpenFile(item.room.id, item.thing.id)} />
+            <ShelfPaper item={item} order={order} folder={folders.get(item.room.id) ?? null} picked={picked ? picked.has(pickKey(item)) : undefined} pickDisabled={picked !== null && canPick?.(item) === false} onOpen={() => (picked ? onPick?.(item) : onOpenFile(item.room.id, item.thing.id))} />
           </li>
         ))}
       </ul>
@@ -471,7 +518,8 @@ export function KindFolder({ shelf, folders, onOpenFile }: { shelf: Shelf; folde
   );
 }
 
-function ShelfPaper({ item, order, folder, onOpen }: { item: ShelfItem; order: number; folder: Folder | null; onOpen: () => void }) {
+// picked가 undefined면 고르는 중이 아니에요. 고르는 중엔 눌림(aria-pressed)과 체크 표시로 고른 것을 보여요.
+function ShelfPaper({ item, order, folder, picked, pickDisabled = false, onOpen }: { item: ShelfItem; order: number; folder: Folder | null; picked?: boolean; pickDisabled?: boolean; onOpen: () => void }) {
   const { room, thing, versions } = item;
   const self = useRef<HTMLButtonElement>(null);
   const own = usePicture(thing.id);
@@ -484,6 +532,8 @@ function ShelfPaper({ item, order, folder, onOpen }: { item: ShelfItem; order: n
       style={{ "--i": order } as CSSProperties}
       title={`${thing.name} (${room.name} 방)`}
       aria-label={`${thing.name}, ${room.name} 방, ${formatBytes(thing.size)}${versions > 1 ? `, 버전 ${versions}개 중 최신` : ""}`}
+      aria-pressed={picked}
+      disabled={pickDisabled}
       onClick={onOpen}
     >
       <span className="shelf-art">
