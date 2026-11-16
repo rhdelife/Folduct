@@ -15,7 +15,7 @@ import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFil
 import { freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
-import { canPickFolder, folderProblem, pickFolder, scanLimits, type Access, type ScanResult } from "../gateways/folder";
+import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
@@ -573,7 +573,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {(canPickFolder() || isNative()) && <button type="button" className="primary" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 연결</button>}
           </p>
         )}
-        {!usage.exact && <p className="banner soft-banner">폴더를 다 읽지 못했어요(파일 {scanLimits.files.toLocaleString("ko-KR")}개·폴더 {scanLimits.depth}단계까지만 읽거나, 읽지 못한 항목이 있어요). 못 본 파일은 ‘파일 없음’으로 바꾸지 않고, 용량은 확인한 만큼만 보여 줘요.</p>}
         {room.scan.freedBytes > 0 && <p className="banner happy-banner">지난 확인보다 {formatBytes(room.scan.freedBytes)} 비웠어요. 방이 한결 넓어졌어요.</p>}
       </div>
 
