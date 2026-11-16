@@ -74,7 +74,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const reportBusy = useRef(false);
   const reportTried = useRef("");
   const [importing, setImporting] = useState(false);
-  const [viewing, setViewing] = useState<{ roomId: string; thingId: string } | null>(null);
+  // from: 미리보기 창을 연 곳. 서랍 목록에서 연 창은 그 목록이 닫히면 같이 닫혀요.
+  const [viewing, setViewing] = useState<{ roomId: string; thingId: string; from?: "shelf" } | null>(null);
   const shelf = useRef<HTMLElement>(null);
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
@@ -308,6 +309,11 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   // 연 파일이 최근 작업이 됐으니 닫을 때 더미 순서도 맞춥니다.
   const closePreview = useCallback(() => {
     setViewing(null);
+    void load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const openShelfFile = useCallback((roomId: string, thingId: string) => setViewing({ roomId, thingId, from: "shelf" }), []);
+  const closeShelfPreview = useCallback(() => {
+    setViewing((now) => (now?.from === "shelf" ? null : now));
     void load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const focusThing = useCallback((roomId: string, thingId: string) => {
@@ -569,7 +575,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             </button>
           )}
         </div>
-        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openFile} />}
+        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} />}
       </EngineContext.Provider>
       {!isNative() && (
         <input

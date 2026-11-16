@@ -31,7 +31,8 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // 홈 아래 한 장면: 홈에 둔 방들의 파일을 형식마다 서랍 하나에 나눠 담은 서랍장이에요.
 // 서랍을 누르면 앞으로 빠져나오며 안의 종이가 튀어 오르고, 나머지 서랍은 흐려지고, 옆에 그 서랍의 목록 종이가 펼쳐져요. 한 번에 한 서랍만 열려요.
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
-export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void }>(function KindShelf({ rooms, onOpenFile }, ref) {
+// onListGone: 열려 있던 목록 종이가 닫히거나 다른 서랍 목록으로 바뀌면 불러요. 그 목록에서 연 미리보기 창도 같이 닫으려고요.
+export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void }>(function KindShelf({ rooms, onOpenFile, onListGone }, ref) {
   // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
   const [mode, setMode] = useState<"kind" | "hue">("kind");
   const kinds = useMemo(() => kindShelves(rooms, colorGroups), [rooms]);
@@ -170,6 +171,11 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
       { duration: tokenMs("--dur-drawer", element), easing: tokens.getPropertyValue("--ease-drawer") },
     );
   };
+  const shownList = useRef<string | null>(null);
+  useEffect(() => {
+    if (shownList.current !== null && shownList.current !== open) onListGone?.();
+    shownList.current = open;
+  }, [open, onListGone]);
   // 닫으면 그 서랍 앞판으로 포커스를 돌려줘요.
   const close = () => {
     stopGrow();
