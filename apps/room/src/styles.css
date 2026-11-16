@@ -1084,6 +1084,37 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 
 /* ── 줄: 파일이 1 새로 왔어요 → 2 요즘 써요 → 3 잠잠해요 → 4 정리 상자로 흘러갑니다. 줄은 위아래로 쌓고, 넓으면 왼쪽에 번호·제목, 오른쪽에 파일이 놓여요. ── */
 .room-stage-wrap { container-type: inline-size; }
+/* 방 판(빈 캔버스): 꺼내 놓은 파일·폴더만 자유롭게 놓아요. 논리 판(RoomCanvas canvasWidth)을 판 폭에 맞춰 통째로 줄이거나 늘려요. */
+.room-canvas { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-6); }
+.room-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.room-canvas-head h2 { font-size: var(--text-lg); line-height: var(--lh-lg); }
+.room-canvas-board { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.room-canvas-plane { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.room-canvas-empty { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: var(--space-3); color: var(--ink-soft); font-size: var(--text-sm); text-align: center; }
+.canvas-item { position: absolute; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.canvas-item.moving { z-index: 2; cursor: grabbing; }
+.canvas-item-face { display: block; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; transform: none; cursor: inherit; }
+.canvas-item-face:hover:not(:disabled) { background: none; transform: none; }
+.canvas-item-face[aria-pressed="true"]::before { content: none; }
+.canvas-item.selected .canvas-item-face { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
+.canvas-art { display: grid; justify-items: center; gap: var(--space-1); width: 100%; }
+.canvas-art .object { display: block; width: 100%; height: auto; overflow: visible; }
+.canvas-art.missing .object { opacity: 0.45; }
+.canvas-item-remove { position: absolute; top: calc(var(--space-2) * -1); right: calc(var(--space-2) * -1); min-width: var(--control-sm); min-height: var(--control-sm); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); opacity: 0; transition: opacity var(--dur-1) var(--ease-standard); }
+.canvas-item-size { position: absolute; right: calc(var(--space-1) * -1); bottom: var(--space-6); width: var(--space-4); height: var(--space-4); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); border-radius: 0 0 var(--radius-xs) 0; cursor: nwse-resize; opacity: 0; transition: opacity var(--dur-1) var(--ease-standard); }
+.canvas-item:hover .canvas-item-tool, .canvas-item:focus-within .canvas-item-tool, .canvas-item.selected .canvas-item-tool { opacity: 1; }
+@media (hover: none) { .canvas-item-tool { opacity: 1; } }
+/* 꺼내기: 방 폴더를 들어가며 보는 작은 탐색기. 판 위에 펼쳐져요. */
+.room-pick { display: grid; gap: var(--space-2); max-height: calc(var(--space-12) * 7); overflow: auto; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.room-pick-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.room-pick-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+.room-pick-head input { flex: 1 1 calc(var(--space-12) * 3); margin-left: auto; }
+.room-pick h3 { margin-top: var(--space-2); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; color: var(--ink-caption); }
+.room-pick-list { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.room-pick-row { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-lg); }
+.room-pick-name { flex: 1; display: grid; justify-items: start; justify-content: start; align-content: center; min-width: 0; padding: 0 var(--space-2); text-align: left; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.room-pick-name b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.room-pick-name .meta { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .lanes { --lane-paper: clamp(calc(var(--space-12) * 2), 14cqw, calc(var(--space-10) * 4)); --lane-small: calc(var(--lane-paper) * 0.8); --lane-label: calc(var(--space-12) * 4); flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding-bottom: var(--space-6); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .lane { position: relative; display: grid; grid-template-columns: var(--lane-label) minmax(0, 1fr); align-items: start; gap: var(--space-3) var(--space-6); min-width: 0; padding: var(--space-5) var(--space-5) var(--space-6); }
 .lane + .lane { border-top: var(--room-hair) solid var(--room-line); }

@@ -3,6 +3,7 @@ import { normalizePet, normalizeSession, type PetSettings, type Session } from "
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
+import { normalizeCanvas } from "../domain/canvas";
 import { normalizeKindIcons, type KindIconStore } from "../domain/kindIcon";
 import { cleanGroup, storedKind, type Room, type Thing } from "../domain/model";
 
@@ -293,5 +294,7 @@ export function normalizeRoom(value: unknown): Room {
     cover: typeof room.cover === "string" && room.cover ? room.cover : null,
     // 방 분류는 2026-11-16에 생겼어요. 그 전 기록이나 망가진 값은 분류 없음이에요.
     group: cleanGroup(room.group),
+    // 방 판은 2026-11-17에 생겼어요. 그 전 기록이나 망가진 값은 빈 판이에요.
+    canvas: normalizeCanvas(room.canvas),
   };
 }

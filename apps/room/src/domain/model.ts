@@ -59,7 +59,12 @@ export type Room = {
   cover?: string | null;
   // 사용자가 지은 방 분류(예: 수업, 회사). 홈 방 카드 줄을 분류로 거를 때 써요. 없으면 분류 없음이에요.
   group?: string | null;
+  // 방 판(빈 캔버스)에 꺼내 놓은 파일·폴더와 그 자리·크기(domain/canvas.ts). 2026-11-17에 생겼고, 그 전 방은 빈 판이에요.
+  canvas?: CanvasItem[];
 };
+
+// 판 위 하나. key는 파일이면 t:<물건 id>, 폴더면 f:<방 안 경로>예요. x·y는 판 논리 좌표(폭 canvasWidth), s는 크기 배율이에요.
+export type CanvasItem = { key: string; x: number; y: number; s: number };
 
 // 분류 이름은 앞뒤 빈칸을 지우고 20자까지예요. 비면 분류 없음(null)이에요.
 export const roomGroupMax = 20;

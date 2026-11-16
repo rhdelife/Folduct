@@ -12,6 +12,8 @@ import { useThumb } from "../storage/thumbs";
 import { Icon } from "./Icon";
 import { centerOf, cue } from "./useFrodo";
 import { Meta } from "./Meta";
+import { RoomCanvas } from "./RoomCanvas";
+import type { CanvasItem } from "../domain/model";
 
 const boxTones = tonesFrom(boxColor);
 // 상자에 든 종이는 위로 조금 삐져나옵니다. 앞판이 종이를 가려서 상자 안에 든 것처럼 보여요.
@@ -50,13 +52,16 @@ const shownMost = 200;
 // folder는 읽어도 되는 방 폴더예요(권한 없음·샘플이면 null). query가 있으면 이름이 맞는 파일만 남겨요.
 // only가 있으면(색으로 보기) 그 파일만 남기고, 찾을 때처럼 더미와 버전 겹침을 풀어요.
 // picked가 있으면 고르는 중이라, 종이를 누르면 서랍에 띄우지 않고 골라요(여러 개 휴지통으로).
-export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen, picked = null, onPick }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: Set<string> | null; onPick?: (id: string) => void }) {
+// 평소(찾지도 고르지도 않을 때)에는 줄 대신 빈 캔버스 판(RoomCanvas)에 꺼내 놓은 것만 보여 주고, 정리 상자 줄은 그 아래에 그대로 둬요.
+// 찾거나 색으로 보거나 여러 개를 고를 때는 방 전체를 훑어야 해서 예전처럼 줄로 보여 줘요.
+export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen, picked = null, onPick, onCanvas }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: Set<string> | null; onPick?: (id: string) => void; onCanvas: (items: CanvasItem[]) => void }) {
   const [opened, setOpened] = useState<Lane[]>([]);
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
   // 자동 생성 폴더(tmp·build 등) 아래 파일은 줄 뒤쪽 더미로 묶어, 사람이 찾는 파일이 앞줄에 오게 해요.
   // 찾는 중에는 폴더 이름까지 보고, 더미를 풀어 찾은 파일을 모두 앞줄에 둬요. 이름이 맞는 파일·맨 위에 가까운 파일이 먼저예요.
   const searching = isSearching(query) || only !== null;
+  const board = !searching && picked === null;
   // 같은 파일을 여러 번 저장한 계열은 최신본 한 장만 그 줄에 두고, 옛 버전은 그 뒤에 겹쳐요(서랍의 버전 기록에서 찾아요). 찾는 중에는 모두 풀어요.
   const stacks = useMemo(() => stacksOf(room.things), [room.things]);
   const groups = lanes.map((lane) => {
@@ -84,7 +89,9 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   return (
     <div className="lanes">
       <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
-      {groups.map(({ lane, things, front, piles }, index) => {
+      {board && <RoomCanvas room={room} folder={folder} now={now} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} onChange={onCanvas} />}
+      {groups.filter(({ lane }) => !board || lane === "box").map(({ lane, things, front, piles }) => {
+        const index = lanes.indexOf(lane);
         const title = titles[lane];
         const shown = front.slice(0, opened.includes(lane) ? shownMost : shownAtFirst);
         const piled = things.length - front.length;
@@ -95,7 +102,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
             <div className="lane-head">
               {lane === "box" && <span className="lane-box-art"><CardboardBox things={boxShown ? things : []} /></span>}
               {/* 줄 순서(파일이 흘러가는 차례)를 번호로 보여 줘요. 줄은 넷이라 5단계를 넘지 않아요. */}
-              <h2 id={`lane-${lane}`}><span className="lane-no">{index + 1}</span>{" "}{title} <span className="lane-count">{things.length}</span></h2>
+              <h2 id={`lane-${lane}`}>{!board && <><span className="lane-no">{index + 1}</span>{" "}</>}{title} <span className="lane-count">{things.length}</span></h2>
               {lane === "box" && things.length > 0 && !searching && (
                 <button type="button" className="quiet lane-box-toggle" aria-expanded={boxShown} aria-controls="lane-box-body" onClick={() => setBoxOpen(!boxShown)}>{boxShown ? "닫기" : "열기"}</button>
               )}

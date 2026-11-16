@@ -643,7 +643,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       </div>
 
       <div className="room-body">
-        <section className="room-stage-wrap" aria-label={`${room.name} 방. 파일이 새로 왔어요, 요즘 써요, 잠잠해요, 정리 상자 네 줄로 나뉘어 있어요.`}>
+        <section className="room-stage-wrap" aria-label={`${room.name} 방. 꺼내 놓은 파일과 폴더의 판, 그 아래 정리 상자가 있어요.`}>
           <div className="room-capacity">
             {room.things.length > 0 && (
               <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름이나 폴더로 찾기" aria-label="이 방에서 파일 이름이나 폴더 이름으로 찾기" />
@@ -680,6 +680,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               if (!next.delete(id)) next.add(id);
               return next;
             })}
+            onCanvas={(items) => update((current) => ({ ...current, canvas: items }))}
           />
         </section>
 
@@ -707,7 +708,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               <div>
                 <div className="drawer-head">
                   <h2 tabIndex={-1}>파일</h2>
-                  <p className="soft">줄 안의 파일을 누르면 여기서 열거나 고정할 수 있어요. 안 쓰는 파일은 저절로 ‘잠잠해요’ 줄로 옮겨 가요.</p>
+                  <p className="soft">판 위 파일을 누르면 여기서 열거나 고정할 수 있어요. 필요한 파일은 ‘꺼내기’로 판에 놓아요.</p>
                 </div>
               </div>
             )}
