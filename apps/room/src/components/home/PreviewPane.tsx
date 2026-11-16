@@ -5,7 +5,7 @@ import { markWorkDay } from "../../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../../domain/model";
 import { currentOs } from "../../domain/platform";
 import { isExcludedName } from "../../gateways/folder";
-import { isNotFound, trashFile } from "../../gateways/mover";
+import { isNotFound, restoreTrashed, trashFile } from "../../gateways/mover";
 import { askFolder, folderAccess, isNative, firstPage, openInApp, readFolderFile, type Folder } from "../../gateways/native";
 import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
@@ -169,13 +169,28 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
   // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요. 휴지통에서 되살릴 수 있어요.
   const sendToTrash = async () => {
     if (typeof found !== "string" || !(await window.confirm(`‘${thing.name}’ 파일을 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    let place: string | null;
     try {
-      await trashFile(found, thing.path);
+      place = await trashFile(found, thing.path);
     } catch (error) {
       return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
     }
     await patchRoom(room.id, (current) => ({ ...current, things: current.things.filter((item) => item.id !== thing.id) })).catch((error: unknown) => console.error(error));
-    toast(`‘${thing.name}’ 파일을 휴지통으로 보냈어요.`);
+    // macOS는 휴지통 안 자리를 알려 줘서, 알림의 '되돌리기'로 원래 자리와 방 기록에 되돌려요(창은 이미 닫혀 있어요).
+    const gone = thing;
+    toast(`‘${gone.name}’ 파일을 휴지통으로 보냈어요.`, place === null ? undefined : {
+      label: "되돌리기",
+      run: () =>
+        void restoreTrashed(found, gone.path, place)
+          .then(() => patchRoom(room.id, (current) => (current.things.some((item) => item.id === gone.id) ? current : { ...current, things: [...current.things, gone] })))
+          .then(() => {
+            onChanged();
+            toast(`‘${gone.name}’ 파일을 되돌렸어요.`);
+          }, (error: unknown) => {
+            console.error(error);
+            toast("되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+          }),
+    });
     onChanged();
     onClose();
   };
