@@ -1,0 +1,19 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const invoke = vi.fn();
+vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invoke(...args) }));
+const { trashFile } = await import("../gateways/mover");
+
+describe("휴지통으로 보내기", () => {
+  beforeEach(() => invoke.mockReset());
+  it("방 폴더 안 파일 하나만 Tauri에 넘겨요", async () => {
+    await trashFile("/Users/me/방", "참고/시안.psd");
+    expect(invoke).toHaveBeenCalledWith("trash_file", { path: "/Users/me/방/참고/시안.psd" });
+  });
+  it("방 밖·숨김·시스템 파일 이름은 보내기 전에 막아요", async () => {
+    for (const path of ["../밖.txt", "/etc/hosts", ".env", "참고/.DS_Store", "Thumbs.db", ""]) {
+      await expect(trashFile("/Users/me/방", path)).rejects.toThrow();
+    }
+    expect(invoke).not.toHaveBeenCalled();
+  });
+});

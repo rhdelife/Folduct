@@ -24,6 +24,7 @@ import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
+import { trashFile } from "../gateways/mover";
 import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 
 // 방 설정(RoomSettingsDialog)은 방 머리의 단추나 홈에서 방을 우클릭해 엽니다.
@@ -260,6 +261,22 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   // 폴더에서 찾지 못한 파일의 기록만 방에서 뺍니다(T314). 실제 파일은 건드리지 않고, 알림에서 되돌릴 수 있어요.
   // shortcut: 꾸민 이미지(pic:방:물건)는 되돌리기를 위해 남겨 두고 방을 잊을 때 함께 지워요. 쌓여 문제가 되면 그때 따로 치워요.
+  // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요(데스크톱만). 휴지통에서 되살릴 수 있어요.
+  async function trashThing(id: string) {
+    const gone = latest.current?.things.find((thing) => thing.id === id);
+    if (!gone || typeof handle !== "string" || !(await window.confirm(`‘${gone.name}’ 파일을 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    try {
+      await trashFile(handle, gone.path);
+    } catch (error) {
+      toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
+      return;
+    }
+    update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
+    setSelectedId(null);
+    heading.current?.focus();
+    toast(`‘${gone.name}’ 파일을 휴지통으로 보냈어요.`);
+  }
+
   function forgetThing(id: string) {
     const current = latest.current?.things ?? [];
     const at = current.findIndex((thing) => thing.id === id);
@@ -617,6 +634,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 onOpen={(id) => void openFile(id)}
                 onToast={toast}
                 onForget={forgetThing}
+                onTrash={access === "granted" && typeof handle === "string" ? (id) => void trashThing(id) : undefined}
                 onBox={busy === null ? (id) => void putInBox(id) : undefined}
               />
               <VersionLog room={room} thing={selected} folder={access === "granted" ? handle : null} now={now} onPick={setSelectedId} />
@@ -727,7 +745,7 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   );
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForget, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onBox?: (id: string) => void }) {
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForget, onTrash, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onTrash?: (id: string) => void; onBox?: (id: string) => void }) {
   const age = thingAge(thing, room, now);
   const last = shownActivity(thing, room);
   return (
@@ -758,6 +776,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForg
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
         {thing.missing ? <button type="button" onClick={() => onForget(thing.id)}>기록 빼기</button>
           : <button type="button" aria-disabled={!onBox} onClick={() => onBox?.(thing.id)}><Icon name="sweep" />정리 상자에 넣기</button>}
+        {onTrash && !thing.missing && <button type="button" onClick={() => onTrash(thing.id)}><Icon name="trash" />휴지통으로</button>}
       </div>
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />

@@ -5,7 +5,7 @@ import { markWorkDay } from "../../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../../domain/model";
 import { currentOs } from "../../domain/platform";
 import { isExcludedName } from "../../gateways/folder";
-import { isNotFound } from "../../gateways/mover";
+import { isNotFound, trashFile } from "../../gateways/mover";
 import { askFolder, folderAccess, isNative, firstPage, openInApp, readFolderFile, type Folder } from "../../gateways/native";
 import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
@@ -161,6 +161,19 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
   const canOpen = native && typeof found === "string";
   const mode = native && currentOs() === "linux" && previewMode(thing) === "pdf" ? "none" : previewMode(thing);
   const fallback = canOpen ? "‘기본 앱으로 열기’로 열어 주세요." : "‘경로 복사’로 경로를 복사해 원래 앱에서 열어 주세요.";
+  // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요. 휴지통에서 되살릴 수 있어요.
+  const sendToTrash = async () => {
+    if (typeof found !== "string" || !(await window.confirm(`‘${thing.name}’ 파일을 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    try {
+      await trashFile(found, thing.path);
+    } catch (error) {
+      return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
+    }
+    await patchRoom(room.id, (current) => ({ ...current, things: current.things.filter((item) => item.id !== thing.id) })).catch((error: unknown) => console.error(error));
+    toast(`‘${thing.name}’ 파일을 휴지통으로 보냈어요.`);
+    onChanged();
+    onClose();
+  };
   const openApp = () =>
     typeof found === "string" &&
     openInApp(found, thing.path).then(touch, (error: unknown) => setState({ status: "error", message: `파일을 열지 못했어요. (${String(error)})` }));
@@ -256,6 +269,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
       <footer className="row wrap preview-foot">
         {canOpen && <button type="button" onClick={() => void openApp()}>기본 앱으로 열기</button>}
         <button type="button" onClick={() => void writeClipboard(thing.path).then((ok) => toast(ok ? "경로를 복사했어요." : "복사하지 못했어요."))}>경로 복사</button>
+        {canOpen && <button type="button" onClick={() => void sendToTrash()}><Icon name="trash" />휴지통으로</button>}
       </footer>
     </aside>,
     document.body,

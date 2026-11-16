@@ -1,9 +1,11 @@
 import { boxPathCandidate, isInBox, numberedName } from "../domain/care";
 import { isSafeRelativePath } from "../domain/model";
-import { fileManagerName, osErrorKind } from "../domain/platform";
+import { invoke } from "@tauri-apps/api/core";
+import { childPath, fileManagerName, osErrorKind } from "../domain/platform";
 import { isExcludedName } from "./folder";
 
-// 실제 폴더에 하는 변경은 이 파일의 세 가지 이동뿐입니다. 상자 안팎 이동(moveFile), 현관 문서를 방으로 옮기는 이동(moveDoorFile), 같은 폴더 안 이름 바꾸기(renameFile). 지우거나 내용을 고쳐 쓰지 않습니다.
+// 실제 폴더에 하는 변경은 이 파일에만 있어요. 상자 안팎 이동(moveFile), 현관 문서를 방으로 옮기는 이동(moveDoorFile), 같은 폴더 안 이름 바꾸기(renameFile),
+// 그리고 사용자가 확인한 파일 하나를 OS 휴지통으로 보내기(trashFile, 데스크톱만). 영구 삭제나 내용 고쳐 쓰기는 하지 않습니다.
 export type MoveDirectory = {
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MoveDirectory>;
   getFileHandle(name: string): Promise<MoveFile>;
@@ -134,6 +136,14 @@ async function walk(root: MoveDirectory, parts: string[], create: boolean): Prom
   let directory = root;
   for (const part of parts) directory = await directory.getDirectoryHandle(part, { create });
   return directory;
+}
+
+// 방 폴더(root) 안 파일 하나를 휴지통으로 보내요. 부르기 전에 꼭 사용자에게 물어요. 휴지통에서 되살릴 수 있어요.
+// Tauri 쪽(trash_file)도 방 폴더 밖·폴더·바로가기·숨김 파일을 한 번 더 막아요.
+export async function trashFile(root: string, path: string): Promise<void> {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  if (!isSafeRelativePath(path) || name.startsWith(".") || isExcludedName(name)) throw new DOMException("보낼 수 없는 파일이에요.", "NotAllowedError");
+  await invoke("trash_file", { path: path.split("/").reduce(childPath, root) });
 }
 
 // 파일·폴더가 없을 때 브라우저와 Tauri가 주는 오류. 판정만 해서 폴더에 할 수 있는 일은 늘지 않아요.

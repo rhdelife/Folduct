@@ -452,10 +452,18 @@ fn open_in_app<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), Strin
   tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string())
 }
 
+// 사용자가 확인한 방 폴더 안 파일 하나를 OS 휴지통으로 보냅니다. 영구 삭제는 하지 않아 휴지통에서 되살릴 수 있어요.
+// 폴더·바로가기·점으로 시작하는 파일은 보내지 않아요.
 #[tauri::command]
-fn reveal_in_finder<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), String> {
+fn trash_file<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), String> {
   in_scope(&app, &path)?;
-  tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| e.to_string())
+  if !std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?.file_type().is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  if path.file_name().and_then(|name| name.to_str()).map_or(true, |name| name.starts_with('.')) {
+    return Err("숨김 파일은 보낼 수 없어요.".into());
+  }
+  trash::delete(&path).map_err(|e| e.to_string())
 }
 
 // 고른 폴더 안 파일 하나를 이름 바꾸기로 옮깁니다. 대상 자리에 무엇이 있으면 OS가 거절하므로, 확인한 뒤 다른 앱이 만든 파일도 덮어쓰지 않습니다.
@@ -586,7 +594,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, reveal_in_finder, last_used_dates, move_file, set_panel_visible, set_tray_dot])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, last_used_dates, move_file, set_panel_visible, set_tray_dot])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -683,7 +691,7 @@ mod tests {
     std::fs::write(parent.join("other/a.txt"), "a").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
-      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates, move_file])
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, trash_file, last_used_dates, move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
@@ -706,7 +714,13 @@ mod tests {
     assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": boxed })).is_err());
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": boxed })).is_err());
     assert!(invoke(&webview, "open_in_app", json!({ "path": outside })).is_err());
-    assert!(invoke(&webview, "reveal_in_finder", json!({ "path": room.join("../../outside") })).is_err());
+    assert!(invoke(&webview, "trash_file", json!({ "path": room.join("../../outside") })).is_err());
+    // 휴지통은 방 폴더 안의 보통 파일만: 바깥 파일·폴더·숨김 파일은 거절해요(실제 휴지통 이동은 시험하지 않아요).
+    assert!(invoke(&webview, "trash_file", json!({ "path": parent.join("other/a.txt") })).is_err());
+    assert!(invoke(&webview, "trash_file", json!({ "path": room.join("참고") })).is_err());
+    std::fs::write(room.join(".hidden"), "h").unwrap();
+    assert!(invoke(&webview, "trash_file", json!({ "path": room.join(".hidden") })).is_err());
+    assert!(room.join(".hidden").exists());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": outside, "paths": ["a.txt"] })).is_err());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": room, "paths": ["../other/a.txt"] })).is_err());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": room, "paths": ["/etc/hosts"] })).is_err());
@@ -728,7 +742,7 @@ mod tests {
     std::fs::write(door.join("보고서.pdf"), "원본").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
-      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, reveal_in_finder, last_used_dates, move_file])
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, trash_file, last_used_dates, move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
