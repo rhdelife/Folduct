@@ -271,7 +271,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         </filter>
       </svg>
       <header className="kind-shelves-head">
-        <h2 id="kind-shelves-title">Drawer</h2>
+        {/* 제목은 머리줄 탭(Drawer)과 겹쳐 화면에서는 숨기고, 화면 읽기 프로그램에만 이 영역 이름으로 남겨요. */}
+        <h2 id="kind-shelves-title" className="sr-only">Drawer</h2>
         <div className="kind-shelves-tools">
           <div className="seg" role="radiogroup" aria-label="서랍 나누기">
             {tabs.map((tab) => (
