@@ -1792,7 +1792,9 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-slip[data-open="true"] { visibility: visible; }
 .kind-folder:focus-visible { outline: none; }
 .kind-slip-paper:has(.kind-folder:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
-.kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; padding: var(--space-5); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-2); opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); will-change: translate; }
+.kind-slip-paper { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--space-4); width: calc(var(--kind-slip-w) - var(--space-6)); min-height: 0; position: relative; padding: var(--space-5); border: var(--pen) solid transparent; border-radius: var(--radius-lg) var(--radius-md) var(--radius-lg) var(--radius-sm) / var(--radius-md) var(--radius-lg) var(--radius-sm) var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); opacity: var(--kind-slip-alpha); translate: var(--kind-slip-from); will-change: translate; }
+/* 목록 종이 테두리도 서랍장과 같은 펜 선이에요. 글자는 흔들리지 않게 선만 따로 그려요. */
+.kind-slip-paper::after { content: ""; position: absolute; inset: calc(var(--pen) * -1); border: var(--pen) solid var(--ink); border-radius: inherit; filter: url(#kind-pen); pointer-events: none; }
 .kind-slip[data-open="true"] .kind-slip-paper { opacity: 1; translate: 0 0; }
 /* 서랍을 바꿔 열면 두 장이 같은 칸에 겹쳐요. 새 종이가 위로 밀려 들어오고, 옛 종이는 그 밑에서 살짝 가라앉으며 사라져요. */
 .kind-slip-paper { grid-area: 1 / 1; }
