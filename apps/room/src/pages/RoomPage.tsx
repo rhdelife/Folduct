@@ -82,6 +82,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   // 파일 열기 요청 번호. 창을 닫거나 다른 파일을 열면 늘어나서, 늦게 끝난 읽기는 버립니다.
   const viewerReq = useRef(0);
   const heading = useRef<HTMLHeadingElement>(null);
+  // 여러 파일 고르기(휴지통으로). null이면 고르는 중이 아니에요.
+  const [picked, setPicked] = useState<Set<string> | null>(null);
   const side = useRef<HTMLElement>(null);
 
   // 고칠 때마다 상태를 바꾸고, 0.3초 뒤에 한 번에 저장합니다. 방을 떠나거나 창을 가릴 때도 남은 것을 저장합니다.
@@ -261,6 +263,28 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   // 폴더에서 찾지 못한 파일의 기록만 방에서 뺍니다(T314). 실제 파일은 건드리지 않고, 알림에서 되돌릴 수 있어요.
   // shortcut: 꾸민 이미지(pic:방:물건)는 되돌리기를 위해 남겨 두고 방을 잊을 때 함께 지워요. 쌓여 문제가 되면 그때 따로 치워요.
+  // '고르기'로 고른 파일들을 한 번 묻고 차례로 휴지통으로 보내요. 하나가 실패해도 나머지는 계속해요.
+  async function trashPicked() {
+    const chosen = (latest.current?.things ?? []).filter((thing) => picked?.has(thing.id) && !thing.missing);
+    if (chosen.length === 0 || typeof handle !== "string" || !(await window.confirm(`파일 ${chosen.length.toLocaleString("ko-KR")}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    setBusy("휴지통으로 보내는 중…");
+    const sent = new Set<string>();
+    for (const thing of chosen) {
+      try {
+        await trashFile(handle, thing.path);
+        sent.add(thing.id);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    setBusy(null);
+    if (sent.size > 0) update((room) => ({ ...room, things: room.things.filter((thing) => !sent.has(thing.id)) }));
+    if (selectedId && sent.has(selectedId)) setSelectedId(null);
+    setPicked(null);
+    const failed = chosen.length - sent.size;
+    toast(`${sent.size > 0 ? `파일 ${sent.size.toLocaleString("ko-KR")}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 보내지 못했어요.` : ""}`.trim());
+  }
+
   // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요(데스크톱만). 휴지통에서 되살릴 수 있어요.
   async function trashThing(id: string) {
     const gone = latest.current?.things.find((thing) => thing.id === id);
@@ -600,8 +624,17 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름이나 폴더로 찾기" aria-label="이 방에서 파일 이름이나 폴더 이름으로 찾기" />
             )}
             {imageCount > 0 && <HueSwatches value={hue} found={hues} total={imageCount} onReach={() => setHueOn(true)} onPick={setHue} />}
+            {access === "granted" && typeof handle === "string" && room.things.length > 0 && (
+              <button type="button" className="quiet room-pick-toggle" aria-pressed={picked !== null} onClick={() => setPicked(picked ? null : new Set())}>{picked ? "고르기 끝" : "고르기"}</button>
+            )}
             <Capacity usage={usage} />
           </div>
+          {picked && (
+            <div className="room-pick-bar" role="status">
+              <span>{picked.size > 0 ? `${picked.size.toLocaleString("ko-KR")}개 골랐어요` : "휴지통으로 보낼 파일을 눌러 골라 주세요"}</span>
+              <button type="button" disabled={picked.size === 0 || busy !== null} onClick={() => void trashPicked()}><Icon name="trash" />휴지통으로</button>
+            </div>
+          )}
           <RoomScene
             room={room}
             now={now}
@@ -616,6 +649,12 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               if (window.matchMedia(stacked).matches) side.current?.scrollIntoView({ block: "nearest" });
             }}
             onOpen={(id) => void openFile(id)}
+            picked={picked}
+            onPick={(id) => setPicked((current) => {
+              const next = new Set(current);
+              if (!next.delete(id)) next.add(id);
+              return next;
+            })}
           />
         </section>
 

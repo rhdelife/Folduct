@@ -49,7 +49,8 @@ const shownMost = 200;
 // 방 안: 파일이 1→4로 흐르는 네 줄을 위아래로 쌓아요(왼쪽에 번호·제목, 오른쪽에 파일). 자리가 곧 상태라서 색 없이 자리·글자·모양으로 말합니다.
 // folder는 읽어도 되는 방 폴더예요(권한 없음·샘플이면 null). query가 있으면 이름이 맞는 파일만 남겨요.
 // only가 있으면(색으로 보기) 그 파일만 남기고, 찾을 때처럼 더미와 버전 겹침을 풀어요.
-export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+// picked가 있으면 고르는 중이라, 종이를 누르면 서랍에 띄우지 않고 골라요(여러 개 휴지통으로).
+export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen, picked = null, onPick }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: Set<string> | null; onPick?: (id: string) => void }) {
   const [opened, setOpened] = useState<Lane[]>([]);
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
@@ -104,7 +105,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
               <ul className="lane-things">
                 {shown.map((thing, order) => (
                   <li key={thing.id}>
-                    <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                    <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} picked={picked ? picked.has(thing.id) : undefined} onPick={onPick} />
                   </li>
                 ))}
               </ul>
@@ -147,7 +148,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
                     <ul className="lane-things">
                       {open.things.slice(0, openPile?.all ? shownMost : shownAtFirst).map((thing, order) => (
                         <li key={thing.id}>
-                          <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} />
+                          <LanePaper room={room} folder={folder} stack={searching ? undefined : stacks.top.get(thing.id)} thing={thing} lane={lane} now={now} order={order} selected={thing.id === selectedId} onSelect={onSelect} onOpen={onOpen} picked={picked ? picked.has(thing.id) : undefined} onPick={onPick} />
                         </li>
                       ))}
                     </ul>
@@ -206,7 +207,8 @@ function PileCard({ id, pile, open, onToggle }: { id: string; pile: Pile; open: 
 }
 
 // stack이 있으면 이 파일은 그 계열의 최신본이에요. 옛 버전 두 장을 뒤에 겹쳐 그리고 버전 수를 적어요.
-function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onSelect, onOpen }: { room: Room; folder: Folder | null; stack?: Thing[]; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onSelect, onOpen, picked, onPick }: { room: Room; folder: Folder | null; stack?: Thing[]; thing: Thing; lane: Lane; now: number; order: number; selected: boolean; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: boolean; onPick?: (id: string) => void }) {
+  const picking = picked !== undefined;
   // 종이 아래 날짜: 새 파일은 들어온 날, 잠잠한 파일은 쉰 날수, 나머지는 마지막으로 쓴 날. 상자는 서랍에서 보여요.
   const days = lane === "quiet" ? activityDays(thing, now) : null;
   const when = lane === "new" ? `${relativeDay(thing.seenAt, now)} 들어옴` : lane === "use" ? relativeDay(shownActivity(thing, room), now) : null;
@@ -219,18 +221,19 @@ function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onS
       ref={self}
       type="button"
       title={thing.name}
-      className={`lane-paper${stack ? " lane-stack" : ""}${selected ? " selected" : ""}${thing.missing ? " missing" : ""}`}
+      className={`lane-paper${stack ? " lane-stack" : ""}${selected && !picking ? " selected" : ""}${thing.missing ? " missing" : ""}${picking ? " picking" : ""}`}
       style={{ "--i": Math.min(order, 16) } as CSSProperties}
       data-thing-id={thing.id}
-      aria-pressed={selected}
+      aria-pressed={picking ? picked : selected}
+      disabled={picking && thing.missing}
       aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${days !== null ? `, ${days}일째 그대로` : ""}${when ? `, ${when}` : ""}${thing.missing ? ", 파일 없음" : ""}${thing.pinned ? ", 고정됨" : ""}${stack ? `, 버전 ${stack.length}개 중 최신` : ""}`}
       aria-describedby="lanes-hint"
       onPointerEnter={(event) => cue(room.id, { look: centerOf(event.currentTarget) })}
       onPointerLeave={() => cue(room.id, { look: null })}
-      onClick={() => onSelect(thing.id)}
-      onDoubleClick={() => onOpen(thing.id)}
+      onClick={() => (picking ? onPick?.(thing.id) : onSelect(thing.id))}
+      onDoubleClick={() => !picking && onOpen(thing.id)}
       onKeyDown={(event) => {
-        if (event.key !== "Enter" || !selected) return;
+        if (event.key !== "Enter" || !selected || picking) return;
         event.preventDefault();
         onOpen(thing.id);
       }}
@@ -241,7 +244,7 @@ function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onS
         ))}
         <ObjectShape kind={thing.kind} size={paperPx} name={thing.name} seed={thing.id} picture={own ?? thumb} />
         {/* 고른 파일에는 연필로 동그라미를 칩니다. */}
-        {selected && (
+        {selected && !picking && (
           <svg className="hand-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <path d="M20 12C42 0 82 2 94 30C104 58 84 92 50 96C18 100 0 74 4 44C7 24 26 6 60 5" />
           </svg>
