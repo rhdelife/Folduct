@@ -1286,7 +1286,21 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 판은 일력과 같은 왼쪽·아래에 서서, 일력 카드에서 위·오른쪽으로 자라요(HomeStack이 자리를 움직여요). 자라는 동안 속은 판 밖으로 나가지 않아요. */
 .home-panel { position: absolute; left: var(--space-6); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; width: min(var(--home-panel-w), calc(100% - 2 * var(--space-6))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
 /* 프로도 받침 바로 아래 작업 줄(heroLayout startSpace 자리). 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
-.under-frodo { position: absolute; z-index: 3; translate: -50% var(--space-4); transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
+/* 작업 막대: 홈 위쪽 가운데. 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
+   좁은 창은 머리줄에 자리가 없어 아래 홈 | Drawer 알약 바로 위에 둬요. */
+.work-bar { position: absolute; top: var(--chrome-y); left: 50%; z-index: 81; translate: -50% -50%; display: flex; justify-content: center; }
+.work-bar .work-control { min-height: var(--control-md); gap: var(--space-1); }
+.work-bar .work-control button { min-height: var(--control-md); padding: 0 var(--space-4); font-size: var(--text-sm); }
+.work-bar .work-start { min-width: 0; }
+.work-bar .work-clock { display: inline-flex; align-items: baseline; gap: var(--space-2); justify-items: start; }
+.work-bar .work-clock b { font-size: var(--text-md); line-height: var(--lh-md); }
+.work-bar .work-control.picking { position: absolute; top: calc(var(--control-md) * -0.5); left: 50%; translate: -50% 0; width: max-content; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); }
+.work-pick-title { flex-basis: 100%; margin: 0; text-align: center; font-size: var(--text-sm); font-weight: 700; }
+.room-working { display: block; color: var(--ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; }
+@media (max-width: 720px) {
+  .work-bar { top: auto; bottom: calc(var(--space-5) + var(--control-lg) + var(--space-6)); translate: -50% 0; }
+  .work-bar .work-control.picking { top: auto; bottom: 0; }
+}
 .work-control { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--space-12); white-space: nowrap; }
 .work-control button { min-height: var(--space-12); padding: 0 var(--space-5); border-radius: var(--radius-pill); font-size: var(--text-md); font-weight: 700; }
 .work-start { min-width: calc(var(--space-12) * 3); }

@@ -25,6 +25,9 @@ export const workPauseAsked = "work-pause";
 export const workEndAsked = "work-end";
 // 메인 창 홈에서 고른 방으로 작업을 시작해요(payload는 방 id). 작은 창은 열지 않아요.
 export const workStartRoom = "work-start-room";
+// 작업 중 새 파일을 작업 방으로 자동으로 옮겼다고 메인 창에 알리고(글), 메인 창 알림의 '되돌리기'를 작은 창에 부탁해요.
+export const workAutoMoved = "work-auto-moved";
+export const workAutoUndo = "work-auto-undo";
 // 작은 창의 '이번 주 정리' 알림에서 '보기'를 누르면 메인 창이 정리 창을 열어요.
 export const sweepOpenAsked = "sweep-open";
 

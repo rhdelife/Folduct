@@ -3,21 +3,18 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { faceColorVar } from "../../domain/face";
 import type { Room } from "../../domain/model";
 import { formatWorked, normalizeSession, workedTime, type Session } from "../../domain/session";
-import { sessionChanged, workEndAsked, workPauseAsked, workStartRoom } from "../../gateways/native";
+import { isNative, sessionChanged, workEndAsked, workPauseAsked, workStartRoom } from "../../gateways/native";
 import { getSession } from "../../storage/db";
 import { RoomFaceArt } from "../RoomFace";
 import { Icon } from "../Icon";
 
 const ask = (event: string, payload?: string) => void emit(event, payload).catch((error: unknown) => console.error(error));
 
-// 프로도 받침 아래 작업 줄. 시간은 메뉴 막대 작은 창이 재고, 이 줄은 그 창의 상태를 따라가요.
-// 꺼져 있으면 '작업 시작' 하나. 누르면 이 자리에서 방 알약이 펼쳐지고, 고르면 작은 창을 열지 않고 바로 시간을 재요.
-// 작업 중이면 그 자리가 시간·멈춤·끝내기로 갈라져요. 누르면 작은 창에 부탁해요(시간은 그 창이 재요).
-export function WorkControl({ rooms }: { rooms: Room[] }) {
+// 메뉴 막대 작은 창이 재는 작업 상태. 홈의 작업 막대와 방 카드의 '작업 중' 표시가 같이 써요. 앱이 아니면 늘 없음이에요.
+export function useWorkSession(): Session | null {
   const [session, setSession] = useState<Session | null>(null);
-  const [now, setNow] = useState(Date.now);
-  const [picking, setPicking] = useState(false);
   useEffect(() => {
+    if (!isNative()) return;
     let left = false;
     let stop = () => {};
     getSession().then((saved) => !left && setSession(saved), (error: unknown) => console.error(error));
@@ -27,6 +24,16 @@ export function WorkControl({ rooms }: { rooms: Room[] }) {
       stop();
     };
   }, []);
+  return session;
+}
+
+// 홈 위쪽 가운데의 작업 막대. 파일 보기(방 카드를 프로도에게 먹이기)와 섞이지 않게 프로도에서 떨어진 자리에 둬요.
+// 시간은 메뉴 막대 작은 창이 재고, 이 막대는 그 창의 상태를 따라가요.
+// 꺼져 있으면 '작업 시작' 하나. 누르면 막대 아래로 방 알약이 펼쳐지고, 고르면 작은 창을 열지 않고 바로 시간을 재요.
+// 작업 중이면 방 이름·시간·멈춤·끝내기로 갈라져요. 누르면 작은 창에 부탁해요(시간은 그 창이 재요).
+export function WorkControl({ rooms, session }: { rooms: Room[]; session: Session | null }) {
+  const [now, setNow] = useState(Date.now);
+  const [picking, setPicking] = useState(false);
   const working = session?.status === "working";
   useEffect(() => {
     if (!working) return;
@@ -44,7 +51,8 @@ export function WorkControl({ rooms }: { rooms: Room[] }) {
     const choices = rooms.filter((room) => !room.care.done);
     if (picking) {
       return (
-        <div className="work-control picking" key="pick" role="group" aria-label="어느 방을 시작할까요?">
+        <div className="work-control picking" key="pick" role="group" aria-label="어느 방에서 작업할까요?">
+          <p className="work-pick-title">어느 방에서 작업할까요?</p>
           <ul className="pet-rooms">
             {choices.map((room) => (
               <li key={room.id}>
@@ -77,8 +85,8 @@ export function WorkControl({ rooms }: { rooms: Room[] }) {
   return (
     <div className="work-control on" key="on" role="group" aria-label={`${room?.name ?? "방"} ${working ? "작업 중" : "멈춤"}`}>
       <span className="work-clock" aria-live="off">
-        <b>{formatWorked(workedTime(session, now))}</b>
         <small>{room?.name ?? "방"} · {working ? "작업 중" : "멈춤"}</small>
+        <b>{formatWorked(workedTime(session, now))}</b>
       </span>
       <button type="button" className={working ? "stop" : "primary"} onClick={() => ask(workPauseAsked)}>{working ? "멈춤" : "다시 시작"}</button>
       <button type="button" className="end" onClick={() => ask(workEndAsked)}>끝내기</button>

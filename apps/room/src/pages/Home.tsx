@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
 import { awayFromHome, createEngine, EngineContext, type HomeActions } from "../components/home/engine";
@@ -30,7 +30,7 @@ import { AiError } from "../gateways/claude";
 import { getAiSettings } from "../storage/ai";
 import { getReportEvery, getWorkReports } from "../storage/workReport";
 import { homeLimit, roomStats } from "../domain/sky";
-import { doorChanged, isNative, sessionEnded, sweepOpenAsked, watchFolder, workLogged } from "../gateways/native";
+import { doorChanged, isNative, sessionEnded, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo, workLogged } from "../gateways/native";
 import { planSweep, refreshRooms, roomFolder, type SweepPlan } from "../storage/box";
 import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
@@ -204,6 +204,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       void getDoorstep().then(setDoor, (error: unknown) => console.error(error));
       void load();
     }).then(add);
+    // 작업 중 새 파일이 작업 방으로 자동으로 옮겨지면 홈에도 알려요. 되돌리기는 작은 창이 해요.
+    void listen<string>(workAutoMoved, (event) => toast(event.payload, { label: "되돌리기", run: () => void emit(workAutoUndo).catch((error: unknown) => console.error(error)) })).then(add);
     // 작업을 끝낼 때마다 정리를 묻지 않아요. 기록만 새로 읽어요.
     void listen(sessionEnded, () => void load()).then(add);
     // 작은 창 알림의 '보기': 메인 창을 앞으로 가져와 이번 주 정리 창을 열어요.

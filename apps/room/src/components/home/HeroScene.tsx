@@ -7,7 +7,7 @@ import { PoseArt } from "../RoomFace";
 import { SkyMap } from "../SkyMap";
 import type { SceneProps } from "./engine";
 import { HomeStack } from "./HomeStack";
-import { WorkControl } from "./WorkControl";
+import { useWorkSession, WorkControl } from "./WorkControl";
 
 type HeroProps = SceneProps & {
   selectedId: string | null;
@@ -26,6 +26,7 @@ type HeroProps = SceneProps & {
 // 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
 export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, sweepDue, onSweepLater, paneOpen }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
+  const session = useWorkSession();
 
   return (
     <section className="scene scene-hero" aria-label="첫 화면">
@@ -40,8 +41,14 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
         </div>
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
+          {/* 작업(시간 재기)은 위쪽 가운데 막대에서만 다뤄요. 프로도 아래는 먹인 방의 파일을 보는 자리예요. */}
+          {isNative() && (
+            <div className="work-bar">
+              <WorkControl rooms={rooms} session={session} />
+            </div>
+          )}
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} onNewRoom={actions.openNew} underFrodo={isNative() ? <WorkControl rooms={rooms} /> : undefined} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} onNewRoom={actions.openNew} workingId={session?.roomId ?? null} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>

@@ -41,7 +41,7 @@ export function SkyMap({
   onOpenThing,
   onRoomMenu,
   onNewRoom,
-  underFrodo,
+  workingId = null,
   overFrodo,
   paneOpen = false,
 }: {
@@ -58,8 +58,8 @@ export function SkyMap({
   onRoomMenu: OpenRoomMenu;
   // 방 카드 줄 끝의 + 카드가 여는 새 방 만들기. 없으면 + 카드를 두지 않아요.
   onNewRoom?: () => void;
-  // 프로도 받침 바로 아래에 둘 것(작업 시작 줄). 자리는 heroLayout이 startSpace만큼 비워 둬요.
-  underFrodo?: ReactNode;
+  // 지금 작업 중인 방. 그 방 카드에 '작업 중'을 굵은 글자로 붙여, 프로도가 먹은 방과 구분해요.
+  workingId?: string | null;
   // 프로도 머리 위에 띄우는 말풍선 자리예요(이번 주 정리).
   overFrodo?: ReactNode;
   // 오른쪽 미리보기 창(--preview-w)이 열리면 넓은 창에서는 판이 그만큼 좁아져(styles.css .pane-open) 왼쪽 폭에만 배치해요.
@@ -217,6 +217,7 @@ export function SkyMap({
           stats={stats}
           selectedId={selectedId}
           focusId={focusId}
+          workingId={workingId}
           onFeed={feed}
           onOpenRoom={onOpenRoom}
           onFocusThing={onFocusThing}
@@ -227,7 +228,6 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        {frodo && underFrodo && <div className="under-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.floor }}>{underFrodo}</div>}
         {frodo && overFrodo && <div className="over-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>{overFrodo}</div>}
         <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
@@ -265,6 +265,7 @@ const MapLayers = memo(function MapLayers({
   stats,
   selectedId,
   focusId,
+  workingId,
   onFeed,
   onOpenRoom,
   onFocusThing,
@@ -287,6 +288,7 @@ const MapLayers = memo(function MapLayers({
   stats: Map<string, RoomStat>;
   selectedId: string | null;
   focusId: string | null;
+  workingId: string | null;
   onFeed: (id: string | null) => void;
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
@@ -502,7 +504,7 @@ const MapLayers = memo(function MapLayers({
                   style={{ "--room-color": faceColorVar(room.face.color) } as CSSProperties}
                   tabIndex={room.id === tabStop ? 0 : -1}
                   aria-pressed={fed}
-                  aria-label={`${room.name} 방, ${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}${fed ? `. 프로도가 먹었어요${shares ? `: ${shares}` : ""}. 한 번 더 누르면 방으로 들어가요` : ""}`}
+                  aria-label={`${room.name} 방, ${room.id === workingId ? "작업 중, " : ""}${size}${stale > 0 ? `, 안 쓴 파일 ${stale}개` : ""}${parts.length ? `, ${kindSummary(parts)}` : ""}${fed ? `. 프로도가 먹었어요${shares ? `: ${shares}` : ""}. 한 번 더 누르면 방으로 들어가요` : ""}`}
                   onClick={(event) => {
                     if (dragged.current) {
                       dragged.current = false;
@@ -531,6 +533,8 @@ const MapLayers = memo(function MapLayers({
                 >
                   <RoomCover room={room} folder={folders.get(room.id) ?? null} px={64} color={faceHex(room.face.color)} />
                   <span className="room-label">{room.name}</span>
+                  {/* 좁은 창은 아래 보조 줄을 숨겨서, 작업 중 표시는 따로 둬요. */}
+                  {room.id === workingId && <b className="room-working">작업 중</b>}
                   <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
                 </button>
                 {/* 오른쪽 클릭으로만 열리던 방 메뉴(방 설정·홈에서 빼기)를 보이는 단추로도 열어요. */}
