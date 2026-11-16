@@ -13,7 +13,6 @@ import { cue } from "../components/useFrodo";
 import { HomeMenu } from "../components/HomeMenu";
 import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
-import { IconMaker } from "../components/IconMaker";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
 import { PreviewPane } from "../components/home/PreviewPane";
@@ -70,7 +69,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [iconsOpen, setIconsOpen] = useState(false);
   // 작업 보고 창. true면 지금 기간, Period면 그 기간으로 열어요.
   const [reportOpen, setReportOpen] = useState<Period | true | null>(null);
   const reportBusy = useRef(false);
@@ -628,7 +626,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                 이번 주 정리 보기
               </button>
               <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
-              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen(true))}>아이콘 만들기</button>
               {hasSample ? (
                 <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
               ) : (
@@ -639,7 +636,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
         />
       )}
       {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
-      {iconsOpen && <IconMaker onClose={() => setIconsOpen(false)} />}
       {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
         <NewRoomDialog
@@ -685,7 +681,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }}
         />
       )}
-      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !iconsOpen && !reportOpen && !settingsRoom && (
+      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !reportOpen && !settingsRoom && (
         <HomeRoomsDialog rooms={onHome} prefer={[raised.current, returnTo]} now={now} onKeep={keepOnHome} />
       )}
       {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}

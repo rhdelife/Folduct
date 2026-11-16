@@ -3,7 +3,6 @@ import { normalizePet, normalizeSession, type PetSettings, type Session } from "
 import { normalizeCare } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
-import { normalizeIcons, type DuctIcon } from "../domain/icon";
 import { cleanGroup, storedKind, type Room, type Thing } from "../domain/model";
 
 // 이 브라우저 안에만 저장합니다. 파일 내용은 저장하지 않고 이름·크기·자리·메모만 둡니다.
@@ -217,15 +216,6 @@ export async function patchWorkLog(mutate: (log: WorkLog) => WorkLog): Promise<W
   };
   await settle(tx);
   return saved;
-}
-
-// 아이콘 보관함. 그림이 아니라 부품 번호 목록이라 가벼워요. 저장소를 새로 만들지 않고 meta의 "icons" 키에 둬요.
-export async function getIcons(): Promise<DuctIcon[]> {
-  return normalizeIcons(await run<unknown>("meta", "readonly", (store) => store.get("icons")));
-}
-
-export function setIcons(icons: DuctIcon[]): Promise<unknown> {
-  return run("meta", "readwrite", (store) => store.put(icons, "icons"));
 }
 
 export async function getIntroOn(): Promise<boolean> {

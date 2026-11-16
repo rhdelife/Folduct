@@ -1545,15 +1545,6 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .face-swatch:hover:not(:disabled), .face-swatch:active:not(:disabled) { background: var(--room-color); transform: none; }
 .face-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ink); }
 .cover-options .room-cover { --ink: var(--room-color); }
-/* 아이콘 만들기와 보관함. 아이콘은 프로도 그림이라 테두리를 방 색으로 바꾸지 않고 잉크 그대로 그려요. */
-.room-cover.icon-cover { --ink: inherit; }
-.icon-cover svg, .icon-shapes svg { display: block; width: 100%; height: auto; }
-.icon-stage { display: grid; place-items: center; padding: var(--space-4); border-radius: var(--radius-md); background: var(--bg); }
-.icon-preview { display: block; width: calc(var(--space-12) * 3); height: auto; }
-.icon-shapes { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--space-12), 1fr)); gap: var(--space-2); }
-.icon-shapes .cover-option[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ink); }
-.icon-exprs { display: flex; flex-wrap: wrap; }
-.icon-maker h3 { font-size: var(--text-md); line-height: var(--lh-md); }
 .settings-foot { position: sticky; bottom: calc(var(--space-6) * -1); margin: 0 calc(var(--space-6) * -1) calc(var(--space-6) * -1); padding: var(--space-3) var(--space-6); border-top: 1px solid var(--line); background: inherit; }
 
 /* ══ 글래스 ══ */

@@ -6,9 +6,6 @@ import { canThumb, coverOf, useReadableFolders } from "../storage/thumbs";
 import { faceColors, faceColorVar } from "../domain/face";
 import { CoverPaper, faceHex, OwnCover } from "./RoomCover";
 import { useModal } from "./useModal";
-import { iconCoverId } from "../domain/icon";
-import { useIcons } from "../storage/icons";
-import { IconArt } from "./IconMaker";
 
 const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
 // 썸네일로 고를 수 있게 보여 주는 방 그림 수. 최근 것부터예요.
@@ -49,7 +46,6 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
     return picked && !shown.includes(picked) ? [picked, ...shown.slice(0, -1)] : shown;
   }, [room.things, room.cover]);
   const auto = coverOf({ things: room.things, cover: null });
-  const icons = useIcons();
 
   const changed = draft.name !== start.name || draft.care.done !== start.care.done || draft.care.staleAfterDays !== start.care.staleAfterDays || draft.cover !== start.cover || draft.color !== start.color || cleanGroup(draft.group) !== cleanGroup(start.group) || upload !== null;
   const tint = faceHex(draft.color);
@@ -145,7 +141,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
         </fieldset>
         <fieldset className="cover-picker">
           <legend>방 썸네일</legend>
-          <p className="soft">홈 방 카드에 보여요. 고르지 않으면 가장 최근 그림을 써요. 아이콘은 메뉴의 아이콘 만들기에서 만들어요.</p>
+          <p className="soft">홈 방 카드에 보여요. 고르지 않으면 가장 최근 그림을 써요.</p>
           <div className="cover-options" role="group" aria-label="방 썸네일 고르기" style={{ "--room-color": faceColorVar(draft.color) } as CSSProperties}>
             <button type="button" className="cover-option" aria-pressed={draft.cover === null} onClick={() => pick(null)}>
               {auto ? <CoverPaper thing={auto} folder={folder} px={choicePx} color={tint} /> : <span className="cover-empty" aria-hidden="true" />}
@@ -157,12 +153,6 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
                 <span>내 그림</span>
               </button>
             )}
-            {icons.map((icon) => (
-              <button key={icon.id} type="button" className="cover-option" aria-pressed={draft.cover === iconCoverId(icon.id)} title={icon.name} onClick={() => pick(iconCoverId(icon.id))}>
-                <span className="room-cover icon-cover" aria-hidden="true"><IconArt icon={icon} px={choicePx} /></span>
-                <span>{icon.name || "내 아이콘"}</span>
-              </button>
-            ))}
             {choices.map((thing) => (
               <button key={thing.id} type="button" className="cover-option" aria-pressed={draft.cover === thing.id} title={thing.name} onClick={() => pick(thing.id)}>
                 <CoverPaper thing={thing} folder={folder} px={choicePx} color={tint} />
