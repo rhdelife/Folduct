@@ -3,10 +3,10 @@ import { createPortal } from "react-dom";
 import { ObjectShape } from "../../art/ObjectShape";
 import { markWorkDay } from "../../domain/care";
 import { formatBytes, kindLabels, type Room, type Thing } from "../../domain/model";
-import { currentOs, fileManagerName } from "../../domain/platform";
+import { currentOs } from "../../domain/platform";
 import { isExcludedName } from "../../gateways/folder";
 import { isNotFound } from "../../gateways/mover";
-import { askFolder, folderAccess, isNative, openInApp, readFolderFile, revealInFinder, type Folder } from "../../gateways/native";
+import { askFolder, folderAccess, isNative, openInApp, readFolderFile, type Folder } from "../../gateways/native";
 import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../../storage/pictures";
@@ -240,7 +240,6 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
       </div>
       <footer className="row wrap preview-foot">
         {canOpen && <button type="button" onClick={() => void openApp()}>기본 앱으로 열기</button>}
-        {native && typeof found === "string" && <button type="button" onClick={() => void revealInFinder(found, thing.path).catch((error: unknown) => console.error(error))}>{fileManagerName()}에서 보기</button>}
         <button type="button" onClick={() => void writeClipboard(thing.path).then((ok) => toast(ok ? "경로를 복사했어요." : "복사하지 못했어요."))}>경로 복사</button>
       </footer>
     </aside>,

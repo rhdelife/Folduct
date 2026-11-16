@@ -16,7 +16,7 @@ import { freeSpot } from "../domain/plane";
 import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
-import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, revealInFinder, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
+import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
@@ -421,13 +421,13 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     setViewer(null);
   }
 
-  // 데스크톱: OS 기본 앱으로 열거나 파일 관리자에서 보여줍니다. 연 것은 손댄 것으로 셉니다. 실패하면 이유를 돌려줍니다.
-  async function openApp(thingId: string, folder: string, reveal = false): Promise<string | null> {
+  // 데스크톱: OS 기본 앱으로 엽니다. 연 것은 손댄 것으로 셉니다. 실패하면 이유를 돌려줍니다.
+  async function openApp(thingId: string, folder: string): Promise<string | null> {
     const thing = latest.current?.things.find((item) => item.id === thingId);
     if (!thing) return null;
     try {
-      await (reveal ? revealInFinder : openInApp)(folder, thing.path);
-      if (!reveal) patchThing(thingId, {});
+      await openInApp(folder, thing.path);
+      patchThing(thingId, {});
       return null;
     } catch (error) {
       return `파일을 열지 못했어요. 옮겨졌거나 지워졌다면 ‘폴더 다시 보기’로 목록을 맞춰 주세요. (${String(error)})`;
@@ -615,7 +615,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
                 folder={access === "granted" ? handle : null}
                 onPatch={patchThing}
                 onOpen={(id) => void openFile(id)}
-                onReveal={typeof handle === "string" ? (id) => void openApp(id, handle, true).then((error) => error && toast(error)) : undefined}
                 onToast={toast}
                 onForget={forgetThing}
                 onBox={busy === null ? (id) => void putInBox(id) : undefined}
@@ -728,7 +727,7 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   );
 }
 
-function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToast, onForget, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onReveal?: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onBox?: (id: string) => void }) {
+function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForget, onBox }: { room: Room; thing: Thing; now: number; folder: Folder | null; onPatch: (id: string, patch: Partial<Thing>, touch?: boolean) => void; onOpen: (id: string) => void; onToast: (message: string) => void; onForget: (id: string) => void; onBox?: (id: string) => void }) {
   const age = thingAge(thing, room, now);
   const last = shownActivity(thing, room);
   return (
@@ -754,7 +753,6 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onReveal, onToa
       {thing.note && <p className="note-line">“{thing.note}”</p>}
       <div className="row wrap">
         <button type="button" className="primary" onClick={() => onOpen(thing.id)}>파일 열기</button>
-        {onReveal && <button type="button" onClick={() => onReveal(thing.id)}>{fileManagerName()}에서 보기</button>}
         {age.stale && <button type="button" onClick={() => onPatch(thing.id, {})}>아직 써요</button>}
         {/* 눌림은 aria-pressed와 체크 표시가 말하므로 글자는 바꾸지 않습니다. */}
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>

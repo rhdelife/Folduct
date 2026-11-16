@@ -105,10 +105,6 @@ export async function openInApp(root: string, path: string): Promise<void> {
   await invoke("open_in_app", { path: inside(root, path) });
 }
 
-export async function revealInFinder(root: string, path: string): Promise<void> {
-  await invoke("reveal_in_finder", { path: inside(root, path) });
-}
-
 export type ChildFolder = { name: string; path: string };
 
 // 상위 폴더 하나를 고르면 바로 아래 폴더들을 방 후보로 돌려줍니다. 이때는 하위 내용까지 열지 않습니다.
