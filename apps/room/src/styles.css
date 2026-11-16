@@ -1874,6 +1874,9 @@ p.kind-folder-more { color: var(--ink-caption); }
 .preview-pane:has(.viewer-text) { width: min(var(--preview-w-text), calc(100vw - 2 * var(--space-4))); }
 .preview-body .viewer-stage:has(.viewer-text) { height: 62dvh; max-height: none; }
 .preview-body .viewer-text { font-size: var(--text-sm); }
+/* 미리보기를 누르면 큰 보기 창이 떠요. */
+.preview-zoom { cursor: zoom-in; }
+.preview-big { justify-self: end; min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
 /* 창 안은 선 대신 옅은 유리 카드로 나눠요(미리보기·썸네일·이름·메모). */
 .preview-section { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
 .preview-body .viewer-stage, .preview-body .viewer-note { border: 0; border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }

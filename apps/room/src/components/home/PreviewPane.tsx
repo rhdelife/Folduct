@@ -11,7 +11,7 @@ import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../../storage/pictures";
 import { renameThing } from "../../storage/rename";
-import { Preview, previewLimit, previewMode, writeClipboard, type ViewerState } from "../FileViewer";
+import { FileViewer, Preview, previewLimit, previewMode, writeClipboard, type ViewerState } from "../FileViewer";
 import type { ToastAction } from "../Toast";
 import { Meta } from "../Meta";
 import { Icon } from "../Icon";
@@ -42,6 +42,9 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   // 앱 안에서 못 여는 형식(발표·문서 등)은 macOS Quick Look 첫 장 그림을 보여 줘요.
   const [page, setPage] = useState<string | null>(null);
+  const [pageFile, setPageFile] = useState<File | null>(null);
+  // 미리보기(그림·글·첫 장)를 누르면 방에서처럼 큰 보기 창으로 열어요.
+  const [big, setBig] = useState(false);
   useEffect(() => () => void (page && URL.revokeObjectURL(page)), [page]);
   const [busy, setBusy] = useState<string | null>(null);
   const picture = usePicture(thing.id);
@@ -70,8 +73,10 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
         if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) {
           if (previewMode(thing) === "none" && currentOs() === "mac") {
             setState({ status: "loading" });
-            const made = await firstPage(found, thing.path).then(URL.createObjectURL, () => null);
-            if (made) {
+            const png = await firstPage(found, thing.path).catch(() => null);
+            const made = png && URL.createObjectURL(png);
+            if (png && made) {
+              setPageFile(new File([png], `${thing.name}.png`, { type: "image/png" }));
               setPage(made);
               touch();
             }
@@ -205,7 +210,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
               <button type="button" className="primary" onClick={retry}>다시 허용하고 열기</button>
             </div>
           )}
-          {state?.status === "outside" && page && <div className="viewer-stage"><img src={page} alt={`${thing.name} 첫 장`} onError={() => setPage(null)} /></div>}
+          {state?.status === "outside" && page && <div className="viewer-stage preview-zoom" onClick={() => setBig(true)}><img src={page} alt={`${thing.name} 첫 장`} onError={() => setPage(null)} /></div>}
           {state?.status === "outside" && !page && <p className="viewer-note">{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>}
           {state?.status === "error" && (
             <div className="viewer-note">
@@ -214,7 +219,15 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
             </div>
           )}
         </div>
-        {state?.status === "ready" && <Preview file={state.file} mode={mode} fallback={fallback} unsupported={native ? "Folduct" : "브라우저"} onVideo={setVideo} />}
+        {state?.status === "ready" && (
+          // 그림·글은 누르면 크게 봐요. 글은 드래그해서 고른 중이면 열지 않아요. 영상·PDF는 안에서 조작하니 아래 '크게 보기' 단추로 열어요.
+          <div className={mode === "image" || mode === "text" ? "preview-zoom" : undefined} onClick={() => (mode === "image" || mode === "text") && !getSelection()?.toString() && setBig(true)}>
+            <Preview file={state.file} mode={mode} fallback={fallback} unsupported={native ? "Folduct" : "브라우저"} onVideo={setVideo} />
+          </div>
+        )}
+        {((state?.status === "ready" && mode !== "none") || (state?.status === "outside" && page)) && (
+          <button type="button" className="quiet preview-big" onClick={() => setBig(true)}>크게 보기</button>
+        )}
 
         <section className="preview-section" aria-labelledby="preview-thumb">
           <h3 id="preview-thumb">썸네일</h3>
@@ -271,6 +284,10 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
         <button type="button" onClick={() => void writeClipboard(thing.path).then((ok) => toast(ok ? "경로를 복사했어요." : "복사하지 못했어요."))}>경로 복사</button>
         {canOpen && <button type="button" onClick={() => void sendToTrash()}><Icon name="trash" />휴지통으로</button>}
       </footer>
+      {big && state?.status === "ready" && <FileViewer thing={thing} state={state} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} />}
+      {big && state?.status === "outside" && pageFile && (
+        <FileViewer thing={{ ...thing, kind: "image" }} state={{ status: "ready", file: pageFile }} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} />
+      )}
     </aside>,
     document.body,
   );
