@@ -210,6 +210,8 @@
   /* 홈 왼쪽 아래 일력의 하루 점과 간격(31일이 --stack-w 안에 들어가요) */
   /* 홈 오른쪽 미리보기 창 폭(SkyMap이 그만큼 비켜요) */
   --preview-w: 380px;
+  /* 글·코드를 미리 볼 때 창 폭(판은 비키지 않고 창만 넓어져요) */
+  --preview-w-text: 640px;
   --cal-dot: 5px;
   --cal-gap: 2px;
   --trend-chart-h: 120px;
@@ -1826,6 +1828,9 @@ p.kind-folder-more { color: var(--ink-caption); }
 .preview-body .viewer-stage { min-height: calc(var(--space-12) * 4); max-height: 45dvh; overflow: hidden; }
 .preview-body .viewer-stage iframe { min-height: calc(var(--space-12) * 6); }
 .preview-body .viewer-stage video, .preview-body .viewer-stage img { width: 100%; max-height: 45dvh; }
+.preview-pane:has(.viewer-text) { width: min(var(--preview-w-text), calc(100vw - 2 * var(--space-4))); }
+.preview-body .viewer-stage:has(.viewer-text) { height: 62dvh; max-height: none; }
+.preview-body .viewer-text { font-size: var(--text-sm); }
 /* 창 안은 선 대신 옅은 유리 카드로 나눠요(미리보기·썸네일·이름·메모). */
 .preview-section { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }
 .preview-body .viewer-stage, .preview-body .viewer-note { border: 0; border-radius: var(--radius-lg); background: var(--glass-chip); box-shadow: var(--glass-chip-shadow); }

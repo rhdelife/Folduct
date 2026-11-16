@@ -986,6 +986,10 @@
       "$type": "other",
       "$value": "380px"
     },
+    "preview-w-text": {
+      "$type": "other",
+      "$value": "640px"
+    },
     "cal-dot": {
       "$type": "other",
       "$value": "5px"

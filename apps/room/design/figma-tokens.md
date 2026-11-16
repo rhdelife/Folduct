@@ -240,6 +240,7 @@
 | `scene/home-panel-w` | `380px` |  |
 | `scene/trend-number` | `32px` |  |
 | `scene/preview-w` | `380px` |  |
+| `scene/preview-w-text` | `640px` |  |
 | `scene/cal-dot` | `5px` |  |
 | `scene/cal-gap` | `2px` |  |
 | `scene/trend-chart-h` | `120px` |  |
