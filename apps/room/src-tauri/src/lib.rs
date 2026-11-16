@@ -252,6 +252,45 @@ fn key_without_activate<R: Runtime>(pet: &WebviewWindow<R>) {
   let _ = pet.set_focus();
 }
 
+// macOS는 새 메뉴 막대 아이콘을 맨 왼쪽에 놓아서, 막대가 가득 찬 노치 맥에서는 노치 뒤에 숨어요.
+// 처음 한 번만 시계 쪽(오른쪽 끝에서 260pt)을 앱 자기 설정에 적어 둬요. 사용자가 ⌘로 끌어 옮긴 자리는 건드리지 않아요.
+#[cfg(target_os = "macos")]
+fn keep_tray_off_notch() {
+  use std::ffi::c_void;
+  type Cf = *const c_void;
+  #[link(name = "CoreFoundation", kind = "framework")]
+  unsafe extern "C" {
+    static kCFPreferencesCurrentApplication: Cf;
+    fn CFStringCreateWithCString(alloc: Cf, text: *const std::ffi::c_char, encoding: u32) -> Cf;
+    fn CFNumberCreate(alloc: Cf, kind: isize, value: *const c_void) -> Cf;
+    fn CFPreferencesCopyAppValue(key: Cf, app: Cf) -> Cf;
+    fn CFPreferencesSetAppValue(key: Cf, value: Cf, app: Cf);
+    fn CFPreferencesAppSynchronize(app: Cf) -> u8;
+    fn CFRelease(object: Cf);
+  }
+  const UTF8: u32 = 0x0800_0100;
+  const DOUBLE: isize = 13;
+  unsafe {
+    let key = CFStringCreateWithCString(std::ptr::null(), c"NSStatusItem Preferred Position Item-0".as_ptr(), UTF8);
+    if key.is_null() {
+      return;
+    }
+    let saved = CFPreferencesCopyAppValue(key, kCFPreferencesCurrentApplication);
+    if saved.is_null() {
+      let from_right: f64 = 260.0;
+      let value = CFNumberCreate(std::ptr::null(), DOUBLE, &from_right as *const f64 as *const c_void);
+      if !value.is_null() {
+        CFPreferencesSetAppValue(key, value, kCFPreferencesCurrentApplication);
+        CFPreferencesAppSynchronize(kCFPreferencesCurrentApplication);
+        CFRelease(value);
+      }
+    } else {
+      CFRelease(saved);
+    }
+    CFRelease(key);
+  }
+}
+
 fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
   let toggle = MenuItem::with_id(app, "pet", "플로팅 창 보이기", true, None::<&str>)?;
   let open = MenuItem::with_id(app, "main", "Folduct 열기", true, None::<&str>)?;
@@ -553,6 +592,8 @@ pub fn run() {
       if let Ok(downloads) = _app.path().download_dir() {
         let _ = _app.fs_scope().allow_directory(&downloads, false);
       }
+      #[cfg(target_os = "macos")]
+      keep_tray_off_notch();
       // 아이콘을 못 만들어도(알림 영역이 없는 데스크톱 등) 앱은 그대로 씁니다. 숨긴 프로도는 환경설정에서 다시 켜요.
       if let Err(error) = build_tray(_app.handle()) {
         eprintln!("메뉴 막대 아이콘을 만들지 못했어요: {error}");
