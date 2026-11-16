@@ -535,6 +535,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const menuDoor = door.items.find((item) => item.id === doorMenu?.id);
   const viewingRoom = rooms?.find((room) => room.id === viewing?.roomId);
   const viewingThing = viewingRoom?.things.find((thing) => thing.id === viewing?.thingId);
+  // 미리보기 창이 열린 채 다른 파일로 바뀌면 창이 다시 들어오는 움직임 없이 그 자리에 그대로 있어요.
+  const shownPreview = useRef<string | null>(null);
+  const previewSwitched = viewingThing !== undefined && shownPreview.current !== null && shownPreview.current !== viewingThing.id;
+  useEffect(() => {
+    shownPreview.current = viewingThing?.id ?? null;
+  });
   const actions: HomeActions = {
     selectRoom,
     focusThing,
@@ -650,6 +656,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       {viewingRoom && viewingThing && (
         <PreviewPane
           key={viewingThing.id}
+          settled={previewSwitched}
           room={viewingRoom}
           thing={viewingThing}
           onClose={closePreview}

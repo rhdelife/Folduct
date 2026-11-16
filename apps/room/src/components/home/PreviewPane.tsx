@@ -34,7 +34,9 @@ async function frameOf(video: HTMLVideoElement): Promise<File> {
 
 // 홈에서 파일을 누르면 화면 오른쪽(좁은 창은 아래)에 붙는 미리보기 창. 큰 창을 띄우지 않고, 다른 파일을 누르면 내용만 바뀌어요.
 // 미리보기(영상은 재생·장면 넘기기), 이 장면을 썸네일로·그림 올리기, 이름 바꾸기(실제 파일, 같은 폴더 안), 한 줄 메모를 여기서 해요.
-export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }: { room: Room; thing: Thing; onClose: () => void; onToRoom: () => void; onChanged: () => void; toast: (message: string, action?: ToastAction) => void }) {
+export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, onChanged, toast }: { room: Room; thing: Thing; settled?: boolean; onClose: () => void; onToRoom: () => void; onChanged: () => void; toast: (message: string, action?: ToastAction) => void }) {
+  // 처음 그린 값으로 굳혀요. 나중에 바뀌어도 들어오는 움직임을 다시 틀지 않아요.
+  const [still] = useState(settled);
   const [state, setState] = useState<ViewerState | null>(null);
   const [tries, retry] = useReducer((count: number) => count + 1, 0);
   const folder = useRef<Folder | null>(null);
@@ -200,7 +202,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
 
   // 홈 장면의 쌓임 맥락(투명도·변형) 밖 body에 그려야 뒤 흐림과 맨 위 자리가 제대로 잡혀요.
   return createPortal(
-    <aside className="preview-pane" aria-labelledby="preview-title">
+    <aside className={still ? "preview-pane still" : "preview-pane"} aria-labelledby="preview-title">
       <header className="preview-head">
         <ObjectShape kind={thing.kind} size={40} name={thing.name} seed={thing.id} />
         <div>

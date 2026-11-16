@@ -1863,7 +1863,8 @@ p.kind-folder-more { color: var(--ink-caption); }
 .report-ai button { justify-self: start; }
 
 /* ══ 홈 오른쪽 미리보기 창(PreviewPane): 유리 한 장. 좁은 창에서는 아래에서 올라와요. ══ */
-.preview-pane { position: fixed; z-index: calc(var(--z-intro) - 1); top: var(--topbar-h); right: var(--space-4); bottom: var(--space-4); width: min(var(--preview-w), calc(100vw - 2 * var(--space-4))); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--glass-chip-hover); border-radius: var(--radius-xl); background: linear-gradient(to bottom, var(--glass-bg-strong), var(--glass-bg)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--ink); animation: preview-in var(--dur-3) var(--ease-drawer); }
+/* 미리보기 창은 파일 형식과 상관없이 폭이 같아요. 자리가 흔들리지 않고, 목록은 그 폭만큼 비켜서 겹치지 않아요. */
+.preview-pane { position: fixed; z-index: calc(var(--z-intro) - 1); top: var(--topbar-h); right: var(--space-4); bottom: var(--space-4); width: min(clamp(var(--preview-w), 45vw, var(--preview-w-text)), calc(100vw - 2 * var(--space-4))); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--glass-chip-hover); border-radius: var(--radius-xl); background: linear-gradient(to bottom, var(--glass-bg-strong), var(--glass-bg)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-shadow); color: var(--ink); animation: preview-in var(--dur-3) var(--ease-drawer); }
 .preview-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-4) var(--space-3); }
 .preview-head h2 { overflow: hidden; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .preview-head h2:focus { outline: none; }
@@ -1871,7 +1872,6 @@ p.kind-folder-more { color: var(--ink-caption); }
 .preview-body .viewer-stage { min-height: calc(var(--space-12) * 4); max-height: 45dvh; overflow: hidden; }
 .preview-body .viewer-stage iframe { min-height: calc(var(--space-12) * 6); }
 .preview-body .viewer-stage video, .preview-body .viewer-stage img { width: 100%; max-height: 45dvh; }
-.preview-pane:has(.viewer-text) { width: min(var(--preview-w-text), calc(100vw - 2 * var(--space-4))); }
 .preview-body .viewer-stage:has(.viewer-text) { height: 62dvh; max-height: none; }
 .preview-body .viewer-text { font-size: var(--text-sm); }
 /* 미리보기를 누르면 큰 보기 창이 떠요. */
@@ -1892,7 +1892,7 @@ p.kind-folder-more { color: var(--ink-caption); }
 .preview-thumb { border-color: var(--glass-chip-hover); box-shadow: var(--glass-chip-shadow); }
 /* 아주 넓은 창에서는 미리보기 창이 열린 동안 홈 판이 그 폭만큼 좁아져, 방 카드·프로도·파일이 창에 가리지 않아요.
    좁아진 판도 720 이상이어야 왼쪽 아래 일력 자리를 비워 두므로(sky.ts calendarSpot) 그보다 좁은 창에서는 창이 위에 떠요. */
-@media (min-width: 1200px) { .sky-canvas.pane-open { width: calc(100% - var(--preview-w) - var(--space-4)); } }
+@media (min-width: 1200px) { .sky-canvas.pane-open { width: calc(100% - clamp(var(--preview-w), 45vw, var(--preview-w-text)) - var(--space-4)); } }
 /* 형식별로 보기에서 목록의 파일을 누르면 미리보기 창이 오른쪽에 붙고, 목록 종이는 왼쪽으로 옮겨 가요. 그동안 서랍장은 물러나 숨어요.
    창을 닫으면 서랍장과 오른쪽 목록으로 돌아와요. 겹치지 않게 무대 전체가 창 폭만큼 비켜요. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1924,10 +1924,11 @@ p.kind-folder-more { color: var(--ink-caption); }
 body:has(.preview-pane) .kind-folder-things { gap: var(--space-2); }
 body:has(.preview-pane) .kind-folder-things li + li { margin-top: 0; }
 body:has(.preview-pane) .shelf-paper { grid-template-columns: calc(var(--space-10) * 2) minmax(0, 1fr); align-items: center; }
-@media (min-width: 721px) { body:has(.preview-pane) .kind-shelves { padding-right: calc(var(--gutter) + var(--preview-w) + var(--space-4)); } }
+@media (min-width: 721px) { body:has(.preview-pane) .kind-shelves { max-width: none; padding-right: calc(var(--gutter) + clamp(var(--preview-w), 45vw, var(--preview-w-text)) + var(--space-4)); } }
 @keyframes preview-in { from { opacity: 0; translate: var(--space-8) 0; } }
 @media (max-width: 719.98px) {
   .preview-pane { top: auto; left: var(--space-4); height: min(78dvh, calc(100dvh - 2 * var(--space-4))); width: auto; animation-name: preview-up; }
 }
 @keyframes preview-up { from { opacity: 0; translate: 0 var(--space-8); } }
+.preview-pane.still { animation: none; }
 @media (prefers-reduced-motion: reduce) { .preview-pane { animation: none; } }
