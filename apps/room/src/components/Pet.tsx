@@ -626,7 +626,6 @@ export function Pet() {
               ) : (
                 <>
                   <strong>작업 전</strong>
-                  <small>방을 누르면 바로 시간을 재요.</small>
                 </>
               )}
             </p>
@@ -638,8 +637,7 @@ export function Pet() {
               <button type="button" onClick={() => endWork(session)}>작업 끝내기</button>
             </div>
           ) : choices.length > 0 ? (
-            <div className="pet-panel-rooms">
-              <p>어느 방을 시작할까요?</p>
+            <div className="pet-panel-rooms" role="group" aria-label="작업할 방">
               {roomPills}
             </div>
           ) : (
@@ -696,7 +694,6 @@ export function Pet() {
           {!session && (
             choices.length > 0 ? (
               <>
-                <p>어느 방을 시작할까요?</p>
                 {roomPills}
               </>
             ) : (

@@ -1286,8 +1286,15 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 판은 일력과 같은 왼쪽·아래에 서서, 일력 카드에서 위·오른쪽으로 자라요(HomeStack이 자리를 움직여요). 자라는 동안 속은 판 밖으로 나가지 않아요. */
 .home-panel { position: absolute; left: var(--space-6); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; width: min(var(--home-panel-w), calc(100% - 2 * var(--space-6))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
 /* 작업 줄: 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
-/* 작업 막대: 홈 위쪽 가운데. 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
-   좁은 창은 머리줄에 자리가 없어 아래 홈 | Drawer 알약 바로 위에 둬요. */
+/* 작업 줄: 왼쪽 아래 작업 기록 카드 바로 위(.home-stack). 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
+   카드가 숨는 좁은·낮은 창(.home-stack과 같은 기준)에서는 아래 홈 | Drawer 알약 바로 위 막대(.work-bar)로 둬요. */
+.home-stack .work-control { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); white-space: normal; }
+.home-stack .work-control button { min-height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-sm); }
+.home-stack .work-start { width: 100%; min-width: 0; }
+.home-stack .work-control.on .work-clock { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; margin: 0; }
+.home-stack .work-control.on > button { flex: 1; }
+.home-stack .work-control.picking { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+@media (min-width: 720px) and (min-height: 640px) { .work-bar { display: none; } }
 .work-bar { position: absolute; top: var(--chrome-y); left: 50%; z-index: 81; translate: -50% -50%; display: flex; justify-content: center; }
 .work-bar .work-control { min-height: var(--control-md); gap: var(--space-1); }
 .work-bar .work-control button { min-height: var(--control-md); padding: 0 var(--space-4); font-size: var(--text-sm); }
@@ -1344,6 +1351,9 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-card h3 { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--ink-caption); }
 .trend-number { font-size: var(--trend-number); line-height: var(--lh-hero); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .trend-number small { margin-left: var(--space-1); font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; letter-spacing: 0; }
+/* 3h 42m: 숫자 묶음 사이를 띄우고 단위는 작고 옅게 붙여요. */
+.trend-number > span + span { margin-left: var(--space-2); }
+.trend-number > span small { margin-left: calc(var(--space-1) / 2); color: var(--ink-soft); }
 .trend-sub, .trend-empty { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .trend-empty { font-size: var(--text-sm); line-height: var(--lh-sm); }
 .trend-cal { display: grid; gap: var(--cal-gap); }
@@ -1354,19 +1364,18 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-chart { position: relative; height: var(--trend-chart-h); margin-top: var(--space-6); touch-action: pan-y; }
 .trend-tip { position: absolute; top: 0; display: grid; margin: 0; padding: var(--space-1) var(--space-2); translate: -50% -100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); pointer-events: none; white-space: nowrap; }
 /* 작업 시간 막대: 칸마다 방 색으로 쌓아요(많이 한 방이 아래). 가리키는 칸 말고는 살짝 옅어져요. */
-.trend-stack { display: flex; align-items: flex-end; gap: var(--cal-gap); }
-.trend-col { flex: 1 1 0; display: flex; flex-direction: column-reverse; min-width: 0; height: calc(var(--share) * 100%); overflow: hidden; border-radius: var(--space-1) var(--space-1) 0 0; transition: opacity var(--dur-1) var(--ease-standard); }
-.trend-col i { display: block; flex-basis: 0; min-height: 0; }
+.trend-stack { display: flex; align-items: flex-end; gap: var(--space-1); }
+/* 막대 한 칸 안의 방 조각은 틈을 두고 하나씩 둥글게 끊어요. 칸 전체는 위가 진하고 아래로 옅어지게 가려요(mask). */
+.trend-col { flex: 1 1 0; display: flex; flex-direction: column-reverse; gap: calc(var(--space-1) / 2); min-width: 0; height: calc(var(--share) * 100%); -webkit-mask-image: linear-gradient(to bottom, black, color-mix(in srgb, black 30%, transparent)); mask-image: linear-gradient(to bottom, black, color-mix(in srgb, black 30%, transparent)); transition: opacity var(--dur-1) var(--ease-standard); }
+.trend-col i { display: block; flex-basis: 0; min-height: var(--space-1); border-radius: var(--radius-xs); }
 /* 방 색은 원색 그대로 칠하지 않고 유리처럼: 위는 빛을 받아 옅고 아래로 갈수록 방 색이 비쳐요. 칸 사이는 얇은 빛 줄로 나눠요. */
 /* 작업 기록 그래프 색: 방 받침 색(--c)의 채도를 올린 진한 색(--vivid)에서 아래로 옅고 맑아지는 그라데이션, 막대엔 같은 색의 옅은 빛. 색이 다르게 읽히지 않게 색상(h)은 그대로예요. */
 .trend-col i, .trend-room-bar, .trend-tip-room i, .trend-legend i { --vivid: var(--c); --vivid-soft: color-mix(in srgb, var(--c) 45%, transparent); }
 @supports (color: oklch(from red l c h)) {
   .trend-col i, .trend-room-bar, .trend-tip-room i, .trend-legend i { --vivid: oklch(from var(--c) 0.64 max(calc(c * 3), 0.15) h); --vivid-soft: oklch(from var(--c) 0.88 max(calc(c * 1.5), 0.06) h / 0.75); }
 }
-.trend-col i { background: linear-gradient(to bottom, var(--vivid), var(--vivid-soft)); box-shadow: inset 0 1px 0 var(--glass-chip-hover); }
+.trend-col i { background: var(--vivid); box-shadow: inset 0 1px 0 var(--glass-chip-hover); }
 .trend-room-bar { background: linear-gradient(to right, var(--vivid-soft), var(--vivid)); box-shadow: 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--vivid) 28%, transparent); }
-.trend-col i + i { border-bottom: 1px solid var(--glass-bg); }
-.trend-col { box-shadow: var(--glass-chip-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 .trend-stack:has(.trend-col.on) .trend-col:not(.on) { opacity: 0.45; }
 .trend-tip-room { display: flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
 .trend-tip-room i, .trend-legend i { background: var(--vivid); flex: none; width: var(--space-2); height: var(--space-2); border-radius: var(--radius-pill); }
@@ -1376,7 +1385,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-tip strong { font-size: var(--text-md); line-height: var(--lh-md); font-variant-numeric: tabular-nums; }
 .trend-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); height: var(--trend-chart-h); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .trend-bars li { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: var(--space-1); }
-.trend-bar { align-self: end; width: 100%; height: calc(var(--share) * 100%); border-radius: var(--space-1) var(--space-1) 0 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--ink) 50%, var(--surface)), color-mix(in srgb, var(--ink) 28%, transparent)); box-shadow: inset 0 1px 0 var(--glass-chip-hover), var(--glass-chip-shadow); }
+.trend-bar { align-self: end; width: 100%; height: calc(var(--share) * 100%); border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--ink) 55%, var(--surface)), color-mix(in srgb, var(--ink) 10%, transparent)); box-shadow: inset 0 1px 0 var(--glass-chip-hover), var(--glass-chip-shadow); }
 .trend-bars small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .trend-rooms { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .trend-rooms li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); }

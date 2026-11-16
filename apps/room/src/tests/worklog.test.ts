@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWork, formatWork, normalizeWorkLog, workAmount, yearMonths, yearWork } from "../domain/worklog";
+import { addWork, formatWork, formatWorkShort, normalizeWorkLog, workAmount, yearMonths, yearWork } from "../domain/worklog";
 
 const min = 60_000;
 const hour = 60 * min;
@@ -70,5 +70,14 @@ describe("일력 칸", () => {
     expect(yearMonths(2026)[1]).toHaveLength(28);
     expect(months.flat()).toHaveLength(366);
     expect(months[10][3]).toBe("2028-11-04");
+  });
+  it("그래프 시간은 영어 단위 짧은 꼴이에요", () => {
+    const min = 60_000;
+    expect(formatWorkShort(0)).toBe("0m");
+    expect(formatWorkShort(10_000)).toBe("1m");
+    expect(formatWorkShort(222 * min)).toBe("3h 42m");
+    expect(formatWorkShort(120 * min)).toBe("2h");
+    expect(formatWorkShort((38 * 60 + 5) * min)).toBe("1d 14h");
+    expect(formatWorkShort(48 * 60 * min)).toBe("2d");
   });
 });

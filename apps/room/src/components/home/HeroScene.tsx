@@ -41,7 +41,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
         </div>
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
-          {/* 작업(시간 재기)은 위쪽 가운데 막대에서만 다뤄요. 프로도 아래는 먹인 방의 파일을 보는 자리예요. */}
+          {/* 작업(시간 재기)은 왼쪽 아래 작업 기록 카드 위에서만 다뤄요. 그 카드가 숨는 좁은·낮은 창에서는 아래 탭 위 막대로 둬요. 프로도 아래는 먹인 방의 파일을 보는 자리예요. */}
           {isNative() && (
             <div className="work-bar">
               <WorkControl rooms={rooms} session={session} />
@@ -60,7 +60,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
           <div className="hero-extras" inert={selected ? true : undefined}>
             <DoorstepRow items={doorItems} now={now} onMenu={onDoorMenu} />
           </div>
-          <HomeStack rooms={rooms} log={workLog} now={now} doorItems={doorItems} onDoorMenu={onDoorMenu} staleFiles={staleFiles} onSweep={actions.openSweep} />
+          <HomeStack rooms={rooms} log={workLog} now={now} doorItems={doorItems} onDoorMenu={onDoorMenu} staleFiles={staleFiles} onSweep={actions.openSweep} workRow={isNative() ? <WorkControl rooms={rooms} session={session} /> : undefined} />
         </div>
       )}
     </section>

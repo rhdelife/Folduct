@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
@@ -32,7 +32,8 @@ function pinInside(panel: HTMLElement, width: string): () => void {
 const roomsShown = 3;
 
 // 홈 왼쪽 아래: 올해 일력 한 장(한 줄이 한 달, 점 하나가 하루). 누르면 그 자리에서 판이 자라나 진행 중(새 파일·안 쓴 파일)과 작업 추세를 보여 주고, 닫으면 다시 일력으로 접혀요.
-export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void }) {
+// workRow: 작업 시작·시간·멈춤·끝내기 줄. 작업은 이 왼쪽 아래 자리에서만 다뤄요(작업 기록 카드 바로 위).
+export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep, workRow }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void; workRow?: ReactNode }) {
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -119,6 +120,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
   return (
     <>
       <div className={`home-stack${closing ? " returning" : ""}`} inert={open ? true : undefined}>
+        {workRow}
         <button
           type="button"
           className="work-cal"

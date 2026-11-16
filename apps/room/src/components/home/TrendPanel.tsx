@@ -2,11 +2,13 @@ import { useMemo, useState, type CSSProperties, type PointerEvent } from "react"
 import { faceColorVar } from "../../domain/face";
 import type { Room } from "../../domain/model";
 import { buckets, periods, periodTotal, roomTotals, weekdayAverage, type Bucket, type Period } from "../../domain/trends";
-import { formatWork, type WorkLog } from "../../domain/worklog";
+import { formatWorkShort, workParts, type WorkLog } from "../../domain/worklog";
 import { isNative } from "../../gateways/native";
 
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
-const work = (ms: number) => (ms > 0 ? formatWork(ms) : "0분");
+// 그래프 시간은 영어 단위 짧은 꼴(3h 42m)이에요. 큰 숫자는 단위를 작게 써요.
+const work = formatWorkShort;
+const BigWork = ({ ms }: { ms: number }) => <>{workParts(ms).map(({ n, u }) => <span key={u}>{n}<small>{u}</small></span>)}</>;
 const roomsShown = 6;
 
 // 홈 '작업 기록' 판의 추세: 기간 고르기 아래 카드 셋(작업 시간 그래프, 요일별 평균, 방별 시간).
@@ -34,12 +36,12 @@ export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; n
       </div>
       <section className="trend-card" aria-labelledby="trend-time">
         <h3 id="trend-time">작업 시간</h3>
-        <p className="trend-number">{work(total)}</p>
+        <p className="trend-number"><BigWork ms={total} /></p>
         <BarChart series={series} rooms={rooms} />
       </section>
       <section className="trend-card" aria-labelledby="trend-week">
         <h3 id="trend-week">요일별 평균</h3>
-        <p className="trend-number">{work(week.average)}</p>
+        <p className="trend-number"><BigWork ms={week.average} /></p>
         <p className="trend-sub">작업한 날 하루 평균</p>
         <ol className="trend-bars">
           {week.byWeekday.map((ms, at) => (

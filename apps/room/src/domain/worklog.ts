@@ -50,6 +50,16 @@ export function workAmount(ms: number): { value: string; unit: string } {
   return { value: String(hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours)), unit: "시간" };
 }
 
+// 작업 기록 그래프의 시간: 영어 단위 짧은 꼴(3h 42m, 1d 14h, 25m). 큰 숫자는 숫자와 단위를 따로 그려 단위를 작게 써요.
+export function workParts(ms: number): { n: number; u: "d" | "h" | "m" }[] {
+  const minutes = ms > 0 ? Math.max(1, Math.round(ms / minuteMs)) : 0;
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 24) return [{ n: Math.floor(hours / 24), u: "d" as const }, ...(hours % 24 ? [{ n: hours % 24, u: "h" as const }] : [])];
+  if (hours > 0) return [{ n: hours, u: "h" as const }, ...(minutes % 60 ? [{ n: minutes % 60, u: "m" as const }] : [])];
+  return [{ n: minutes, u: "m" }];
+}
+export const formatWorkShort = (ms: number) => workParts(ms).map(({ n, u }) => `${n}${u}`).join(" ");
+
 export function formatWork(ms: number): string {
   const minutes = Math.max(1, Math.round(ms / minuteMs));
   const hours = Math.floor(minutes / 60);
