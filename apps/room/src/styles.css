@@ -1679,12 +1679,11 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .shelf-editor-kinds label:has(:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .shelf-editor-kinds input { position: absolute; opacity: 0; pointer-events: none; }
 .shelf-editor-add { justify-self: start; }
-.shelf-editor-more { display: grid; gap: var(--space-2); font-size: var(--text-sm); }
-.shelf-editor-more summary { width: fit-content; color: var(--ink-soft); font-weight: 600; cursor: pointer; }
-.shelf-editor-more[open] summary { margin-bottom: var(--space-1); color: var(--ink); }
-.shelf-editor-more label, .shelf-editor-range { display: grid; grid-template-columns: calc(var(--space-12) * 2) minmax(0, 1fr); align-items: center; gap: var(--space-2); }
-.shelf-editor-range { grid-template-columns: calc(var(--space-12) * 2) minmax(0, 1fr) auto minmax(0, 1fr); }
-.shelf-editor-more input { min-width: 0; }
+.shelf-editor-cond { display: grid; grid-template-columns: calc(var(--space-12) * 2) minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; }
+.shelf-editor-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+.shelf-editor-cond input { min-width: 0; }
+.shelf-editor-addcond { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.shelf-editor-addcond button { min-height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-xs); }
 .kind-shelves-note { flex-basis: 100%; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-caption); }
 .kind-shelves-head h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; }
 /* 무대: 닫혀 있으면 서랍장이 폭을 다 쓰고, 열면 오른쪽에 목록 종이 자리를 비워요. 크기는 한 번에 바뀌고, 그 사이 움직임은 KindShelf의 moveCabinet이 transform으로 이어 줘요. */
