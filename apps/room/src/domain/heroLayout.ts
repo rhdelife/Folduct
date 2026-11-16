@@ -19,8 +19,8 @@ export const findHeight = 68;
 const findWidth = 200;
 // 위 방 카드 줄의 높이. styles.css .room-shelf(--shelf-cover)와 맞춰요.
 export const shelfHeight = (view: View) => (view.w < 720 ? 92 : 124);
-// 화면 아래 가운데 "형식별로 보기" 손잡이 자리
-const hintSpace = 56;
+// 화면 아래 가운데에 비워 둘 자리. 좁은 창(720 이하)은 홈 | Drawer 알약이 거기 떠 있어요. 넓은 창은 아래가 비어 있어 0이에요.
+const bottomSpace = (view: View) => (view.w <= 720 ? 56 : 0);
 // 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
 const maxScale = 2.4;
 // 가장 길게 자라도 빈자리를 다 채우지 않게 조금 작게 그려요.
@@ -94,8 +94,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   // 파일 칸을 프로도 옆에 둘 만큼 넓지 않으면(below) 프로도 아래에 둬요. 그때 일력이 있으면 받침이 일력보다 위에 서요.
   const below = view.w < sideBySide;
   const [calendar] = calendarSpot(view);
-  const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - hintSpace;
-  const tall = Math.max(1, (below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top));
+  const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - bottomSpace(view);
+  const tall = Math.max(1, (below ? Math.min((view.h - bottomSpace(view) - top) * narrowShare, above - top) : above - top));
   // 프로도를 빈자리(방 카드 줄 아래) 가운데에 둬요. 좁은 창에서 방을 먹으면 아래에 파일 칸이 오니 위쪽 몫(tall) 가운데로 올라가요.
   const area = room || !below ? tall : Math.max(1, above - top);
   // 프로도는 늘 창 가운데에 서요. 넓은 창은 파일 칸이 프로도 오른쪽에 들어가도록 프로도 크기를 맞춰요.
