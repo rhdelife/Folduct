@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
-import { hueColors, type Hue } from "../../domain/hue";
+import { hueColors } from "../../domain/hue";
 import { hueShelves, kindShelves, shelfItems, type Shelf, type ShelfItem } from "../../domain/shelves";
 import { AxisWindow, axisMs, SceneWheelGate } from "../../domain/wheelStep";
 import type { Folder } from "../../gateways/native";
@@ -13,6 +13,9 @@ import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 import { cssToken, tokenMs } from "../tokens";
 import { Icon } from "../Icon";
+import { emptyShelfViews, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
+import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
+import { ShelfEditor } from "./ShelfEditor";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -25,7 +28,8 @@ const snapOffMs = 700;
 const slipId = "kind-slip";
 
 // 형식 서랍은 형식 색, 컬러별 서랍은 그 색 네모(HueSwatches와 같은 --hue-*)예요.
-const colorOf = (shelf: Shelf) => colorGroups.find((group) => group.label === shelf.label)?.color ?? hueColors[shelf.label as Hue];
+// 사용자가 만든 서랍은 고른 형식 중 첫 형식의 색이에요.
+const colorOf = (shelf: Shelf) => (shelf.hue ? hueColors[shelf.hue] : colorGroups.find((group) => group.kinds.includes(shelf.kinds[0]))?.color);
 const countText = (count: number) => count.toLocaleString("ko-KR");
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -35,15 +39,25 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // onListGone: 열려 있던 목록 종이가 닫히거나 다른 서랍 목록으로 바뀌면 불러요. 그 목록에서 연 미리보기 창도 같이 닫으려고요.
 export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void }>(function KindShelf({ rooms, onOpenFile, onListGone }, ref) {
   // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
-  const [mode, setMode] = useState<"kind" | "hue">("kind");
-  const kinds = useMemo(() => kindShelves(rooms, colorGroups), [rooms]);
+  // 사용자가 만든 서랍장이면 그 id예요.
+  const [mode, setMode] = useState<string>("kind");
+  const [views, setViews] = useState<ShelfViews>(emptyShelfViews);
+  useEffect(() => {
+    getShelfViews().then(setViews, (error: unknown) => console.error(error));
+  }, []);
+  // 서랍장 고치기 창: 지금 서랍장을 고치거나(edit) 새 서랍장을 만들어요(new).
+  const [editing, setEditing] = useState<"edit" | "new" | null>(null);
+  const customView = views.custom.find((view) => view.id === mode);
+  const drawers = mode === "kind" ? views.kind : customView?.drawers;
+  const groups = useMemo(() => drawers?.map((drawer) => ({ label: drawer.name, kinds: drawer.kinds })) ?? colorGroups, [drawers]);
+  const kinds = useMemo(() => kindShelves(rooms, groups), [rooms, groups]);
   const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
   const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
   const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
   // 이미지는 있는데 읽을 폴더가 없으면(샘플·폴더 연결 전 방) 빈 화면 대신 이유를 적어요.
   const unreadImages = useMemo(() => items.some(({ thing }) => canThumb(thing)), [items]);
-  const shelves = useMemo(() => (mode === "kind" ? kinds : hueShelves(items, hues)), [mode, kinds, items, hues]);
+  const shelves = useMemo(() => (mode === "hue" ? hueShelves(items, hues) : kinds), [mode, kinds, items, hues]);
   const [open, setOpen] = useState<string | null>(null);
   // 닫히는 동안에도 목록 종이가 빈 채로 빠지지 않게 마지막으로 연 서랍을 붙들어 둬요.
   const [last, setLast] = useState<string | null>(null);
@@ -66,7 +80,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     grow.current = {};
   };
   useEffect(() => stopGrow, []);
-  const shown = kinds.length > 0;
+  const shown = items.length > 0;
   useImperativeHandle(ref, () => self.current as HTMLElement, [shown]);
   // 집 화면과 이 장면은 휠 한 칸·한 번 쓸기에 한 장면씩 넘어가요. CSS scroll-snap 만으로는 휠 한 칸이 제자리로 튕겨 돌아와서 여기서 넘겨요.
   // 목록 종이 안에 더 내릴 파일이 있으면 그 종이가 먼저 내려가요.
@@ -295,7 +309,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     if (stage && drawer && box) riseFrom(stage, drawer, box);
   };
   // 나누기를 바꾸면 열린 서랍과 붙들던 서랍을 모두 내려놓아요. 서랍 이름이 서로 달라 옛 서랍이 남아 있을 자리가 없어요.
-  const switchMode = (next: "kind" | "hue") => {
+  const switchMode = (next: string) => {
     goneTimers.current.forEach((timer) => clearTimeout(timer));
     goneTimers.current.clear();
     setGone([]);
@@ -303,18 +317,33 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     setLast(null);
     setMode(next);
   };
+  // 서랍장 구성을 바꾸면 열린 서랍을 내려놓고 저장해요. 저장에 실패해도 이번 화면에는 바뀐 대로 보여요.
+  const saveViews = (next: ShelfViews, nextMode = mode) => {
+    setViews(next);
+    saveShelfViews(next).catch((error: unknown) => console.error(error));
+    switchMode(nextMode);
+    setEditing(null);
+  };
+  const viewNames = ["형식별", "컬러별", ...views.custom.map((view) => view.name)];
+  const defaultDrawers: DrawerSpec[] = colorGroups.map((group) => ({ id: group.label, name: group.label, kinds: group.kinds }));
+  const tabs = [{ id: "kind", name: "형식별" }, { id: "hue", name: "컬러별" }, ...views.custom];
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
-        <h2 id="kind-shelves-title">{mode === "kind" ? "형식별로 보기" : "컬러별로 보기"}</h2>
-        <div className="seg" role="radiogroup" aria-label="서랍 나누기">
-          {(["kind", "hue"] as const).map((value) => (
-            <label key={value}>
-              <input type="radio" name="kind-shelves-mode" checked={mode === value} onChange={() => switchMode(value)} />
-              {value === "kind" ? "형식별" : "컬러별"}
-            </label>
-          ))}
+        <h2 id="kind-shelves-title">{mode === "kind" ? "형식별로 보기" : mode === "hue" ? "컬러별로 보기" : (customView?.name ?? "서랍장")}</h2>
+        <div className="kind-shelves-tools">
+          <div className="seg" role="radiogroup" aria-label="서랍 나누기">
+            {tabs.map((tab) => (
+              <label key={tab.id}>
+                <input type="radio" name="kind-shelves-mode" checked={mode === tab.id} onChange={() => switchMode(tab.id)} />
+                {tab.name}
+              </label>
+            ))}
+          </div>
+          <button type="button" className="quiet kind-shelves-add" aria-label="새 서랍장 만들기" title="새 서랍장 만들기" onClick={() => setEditing("new")}>+</button>
+          {mode !== "hue" && <button type="button" className="quiet" onClick={() => setEditing("edit")}>서랍장 고치기</button>}
         </div>
+        {mode !== "hue" && shelves.length === 0 && <p className="kind-shelves-note">이 서랍장에 보일 파일이 없어요. ‘서랍장 고치기’에서 서랍에 형식을 골라 주세요.</p>}
         {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}
         {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">{unreadImages ? "이미지가 있는 방의 폴더를 연결하면 색으로 볼 수 있어요. 샘플 방은 실제 파일이 없어 색을 읽지 못해요." : "색을 읽을 수 있는 이미지가 없어요."}</p>}
       </header>
@@ -337,6 +366,31 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             ))}
           </div>
         </div>
+      )}
+      {editing === "new" && (
+        <ShelfEditor
+          title="새 서랍장"
+          name=""
+          drawers={[{ id: "drawer-first", name: "새 서랍", kinds: [] }]}
+          onClose={() => setEditing(null)}
+          onSave={(name, next) => {
+            const id = `view-${Date.now().toString(36)}`;
+            saveViews({ ...views, custom: [...views.custom, { id, name: uniqueName(name, viewNames), drawers: next }] }, id);
+          }}
+        />
+      )}
+      {editing === "edit" && mode === "kind" && (
+        <ShelfEditor title="형식별 서랍장 고치기" drawers={views.kind ?? defaultDrawers} onClose={() => setEditing(null)} onSave={(_, next) => saveViews({ ...views, kind: next })} onReset={() => saveViews({ ...views, kind: null })} />
+      )}
+      {editing === "edit" && customView && (
+        <ShelfEditor
+          title="서랍장 고치기"
+          name={customView.name}
+          drawers={customView.drawers}
+          onClose={() => setEditing(null)}
+          onSave={(name, next) => saveViews({ ...views, custom: views.custom.map((view) => (view.id === customView.id ? { ...view, name: uniqueName(name, viewNames.filter((taken) => taken !== view.name)), drawers: next } : view)) })}
+          onDelete={() => saveViews({ ...views, custom: views.custom.filter((view) => view.id !== customView.id) }, "kind")}
+        />
       )}
     </section>
   );
