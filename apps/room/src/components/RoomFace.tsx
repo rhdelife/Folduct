@@ -62,11 +62,11 @@ function groupStyle(item: DuctGroup): CSSProperties | undefined {
 const partsKey = (parts: Parts) => parts.map((part) => `${part.label}:${part.size}`).join();
 
 // 방은 어디서나 이 그림입니다. 모양과 받침 색은 프로젝트, 길이는 용량, 주름 색은 파일 형식을 뜻해요. px는 그림이 차지하는 폭입니다.
-// actor를 주면 살아 움직입니다. mood는 신호가 없을 때의 표정이에요.
-export function RoomFaceArt({ face, parts = [], length = 0.7, px, className, actor, mood = "base" }: { face: RoomFace; parts?: Parts; length?: number; px: number; className?: string; actor?: string; mood?: FaceExpr }) {
+// actor를 주면 살아 움직입니다. mood는 신호가 없을 때의 표정이에요. sheet를 주면 움직이지 않아도 얼굴을 표정 시트로 그려 mood가 보여요(아이콘).
+export function RoomFaceArt({ face, parts = [], length = 0.7, px, className, actor, mood = "base", sheet = false }: { face: RoomFace; parts?: Parts; length?: number; px: number; className?: string; actor?: string; mood?: FaceExpr; sheet?: boolean }) {
   const key = partsKey(parts);
   const level = Math.round(length * 50) / 50;
-  const live = Boolean(actor) && px >= ductSilhouetteUnder;
+  const live = (Boolean(actor) || sheet) && px >= ductSilhouetteUnder;
   // 부모가 다시 그려져도 같은 값이면 선을 다시 만들지 않습니다.
   const drawing = useMemo(() => drawRoom(face.shape, level, { px, layers: ductLayers(parts), live }), [face.shape, level, px, key, live]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(live ? actor : undefined, mood);

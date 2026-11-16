@@ -55,7 +55,7 @@ export type Room = {
   // 오래 안 쓴 방을 홈에서 뺄지 마지막으로 물은 시각. 그 뒤로 방을 다시 쓰기 전까지 묻지 않습니다.
   doneOfferAt: number | null;
   face: RoomFace;
-  // 방 썸네일로 고른 것. 방 파일 id이거나 ownCoverId(방 id)(사용자가 올린 그림)예요. 없으면 가장 최근 그림을 써요.
+  // 방 썸네일로 고른 것. 방 파일 id, ownCoverId(방 id)(사용자가 올린 그림), iconCoverId(아이콘 id)(보관함 아이콘) 중 하나예요. 없으면 가장 최근 그림을 써요.
   cover?: string | null;
   // 사용자가 지은 방 분류(예: 수업, 회사). 홈 방 카드 줄을 분류로 거를 때 써요. 없으면 분류 없음이에요.
   group?: string | null;

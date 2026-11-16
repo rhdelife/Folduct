@@ -6,6 +6,9 @@ import { usePicture } from "../storage/pictures";
 import { coverOf, useThumb } from "../storage/thumbs";
 import { mix } from "../art/palette";
 import { cssToken } from "./tokens";
+import { iconOfCover } from "../domain/icon";
+import { useIcons } from "../storage/icons";
+import { IconArt } from "./IconMaker";
 
 // 방 썸네일 종이 색: 방 얼굴 색(--face-*)을 옅게 푼 값. 작업 시작 알약처럼 면은 옅고 테두리는 진한 얼굴 색이에요(.room-cover --ink).
 // 종이는 옅은 칸·테두리 색을 계산해야 해서 var()가 아닌 실제 값이 필요해요.
@@ -15,10 +18,14 @@ export const faceHex = (color: number) => {
 };
 
 // 방 카드의 그림(방 썸네일). 이름만으로 방을 찾지 않게 그림을 보여 줘요.
-// 방 설정에서 고른 것(방 파일이나 올린 그림)이 먼저이고, 없으면 가장 최근 그림, 그림이 없는 방은 첫 파일의 종이예요.
+// 방 설정에서 고른 것(방 파일, 올린 그림, 보관함 아이콘)이 먼저이고, 없으면 가장 최근 그림, 그림이 없는 방은 첫 파일의 종이예요.
 export function RoomCover({ room, folder, px, color }: { room: Room; folder: Folder | null; px: number; color?: string }) {
   const ownUrl = usePicture(ownCoverId(room.id));
   const cover = useMemo(() => coverOf(room) ?? room.things.find((thing) => !thing.missing), [room.things, room.cover]); // eslint-disable-line react-hooks/exhaustive-deps
+  const iconId = iconOfCover(room.cover);
+  const icon = useIcons().find((item) => item.id === iconId);
+  // 보관함에서 지운 아이콘이면 자동 썸네일로 돌아가요.
+  if (icon) return <span className="room-cover icon-cover" aria-hidden="true"><IconArt icon={icon} px={px} /></span>;
   if (room.cover === ownCoverId(room.id) && ownUrl) return <OwnCover seed={room.id} url={ownUrl} px={px} color={color} />;
   return cover ? <CoverPaper thing={cover} folder={folder} px={px} color={color} /> : null;
 }
