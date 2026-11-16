@@ -552,6 +552,11 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-shelf { position: absolute; left: var(--space-4); right: var(--space-4); display: grid; grid-template-columns: repeat(var(--n), minmax(0, var(--shelf-card-max))); justify-content: center; gap: var(--space-2); pointer-events: none; }
 .room-node { position: relative; display: grid; justify-items: center; align-content: center; gap: var(--space-1); min-width: 0; min-height: 0; padding: var(--space-1); border: 0; background: none; transform: none; pointer-events: auto; cursor: grab; touch-action: none; text-align: center; }
 .room-node:active:where(:not(:disabled)) { transform: none; background: none; }
+/* 카드 칸: 방 카드와 오른쪽 위 ⋯ 단추(방 메뉴). 단추는 늘 보여요. 오른쪽 클릭을 모르는 사람도 방 설정·홈에서 빼기를 찾게요. */
+.room-slot { position: relative; display: grid; min-width: 0; min-height: 0; }
+.room-slot > .room-node { min-width: 0; }
+.room-more { position: absolute; top: 0; right: max(0%, calc(50% - var(--space-12) - var(--space-3))); z-index: 1; min-width: var(--control-sm); min-height: var(--control-sm); padding: 0; border-radius: var(--radius-pill); color: var(--ink-soft); font-size: var(--text-md); line-height: 1; pointer-events: auto; }
+.room-more:hover:not(:disabled), .room-more:focus-visible { color: var(--ink); }
 .room-node .room-label, .room-node .room-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-node.dragging { z-index: 3; cursor: grabbing; scale: 1.06; }
 /* 고른 카드는 그림이 커져서 골랐다는 게 보여요. 가리킨 카드는 그림 외곽선이 빛나요. */

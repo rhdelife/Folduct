@@ -158,7 +158,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
         <ObjectShape kind={thing.kind} size={40} name={thing.name} seed={thing.id} />
         <div>
           <h2 id="preview-title" ref={heading} tabIndex={-1}>{thing.name}</h2>
-          <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(state?.status === "ready" ? state.file.size : thing.size), room.name]} /></p>
+          <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(state?.status === "ready" ? state.file.size : thing.size), <button type="button" className="link" onClick={onToRoom} aria-label={`${room.name} 방으로 가기`}>{room.name}</button>]} /></p>
         </div>
         <button type="button" className="quiet" onClick={onClose}>닫기</button>
       </header>

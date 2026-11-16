@@ -463,8 +463,9 @@ const MapLayers = memo(function MapLayers({
               const menu = roomMenuTriggers(room.id, onRoomMenu);
               const fed = selectedId === room.id;
               return (
+                // 카드 하나 = 방 카드 단추 + 옆의 ⋯ 단추. 단추 안에 단추를 둘 수 없어서 둘을 한 칸에 겹쳐 놓아요.
+                <div key={room.id} className="room-slot">
                 <button
-                  key={room.id}
                   type="button"
                   data-room-id={room.id}
                   className={`room-node${fed ? " fed" : ""}`}
@@ -502,6 +503,21 @@ const MapLayers = memo(function MapLayers({
                   <span className="room-label">{room.name}</span>
                   <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
                 </button>
+                {/* 오른쪽 클릭으로만 열리던 방 메뉴(방 설정·홈에서 빼기)를 보이는 단추로도 열어요. */}
+                <button
+                  type="button"
+                  className="room-more quiet"
+                  aria-label={`${room.name} 방 메뉴`}
+                  aria-haspopup="menu"
+                  tabIndex={room.id === tabStop ? 0 : -1}
+                  onClick={(event) => {
+                    const box = event.currentTarget.getBoundingClientRect();
+                    onRoomMenu(room.id, event.currentTarget, box.left, box.bottom);
+                  }}
+                >
+                  ⋯
+                </button>
+                </div>
               );
             })}
           </div>
