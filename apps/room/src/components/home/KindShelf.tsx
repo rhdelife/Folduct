@@ -335,7 +335,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       <header className="kind-shelves-head">
-        <h2 id="kind-shelves-title">{mode === "kind" ? "형식별로 보기" : mode === "hue" ? "컬러별로 보기" : (customView?.name ?? "서랍장")}</h2>
+        <h2 id="kind-shelves-title">Drawer</h2>
         <div className="kind-shelves-tools">
           <div className="seg" role="radiogroup" aria-label="서랍 나누기">
             {tabs.map((tab) => (
@@ -346,9 +346,9 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             ))}
           </div>
           <button type="button" className="quiet kind-shelves-add" aria-label="새 서랍장 만들기" title="새 서랍장 만들기" onClick={() => setEditing("new")}>+</button>
-          {mode !== "hue" && <button type="button" className="quiet" onClick={() => setEditing("edit")}>서랍장 고치기</button>}
+          {mode !== "hue" && <button type="button" className="quiet" title="서랍장 고치기" onClick={() => setEditing("edit")}>Edit</button>}
         </div>
-        {mode !== "hue" && shelves.length === 0 && <p className="kind-shelves-note">이 서랍장에 보일 파일이 없어요. ‘서랍장 고치기’에서 서랍에 형식을 골라 주세요.</p>}
+        {mode !== "hue" && shelves.length === 0 && <p className="kind-shelves-note">이 서랍장에 보일 파일이 없어요. ‘Edit’에서 서랍에 형식을 골라 주세요.</p>}
         {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}
         {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">{unreadImages ? "이미지가 있는 방의 폴더를 연결하면 색으로 볼 수 있어요. 샘플 방은 실제 파일이 없어 색을 읽지 못해요." : "색을 읽을 수 있는 이미지가 없어요."}</p>}
       </header>

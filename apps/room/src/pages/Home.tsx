@@ -571,7 +571,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}
           {rooms && rooms.some((room) => !room.care.done && room.things.length > 0) && !selected && (
             <button type="button" className="shelf-hint" onClick={() => shelf.current?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}>
-              형식별로 보기 <span aria-hidden="true">↓</span>
+              Drawer <span aria-hidden="true">↓</span>
             </button>
           )}
         </div>
