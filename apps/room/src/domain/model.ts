@@ -57,7 +57,16 @@ export type Room = {
   face: RoomFace;
   // 방 썸네일로 고른 것. 방 파일 id이거나 ownCoverId(방 id)(사용자가 올린 그림)예요. 없으면 가장 최근 그림을 써요.
   cover?: string | null;
+  // 사용자가 지은 방 분류(예: 수업, 회사). 홈 방 카드 줄을 분류로 거를 때 써요. 없으면 분류 없음이에요.
+  group?: string | null;
 };
+
+// 분류 이름은 앞뒤 빈칸을 지우고 20자까지예요. 비면 분류 없음(null)이에요.
+export const roomGroupMax = 20;
+export const cleanGroup = (value: unknown): string | null => (typeof value === "string" ? value.trim().slice(0, roomGroupMax) || null : null);
+
+// 방들에 붙은 분류를 가나다순으로, 겹치지 않게 모아요. 방 설정의 고르기와 홈 분류 칩이 같이 써요.
+export const roomGroups = (rooms: { group?: string | null }[]): string[] => [...new Set(rooms.flatMap((room) => (room.group ? [room.group] : [])))].sort((a, b) => a.localeCompare(b, "ko"));
 
 // 사용자가 올린 방 썸네일 그림의 자리. 파일 그림과 같은 저장소(pictures.ts)에 이 이름으로 둬요.
 export const ownCoverId = (roomId: string) => `cover:${roomId}`;

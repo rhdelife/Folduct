@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ownCoverId, type CareSettings, type Room } from "../domain/model";
+import { cleanGroup, ownCoverId, roomGroupMax, roomGroups, type CareSettings, type Room } from "../domain/model";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
-import { forgetRoom, patchRoom } from "../storage/db";
+import { forgetRoom, listRooms, patchRoom } from "../storage/db";
 import { canThumb, coverOf, useReadableFolders } from "../storage/thumbs";
 import { faceColors, faceColorVar } from "../domain/face";
 import { CoverPaper, faceHex, OwnCover } from "./RoomCover";
@@ -12,14 +12,14 @@ const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나
 const coverChoices = 23;
 const choicePx = 56;
 
-type Draft = { name: string; care: CareSettings; cover: string | null; color: number };
+type Draft = { name: string; care: CareSettings; cover: string | null; color: number; group: string };
 
 // 홈에서 방을 우클릭해 여는 방 설정. 고친 것은 아래 저장을 눌러야 방에 들어가요. 저장하지 않고 닫으면 한 번 물어요.
 export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room; onClose: () => void; onForgotten: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const start: Draft = { name: room.name, care: room.care, cover: room.cover ?? null, color: room.face.color };
+  const start: Draft = { name: room.name, care: room.care, cover: room.cover ?? null, color: room.face.color, group: room.group ?? "" };
   const [draft, setDraft] = useState<Draft>(start);
   const [nameDraft, setNameDraft] = useState(room.name);
   // 새로 고른 내 그림. 저장할 때 그림 저장소에 넣어요.
@@ -27,6 +27,11 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   useModal(dialog);
+  // 다른 방에 붙인 분류를 고를 수 있게 모아 둬요. 못 읽어도 직접 적을 수 있어요.
+  const [groups, setGroups] = useState<string[]>([]);
+  useEffect(() => {
+    listRooms().then((rooms) => setGroups(roomGroups(rooms)), (cause: unknown) => console.error(cause));
+  }, []);
   const folder = useReadableFolders([room]).get(room.id) ?? null;
   const own = ownCoverId(room.id);
   const savedOwnUrl = usePicture(own);
@@ -42,7 +47,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
   }, [room.things, room.cover]);
   const auto = coverOf({ things: room.things, cover: null });
 
-  const changed = draft.name !== start.name || draft.care.done !== start.care.done || draft.care.staleAfterDays !== start.care.staleAfterDays || draft.cover !== start.cover || draft.color !== start.color || upload !== null;
+  const changed = draft.name !== start.name || draft.care.done !== start.care.done || draft.care.staleAfterDays !== start.care.staleAfterDays || draft.cover !== start.cover || draft.color !== start.color || cleanGroup(draft.group) !== cleanGroup(start.group) || upload !== null;
   const tint = faceHex(draft.color);
   const onCare = (patch: Partial<CareSettings>) => setDraft((now) => ({ ...now, care: { ...now.care, ...patch } }));
   const days = (value: string) => Math.min(365, Math.max(1, Math.round(Number(value)) || 1));
@@ -63,7 +68,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
     setError(null);
     try {
       if (draft.cover === own && upload) await setPicture(room.id, own, upload.file);
-      await patchRoom(room.id, (current) => ({ ...current, name: draft.name, care: draft.care, cover: draft.cover, face: { ...current.face, color: draft.color } }));
+      await patchRoom(room.id, (current) => ({ ...current, name: draft.name, care: draft.care, cover: draft.cover, face: { ...current.face, color: draft.color }, group: cleanGroup(draft.group) }));
       // 내 그림을 그만 쓰면 저장소에서도 지워요. 앱 저장소에만 있던 그림이에요.
       if (draft.cover !== own && savedOwnUrl) await clearPicture(room.id, own).catch((cause: unknown) => console.error(cause));
       onClose();
@@ -118,6 +123,13 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
           setDraft((now) => ({ ...now, name: event.target.value.trim() || room.name }));
         }} onBlur={() => setNameDraft(draft.name)} /></label>
         {!nameDraft.trim() && <p className="soft" role="status">비워 두면 ‘{room.name}’(으)로 돌아가요.</p>}
+        {/* 방 분류: 직접 적거나 다른 방에 붙인 분류를 골라요. 홈 방 카드 줄 위 분류 칩으로 걸러 볼 수 있어요. */}
+        <label className="field">방 분류 <input value={draft.group} maxLength={roomGroupMax} list="room-group-list" placeholder="예: 수업, 회사" onChange={(event) => {
+          const group = event.target.value;
+          setDraft((now) => ({ ...now, group }));
+        }} /></label>
+        <datalist id="room-group-list">{groups.map((name) => <option key={name} value={name} />)}</datalist>
+        <p className="soft">홈 방 카드 위 분류로 걸러 볼 수 있어요. 비워 두면 분류 없음이에요.</p>
         {/* 방 색: 홈 방 카드 썸네일, 작업 시작 알약, 프로도 받침, 작업 기록 막대에 같이 쓰여요. */}
         <fieldset className="face-picker">
           <legend>방 색</legend>

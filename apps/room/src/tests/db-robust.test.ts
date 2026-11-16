@@ -57,6 +57,12 @@ describe("망가진 기록", () => {
     expect(normalizeRoom({ id: "r" }).cover).toBeNull();
     expect(normalizeRoom({ id: "r", cover: 3 }).cover).toBeNull();
     expect(normalizeRoom({ id: "r", cover: "t1" }).cover).toBe("t1");
+    // 방 분류 칸이 없던 예전 기록이나 망가진 값은 분류 없음(null)이고, 이름은 다듬어요.
+    expect(normalizeRoom({ id: "r" }).group).toBeNull();
+    expect(normalizeRoom({ id: "r", group: 7 }).group).toBeNull();
+    expect(normalizeRoom({ id: "r", group: "   " }).group).toBeNull();
+    expect(normalizeRoom({ id: "r", group: "  수업 " }).group).toBe("수업");
+    expect(normalizeRoom({ id: "r", group: "가".repeat(30) }).group).toHaveLength(20);
   });
 
   it("예전 한도 값이 남은 방도 그대로 열리고, 값은 지우지 않는다", () => {

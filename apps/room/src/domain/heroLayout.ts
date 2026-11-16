@@ -78,14 +78,15 @@ export function fedThings(room: Room, { query, kinds }: FedFilter): Thing[] {
 }
 
 // selectedId: 프로도가 먹은 방. 그 방 파일만 칸에 놓아요.
-export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, doorOpen = false, selectedId: string | null = null, filter: FedFilter = { query: "", kinds: null }): HeroLayout {
+export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thing: Thing) => number, doorOpen = false, selectedId: string | null = null, filter: FedFilter = { query: "", kinds: null }, lead = 0): HeroLayout {
   const active = homeRooms(rooms);
   if (active.length === 0) return { shelf: null, rooms: [], frodo: null, cards: [], find: null };
   const unit = stageUnit(view);
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
   // 현관 줄은 왼쪽 아래 탭이 없는 좁은 창에서만 머리 아래에 펼쳐져요. 넓은 창에서는 '진행 중' 탭 안에 있어요.
-  const shelf = { top: (doorOpen && calendarSpot(view).length === 0 ? doorBottom(view) : headerBottom(view)) + edge, height: shelfHeight(view) };
+  // lead: 방 카드 줄 위에 비워 둘 높이(분류 칩 줄).
+  const shelf = { top: (doorOpen && calendarSpot(view).length === 0 ? doorBottom(view) : headerBottom(view)) + edge + lead, height: shelfHeight(view) };
   const top = shelf.top + shelf.height + gap;
   const room = active.find((item) => item.id === selectedId);
 

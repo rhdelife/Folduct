@@ -5,8 +5,8 @@ import { kindParts, kindSummary } from "../art/duct";
 import { StackArt } from "./RoomFace";
 import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, relativeDay, shownActivity } from "../domain/care";
-import { fedLengths, heroLayout, namedPaper, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
-import { formatBytes, kindLabels, type Room, type Thing } from "../domain/model";
+import { fedLengths, heroLayout, homeRooms, namedPaper, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
+import { formatBytes, kindLabels, roomGroups, type Room, type Thing } from "../domain/model";
 import { homeLimit, sky, stepRoom, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
@@ -17,6 +17,7 @@ import { usePicture } from "../storage/pictures";
 import { useReadableFolders, useThumb } from "../storage/thumbs";
 import { Meta } from "./Meta";
 import { faceHex, RoomCover } from "./RoomCover";
+import { cssToken } from "./tokens";
 
 type Tip = { star: Card; room: Room };
 
@@ -127,8 +128,20 @@ export function SkyMap({
   const label = own ? finding.label : null;
   const filter = useMemo<FedFilter>(() => ({ query, kinds: colorGroups.find((group) => group.label === label)?.kinds ?? null }), [query, label]);
   const onFind = useCallback((patch: { query?: string; label?: string | null }) => setFinding((old) => ({ ...(old.room === selectedId ? old : { query: "", label: null }), room: selectedId, ...patch })), [selectedId]);
+  // 방 분류 칩: 홈 방들에 분류가 하나라도 있으면 카드 줄 위에 '전체 · 분류…' 칩을 두고, 고른 분류의 방만 줄에 남겨요.
+  // 고른 분류가 사라지면(방을 지우거나 분류를 바꾸면) 전체로 돌아가요.
+  const groups = useMemo(() => roomGroups(homeRooms(rooms)), [rooms]);
+  const [pickedGroup, setPickedGroup] = useState<string | null>(null);
+  const group = pickedGroup && groups.includes(pickedGroup) ? pickedGroup : null;
+  const shown = useMemo(() => (group ? rooms.filter((room) => room.group === group) : rooms), [rooms, group]);
+  const chipRow = groups.length > 0 ? parseFloat(cssToken("--control-sm")) + parseFloat(cssToken("--space-2")) : 0;
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(rooms, now, view, paperAspect, doorOpen, selectedId, filter), [rooms, selectedId, now, view, doorOpen, filter]);
+  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, view, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, view, doorOpen, filter, chipRow]);
+  const pickGroup = (next: string | null) => {
+    setPickedGroup(next);
+    // 먹은 방이 거른 줄에서 빠지면 내려놓아요.
+    if (next && selectedId && rooms.find((room) => room.id === selectedId)?.group !== next) onSelectRoom(null);
+  };
   const ids = useMemo(() => shelfRooms.map((room) => room.id), [shelfRooms]);
   const feed = onSelectRoom;
 
@@ -182,6 +195,15 @@ export function SkyMap({
             closeTip();
           }}
         />
+        {shelf && groups.length > 0 && (
+          <div className="room-groups" role="group" aria-label="방 분류로 거르기" style={{ top: shelf.top - chipRow }}>
+            {[null, ...groups].map((name) => (
+              <button key={name ?? ""} type="button" className="fed-kind" aria-pressed={group === name} onClick={() => pickGroup(name)}>
+                {name ?? "전체"}
+              </button>
+            ))}
+          </div>
+        )}
         <MapLayers
           shelf={shelf}
           rooms={shelfRooms}
@@ -200,7 +222,7 @@ export function SkyMap({
           onFocusThing={onFocusThing}
           onOpenThing={onOpenThing}
           onRoomMenu={onRoomMenu}
-          onNewRoom={onNewRoom}
+          onNewRoom={homeRooms(rooms).length < homeLimit ? onNewRoom : undefined}
           onShowTip={showTip}
           onHideTip={hideTip}
           onCloseTip={closeTip}
@@ -275,7 +297,8 @@ const MapLayers = memo(function MapLayers({
   onHideTip: () => void;
   onCloseTip: () => void;
 }) {
-  const adding = Boolean(onNewRoom) && rooms.length < homeLimit;
+  // 홈 줄이 차지 않았을 때만 SkyMap이 onNewRoom을 넘겨요(분류로 거른 줄이 아니라 홈 방 전체로 셉니다).
+  const adding = Boolean(onNewRoom);
   // 탭 키로는 카드 줄에 한 번만 들어옵니다. 먹은 방이 없으면 첫 방이 들어오는 자리입니다.
   const [lastFocus, setLastFocus] = useState<string | null>(null);
   const tabStop = selectedId ?? (lastFocus && ids.includes(lastFocus) ? lastFocus : ids[0]);
