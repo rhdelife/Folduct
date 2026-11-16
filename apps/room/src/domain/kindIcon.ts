@@ -1,7 +1,7 @@
 import { paperArts, poly, quad, ring, wavy, type PaperArt, type PaperPart } from "../art/paperArts";
 import { kindLabels, type Kind } from "./model";
 
-// 사용자가 그린 파일 형식 아이콘. 바탕은 그 형식의 기존 종이 한 장이고, 그 위에 그은 선과 도장만 둬요.
+// 사용자가 그린 파일 형식 아이콘. 빈 흰 캔버스(blank)에 그은 선과 도장만 둬요. 예전에 기존 종이 위에 그린 것은 그 종이를 바탕으로 그대로 그려요.
 // 선은 그릴 때 그대로가 아니라 ObjectShape가 프로도와 같은 펜으로 다시 그어서, 누가 그려도 같은 그림체예요.
 export type IconTool = "pen" | "ring" | "box" | "wave";
 // pen은 지나간 점들(x, y, x, y…), 도장은 끌어 놓은 두 점(시작 x, y, 끝 x, y)이에요. 좌표는 바탕 종이 판 기준이에요.
@@ -21,7 +21,9 @@ export const emptyKindIcons: KindIconStore = { icons: [], use: {} };
 export const kinds = Object.keys(kindLabels) as Kind[];
 const tools: IconTool[] = ["pen", "ring", "box", "wave"];
 
-export const baseOf = (kind: Kind, base: string): PaperArt => paperArts[kind].find((art) => art.id === base) ?? paperArts[kind][0];
+// 빈 캔버스. 판 크기는 종이와 비슷하게, 이름 칸은 아래쪽이에요. 그린 것 말고는 아무것도 그리지 않아요.
+export const blankPaper: PaperArt = { id: "blank", w: 100, h: 118, slot: { x: 12, y: 88, w: 76, h: 22, fill: "ink", on: "pale", center: true }, parts: [] };
+export const baseOf = (kind: Kind, base: string): PaperArt => (base === blankPaper.id ? blankPaper : paperArts[kind].find((art) => art.id === base) ?? blankPaper);
 const r1 = (n: number) => Math.round(n * 10) / 10;
 export const clampPoint = (art: Pick<PaperArt, "w" | "h">, x: number, y: number): [number, number] => [r1(Math.min(art.w - edge, Math.max(edge, x))), r1(Math.min(art.h - edge, Math.max(edge, y)))];
 

@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, type PointerEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { paperArts } from "../art/paperArts";
-import { baseOf, clampPoint, iconArt, kindIconLimit, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTool, type KindIcon } from "../domain/kindIcon";
+import { baseOf, blankPaper, clampPoint, iconArt, kindIconLimit, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTool, type KindIcon } from "../domain/kindIcon";
 import { kindLabels, type Kind } from "../domain/model";
 import { saveKindIcons, useKindIcons } from "../storage/kindIcons";
 import { Icon } from "./Icon";
@@ -16,10 +15,10 @@ const toolNames: { tool: IconTool; label: string }[] = [
 ];
 // 펜은 판 단위로 이만큼 움직였을 때만 점을 더해요. 점이 너무 많으면 프로도 펜이 무거워져요.
 const penStep = 1.5;
-const fresh = (kind: Kind): KindIcon => ({ id: crypto.randomUUID(), name: "", kind, base: paperArts[kind][0].id, strokes: [], at: Date.now() });
+const fresh = (kind: Kind): KindIcon => ({ id: crypto.randomUUID(), name: "", kind, base: blankPaper.id, strokes: [], at: Date.now() });
 const same = (a: KindIcon | undefined, b: KindIcon) => Boolean(a) && JSON.stringify({ ...a, at: 0 }) === JSON.stringify({ ...b, at: 0 });
 
-// 메뉴에서 여는 파일 형식 아이콘 만들기와 보관함. 형식의 종이 한 장 위에 선과 도장을 그리고, 저장한 뒤 '이 형식에 쓰기'를 누르면
+// 메뉴에서 여는 파일 형식 아이콘 만들기와 보관함. 빈 흰 캔버스에 선과 도장을 그리고, 저장한 뒤 '이 형식에 쓰기'를 누르면
 // 홈·방·Drawer·미리보기에서 그 형식 파일이 이 그림으로 바뀌어요. 선은 프로도와 같은 펜으로 다시 그어져요.
 export function KindIconMaker({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -69,10 +68,9 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
     setLive(null);
   }
 
-  // 형식을 바꾸면 그 형식의 첫 종이로 바꾸고, 그린 선은 새 종이 안으로 넣어요.
+  // 형식을 바꿔도 그림은 그대로예요. 예전 종이 위 그림은 빈 캔버스로 옮기고, 선은 캔버스 안으로 넣어요.
   function changeKind(kind: Kind) {
-    const next = paperArts[kind][0];
-    setDraft((now) => ({ ...now, kind, base: next.id, strokes: now.strokes.map((stroke) => ({ ...stroke, pts: stroke.pts.flatMap((value, at) => (at % 2 ? [] : clampPoint(next, value, stroke.pts[at + 1]))) })) }));
+    setDraft((now) => ({ ...now, kind, base: blankPaper.id, strokes: now.strokes.map((stroke) => ({ ...stroke, pts: stroke.pts.flatMap((value, at) => (at % 2 ? [] : clampPoint(blankPaper, value, stroke.pts[at + 1]))) })) }));
   }
 
   async function write(next: typeof store) {
@@ -159,16 +157,6 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
           <div className="seg icon-kinds" role="radiogroup" aria-label="파일 형식 고르기">
             {kinds.map((kind) => (
               <label key={kind}><input type="radio" name="icon-kind" checked={draft.kind === kind} onChange={() => changeKind(kind)} />{kindLabels[kind]}</label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="face-picker">
-          <legend>바탕 종이</legend>
-          <div className="icon-bases" role="radiogroup" aria-label="바탕 종이 고르기">
-            {paperArts[draft.kind].map((paper, at) => (
-              <button key={paper.id} type="button" role="radio" className="cover-option" aria-checked={draft.base === paper.id} aria-label={`바탕 ${at + 1}`} onClick={() => setDraft((now) => ({ ...now, base: paper.id, strokes: now.strokes.map((stroke) => ({ ...stroke, pts: stroke.pts.flatMap((value, i) => (i % 2 ? [] : clampPoint(paper, value, stroke.pts[i + 1]))) })) }))}>
-                <ObjectShape kind={draft.kind} size={48} art={paper} />
-              </button>
             ))}
           </div>
         </fieldset>

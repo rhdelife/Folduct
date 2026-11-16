@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { paperArts } from "../art/paperArts";
-import { iconArt, normalizeKindIcons, type KindIcon } from "../domain/kindIcon";
+import { blankPaper, iconArt, normalizeKindIcons, type KindIcon } from "../domain/kindIcon";
 
 const icon: KindIcon = { id: "a", name: "내 영상", kind: "video", base: paperArts.video[1].id, at: 5, strokes: [
   { tool: "pen", pts: [10, 10, 20, 20, 30, 15], fill: false },
@@ -28,8 +28,8 @@ describe("파일 형식 아이콘", () => {
       use: { video: "a", image: "a", pdf: "nope" },
     });
     expect(store.icons).toHaveLength(1);
-    expect(store.icons[0].base).toBe(paperArts.video[0].id);
-    expect(store.icons[0].strokes).toEqual([{ tool: "pen", pts: [6, 6, paperArts.video[0].w - 6, paperArts.video[0].h - 6], fill: false }]);
+    expect(store.icons[0].base).toBe("blank");
+    expect(store.icons[0].strokes).toEqual([{ tool: "pen", pts: [6, 6, blankPaper.w - 6, blankPaper.h - 6], fill: false }]);
     // 다른 형식에 붙은 아이콘이나 없는 아이콘은 기본 종이로 돌아가요.
     expect(store.use).toEqual({ video: "a" });
     expect(normalizeKindIcons(undefined)).toEqual({ icons: [], use: {} });
