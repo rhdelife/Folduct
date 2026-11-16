@@ -6,7 +6,7 @@ import { formatBytes, kindLabels, type Room, type Thing } from "../../domain/mod
 import { currentOs } from "../../domain/platform";
 import { isExcludedName } from "../../gateways/folder";
 import { isNotFound } from "../../gateways/mover";
-import { askFolder, folderAccess, isNative, openInApp, readFolderFile, type Folder } from "../../gateways/native";
+import { askFolder, folderAccess, isNative, firstPage, openInApp, readFolderFile, type Folder } from "../../gateways/native";
 import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../../storage/pictures";
@@ -39,6 +39,9 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
   const folder = useRef<Folder | null>(null);
   const started = useRef(-1);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  // 앱 안에서 못 여는 형식(발표·문서 등)은 macOS Quick Look 첫 장 그림을 보여 줘요.
+  const [page, setPage] = useState<string | null>(null);
+  useEffect(() => () => void (page && URL.revokeObjectURL(page)), [page]);
   const [busy, setBusy] = useState<string | null>(null);
   const picture = usePicture(thing.id);
   const upload = useRef<HTMLInputElement>(null);
@@ -63,7 +66,17 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
         folder.current ??= await roomFolder(room);
         const found = folder.current;
         if (!found) return setState({ status: "need-folder" });
-        if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) return setState({ status: "outside", big: previewMode(thing) !== "none" });
+        if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) {
+          if (previewMode(thing) === "none" && currentOs() === "mac") {
+            setState({ status: "loading" });
+            const made = await firstPage(found, thing.path).then(URL.createObjectURL, () => null);
+            if (made) {
+              setPage(made);
+              touch();
+            }
+          }
+          return setState({ status: "outside", big: previewMode(thing) !== "none" });
+        }
         setState({ status: "loading" });
         if ((await folderAccess(found)) !== "granted" && !(await askFolder(found))) return setState({ status: "denied" });
         setState({ status: "ready", file: await readFolderFile(found, thing.path) });
@@ -178,7 +191,8 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
               <button type="button" className="primary" onClick={retry}>다시 허용하고 열기</button>
             </div>
           )}
-          {state?.status === "outside" && <p className="viewer-note">{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>}
+          {state?.status === "outside" && page && <div className="viewer-stage"><img src={page} alt={`${thing.name} 첫 장`} onError={() => setPage(null)} /></div>}
+          {state?.status === "outside" && !page && <p className="viewer-note">{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>}
           {state?.status === "error" && (
             <div className="viewer-note">
               <p>{state.message}</p>
