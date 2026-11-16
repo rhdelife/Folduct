@@ -335,6 +335,13 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const tabs = [{ id: "kind", name: "형식별" }, { id: "hue", name: "컬러별" }, ...views.custom];
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
+      {/* 펜 떨림: 서랍장 선을 프로도처럼 손으로 그린 선으로 흔들어요. 글자에는 쓰지 않아요. */}
+      <svg className="kind-pen-defs" aria-hidden="true" focusable="false">
+        <filter id="kind-pen">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="7" />
+          <feDisplacementMap in="SourceGraphic" scale="4" />
+        </filter>
+      </svg>
       <header className="kind-shelves-head">
         <h2 id="kind-shelves-title">Drawer</h2>
         <div className="kind-shelves-tools">
@@ -359,6 +366,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             {/* 서랍장이 아래로 물러나는 판이에요. 바깥 판의 스크롤 등장 애니메이션과 따로 움직여야 transition이 막히지 않아요. */}
             <div className="kind-cabinet-sink">
               <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
+                <span className="kind-cabinet-line" aria-hidden="true" />
                 {shelves.map((shelf) => (
                   <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
                 ))}

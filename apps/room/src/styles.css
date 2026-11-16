@@ -1674,7 +1674,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .home-stage { scroll-snap-align: start; }
 .shelf-hint { position: absolute; left: 50%; bottom: var(--space-5); z-index: 3; translate: -50% 0; font-size: var(--text-sm); font-weight: 500; color: var(--ink-caption); background: var(--bg); }
 .shelf-hint:hover:not(:disabled) { color: var(--ink); }
-.kind-shelves { container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); scroll-snap-align: start; view-timeline: --kind-scene block; }
+.kind-shelves { --pen: calc(var(--room-hair) * 4); container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); scroll-snap-align: start; view-timeline: --kind-scene block; }
 .kind-shelves-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 /* 숨긴 라디오가 문서 기준으로 놓이면 누를 때 문서가 밀려 올라가요. 단추 안에 붙들어 둬요. */
 .kind-shelves-head .seg label { position: relative; }
@@ -1745,10 +1745,12 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 서랍장: 서랍 한 칸이 가로 2 : 세로 1. 남은 폭과 높이 안에 들어가는 가장 큰 크기로 가운데 놓여요. 아래는 빠져나온 서랍이 걸칠 자리예요. */
 .kind-cabinet-wrap { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; padding: var(--space-2) 0 var(--space-12); }
 .kind-cabinet-sink { display: grid; place-items: inherit; width: 100%; height: 100%; min-width: 0; min-height: 0; }
-.kind-cabinet { --cols: 3; --rows: var(--rows3); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); position: relative; gap: var(--space-2); width: min(100cqw, 100cqh * var(--cols) * 2 / var(--rows)); aspect-ratio: calc(var(--cols) * 2) / var(--rows); padding: var(--space-3); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-selected); transform-origin: 0 0; }
+.kind-cabinet { --cols: 3; --rows: var(--rows3); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); position: relative; gap: var(--space-2); width: min(100cqw, 100cqh * var(--cols) * 2 / var(--rows)); aspect-ratio: calc(var(--cols) * 2) / var(--rows); padding: calc(var(--space-3) + var(--pen)); border-radius: var(--radius-lg) var(--radius-md) var(--radius-lg) var(--radius-sm) / var(--radius-md) var(--radius-lg) var(--radius-sm) var(--radius-lg); background: var(--surface); transform-origin: 0 0; }
+.kind-pen-defs { position: absolute; width: 0; height: 0; }
+.kind-cabinet-line { position: absolute; inset: 0; border: var(--pen) solid var(--ink); border-radius: inherit; filter: url(#kind-pen); pointer-events: none; }
 /* 다리 두 개: 바닥에서 살짝 뜬 서랍장이에요. */
-.kind-cabinet::before, .kind-cabinet::after { content: ""; position: absolute; top: 100%; left: 7%; width: 9%; height: var(--space-3); border: var(--room-hair) solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--radius-xs) var(--radius-xs); background: var(--surface-selected); }
-.kind-cabinet::after { left: auto; right: 7%; }
+.kind-cabinet-line::before, .kind-cabinet-line::after { content: ""; position: absolute; top: 100%; left: 7%; width: 9%; height: var(--space-3); border: var(--pen) solid var(--ink); border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-xs); background: var(--surface); }
+.kind-cabinet-line::after { left: auto; right: 7%; border-radius: 0 0 var(--radius-xs) var(--radius-sm); }
 /* 서랍 칸 자체는 서랍장 속 어두운 구멍이에요. 앞판이 빠져나가면 드러나요.
    닫히는 서랍(data-closing, 들어가는 동안 KindShelf가 붙여요)은 아랫줄 서랍 위, 새로 연 서랍 아래에 둬요. 같은 층이면 겹친 동안 앞뒤가 문서 순서를 따르다가 끝에 뒤집혀요. */
 .kind-drawer { position: relative; z-index: 0; min-width: 0; min-height: 0; border-radius: var(--radius-sm); background: var(--ink-wash); }
@@ -1759,29 +1761,32 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-drawer-body { position: absolute; inset: 0; }
 .kind-drawer:not([data-open="true"]):hover .kind-drawer-body { transform: translateY(var(--space-1)); }
 .kind-drawer[data-open="true"] .kind-drawer-body { transform: translateY(40%) scale(1.04); }
-.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); min-height: 0; padding: var(--space-3) var(--space-4); border: var(--room-hair) solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-align: left; white-space: nowrap; }
-.kind-drawer:hover .kind-drawer-front:not(:disabled) { border-color: var(--ink); }
-.kind-drawer-front:active:not(:disabled) { transform: none; background: var(--surface); }
+.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); min-height: 0; padding: var(--space-3) var(--space-4); border: var(--pen) solid transparent; border-radius: var(--radius-md) var(--radius-sm) var(--radius-md) var(--radius-xs) / var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md); background: color-mix(in srgb, var(--kind) 16%, var(--surface)); color: var(--ink); text-align: left; white-space: nowrap; }
+.kind-drawer:nth-child(even) .kind-drawer-front { border-radius: var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md) / var(--radius-md) var(--radius-xs) var(--radius-md) var(--radius-sm); }
+.kind-drawer:hover .kind-drawer-front:not(:disabled) { background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
+.kind-drawer-front:active:not(:disabled) { transform: none; background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
+.kind-drawer-front::after { content: ""; position: absolute; inset: calc(var(--pen) * -1); border: var(--pen) solid var(--ink); border-radius: inherit; filter: url(#kind-pen); pointer-events: none; }
+.kind-drawer-front .kind-dot { box-shadow: 0 0 0 calc(var(--room-hair) * 1.5) var(--ink); }
 /* 열렸을 때의 잉크 테와 그림자는 따로 그려 opacity만 바꿔요. 테두리와 그림자를 바로 옮기면 매 프레임 다시 그려요. */
-.kind-drawer-front::before { content: ""; position: absolute; inset: calc(var(--room-hair) * -1); border: var(--room-hair) solid var(--ink); border-radius: inherit; box-shadow: var(--shadow-2); opacity: 0; }
+.kind-drawer-front::before { content: ""; position: absolute; inset: calc(var(--pen) * -1); border-radius: inherit; box-shadow: var(--shadow-2); opacity: 0; }
 .kind-drawer[data-open="true"] .kind-drawer-front::before { opacity: 1; }
 .kind-drawer-plate { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; font-size: var(--text-md); line-height: var(--lh-md); }
 .kind-drawer-plate b { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
 .kind-drawer-count { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
 /* 손잡이: 앞판 아래 가운데 가로 막대 하나. */
-.kind-drawer-handle { position: absolute; left: 50%; bottom: 16%; width: 28%; height: var(--space-2); translate: -50% 0; border: var(--room-hair) solid var(--ink-faint); border-radius: var(--radius-pill); background: var(--surface-sunken); }
+.kind-drawer-handle { position: absolute; left: 50%; bottom: 16%; width: 28%; height: var(--space-2); translate: -50% 0; border: var(--pen) solid var(--ink); border-radius: var(--radius-pill); background: var(--surface); filter: url(#kind-pen); }
 /* 속: 앞판 뒤에 놓여 앞판의 둥근 모서리와 윗변이 그대로 보여요. 아래를 모서리 반지름만큼 앞판 뒤로 넣어 틈이 생기지 않아요. */
 .kind-drawer-tray { position: absolute; inset-inline: 0; bottom: calc(100% - var(--radius-sm)); height: calc(33% + var(--radius-sm)); pointer-events: none; }
 /* 벽과 바닥: 같은 상자 안의 사다리꼴 둘이라 변이 정확히 맞아요. 바닥 옆변은 벽 바깥 변과 같은 소실점을 향해요. 닫히면 윗변으로 납작하게 접혀요. */
 .kind-drawer-well { position: absolute; inset: 0; transform: scaleY(0); transform-origin: bottom; }
 .kind-drawer[data-open="true"] .kind-drawer-well { transform: scaleY(1); }
 .kind-drawer-well::before, .kind-drawer-well::after { content: ""; position: absolute; inset: 0; }
-.kind-drawer-well::before { background: var(--line-strong); clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); }
+.kind-drawer-well::before { background: var(--ink); clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%); }
 .kind-drawer-well::after { background: var(--surface-sunken); clip-path: polygon(11% 10%, 89% 10%, 94% 100%, 6% 100%); }
 /* 종이: 앞뒤로 줄지어 꽂힌 서류예요. 뒤 종이일수록 좁고 높이 서서 앞 종이 위로 윗변과 형식 색 색인 탭이 보여요. 앞판 뒤에 숨어 있다가 열리면 뒤에서부터 차례로 올라와요. */
-.kind-drawer-sheet { position: absolute; inset-inline: calc(10% + var(--back) * 1.6%); bottom: 0; height: 66%; border: var(--room-hair) solid var(--line-strong); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--surface); transform: translateY(calc(100% + var(--space-3))); }
+.kind-drawer-sheet { position: absolute; inset-inline: calc(10% + var(--back) * 1.6%); bottom: 0; height: 66%; border: calc(var(--pen) * 0.7) solid var(--ink); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--surface); transform: translateY(calc(100% + var(--space-3))); filter: url(#kind-pen); }
 .kind-drawer[data-open="true"] .kind-drawer-sheet { transform: translateY(calc(var(--back) * -17%)); }
-.kind-drawer-sheet::before { content: ""; position: absolute; bottom: 100%; left: calc(6% + var(--i) * 17%); width: 22%; height: var(--space-2); border: var(--room-hair) solid var(--line-strong); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--kind); }
+.kind-drawer-sheet::before { content: ""; position: absolute; bottom: 100%; left: calc(6% + var(--i) * 17%); width: 22%; height: var(--space-2); border: calc(var(--pen) * 0.7) solid var(--ink); border-bottom: 0; border-radius: var(--radius-xs) var(--radius-xs) 0 0; background: var(--kind); }
 /* 목록 종이: 넓으면 오른쪽에 서고, 닫혀 있으면 안 보이게 비켜나 있다가 밀려 들어와요. */
 .kind-slip { position: absolute; inset: 0 0 0 auto; display: grid; justify-items: end; width: var(--kind-slip-w); min-height: 0; visibility: hidden; }
 .kind-slip[data-open="true"] { visibility: visible; }
@@ -1843,6 +1848,7 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-stage[data-open="true"] { padding-right: 0; }
   .kind-cabinet-wrap { place-items: start center; }
   .kind-drawer-front { padding: var(--space-2) var(--space-3); }
+  .kind-drawer-handle { bottom: 10%; }
   .kind-drawer-plate { font-size: var(--text-base); line-height: var(--lh-base); }
   .kind-slip { inset: auto 0 0; z-index: 3; width: auto; height: 60%; justify-items: stretch; }
   .kind-slip-paper { width: auto; padding: var(--space-4); }
