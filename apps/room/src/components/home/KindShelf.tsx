@@ -17,7 +17,8 @@ import { Icon } from "../Icon";
 import { emptyShelfViews, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
 import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
 import { ShelfEditor } from "./ShelfEditor";
-import { trashFile } from "../../gateways/mover";
+import { restoreTrashed, trashFile } from "../../gateways/mover";
+import type { ToastAction } from "../Toast";
 import { isNative } from "../../gateways/native";
 import { patchRoom } from "../../storage/db";
 
@@ -41,7 +42,7 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // 서랍을 누르면 앞으로 빠져나오며 안의 종이가 튀어 오르고, 나머지 서랍은 흐려지고, 옆에 그 서랍의 목록 종이가 펼쳐져요. 한 번에 한 서랍만 열려요.
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
 // onListGone: 열려 있던 목록 종이가 닫히거나 다른 서랍 목록으로 바뀌면 불러요. 그 목록에서 연 미리보기 창도 같이 닫으려고요.
-export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void; onTrashed?: (message: string) => void }>(function KindShelf({ rooms, onOpenFile, onListGone, onTrashed }, ref) {
+export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void; onTrashed?: (message: string, undo?: ToastAction) => void }>(function KindShelf({ rooms, onOpenFile, onListGone, onTrashed }, ref) {
   // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
   // 사용자가 만든 서랍장이면 그 id예요.
   const [mode, setMode] = useState<string>("kind");
@@ -405,7 +406,7 @@ const pickKey = (item: ShelfItem) => `${item.room.id}:${item.thing.id}`;
 
 // 목록 종이 한 장. 바꿔 열어 사라지는 중인 옛 종이(leaving)는 손이 닿지 않고 읽히지 않으며, 제목 id도 새 종이에 넘겨요.
 // 데스크톱에서는 '고르기'로 여러 파일을 골라 한 번에 휴지통으로 보내요. 묻고 나서 보내고, 휴지통에서 되살릴 수 있어요.
-export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTrashed }: { shelf: Shelf; leaving: boolean; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; onClose: () => void; onTrashed?: (message: string) => void }) {
+export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTrashed }: { shelf: Shelf; leaving: boolean; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; onClose: () => void; onTrashed?: (message: string, undo?: ToastAction) => void }) {
   const [picked, setPicked] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
   // 폴더 경로를 아는(데스크톱에서 연결한) 방의 파일만 고를 수 있어요.
@@ -416,13 +417,16 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
     if (chosen.length === 0 || !(await window.confirm(`파일 ${countText(chosen.length)}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
     setBusy(true);
     const done = new Map<string, Set<string>>();
+    // 되돌릴 수 있게 휴지통 안 자리를 받아 둬요(macOS만 알려 줘요).
+    const placed: { roomId: string; folder: string; thing: ShelfItem["thing"]; place: string }[] = [];
     let failed = 0;
     // 하나씩 차례로 보내요. 하나가 실패해도 나머지는 계속해요.
     for (const { room, thing } of chosen) {
       const folder = folders.get(room.id);
       try {
         if (typeof folder !== "string") throw new Error("폴더 없음");
-        await trashFile(folder, thing.path);
+        const place = await trashFile(folder, thing.path);
+        if (place) placed.push({ roomId: room.id, folder, thing, place });
         done.set(room.id, (done.get(room.id) ?? new Set()).add(thing.id));
       } catch (error) {
         console.error(error);
@@ -433,7 +437,26 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
     setBusy(false);
     setPicked(null);
     const sent = chosen.length - failed;
-    onTrashed?.(`${sent > 0 ? `파일 ${countText(sent)}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${countText(failed)}개는 보내지 못했어요.` : ""}`.trim());
+    const undo: ToastAction | undefined = placed.length === 0 ? undefined : {
+      label: "되돌리기",
+      run: () =>
+        void (async () => {
+          const back = new Map<string, ShelfItem["thing"][]>();
+          for (const { roomId, folder, thing, place } of placed) {
+            try {
+              await restoreTrashed(folder, thing.path, place);
+              back.set(roomId, [...(back.get(roomId) ?? []), thing]);
+            } catch (error) {
+              console.error(error);
+            }
+          }
+          await Promise.all([...back].map(([roomId, things]) => patchRoom(roomId, (current) => ({ ...current, things: [...current.things, ...things.filter((thing) => !current.things.some((item) => item.id === thing.id))] })).catch((error: unknown) => console.error(error))));
+          const restored = [...back.values()].reduce((sum, things) => sum + things.length, 0);
+          const missed = placed.length - restored;
+          onTrashed?.(restored > 0 ? `파일 ${countText(restored)}개를 되돌렸어요.${missed > 0 ? ` ${countText(missed)}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+        })(),
+    };
+    onTrashed?.(`${sent > 0 ? `파일 ${countText(sent)}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${countText(failed)}개는 보내지 못했어요.` : ""}`.trim(), undo);
   };
   return (
     <div className="kind-slip-paper" data-leaving={leaving || undefined} inert={leaving} aria-hidden={leaving || undefined} style={{ "--kind": colorOf(shelf) } as CSSProperties}>

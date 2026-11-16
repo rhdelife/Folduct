@@ -575,7 +575,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             </button>
           )}
         </div>
-        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message) => { closeShelfPreview(); toast(message); void load(); }} />}
+        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />}
       </EngineContext.Provider>
       {!isNative() && (
         <input
