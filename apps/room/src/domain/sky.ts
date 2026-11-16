@@ -27,7 +27,8 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 // 지도는 무대 전체를 씁니다. sky 좌표는 무대의 비율일 뿐이라 세로로 긴 폰에서도 위아래를 다 써요. 크기는 화면에서 나온 단위(1280에서 1)로 잽니다.
-export type View = { w: number; h: number };
+// stack: 왼쪽 아래 작업 기록 카드가 실제로 보이는지. 카드는 창 크기로 보이는데(styles.css .home-stack), 미리보기 창이 열리면 판(w)만 좁아져서 따로 알려 줘요.
+export type View = { w: number; h: number; stack?: boolean };
 export const baseView: View = { w: 1280, h: 840 };
 export function stageUnit({ w, h }: View): number {
   return Math.max(w, lerp(0.9, 1, clamp((w - 480) / 544, 0, 1)) * h) / 1280;
@@ -92,7 +93,7 @@ export type Placed = { room: Room; at: Point; scale: number; spread: number; lim
 
 // 왼쪽 아래 '작업 시작' 단추와 탭 카드 자리예요. 좁거나 낮은 창에서는 숨겨요. 크기와 창 기준은 styles.css의 .home-stack에 맞춰요.
 export function calendarSpot(view: View): Box[] {
-  return view.w >= 720 && view.h >= 640 ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
+  return (view.stack ?? (view.w >= 720 && view.h >= 640)) ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
 }
 
 // 홈에 둘 수 있는 방의 수. 지금 하는 일만 보여 주려는 약속이에요. 숫자는 여기서만 정합니다.

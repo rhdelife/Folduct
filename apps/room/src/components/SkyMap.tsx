@@ -114,7 +114,13 @@ export function SkyMap({
   useLayoutEffect(() => {
     const el = canvas.current!;
     // 창이 아직 그려지기 전이면 폭이 0이라 좌표가 NaN이 됩니다. 지난 값을 둡니다.
-    const measure = () => el.clientWidth > 0 && el.clientHeight > 0 && setView((old) => (old.w === el.clientWidth && old.h === el.clientHeight ? old : { w: el.clientWidth, h: el.clientHeight }));
+    // 작업 기록 카드는 판이 아니라 창 크기로 보여요(styles.css .home-stack와 같은 기준). 미리보기 창으로 판이 좁아져도 카드 자리를 비워요.
+    const stackShown = matchMedia("(min-width: 720px) and (min-height: 640px)");
+    const measure = () => {
+      if (el.clientWidth <= 0 || el.clientHeight <= 0) return;
+      const next = { w: el.clientWidth, h: el.clientHeight, stack: stackShown.matches };
+      setView((old) => (old.w === next.w && old.h === next.h && old.stack === next.stack ? old : next));
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);

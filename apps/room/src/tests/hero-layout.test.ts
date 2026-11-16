@@ -186,6 +186,9 @@ describe("일력 자리", () => {
   it("일력을 숨기는 창에서는 자리를 비우지 않는다", () => {
     expect(calendarSpot({ w: 375, h: 812 })).toEqual([]);
     expect(calendarSpot({ w: 720, h: 520 })).toEqual([]);
+    // 미리보기 창으로 판만 좁아져도 카드가 창에 보이면 자리를 비워요.
+    expect(calendarSpot({ w: 600, h: 800, stack: true })).toHaveLength(1);
+    expect(calendarSpot({ w: 1200, h: 800, stack: false })).toEqual([]);
   });
 });
 
