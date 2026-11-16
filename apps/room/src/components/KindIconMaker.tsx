@@ -152,6 +152,8 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
           <button type="button" className="quiet icon-close" aria-label="닫기" onClick={() => void close()}><Icon name="close" /></button>
         </header>
         {error && <p className="banner danger" role="alert">{error}</p>}
+        {/* 이름은 창 맨 위에 둬요. 아래에 두면 붙어 있는 단추 줄에 가려졌어요. */}
+        <label className="field">이름 <input value={draft.name} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
         <fieldset className="face-picker">
           <legend>파일 형식</legend>
           <div className="seg icon-kinds" role="radiogroup" aria-label="파일 형식 고르기">
@@ -200,7 +202,6 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
           <button type="button" disabled={!draft.strokes.length} onClick={() => setDraft((now) => ({ ...now, strokes: now.strokes.slice(0, -1) }))}>되돌리기</button>
           <button type="button" disabled={!draft.strokes.length} onClick={() => setDraft((now) => ({ ...now, strokes: [] }))}>모두 지우기</button>
         </div>
-        <label className="field">이름 <input value={draft.name} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
         <section className="cover-picker" aria-labelledby="kind-icon-archive">
           <h3 id="kind-icon-archive">보관함 {store.icons.length}개</h3>
           {store.icons.length === 0 ? (
