@@ -14,6 +14,7 @@ import { renameThing } from "../../storage/rename";
 import { Preview, previewLimit, previewMode, writeClipboard, type ViewerState } from "../FileViewer";
 import type { ToastAction } from "../Toast";
 import { Meta } from "../Meta";
+import { Icon } from "../Icon";
 
 const splitName = (name: string) => {
   const dot = name.lastIndexOf(".");
@@ -173,7 +174,7 @@ export function PreviewPane({ room, thing, onClose, onToRoom, onChanged, toast }
           <h2 id="preview-title" ref={heading} tabIndex={-1}>{thing.name}</h2>
           <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(state?.status === "ready" ? state.file.size : thing.size), <button type="button" className="link" onClick={onToRoom} aria-label={`${room.name} 방으로 가기`}>{room.name}</button>]} /></p>
         </div>
-        <button type="button" className="quiet" onClick={onClose}>닫기</button>
+        <button type="button" className="quiet icon-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
       </header>
       <div className="preview-body">
         <div aria-live="polite">

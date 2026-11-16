@@ -9,6 +9,7 @@ import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
 import { isNative } from "../../gateways/native";
 import { TrendPanel } from "./TrendPanel";
+import { Icon } from "../Icon";
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // 판의 자리(위·아래·왼쪽·폭)와 모서리·바탕을 px로. 판은 일력 카드의 자리와 모습에서 자라 나오고, 닫으면 그 자리로 접혀 들어가요.
@@ -148,7 +149,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
         <section ref={panel} id="home-panel" className="home-panel" aria-labelledby="home-panel-title">
           <header className="home-panel-head">
             <h2 id="home-panel-title" tabIndex={-1}>작업 기록</h2>
-            <button type="button" className="quiet" onClick={close}>닫기</button>
+            <button type="button" className="quiet icon-close" aria-label="닫기" onClick={close}><Icon name="close" /></button>
           </header>
           <div className="home-panel-body">
             <section className="trend-card" aria-labelledby="home-now">

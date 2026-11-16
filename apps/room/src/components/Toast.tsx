@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FocusEvent } from "react";
+import { Icon } from "./Icon";
 
 export type ToastAction = { label: string; run: () => void };
 type ToastItem = { id: number; message: string; action?: ToastAction };
@@ -62,7 +63,7 @@ function Toast({ item, onClose }: { item: ToastItem; onClose: (id: number) => vo
           {item.action.label}
         </button>
       )}
-      <button type="button" className="quiet" onClick={() => onClose(item.id)}>닫기</button>
+      <button type="button" className="quiet icon-close" aria-label="닫기" onClick={() => onClose(item.id)}><Icon name="close" /></button>
     </div>
   );
 }

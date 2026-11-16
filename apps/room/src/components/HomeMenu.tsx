@@ -6,6 +6,7 @@ import type { OpenRoomMenu } from "./ContextMenu";
 import { KindLegend, SizeKey } from "./KindLegend";
 import { HomeSummary, RoomRanking } from "./SkyPanel";
 import { useModal } from "./useModal";
+import { Icon } from "./Icon";
 
 // 왼쪽에서 열리는 메뉴. 도구와 방으로 바로 갑니다. 요약과 범례는 접어서 맨 아래에 둡니다.
 export function HomeMenu({
@@ -50,7 +51,7 @@ export function HomeMenu({
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="menu-title">메뉴</h2>
-          <button type="button" className="quiet" onClick={onClose}>닫기</button>
+          <button type="button" className="quiet icon-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
         </header>
         <section className="menu-section" aria-labelledby="menu-tools">
           <h2 className="menu-label" id="menu-tools">정리와 도구</h2>

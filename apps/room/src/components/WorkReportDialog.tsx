@@ -10,6 +10,7 @@ import { getAiSettings } from "../storage/ai";
 import { getWorkLog } from "../storage/db";
 import { getReportEvery, getWorkNotes, getWorkReports, saveWorkNotes, saveWorkReports } from "../storage/workReport";
 import { useModal } from "./useModal";
+import { Icon } from "./Icon";
 
 const roomNames = (rooms: Room[]) => new Map(rooms.map((room) => [room.id, room.name]));
 
@@ -148,7 +149,7 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="report-title">작업 보고</h2>
-          <button type="button" className="quiet" onClick={onClose}>닫기</button>
+          <button type="button" className="quiet icon-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
         </header>
         <nav className="report-period" aria-label="기간">
           <button type="button" className="quiet" aria-label="앞 기간" onClick={() => go(-1)}>‹</button>

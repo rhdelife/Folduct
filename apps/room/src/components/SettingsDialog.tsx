@@ -9,6 +9,7 @@ import { addDoorFolder } from "../storage/doorstep";
 import { AiSettingsRows } from "./AiSettingsRows";
 import { replayIntroEvent } from "./Intro";
 import { useModal } from "./useModal";
+import { Icon } from "./Icon";
 
 export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doorstep: Doorstep; onDoorstep: (state: Doorstep) => void; onClose: () => void; onError: (message: string) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -116,7 +117,7 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
       <div className="sheet-body">
         <header className="menu-head">
           <h2 id="settings-title">환경설정</h2>
-          <button type="button" className="quiet" onClick={onClose}>닫기</button>
+          <button type="button" className="quiet icon-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
         </header>
         <label className="setting-row">
           <span>

@@ -12,6 +12,7 @@ import { canThumb, useHuesOf, useReadableFolders, useThumb } from "../../storage
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 import { cssToken, tokenMs } from "../tokens";
+import { Icon } from "../Icon";
 
 // 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
 const shownAtFirst = 12;
@@ -351,7 +352,7 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose }: { sh
           {shelf.label}
         </h3>
         <Meta className="kind-folder-count" items={[`${countText(shelf.items.length)}개`, formatBytes(shelf.size)]} />
-        <button type="button" className="quiet kind-slip-close" onClick={onClose}>닫기</button>
+        <button type="button" className="quiet icon-close kind-slip-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
       </div>
       <KindFolder shelf={shelf} folders={folders} onOpenFile={onOpenFile} />
     </div>

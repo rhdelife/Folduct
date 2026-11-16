@@ -6,6 +6,7 @@ import { canPickFolder } from "../gateways/folder";
 import { isNative } from "../gateways/native";
 import { useModal } from "./useModal";
 import { Meta } from "./Meta";
+import { Icon } from "./Icon";
 
 export type ViewerState =
   | { status: "loading" }
@@ -101,7 +102,7 @@ export function FileViewer({
             <h2 id="viewer-title">{thing.name}</h2>
             <p className="soft"><Meta items={[kindLabels[thing.kind], formatBytes(state.status === "ready" ? state.file.size : thing.size), thing.path]} /></p>
           </div>
-          <button type="button" onClick={onClose}>닫기</button>
+          <button type="button" className="quiet icon-close" aria-label="닫기" onClick={onClose}><Icon name="close" /></button>
         </header>
         {/* 상태가 바뀔 때마다 읽어 주도록 이 영역은 늘 붙어 있습니다. 미리보기 내용은 밖에 둬서 읽지 않아요. */}
         <div aria-live="polite">

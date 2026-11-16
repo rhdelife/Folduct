@@ -6,6 +6,7 @@ import { formatWorked, normalizeSession, workedTime, type Session } from "../../
 import { sessionChanged, workEndAsked, workPauseAsked, workStartRoom } from "../../gateways/native";
 import { getSession } from "../../storage/db";
 import { RoomFaceArt } from "../RoomFace";
+import { Icon } from "../Icon";
 
 const ask = (event: string, payload?: string) => void emit(event, payload).catch((error: unknown) => console.error(error));
 
@@ -62,7 +63,7 @@ export function WorkControl({ rooms }: { rooms: Room[] }) {
               </li>
             ))}
           </ul>
-          <button type="button" className="quiet" onClick={() => setPicking(false)}>닫기</button>
+          <button type="button" className="quiet icon-close" aria-label="닫기" onClick={() => setPicking(false)}><Icon name="close" /></button>
         </div>
       );
     }
