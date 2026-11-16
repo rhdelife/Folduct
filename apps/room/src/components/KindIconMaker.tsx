@@ -20,7 +20,9 @@ const same = (a: KindIcon | undefined, b: KindIcon) => Boolean(a) && JSON.string
 
 // 메뉴에서 여는 파일 형식 아이콘 만들기와 보관함. 빈 흰 캔버스에 선과 도장을 그리고, 저장한 뒤 '이 형식에 쓰기'를 누르면
 // 홈·방·Drawer·미리보기에서 그 형식 파일이 이 그림으로 바뀌어요. 선은 프로도와 같은 펜으로 다시 그어져요.
-export function KindIconMaker({ onClose }: { onClose: () => void }) {
+// start: 메뉴의 '아이콘 만들기'는 그리기(make), '아이콘 보관함'은 모아 둔 아이콘 목록(archive)으로 열어요. 보관함에서 아이콘을 누르면 그리기로 넘어가 고쳐요.
+export function KindIconMaker({ onClose, start = "make" }: { onClose: () => void; start?: "make" | "archive" }) {
+  const [mode, setMode] = useState(start);
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
   useModal(dialog);
@@ -117,9 +119,10 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
 
   // 앱(Tauri)에서는 confirm이 약속(Promise)으로 와서 기다려요.
   async function open(next: KindIcon) {
-    if (dirty && !(await window.confirm("고친 내용을 저장하지 않고 다른 아이콘을 열까요?"))) return;
+    if (dirty && !(await window.confirm("고친 내용을 저장하지 않고 다른 아이콘을 열까요?"))) return false;
     setError(null);
     setDraft(next);
+    return true;
   }
 
   async function close() {
@@ -146,10 +149,12 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
     >
       <div className="sheet-body">
         <header className="menu-head">
-          <h2 id="kind-icon-title">아이콘 만들기</h2>
+          <h2 id="kind-icon-title">{mode === "archive" ? "아이콘 보관함" : "아이콘 만들기"}</h2>
           <button type="button" className="quiet icon-close" aria-label="닫기" onClick={() => void close()}><Icon name="close" /></button>
         </header>
         {error && <p className="banner danger" role="alert">{error}</p>}
+        {mode === "make" && (
+          <>
         {/* 이름은 창 맨 위에 둬요. 아래에 두면 붙어 있는 단추 줄에 가려졌어요. */}
         <label className="field">이름 <input value={draft.name} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
         <fieldset className="face-picker">
@@ -190,14 +195,17 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
           <button type="button" disabled={!draft.strokes.length} onClick={() => setDraft((now) => ({ ...now, strokes: now.strokes.slice(0, -1) }))}>되돌리기</button>
           <button type="button" disabled={!draft.strokes.length} onClick={() => setDraft((now) => ({ ...now, strokes: [] }))}>모두 지우기</button>
         </div>
+          </>
+        )}
+        {mode === "archive" && (
         <section className="cover-picker" aria-labelledby="kind-icon-archive">
-          <h3 id="kind-icon-archive">보관함 {store.icons.length}개</h3>
+          <h3 id="kind-icon-archive">{store.icons.length}개</h3>
           {store.icons.length === 0 ? (
-            <p className="soft">저장한 아이콘이 여기 모여요. ‘이 형식에 쓰기’를 누르면 그 형식 파일이 이 그림으로 보여요.</p>
+            <p className="soft">저장한 아이콘이 여기 모여요. 누르면 고치고 ‘이 형식에 쓰기’를 할 수 있어요.</p>
           ) : (
             <div className="cover-options" role="group" aria-label="보관한 아이콘">
               {shelf.map((icon) => (
-                <button key={icon.id} type="button" className="cover-option" aria-pressed={icon.id === draft.id} title={icon.name} onClick={() => void open(icon)}>
+                <button key={icon.id} type="button" className="cover-option" aria-pressed={icon.id === draft.id} title={icon.name} onClick={() => void open(icon).then((opened) => opened && setMode("make"))}>
                   <ObjectShape kind={icon.kind} size={48} art={iconArt(icon)} />
                   {/* 쓰는 중인 아이콘은 색이 아니라 굵은 글자로 알려요. */}
                   <span className={store.use[icon.kind] === icon.id ? "icon-on" : undefined}>{store.use[icon.kind] === icon.id ? "쓰는 중 · " : ""}{icon.name || kindLabels[icon.kind]}</span>
@@ -206,8 +214,15 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </section>
+        )}
         {full && <p className="soft" role="status">보관함이 가득 찼어요({kindIconLimit}개). 하나를 지우면 새로 넣을 수 있어요.</p>}
+        {mode === "archive" ? (
+          <div className="row end settings-foot">
+            <button type="button" className="primary" onClick={() => void open(fresh(draft.kind)).then((opened) => opened && setMode("make"))}>새로 만들기</button>
+          </div>
+        ) : (
         <div className="row end settings-foot">
+          <button type="button" className="quiet" onClick={() => setMode("archive")}>보관함 {store.icons.length}개</button>
           {saved && <button type="button" className="danger" disabled={saving} onClick={() => void remove()}>지우기</button>}
           <button type="button" disabled={saving} onClick={() => void open(fresh(draft.kind))}>새로 만들기</button>
           {inUse ? (
@@ -217,6 +232,7 @@ export function KindIconMaker({ onClose }: { onClose: () => void }) {
           )}
           <button type="button" className="primary" disabled={!changed || saving || full || !draft.strokes.length} onClick={() => void save()}>{saving ? "저장하는 중" : "저장"}</button>
         </div>
+        )}
       </div>
     </dialog>
   );

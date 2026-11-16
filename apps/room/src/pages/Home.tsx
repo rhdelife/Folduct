@@ -70,7 +70,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [iconsOpen, setIconsOpen] = useState(false);
+  const [iconsOpen, setIconsOpen] = useState<"make" | "archive" | false>(false);
   // 작업 보고 창. true면 지금 기간, Period면 그 기간으로 열어요.
   const [reportOpen, setReportOpen] = useState<Period | true | null>(null);
   const reportBusy = useRef(false);
@@ -629,7 +629,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                 이번 주 정리 보기
               </button>
               <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
-              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen(true))}>아이콘 만들기</button>
+              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen("make"))}>아이콘 만들기</button>
+              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen("archive"))}>아이콘 보관함</button>
               {hasSample ? (
                 <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
               ) : (
@@ -640,7 +641,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
         />
       )}
       {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
-      {iconsOpen && <KindIconMaker onClose={() => setIconsOpen(false)} />}
+      {iconsOpen && <KindIconMaker start={iconsOpen} onClose={() => setIconsOpen(false)} />}
       {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
         <NewRoomDialog
