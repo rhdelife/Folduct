@@ -1,6 +1,7 @@
 import { Fragment, useId, type ReactNode } from "react";
 import type { Kind } from "../domain/model";
 import { usePicture } from "../storage/pictures";
+import { useKindArt } from "../storage/kindIcons";
 import { makePen, type DuctPiece } from "./duct";
 import { kindColors, kindTones, tonesFrom, type PaperTones } from "./palette";
 import { paperArts, quad, type PaperArt, type Slot } from "./paperArts";
@@ -164,11 +165,13 @@ function Parts({ art, inkKey, paint, full, width, perPixel, after }: { art: Pape
   );
 }
 
-export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56, picture }: { kind: Kind; color?: string; size: number; name?: string; seed?: string; nameFrom?: number; picture?: string | null }) {
+// art를 주면 그 종이를 그려요(아이콘 만들기 미리보기). 없으면 형식 아이콘 보관함에서 이 형식에 쓰기로 고른 종이, 그것도 없으면 기본 종이예요.
+export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56, picture, art: given }: { kind: Kind; color?: string; size: number; name?: string; seed?: string; nameFrom?: number; picture?: string | null; art?: PaperArt }) {
   const id = useId();
   const stored = usePicture(seed);
   const pictureUrl = picture === undefined ? stored : picture ?? undefined;
-  const base = pickArt(kind, seed);
+  const mine = useKindArt(kind);
+  const base = given ?? mine ?? pickArt(kind, seed);
   const tones = color && color !== kindColors[kind] ? tonesFrom(color) : kindTones[kind];
   const full = Boolean(name) && size >= 40;
   // 작은 모양은 판 위에서 잘 보이도록 한 단 진하게 칠하고, 늘 정사각형 칸에 넣어 부르는 쪽 자리 계산을 그대로 둡니다.
