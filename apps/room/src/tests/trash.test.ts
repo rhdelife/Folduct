@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invoke(...args) }));
-const { trashFile } = await import("../gateways/mover");
+const { restoreTrashed, trashFile } = await import("../gateways/mover");
 
 describe("휴지통으로 보내기", () => {
   beforeEach(() => invoke.mockReset());
@@ -15,5 +15,10 @@ describe("휴지통으로 보내기", () => {
       await expect(trashFile("/Users/me/방", path)).rejects.toThrow();
     }
     expect(invoke).not.toHaveBeenCalled();
+  });
+  it("되돌리기는 받은 휴지통 자리에서 방 안 원래 자리로만 옮겨요", async () => {
+    await restoreTrashed("/Users/me/방", "참고/시안.psd", "/Users/me/.Trash/시안.psd");
+    expect(invoke).toHaveBeenCalledWith("restore_trashed", { from: "/Users/me/.Trash/시안.psd", to: "/Users/me/방/참고/시안.psd" });
+    await expect(restoreTrashed("/Users/me/방", "../밖.psd", "/Users/me/.Trash/시안.psd")).rejects.toThrow();
   });
 });

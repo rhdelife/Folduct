@@ -453,9 +453,9 @@ fn open_in_app<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), Strin
 }
 
 // 사용자가 확인한 방 폴더 안 파일 하나를 OS 휴지통으로 보냅니다. 영구 삭제는 하지 않아 휴지통에서 되살릴 수 있어요.
-// 폴더·바로가기·점으로 시작하는 파일은 보내지 않아요.
+// 폴더·바로가기·점으로 시작하는 파일은 보내지 않아요. macOS는 휴지통 안 자리를 돌려줘 앱에서 되돌릴 수 있어요(다른 OS는 None).
 #[tauri::command]
-fn trash_file<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), String> {
+fn trash_file<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<Option<String>, String> {
   in_scope(&app, &path)?;
   if !std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?.file_type().is_file() {
     return Err("파일이 아니에요.".into());
@@ -463,7 +463,70 @@ fn trash_file<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<(), String
   if path.file_name().and_then(|name| name.to_str()).map_or(true, |name| name.starts_with('.')) {
     return Err("숨김 파일은 보낼 수 없어요.".into());
   }
-  trash::delete(&path).map_err(|e| e.to_string())
+  #[cfg(target_os = "macos")]
+  return trash_with_place(&path).map(|place| Some(place.to_string_lossy().into_owned()));
+  #[cfg(not(target_os = "macos"))]
+  trash::delete(&path).map(|_| None).map_err(|e| e.to_string())
+}
+
+// NSFileManager trashItemAtURL:resultingItemURL:error: 로 휴지통에 넣고 들어간 자리를 받아요(Finder의 '되돌려 놓기'와 같은 휴지통).
+#[cfg(target_os = "macos")]
+fn trash_with_place(path: &Path) -> Result<PathBuf, String> {
+  use std::ffi::{CStr, CString, c_char, c_void};
+  use std::os::unix::ffi::OsStrExt;
+  type Id = *mut c_void;
+  #[link(name = "Foundation", kind = "framework")]
+  unsafe extern "C" {
+    fn objc_getClass(name: *const c_char) -> Id;
+    fn sel_registerName(name: *const c_char) -> *const c_void;
+    fn objc_msgSend();
+    fn objc_autoreleasePoolPush() -> *mut c_void;
+    fn objc_autoreleasePoolPop(pool: *mut c_void);
+  }
+  let c_path = CString::new(path.as_os_str().as_bytes()).map_err(|_| "경로가 올바르지 않아요.".to_string())?;
+  unsafe {
+    let send0: unsafe extern "C" fn(Id, Id) -> Id = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+    let send1: unsafe extern "C" fn(Id, Id, *const c_void) -> Id = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+    let send_trash: unsafe extern "C" fn(Id, Id, Id, *mut Id, *mut Id) -> i8 = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
+    let sel = |name: &CStr| sel_registerName(name.as_ptr()) as Id;
+    let class = |name: &CStr| objc_getClass(name.as_ptr());
+    let text = |object: Id| -> String {
+      let utf8 = send0(object, sel(c"UTF8String")) as *const c_char;
+      if utf8.is_null() { String::new() } else { CStr::from_ptr(utf8).to_string_lossy().into_owned() }
+    };
+    let pool = objc_autoreleasePoolPush();
+    let ns_path = send1(class(c"NSString"), sel(c"stringWithUTF8String:"), c_path.as_ptr() as *const c_void);
+    let url = send1(class(c"NSURL"), sel(c"fileURLWithPath:"), ns_path);
+    let manager = send0(class(c"NSFileManager"), sel(c"defaultManager"));
+    let (mut placed, mut error): (Id, Id) = (std::ptr::null_mut(), std::ptr::null_mut());
+    let ok = send_trash(manager, sel(c"trashItemAtURL:resultingItemURL:error:"), url, &mut placed, &mut error) != 0;
+    let result = if ok && !placed.is_null() {
+      Ok(PathBuf::from(text(send0(placed, sel(c"path")))))
+    } else if !error.is_null() {
+      Err(text(send0(error, sel(c"localizedDescription"))))
+    } else {
+      Err("휴지통으로 보내지 못했어요.".to_string())
+    };
+    objc_autoreleasePoolPop(pool);
+    result
+  }
+}
+
+// 방금 휴지통으로 보낸 파일을 원래 자리로 되돌려요. from은 휴지통(.Trash·.Trashes) 안의 보통 파일이어야 하고, to는 방 폴더 안이어야 해요.
+// 원래 자리에 같은 이름이 생겼으면 덮어쓰지 않고 거절해요.
+#[tauri::command]
+fn restore_trashed<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Result<(), String> {
+  in_scope(&app, &to)?;
+  let in_trash = from.is_absolute()
+    && from.components().all(|part| !matches!(part, Component::ParentDir | Component::CurDir))
+    && from.components().any(|part| matches!(part, Component::Normal(name) if name == ".Trash" || name == ".Trashes"));
+  if !in_trash {
+    return Err("휴지통 안 파일이 아니에요.".into());
+  }
+  if !std::fs::symlink_metadata(&from).map_err(|e| e.to_string())?.file_type().is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  rename_no_replace(&from, &to).map_err(|e| e.to_string())
 }
 
 // 고른 폴더 안 파일 하나를 이름 바꾸기로 옮깁니다. 대상 자리에 무엇이 있으면 OS가 거절하므로, 확인한 뒤 다른 앱이 만든 파일도 덮어쓰지 않습니다.
@@ -616,7 +679,7 @@ fn mp4_seconds(path: &Path) -> Option<f64> {
   use std::io::{Read, Seek, SeekFrom};
   let mut file = std::fs::File::open(path).ok()?;
   let end = file.metadata().ok()?.len();
-  let mut read = |file: &mut std::fs::File, n: usize| -> Option<Vec<u8>> {
+  let read = |file: &mut std::fs::File, n: usize| -> Option<Vec<u8>> {
     let mut buf = vec![0; n];
     file.read_exact(&mut buf).ok()?;
     Some(buf)
@@ -669,7 +732,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, last_used_dates, video_seconds, move_file, set_panel_visible, set_tray_dot])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, set_panel_visible, set_tray_dot])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -766,7 +829,7 @@ mod tests {
     std::fs::write(parent.join("other/a.txt"), "a").unwrap();
     let app = tauri::test::mock_builder()
       .plugin(tauri_plugin_fs::init())
-      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, trash_file, last_used_dates, move_file])
+      .invoke_handler(tauri::generate_handler![allow_rooms, open_in_app, trash_file, restore_trashed, last_used_dates, move_file])
       .build(tauri::generate_context!(test = true))
       .unwrap();
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
@@ -796,6 +859,9 @@ mod tests {
     std::fs::write(room.join(".hidden"), "h").unwrap();
     assert!(invoke(&webview, "trash_file", json!({ "path": room.join(".hidden") })).is_err());
     assert!(room.join(".hidden").exists());
+    // 되돌리기는 휴지통 안 파일만, 방 폴더 안으로만: 방 밖·휴지통 밖에서 가져오기는 거절해요.
+    assert!(invoke(&webview, "restore_trashed", json!({ "from": parent.join("other/a.txt"), "to": room.join("a.txt") })).is_err());
+    assert!(invoke(&webview, "restore_trashed", json!({ "from": base.join(".Trash/../parent/other/a.txt"), "to": room.join("a.txt") })).is_err());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": outside, "paths": ["a.txt"] })).is_err());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": room, "paths": ["../other/a.txt"] })).is_err());
     assert!(invoke(&webview, "last_used_dates", json!({ "root": room, "paths": ["/etc/hosts"] })).is_err());
@@ -914,6 +980,22 @@ mod tests {
     let broken = base.join("b.mp4");
     std::fs::write(&broken, &file[..30]).unwrap();
     assert_eq!(mp4_seconds(&broken), None);
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 진짜 휴지통으로 보냈다가 받은 자리에서 되돌려 원래 내용 그대로인지 봐요(macOS만, 휴지통에는 아무것도 남기지 않아요).
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn trash_then_restore_round_trip() {
+    let base = std::env::temp_dir().join(format!("folduct-trash-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let file = base.join("되돌릴 파일.txt");
+    std::fs::write(&file, "원본").unwrap();
+    let placed = trash_with_place(&file).unwrap();
+    assert!(!file.exists());
+    assert!(placed.components().any(|part| matches!(part, Component::Normal(name) if name == ".Trash" || name == ".Trashes")));
+    rename_no_replace(&placed, &file).unwrap();
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "원본");
     std::fs::remove_dir_all(&base).unwrap();
   }
 

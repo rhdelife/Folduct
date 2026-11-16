@@ -9,7 +9,7 @@ import { BrandMark, Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
 import { AiNotePanel } from "../components/AiNotePanel";
-import { useToast } from "../components/Toast";
+import { useToast, type ToastAction } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, shownActivity, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
@@ -24,7 +24,7 @@ import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
-import { trashFile } from "../gateways/mover";
+import { restoreTrashed, trashFile } from "../gateways/mover";
 import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 
 // 방 설정(RoomSettingsDialog)은 방 머리의 단추나 홈에서 방을 우클릭해 엽니다.
@@ -268,29 +268,54 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     const chosen = (latest.current?.things ?? []).filter((thing) => picked?.has(thing.id) && !thing.missing);
     if (chosen.length === 0 || typeof handle !== "string" || !(await window.confirm(`파일 ${chosen.length.toLocaleString("ko-KR")}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
     setBusy("휴지통으로 보내는 중…");
-    const sent = new Set<string>();
+    const done: { thing: Thing; place: string | null }[] = [];
     for (const thing of chosen) {
       try {
-        await trashFile(handle, thing.path);
-        sent.add(thing.id);
+        done.push({ thing, place: await trashFile(handle, thing.path) });
       } catch (error) {
         console.error(error);
       }
     }
+    const sent = new Set(done.map(({ thing }) => thing.id));
     setBusy(null);
     if (sent.size > 0) update((room) => ({ ...room, things: room.things.filter((thing) => !sent.has(thing.id)) }));
     if (selectedId && sent.has(selectedId)) setSelectedId(null);
     setPicked(null);
     const failed = chosen.length - sent.size;
-    toast(`${sent.size > 0 ? `파일 ${sent.size.toLocaleString("ko-KR")}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 보내지 못했어요.` : ""}`.trim());
+    toast(`${sent.size > 0 ? `파일 ${sent.size.toLocaleString("ko-KR")}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 보내지 못했어요.` : ""}`.trim(), undoTrash(handle, done));
+  }
+
+  // 휴지통으로 보낸 파일들을 원래 자리로 되돌리고 방 기록에 다시 넣는 알림 단추. 자리를 모르면(macOS 밖) 단추가 없어요.
+  function undoTrash(root: string, done: { thing: Thing; place: string | null }[]): ToastAction | undefined {
+    const known = done.filter((item): item is { thing: Thing; place: string } => item.place !== null);
+    if (known.length === 0) return undefined;
+    return {
+      label: "되돌리기",
+      run: () =>
+        void (async () => {
+          const back: Thing[] = [];
+          for (const { thing, place } of known) {
+            try {
+              await restoreTrashed(root, thing.path, place);
+              back.push(thing);
+            } catch (error) {
+              console.error(error);
+            }
+          }
+          if (back.length > 0) update((room) => ({ ...room, things: [...room.things, ...back.filter((thing) => !room.things.some((item) => item.id === thing.id))] }));
+          const failed = known.length - back.length;
+          toast(back.length > 0 ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+        })(),
+    };
   }
 
   // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요(데스크톱만). 휴지통에서 되살릴 수 있어요.
   async function trashThing(id: string) {
     const gone = latest.current?.things.find((thing) => thing.id === id);
     if (!gone || typeof handle !== "string" || !(await window.confirm(`‘${gone.name}’ 파일을 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
+    let place: string | null;
     try {
-      await trashFile(handle, gone.path);
+      place = await trashFile(handle, gone.path);
     } catch (error) {
       toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
       return;
@@ -298,7 +323,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
     setSelectedId(null);
     heading.current?.focus();
-    toast(`‘${gone.name}’ 파일을 휴지통으로 보냈어요.`);
+    toast(`‘${gone.name}’ 파일을 휴지통으로 보냈어요.`, undoTrash(handle, [{ thing: gone, place }]));
   }
 
   function forgetThing(id: string) {

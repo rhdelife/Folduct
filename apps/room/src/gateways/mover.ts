@@ -140,10 +140,17 @@ async function walk(root: MoveDirectory, parts: string[], create: boolean): Prom
 
 // 방 폴더(root) 안 파일 하나를 휴지통으로 보내요. 부르기 전에 꼭 사용자에게 물어요. 휴지통에서 되살릴 수 있어요.
 // Tauri 쪽(trash_file)도 방 폴더 밖·폴더·바로가기·숨김 파일을 한 번 더 막아요.
-export async function trashFile(root: string, path: string): Promise<void> {
+// 돌려받는 값은 휴지통 안 자리예요(macOS). 그 자리로 restoreTrashed를 부르면 되돌려요. 다른 OS는 null이라 되돌리기가 없어요.
+export async function trashFile(root: string, path: string): Promise<string | null> {
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (!isSafeRelativePath(path) || name.startsWith(".") || isExcludedName(name)) throw new DOMException("보낼 수 없는 파일이에요.", "NotAllowedError");
-  await invoke("trash_file", { path: path.split("/").reduce(childPath, root) });
+  return (await invoke<string | null>("trash_file", { path: path.split("/").reduce(childPath, root) })) ?? null;
+}
+
+// 휴지통으로 보낸 파일을 원래 자리(root 안 path)로 되돌려요. 같은 이름이 생겼으면 덮어쓰지 않고 실패해요.
+export async function restoreTrashed(root: string, path: string, place: string): Promise<void> {
+  if (!isSafeRelativePath(path)) throw new DOMException("안전하지 않은 경로예요.", "NotAllowedError");
+  await invoke("restore_trashed", { from: place, to: path.split("/").reduce(childPath, root) });
 }
 
 // 파일·폴더가 없을 때 브라우저와 Tauri가 주는 오류. 판정만 해서 폴더에 할 수 있는 일은 늘지 않아요.
