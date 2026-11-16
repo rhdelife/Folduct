@@ -1285,7 +1285,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .work-cal-rooms { display: -webkit-box; overflow: hidden; color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* 판은 일력과 같은 왼쪽·아래에 서서, 일력 카드에서 위·오른쪽으로 자라요(HomeStack이 자리를 움직여요). 자라는 동안 속은 판 밖으로 나가지 않아요. */
 .home-panel { position: absolute; left: var(--space-6); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; width: min(var(--home-panel-w), calc(100% - 2 * var(--space-6))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
-/* 프로도 받침 바로 아래 작업 줄(heroLayout startSpace 자리). 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
+/* 작업 줄: 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
 /* 작업 막대: 홈 위쪽 가운데. 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
    좁은 창은 머리줄에 자리가 없어 아래 홈 | Drawer 알약 바로 위에 둬요. */
 .work-bar { position: absolute; top: var(--chrome-y); left: 50%; z-index: 81; translate: -50% -50%; display: flex; justify-content: center; }

@@ -21,8 +21,6 @@ const findWidth = 200;
 export const shelfHeight = (view: View) => (view.w < 720 ? 92 : 124);
 // 화면 아래 가운데 "형식별로 보기" 손잡이 자리
 const hintSpace = 56;
-// 프로도 받침 바로 아래 작업 시작(작업 중이면 멈춤·끝내기) 줄의 자리. styles.css .work-control(--space-12)과 위 간격(--space-4)이에요.
-export const startSpace = 64;
 // 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
 const maxScale = 2.4;
 // 가장 길게 자라도 빈자리를 다 채우지 않게 조금 작게 그려요.
@@ -97,9 +95,9 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const below = view.w < sideBySide;
   const [calendar] = calendarSpot(view);
   const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - hintSpace;
-  const tall = Math.max(1, (below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top) - startSpace);
+  const tall = Math.max(1, (below ? Math.min((view.h - hintSpace - top) * narrowShare, above - top) : above - top));
   // 프로도를 빈자리(방 카드 줄 아래) 가운데에 둬요. 좁은 창에서 방을 먹으면 아래에 파일 칸이 오니 위쪽 몫(tall) 가운데로 올라가요.
-  const area = room || !below ? tall : Math.max(1, above - top - startSpace);
+  const area = room || !below ? tall : Math.max(1, above - top);
   // 프로도는 늘 창 가운데에 서요. 넓은 창은 파일 칸이 프로도 오른쪽에 들어가도록 프로도 크기를 맞춰요.
   // 일력이 왼쪽 아래에 있으면 받침이 그 위에 서지 않게만 오른쪽으로 비켜요.
   const leftMin = calendar && !below ? calendar.x + calendar.hw + edge : edge;
@@ -120,7 +118,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
 
   // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요.
   const span = below
-    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + startSpace + gap, bottom: view.h - edge }
+    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + gap, bottom: view.h - edge }
     : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom: view.h - edge };
   const byId = new Map(roomStars(room, frodo.mouth, 0, now, room.things.length).map((star) => [star.thing.id, star]));
   const stars = fedThings(room, filter).flatMap((thing) => byId.get(thing.id) ?? []);
