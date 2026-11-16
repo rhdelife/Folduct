@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyShelfViews, normalizeShelfViews, uniqueName } from "../domain/shelfViews";
+import { emptyShelfViews, normalizeShelfViews, parseExts, uniqueName } from "../domain/shelfViews";
 
 describe("서랍장 구성", () => {
   it("없거나 깨진 값은 기본 형식별 서랍으로 돌아가요", () => {
@@ -29,5 +29,13 @@ describe("서랍장 구성", () => {
   it("이름이 비어 있지 않으면 그대로, 겹치면 다음 숫자예요", () => {
     expect(uniqueName("서랍", [])).toBe("서랍");
     expect(uniqueName("서랍", ["서랍", "서랍 2"])).toBe("서랍 3");
+  });
+});
+
+describe("서랍 조건", () => {
+  it("확장자는 점·대소문자·띄어쓰기를 다듬고, 크기·길이는 양수만 남겨요", () => {
+    const [drawer] = normalizeShelfViews({ kind: [{ id: "a", name: "코드", kinds: [], exts: ".TS, tsx  py tsx 한글", minMB: 0, maxMB: 0.004, minMin: -1, maxMin: "3" }] }).kind!;
+    expect(drawer).toEqual({ id: "a", name: "코드", kinds: [], exts: ["ts", "tsx", "py"], maxMB: 0.004 });
+    expect(parseExts(["MP4", "..mov", 3])).toEqual(["mp4", "mov"]);
   });
 });

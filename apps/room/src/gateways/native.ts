@@ -105,6 +105,9 @@ export async function openInApp(root: string, path: string): Promise<void> {
   await invoke("open_in_app", { path: inside(root, path) });
 }
 
+// 방 폴더 안 영상들의 길이(초). Spotlight로 읽고, 모르는 mp4·mov는 파일 머리에서 읽어요. 모르면 null이에요(데스크톱만).
+export const videoSeconds = (root: string, paths: string[]): Promise<(number | null)[]> => invoke("video_seconds", { root, paths });
+
 // macOS Quick Look이 그린 첫 장 그림(PNG)이에요. 발표·문서처럼 앱 안에서 못 여는 형식을 미리보기 창에 보여 줄 때 써요.
 export async function firstPage(root: string, path: string): Promise<Blob> {
   return new Blob([await invoke<ArrayBuffer>("thumbnail", { path: inside(root, path) })], { type: "image/png" });

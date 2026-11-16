@@ -534,8 +534,8 @@ fn spotlight_values(stdout: &[u8], count: usize) -> Option<Vec<Option<String>>> 
   (values.len() == count).then(|| values.iter().map(|value| (*value != "(null)").then(|| value.to_string())).collect())
 }
 
-fn mdls(paths: &[&PathBuf]) -> Option<Vec<Option<String>>> {
-  let output = Command::new("/usr/bin/mdls").args(["-raw", "-name", "kMDItemLastUsedDate"]).args(paths).output().ok()?;
+fn mdls(name: &str, paths: &[&PathBuf]) -> Option<Vec<Option<String>>> {
+  let output = Command::new("/usr/bin/mdls").args(["-raw", "-name", name]).args(paths).output().ok()?;
   if !output.status.success() {
     return None;
   }
@@ -557,12 +557,16 @@ fn ask_in_halves(paths: &[&PathBuf], ask: &dyn Fn(&[&PathBuf]) -> Option<Vec<Opt
 // 없는 경로가 있으면 mdls가 거기서 멈춰 뒤 결과를 버리므로, 있는 파일만 넘기고 자리를 되찾습니다.
 // macOS가 아니면 mdls가 없어 전부 None이 됩니다.
 fn read_last_used(paths: &[PathBuf]) -> Vec<Option<String>> {
+  read_spotlight(paths, "kMDItemLastUsedDate")
+}
+
+fn read_spotlight(paths: &[PathBuf], name: &str) -> Vec<Option<String>> {
   let mut dates = vec![None; paths.len()];
   let (at, existing): (Vec<usize>, Vec<&PathBuf>) = paths.iter().enumerate().filter(|(_, path)| path.exists()).unzip();
   if existing.is_empty() || !Path::new("/usr/bin/mdls").exists() {
     return dates;
   }
-  for (index, value) in at.into_iter().zip(ask_in_halves(&existing, &mdls)) {
+  for (index, value) in at.into_iter().zip(ask_in_halves(&existing, &|chunk| mdls(name, chunk))) {
     dates[index] = value;
   }
   dates
@@ -571,20 +575,91 @@ fn read_last_used(paths: &[PathBuf]) -> Vec<Option<String>> {
 // 방 폴더 안 파일을 macOS가 마지막으로 연 시각(Spotlight). 경로가 틀리면 거절하고, 시각을 못 읽는 건 오류가 아니라 None입니다.
 #[tauri::command]
 async fn last_used_dates<R: Runtime>(app: AppHandle<R>, root: PathBuf, paths: Vec<String>) -> Result<Vec<Option<String>>, String> {
+  let full = room_paths(&app, &root, &paths)?;
+  let count = full.len();
+  Ok(tauri::async_runtime::spawn_blocking(move || read_last_used(&full)).await.unwrap_or_else(|_| vec![None; count]))
+}
+
+fn room_paths<R: Runtime>(app: &AppHandle<R>, root: &Path, paths: &[String]) -> Result<Vec<PathBuf>, String> {
   if !root.is_absolute() {
     return Err("안전하지 않은 경로예요.".into());
   }
   let mut full = Vec::with_capacity(paths.len());
-  for path in &paths {
+  for path in paths {
     if !safe_relative(path) {
       return Err("안전하지 않은 경로예요.".into());
     }
     let joined = root.join(path);
-    in_scope(&app, &joined)?;
+    in_scope(app, &joined)?;
     full.push(joined);
   }
+  Ok(full)
+}
+
+// 방 폴더 안 영상의 길이(초, Spotlight). 서랍장의 영상 길이 조건에 써요. 파일을 읽지 않고, 모르면 None이에요.
+#[tauri::command]
+async fn video_seconds<R: Runtime>(app: AppHandle<R>, root: PathBuf, paths: Vec<String>) -> Result<Vec<Option<f64>>, String> {
+  let full = room_paths(&app, &root, &paths)?;
   let count = full.len();
-  Ok(tauri::async_runtime::spawn_blocking(move || read_last_used(&full)).await.unwrap_or_else(|_| vec![None; count]))
+  let seconds = tauri::async_runtime::spawn_blocking(move || {
+    let spotlight = read_spotlight(&full, "kMDItemDurationSeconds");
+    // Spotlight가 모르는 mp4·mov는 파일 머리의 mvhd에서 읽어요.
+    full.iter().zip(spotlight).map(|(path, value)| value.and_then(|text| text.trim().parse::<f64>().ok()).or_else(|| mp4_seconds(path)).filter(|seconds| seconds.is_finite() && *seconds >= 0.0)).collect::<Vec<_>>()
+  })
+  .await
+  .unwrap_or_else(|_| vec![None; count]);
+  Ok(seconds)
+}
+
+// MP4·MOV 상자를 따라가 moov/mvhd의 길이÷시간 단위를 읽어요. 상자 머리만 읽고 큰 미디어 데이터는 건너뛰어요. 읽기만 해요.
+fn mp4_seconds(path: &Path) -> Option<f64> {
+  use std::io::{Read, Seek, SeekFrom};
+  let mut file = std::fs::File::open(path).ok()?;
+  let end = file.metadata().ok()?.len();
+  let mut read = |file: &mut std::fs::File, n: usize| -> Option<Vec<u8>> {
+    let mut buf = vec![0; n];
+    file.read_exact(&mut buf).ok()?;
+    Some(buf)
+  };
+  let u32_at = |b: &[u8], i: usize| u32::from_be_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]) as u64;
+  // (찾는 상자 이름, 그 상자를 찾을 범위)를 차례로: 맨 위에서 moov, moov 안에서 mvhd.
+  let (mut from, mut to) = (0u64, end);
+  for want in [b"moov", b"mvhd"] {
+    let mut at = from;
+    let mut found = None;
+    while at + 8 <= to {
+      file.seek(SeekFrom::Start(at)).ok()?;
+      let head = read(&mut file, 8)?;
+      let mut size = u32_at(&head, 0);
+      let mut body = at + 8;
+      if size == 1 {
+        let big = read(&mut file, 8)?;
+        size = (u32_at(&big, 0) << 32) | u32_at(&big, 4);
+        body += 8;
+      } else if size == 0 {
+        size = to - at;
+      }
+      if size < body - at || at + size > to {
+        return None;
+      }
+      if &head[4..8] == want {
+        found = Some((body, at + size));
+        break;
+      }
+      at += size;
+    }
+    (from, to) = found?;
+  }
+  file.seek(SeekFrom::Start(from)).ok()?;
+  let version = read(&mut file, 4)?[0];
+  let (scale, length) = if version == 1 {
+    let b = read(&mut file, 28)?;
+    (u32_at(&b, 16), (u32_at(&b, 20) << 32) | u32_at(&b, 24))
+  } else {
+    let b = read(&mut file, 16)?;
+    (u32_at(&b, 8), u32_at(&b, 12))
+  };
+  (scale > 0).then(|| length as f64 / scale as f64)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -594,7 +669,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, last_used_dates, move_file, set_panel_visible, set_tray_dot])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, last_used_dates, video_seconds, move_file, set_panel_visible, set_tray_dot])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -814,6 +889,42 @@ mod tests {
     assert_eq!(std::fs::read_to_string(&to).unwrap(), "있던 것");
     invoke(&webview, "move_file", json!({ "from": from, "to": base.join("빈자리.psd") })).unwrap();
     assert_eq!(std::fs::read_to_string(base.join("빈자리.psd")).unwrap(), "새것");
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // mvhd 길이: 앞에 다른 상자(ftyp)가 있어도 moov 안 mvhd를 찾아 초로 돌려줘요. 상자가 깨졌으면 None이에요.
+  #[test]
+  fn mp4_seconds_reads_mvhd() {
+    let base = std::env::temp_dir().join(format!("folduct-mp4-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let mut mvhd = vec![0u8; 8 + 100];
+    mvhd[..4].copy_from_slice(&108u32.to_be_bytes());
+    mvhd[4..8].copy_from_slice(b"mvhd");
+    mvhd[20..24].copy_from_slice(&600u32.to_be_bytes());
+    mvhd[24..28].copy_from_slice(&(600u32 * 95).to_be_bytes());
+    let mut file = Vec::new();
+    file.extend_from_slice(&16u32.to_be_bytes());
+    file.extend_from_slice(b"ftypisom\0\0\0\0");
+    file.extend_from_slice(&(8 + mvhd.len() as u32).to_be_bytes());
+    file.extend_from_slice(b"moov");
+    file.extend_from_slice(&mvhd);
+    let good = base.join("a.mp4");
+    std::fs::write(&good, &file).unwrap();
+    assert_eq!(mp4_seconds(&good), Some(95.0));
+    let broken = base.join("b.mp4");
+    std::fs::write(&broken, &file[..30]).unwrap();
+    assert_eq!(mp4_seconds(&broken), None);
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 영상 길이도 같은 길로 읽어요. 영상이 아닌 파일과 없는 파일은 None이에요.
+  #[test]
+  fn spotlight_duration_is_none_for_non_video() {
+    let base = std::env::temp_dir().join(format!("folduct-len-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let a = base.join("a.txt");
+    std::fs::write(&a, "a").unwrap();
+    assert_eq!(read_spotlight(&[a, base.join("없음.mp4")], "kMDItemDurationSeconds"), vec![None, None]);
     std::fs::remove_dir_all(&base).unwrap();
   }
 

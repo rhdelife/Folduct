@@ -2,12 +2,24 @@ import { kindLabels, type Kind } from "./model";
 
 // 홈 서랍장의 나누기. 형식별 서랍은 이름·담을 형식을 고치거나 더하고 뺄 수 있고, 사용자가 새 보기(서랍장)를 만들 수도 있어요.
 // 서랍은 Folduct 안의 분류일 뿐이라 실제 폴더·파일은 그대로예요. 서랍마다 형식을 골라 두면 그 형식 파일이 저절로 모여요.
-export type Drawer = { id: string; name: string; kinds: Kind[] };
+// 서랍 조건은 모두 맞아야 담겨요(그리고). 빈 조건은 따지지 않아요. kinds·exts가 둘 다 비고 다른 조건도 없으면 아무것도 담지 않아요.
+// exts: 점 없는 소문자 확장자(ts, tsx). minMB·maxMB: 크기 MB(1024²) 이상·미만. minMin·maxMin: 영상 길이 분 이상·미만(길이를 모르는 파일은 빠져요).
+export type Drawer = { id: string; name: string; kinds: Kind[]; exts?: string[]; minMB?: number; maxMB?: number; minMin?: number; maxMin?: number };
+export const rangeKeys = ["minMB", "maxMB", "minMin", "maxMin"] as const;
 export type ShelfView = { id: string; name: string; drawers: Drawer[] };
 // kind가 null이면 기본 형식별 서랍(palette colorGroups)을 써요.
 export type ShelfViews = { kind: Drawer[] | null; custom: ShelfView[] };
 
 export const allKinds = Object.keys(kindLabels) as Kind[];
+const extMax = 30;
+
+// "ts, .TSX  py" 같은 글을 확장자 목록으로 다듬어요.
+export function parseExts(value: unknown): string[] {
+  const words = Array.isArray(value) ? value.filter((word): word is string => typeof word === "string") : typeof value === "string" ? value.split(/[\s,]+/) : [];
+  return [...new Set(words.map((word) => word.trim().replace(/^\.+/, "").toLowerCase()).filter((word) => /^[a-z0-9_+-]{1,12}$/.test(word)))].slice(0, extMax);
+}
+
+const positive = (value: unknown) => (typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined);
 export const shelfNameMax = 20;
 export const emptyShelfViews: ShelfViews = { kind: null, custom: [] };
 
@@ -29,7 +41,14 @@ export function cleanDrawers(value: unknown): Drawer[] {
     const name = uniqueName(text(item.name, "서랍"), names);
     names.push(name);
     const kinds = Array.isArray(item.kinds) ? allKinds.filter((kind) => (item.kinds as unknown[]).includes(kind)) : [];
-    return [{ id: typeof item.id === "string" && item.id ? item.id : `drawer-${index}`, name, kinds }];
+    const drawer: Drawer = { id: typeof item.id === "string" && item.id ? item.id : `drawer-${index}`, name, kinds };
+    const exts = parseExts(item.exts);
+    if (exts.length > 0) drawer.exts = exts;
+    for (const key of rangeKeys) {
+      const value = positive(item[key]);
+      if (value !== undefined) drawer[key] = value;
+    }
+    return [drawer];
   });
 }
 

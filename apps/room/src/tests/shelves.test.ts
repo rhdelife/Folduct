@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Room, Thing } from "../domain/model";
-import { hueShelves, kindShelves, shelfItems } from "../domain/shelves";
+import { drawerShelves, hueShelves, kindShelves, secondsKey, shelfItems } from "../domain/shelves";
 
 const thing = (path: string, lastModified: number, over: Partial<Thing> = {}): Thing => ({ id: path, path, name: path.split("/").pop()!, kind: "image", size: 10, lastModified, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, seenAt: 0, pinned: false, box: null, ...over });
 const room = (id: string, things: Thing[], done = false) => ({ id, name: id, things, care: { done, staleAfterDays: 14 } }) as unknown as Room;
@@ -28,6 +28,35 @@ describe("컬러별 칸", () => {
     expect(hueShelves(items, new Map(found)).map((shelf) => [shelf.label, shelf.items.map((item) => item.thing.path)])).toEqual([
       ["빨강", ["a/2.png"]],
       ["파랑", ["a/3.png", "a/1.png"]],
+    ]);
+  });
+});
+
+describe("사용자 서랍 조건", () => {
+  const files = [
+    thing("a/app.ts", 5, { kind: "text", size: 2 * 1024 }),
+    thing("a/view.TSX", 4, { kind: "text", size: 8 * 1024 }),
+    thing("a/run.py", 3, { kind: "text" }),
+    thing("a/짧은.mp4", 2, { kind: "video", size: 20 * 1024 ** 2 }),
+    thing("a/긴.mov", 1, { kind: "video", size: 900 * 1024 ** 2 }),
+    thing("a/모름.webm", 0, { kind: "video" }),
+  ];
+  const rooms = [room("a", files)];
+  const items = shelfItems(rooms);
+  const seconds = new Map(items.filter((item) => item.thing.kind === "video").map((item) => [secondsKey(item), item.thing.name.startsWith("짧은") ? 45 : item.thing.name.startsWith("긴") ? 1800 : null]));
+  it("확장자·크기·영상 길이 조건이 모두 맞는 파일만 담고, 길이를 모르는 영상은 빼요", () => {
+    const shelves = drawerShelves(rooms, [
+      { id: "1", name: "타입스크립트", kinds: [], exts: ["ts", "tsx"] },
+      { id: "2", name: "작은 코드", kinds: ["text"], maxMB: 0.005 },
+      { id: "3", name: "1분 안 영상", kinds: ["video"], maxMin: 1 },
+      { id: "4", name: "10분 넘는 영상", kinds: ["video"], minMin: 10, minMB: 100 },
+      { id: "5", name: "빈 서랍", kinds: [] },
+    ], seconds);
+    expect(shelves.map((shelf) => [shelf.label, shelf.kinds, shelf.items.map((item) => item.thing.name)])).toEqual([
+      ["타입스크립트", ["text"], ["app.ts", "view.TSX"]],
+      ["작은 코드", ["text"], ["app.ts", "run.py"]],
+      ["1분 안 영상", ["video"], ["짧은.mp4"]],
+      ["10분 넘는 영상", ["video"], ["긴.mov"]],
     ]);
   });
 });

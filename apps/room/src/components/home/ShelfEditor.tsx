@@ -1,13 +1,19 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { colorGroups } from "../../art/palette";
 import { kindLabels, type Kind } from "../../domain/model";
-import { allKinds, cleanDrawers, shelfNameMax, uniqueName, type Drawer } from "../../domain/shelfViews";
+import { allKinds, cleanDrawers, parseExts, rangeKeys, shelfNameMax, uniqueName, type Drawer } from "../../domain/shelfViews";
 import { Icon } from "../Icon";
 import { useModal } from "../useModal";
 
 const kindColor = (kind: Kind) => colorGroups.find((group) => group.kinds.includes(kind))?.color;
 let made = 0;
 const newId = () => `drawer-${Date.now().toString(36)}-${made++}`;
+// 숫자 칸: 비었거나 0 이하면 조건을 빼요.
+const amount = (text: string) => {
+  const value = Number(text);
+  return text.trim() && Number.isFinite(value) && value > 0 ? value : undefined;
+};
+const hasMore = (drawer: Drawer) => (drawer.exts?.length ?? 0) > 0 || rangeKeys.some((key) => drawer[key] !== undefined);
 
 // 서랍장 고치기: 서랍 이름과 담을 형식을 고르고, 서랍을 더하거나 빼요. 새 서랍장이면 그 이름도 정해요.
 // name이 undefined면 이름이 고정된 형식별 서랍장이에요. 저장하기 전까지는 서랍장에 반영하지 않아요.
@@ -24,21 +30,26 @@ export function ShelfEditor({ title, name, drawers, onSave, onDelete, onReset, o
   const list = useRef<HTMLOListElement>(null);
   const [draftName, setDraftName] = useState(name ?? "");
   const [draft, setDraft] = useState(drawers);
+  // 확장자 칸은 쓰는 중인 글 그대로 두고, 저장할 때 다듬어요.
+  const [extText, setExtText] = useState<Record<string, string>>(() => Object.fromEntries(drawers.map((drawer) => [drawer.id, (drawer.exts ?? []).join(", ")])));
   useModal(dialog);
   const patch = (id: string, change: Partial<Drawer>) => setDraft((current) => current.map((drawer) => (drawer.id === id ? { ...drawer, ...change } : drawer)));
   const add = () => {
-    setDraft((current) => [...current, { id: newId(), name: uniqueName("새 서랍", current.map((drawer) => drawer.name)), kinds: [] }]);
+    const id = newId();
+    setDraft((current) => [...current, { id, name: uniqueName("새 서랍", current.map((drawer) => drawer.name)), kinds: [] }]);
+    setExtText((current) => ({ ...current, [id]: "" }));
     // 새 서랍의 이름 칸으로 바로 가요.
     requestAnimationFrame(() => list.current?.querySelector<HTMLInputElement>("li:last-child input[type=text]")?.select());
   };
-  const unsorted = allKinds.filter((kind) => !draft.some((drawer) => drawer.kinds.includes(kind)));
+  // 형식을 안 고르고 다른 조건만 건 서랍은 모든 형식에서 고르니, 빠진 형식 안내를 하지 않아요.
+  const unsorted = draft.some((drawer) => drawer.kinds.length === 0 && hasMore(drawer)) ? [] : allKinds.filter((kind) => !draft.some((drawer) => drawer.kinds.includes(kind)));
   return (
     <dialog ref={dialog} className="sheet shelf-editor" aria-labelledby="shelf-editor-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
       <form
         className="sheet-body"
         onSubmit={(event) => {
           event.preventDefault();
-          onSave(draftName.trim() || "새 서랍장", cleanDrawers(draft));
+          onSave(draftName.trim() || "새 서랍장", cleanDrawers(draft.map((drawer) => ({ ...drawer, exts: parseExts(extText[drawer.id] ?? "") }))));
         }}
       >
         <header className="row">
@@ -73,6 +84,26 @@ export function ShelfEditor({ title, name, drawers, onSave, onDelete, onReset, o
                   </label>
                 ))}
               </fieldset>
+              <details className="shelf-editor-more" open={hasMore(drawer) || undefined}>
+                <summary>조건 더 걸기</summary>
+                <label>
+                  <span>확장자</span>
+                  <input type="text" value={extText[drawer.id] ?? ""} placeholder="예: ts, tsx, py" onChange={(event) => setExtText((current) => ({ ...current, [drawer.id]: event.target.value }))} />
+                </label>
+                <div className="shelf-editor-range" role="group" aria-label="크기(MB)">
+                  <span>크기(MB)</span>
+                  <input type="number" min="0" step="any" inputMode="decimal" aria-label="이상(MB)" placeholder="이상" value={drawer.minMB ?? ""} onChange={(event) => patch(drawer.id, { minMB: amount(event.target.value) })} />
+                  <span aria-hidden="true">~</span>
+                  <input type="number" min="0" step="any" inputMode="decimal" aria-label="미만(MB)" placeholder="미만" value={drawer.maxMB ?? ""} onChange={(event) => patch(drawer.id, { maxMB: amount(event.target.value) })} />
+                </div>
+                <div className="shelf-editor-range" role="group" aria-label="영상 길이(분)">
+                  <span>영상 길이(분)</span>
+                  <input type="number" min="0" step="any" inputMode="decimal" aria-label="이상(분)" placeholder="이상" value={drawer.minMin ?? ""} onChange={(event) => patch(drawer.id, { minMin: amount(event.target.value) })} />
+                  <span aria-hidden="true">~</span>
+                  <input type="number" min="0" step="any" inputMode="decimal" aria-label="미만(분)" placeholder="미만" value={drawer.maxMin ?? ""} onChange={(event) => patch(drawer.id, { maxMin: amount(event.target.value) })} />
+                </div>
+                <p className="soft">조건은 모두 맞아야 담겨요. 형식을 안 고르면 모든 형식에서 골라요. 영상 길이는 데스크톱에서 폴더를 연결한 방의 영상만 알 수 있어요.</p>
+              </details>
             </li>
           ))}
         </ol>

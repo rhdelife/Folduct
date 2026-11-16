@@ -4,7 +4,8 @@ import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
 import { hueColors } from "../../domain/hue";
-import { hueShelves, kindShelves, shelfItems, type Shelf, type ShelfItem } from "../../domain/shelves";
+import { drawerShelves, hueShelves, kindShelves, needsSeconds, shelfItems, type Shelf, type ShelfItem } from "../../domain/shelves";
+import { useVideoSeconds } from "../../storage/durations";
 import { AxisWindow, axisMs, SceneWheelGate } from "../../domain/wheelStep";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
@@ -52,10 +53,11 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const [editing, setEditing] = useState<"edit" | "new" | null>(null);
   const customView = views.custom.find((view) => view.id === mode);
   const drawers = mode === "kind" ? views.kind : customView?.drawers;
-  const groups = useMemo(() => drawers?.map((drawer) => ({ label: drawer.name, kinds: drawer.kinds })) ?? colorGroups, [drawers]);
-  const kinds = useMemo(() => kindShelves(rooms, groups), [rooms, groups]);
   const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
+  // 영상 길이 조건이 있는 서랍장을 볼 때만 길이를 읽어요.
+  const { seconds, version } = useVideoSeconds(items, folders, drawers !== undefined && drawers !== null && needsSeconds(drawers));
+  const kinds = useMemo(() => (drawers ? drawerShelves(rooms, drawers, seconds) : kindShelves(rooms, colorGroups)), [rooms, drawers, seconds, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
   const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
   // 이미지는 있는데 읽을 폴더가 없으면(샘플·폴더 연결 전 방) 빈 화면 대신 이유를 적어요.
