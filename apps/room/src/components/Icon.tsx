@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { drawBrandFace } from "../art/duct";
 
-export type IconName = "sweep" | "import" | "pin" | "settings" | "close" | "trash";
+export type IconName = "sweep" | "import" | "pin" | "settings" | "close" | "trash" | "chevron";
 
 // 20칸 격자, 1.5 선, 둥근 끝. 색은 글자색(currentColor)을 따라가고, 뜻은 늘 옆의 글자가 말합니다.
 const shapes: Record<IconName, ReactNode> = {
@@ -10,6 +10,7 @@ const shapes: Record<IconName, ReactNode> = {
   pin: <path d="M6.5 3h7M8 3v4.5L5 11v2h10v-2l-3-3.5V3M10 13v4" />,
   trash: <path d="M4 6h12M8 6V4.5h4V6M5.5 6l.8 10a1 1 0 0 0 1 1h5.4a1 1 0 0 0 1-1l.8-10M8.5 9v5M11.5 9v5" />,
   close: <path d="M5 5l10 10M15 5L5 15" />,
+  chevron: <path d="M8 5l5 5-5 5" />,
   settings: <path d="M10 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM10 4.8a5.2 5.2 0 1 0 0 10.4 5.2 5.2 0 0 0 0-10.4ZM10 2.5v2.3M10 15.2v2.3M2.5 10h2.3M15.2 10h2.3M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6" />,
 };
 

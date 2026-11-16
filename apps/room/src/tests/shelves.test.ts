@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Room, Thing } from "../domain/model";
-import { drawerShelves, hueShelves, kindShelves, secondsKey, shelfItems } from "../domain/shelves";
+import { drawerShelves, drawerStats, extCounts, hueShelves, kindCounts, kindShelves, leftoverItems, secondsKey, shelfItems } from "../domain/shelves";
 
 const thing = (path: string, lastModified: number, over: Partial<Thing> = {}): Thing => ({ id: path, path, name: path.split("/").pop()!, kind: "image", size: 10, lastModified, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, seenAt: 0, pinned: false, box: null, ...over });
 const room = (id: string, things: Thing[], done = false) => ({ id, name: id, things, care: { done, staleAfterDays: 14 } }) as unknown as Room;
@@ -58,5 +58,21 @@ describe("사용자 서랍 조건", () => {
       ["1분 안 영상", ["video"], ["짧은.mp4"]],
       ["10분 넘는 영상", ["video"], ["긴.mov"]],
     ]);
+  });
+});
+
+describe("서랍장 편집 창 셈", () => {
+  const items = shelfItems([room("a", [thing("a/app.ts", 5, { kind: "text", size: 2 }), thing("a/b.ts", 4, { kind: "text", size: 3 }), thing("a/c.md", 3, { kind: "text", size: 4 }), thing("a/p.png", 2, { size: 10 })])]);
+  const none = new Map<string, number | null>();
+  it("서랍마다 담길 개수와 크기, 어디에도 없는 파일을 셈해요", () => {
+    const code = { id: "c", name: "코드", kinds: ["text" as const], exts: ["ts"] };
+    expect(drawerStats(code, items, none)).toEqual({ count: 2, size: 5 });
+    expect(leftoverItems([code], items, none).map((item) => item.thing.name)).toEqual(["c.md", "p.png"]);
+    expect(drawerStats({ id: "e", name: "빈", kinds: [] }, items, none)).toEqual({ count: 0, size: 0 });
+  });
+  it("형식별 개수와 고른 형식 안의 확장자를 많은 것부터 세요", () => {
+    expect(kindCounts(items).get("text")).toBe(3);
+    expect(extCounts(items, ["text"])).toEqual([["ts", 2], ["md", 1]]);
+    expect(extCounts(items, []).map(([ext]) => ext)).toEqual(["ts", "md", "png"]);
   });
 });

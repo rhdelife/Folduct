@@ -71,3 +71,29 @@ export const needsSeconds = (drawers: Drawer[]) => drawers.some((drawer) => draw
 export function hueShelves(items: ShelfItem[], found: Map<string, Hue | null>): Shelf[] {
   return hues.map((hue) => ({ ...pack(hue, ["image"], items.filter((item) => found.get(item.thing.id) === hue)), hue })).filter((shelf) => shelf.items.length > 0);
 }
+
+// 서랍장 편집 창이 고르는 대로 바로 보여 주는 셈들이에요.
+export function drawerStats(drawer: Drawer, items: ShelfItem[], seconds: Map<string, number | null>): { count: number; size: number } {
+  const fit = items.filter((item) => fitsDrawer(drawer, item, seconds));
+  return { count: fit.length, size: fit.reduce((sum, item) => sum + item.thing.size, 0) };
+}
+
+// 어느 서랍에도 안 담기는 파일.
+export const leftoverItems = (drawers: Drawer[], items: ShelfItem[], seconds: Map<string, number | null>): ShelfItem[] =>
+  items.filter((item) => !drawers.some((drawer) => fitsDrawer(drawer, item, seconds)));
+
+export function kindCounts(items: ShelfItem[]): Map<Kind, number> {
+  const counts = new Map<Kind, number>();
+  for (const { thing } of items) counts.set(thing.kind, (counts.get(thing.kind) ?? 0) + 1);
+  return counts;
+}
+
+// 고른 형식(없으면 모두) 파일에 실제로 있는 확장자와 개수, 많은 것부터.
+export function extCounts(items: ShelfItem[], kinds: Kind[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const { thing } of items) {
+    const ext = extOf(thing.name);
+    if (ext && (kinds.length === 0 || kinds.includes(thing.kind))) counts.set(ext, (counts.get(ext) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}

@@ -57,7 +57,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
   // 영상 길이 조건이 있는 서랍장을 볼 때만 길이를 읽어요.
-  const { seconds, version } = useVideoSeconds(items, folders, drawers !== undefined && drawers !== null && needsSeconds(drawers));
+  const { seconds, version } = useVideoSeconds(items, folders, (drawers !== undefined && drawers !== null && needsSeconds(drawers)) || editing !== null);
   const kinds = useMemo(() => (drawers ? drawerShelves(rooms, drawers, seconds) : kindShelves(rooms, colorGroups)), [rooms, drawers, seconds, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
   const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
@@ -378,6 +378,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
           title="새 서랍장"
           name=""
           drawers={[{ id: "drawer-first", name: "새 서랍", kinds: [] }]}
+          items={items}
+          seconds={seconds}
           onClose={() => setEditing(null)}
           onSave={(name, next) => {
             const id = `view-${Date.now().toString(36)}`;
@@ -386,13 +388,15 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         />
       )}
       {editing === "edit" && mode === "kind" && (
-        <ShelfEditor title="형식별 서랍장 고치기" drawers={views.kind ?? defaultDrawers} onClose={() => setEditing(null)} onSave={(_, next) => saveViews({ ...views, kind: next })} onReset={() => saveViews({ ...views, kind: null })} />
+        <ShelfEditor title="형식별 서랍장" drawers={views.kind ?? defaultDrawers} items={items} seconds={seconds} onClose={() => setEditing(null)} onSave={(_, next) => saveViews({ ...views, kind: next })} onReset={() => saveViews({ ...views, kind: null })} />
       )}
       {editing === "edit" && customView && (
         <ShelfEditor
-          title="서랍장 고치기"
+          title="서랍장"
           name={customView.name}
           drawers={customView.drawers}
+          items={items}
+          seconds={seconds}
           onClose={() => setEditing(null)}
           onSave={(name, next) => saveViews({ ...views, custom: views.custom.map((view) => (view.id === customView.id ? { ...view, name: uniqueName(name, viewNames.filter((taken) => taken !== view.name)), drawers: next } : view)) })}
           onDelete={() => saveViews({ ...views, custom: views.custom.filter((view) => view.id !== customView.id) }, "kind")}
