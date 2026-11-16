@@ -441,7 +441,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .object { display: block; overflow: visible; }
 
 /* ── 방 화면 맨 줄: 앞(← 집), 제목, 뒤쪽 버튼 순서입니다. ── */
-.home { height: 100dvh; overflow-y: auto; scrollbar-width: thin; }
+.home { position: relative; height: 100dvh; overflow: clip; }
 .room-page { max-width: var(--content-max); margin: 0 auto; padding: var(--space-4) var(--gutter) var(--space-12); }
 .topnav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); min-height: 56px; margin-bottom: var(--space-3); }
 .topnav > * { min-width: 0; }
@@ -451,7 +451,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .topnav-title h1 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topnav > .row { margin-left: auto; }
 /* ── 집: 무대 한 칸. 판 한 장이 모든 장면을 싣고, 머리는 그 위에 고정됩니다. 포커스가 옮겨 가도 스크롤되지 않게 clip입니다. ── */
-.home-stage { position: relative; height: 100dvh; overflow: clip; background: var(--ground); touch-action: pan-y pinch-zoom; }
+/* 홈 장면 안의 z-index가 위에 겹친 Drawer 화면을 뚫고 올라오지 않게 장면을 한 겹으로 묶어요. */
+.home-stage { position: relative; isolation: isolate; height: 100dvh; overflow: clip; background: var(--ground); touch-action: pan-y pinch-zoom; }
 .home-sheet { position: absolute; inset: 0; z-index: 2; background-color: var(--bg); }
 .scene { position: absolute; inset: 0; }
 .scene.page-status, .scene.loading { align-content: center; }
@@ -1671,12 +1672,21 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 
 /* ── 집 아래: 형식별로 보기. 한 장면짜리 서랍장이에요. 서랍을 누르면 앞으로 빠져나오며 위에서 내려다본 속과 종이가 보이고,
    나머지 서랍은 흐려지고, 옆(좁으면 아래)에 그 서랍의 목록 종이가 펼쳐져요.
-   집 화면과 이 장면은 이어 내리지 않고 휠 한 번에 한 장면씩 끊어 넘어가요(scroll-snap). ── */
-.home { scroll-snap-type: y mandatory; }
-.home-stage { scroll-snap-align: start; }
-.shelf-hint { position: absolute; left: 50%; bottom: var(--space-5); z-index: 3; translate: -50% 0; font-size: var(--text-sm); font-weight: 500; color: var(--ink-caption); background: var(--bg); }
-.shelf-hint:hover:not(:disabled) { color: var(--ink); }
-.kind-shelves { --pen: calc(var(--room-hair) * 4); container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); scroll-snap-align: start; view-timeline: --kind-scene block; }
+   홈과 이 장면은 스크롤로 잇지 않고 머리줄 탭(홈 | Drawer)으로 오가요. 두 장면은 겹쳐 두고 안 보는 쪽만 숨겨요. ── */
+.drawer-view { position: absolute; inset: 0; z-index: 70; background: var(--bg); opacity: 0; visibility: hidden; transition: opacity var(--dur-2) var(--ease-standard), visibility 0s linear var(--dur-2); }
+.drawer-view.on { opacity: 1; visibility: visible; transition: opacity var(--dur-2) var(--ease-standard), visibility 0s; }
+/* 머리줄(로고·탭·단추)이 위에 떠 있어 Drawer 내용은 그 아래에서 시작해요. */
+.drawer-view .kind-shelves { padding-top: var(--topbar-h); }
+.home-tabs { position: absolute; top: var(--chrome-y); left: calc(var(--chrome-x) + var(--space-12)); translate: 0 -50%; display: flex; align-items: center; gap: var(--space-1); }
+.home-tabs button { white-space: nowrap; font-size: var(--text-md); font-weight: 500; color: var(--ink-caption); }
+.home-tabs button:hover:not(:disabled) { background: none; color: var(--ink); }
+.home-tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: var(--space-2); }
+@media (max-width: 720px) {
+  /* 좁은 창은 머리줄에 자리가 없어 탭을 아래 가운데 알약으로 내려요. Drawer 목록은 그만큼 아래를 비워요. */
+  .home-tabs { position: fixed; top: auto; bottom: var(--space-5); left: 50%; translate: -50% 0; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-1); }
+  .drawer-view .kind-shelves { padding-bottom: calc(var(--space-12) + var(--space-8)); }
+}
+.kind-shelves { --pen: calc(var(--room-hair) * 4); container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); }
 .kind-shelves-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
 /* 숨긴 라디오가 문서 기준으로 놓이면 누를 때 문서가 밀려 올라가요. 단추 안에 붙들어 둬요. */
 .kind-shelves-head .seg label { position: relative; }
@@ -1886,9 +1896,7 @@ p.kind-folder-more { color: var(--ink-caption); }
   .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation: kind-card-in var(--dur-3) var(--ease-settle) backwards; animation-delay: calc(var(--dur-1) + var(--i) * 30ms); }
   /* 넓은 창에서는 서랍에서 꺼낸 종이가 목록 창 자리에 거의 닿을 때(KindShelf growFrom) 카드가 차례로 내려앉아요. */
   @media (min-width: 721px) { .kind-folder-things li:nth-child(-n + 12) .shelf-paper { animation-delay: calc(var(--dur-3) + var(--dur-drawer) * 1.2 + var(--i) * 30ms); } }
-  @supports (animation-timeline: view()) {
-    .kind-cabinet-wrap { animation: kind-cabinet-in linear both; animation-timeline: --kind-scene; animation-range: entry 0% entry 100%; }
-  }
+  .drawer-view.on .kind-cabinet-wrap { animation: kind-cabinet-in var(--dur-3) var(--ease-settle) both; }
 }
 @keyframes kind-card-in { from { translate: 0 calc(var(--space-6) * -1); opacity: 0; } }
 @keyframes kind-cabinet-in { from { translate: 0 var(--space-12); scale: 0.96; opacity: 0.3; } }

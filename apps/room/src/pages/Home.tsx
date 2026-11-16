@@ -4,7 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ContextMenu } from "../components/ContextMenu";
 import { awayFromHome, createEngine, EngineContext, type HomeActions } from "../components/home/engine";
 import { HeroScene } from "../components/home/HeroScene";
-import { HomeHeader } from "../components/home/HomeHeader";
+import { HomeHeader, type HomeView } from "../components/home/HomeHeader";
 import { KindShelf } from "../components/home/KindShelf";
 import { Icon } from "../components/Icon";
 import { NewRoomDialog } from "../components/NewRoomDialog";
@@ -78,7 +78,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [importing, setImporting] = useState(false);
   // from: 미리보기 창을 연 곳. 서랍 목록에서 연 창은 그 목록이 닫히면 같이 닫혀요.
   const [viewing, setViewing] = useState<{ roomId: string; thingId: string; from?: "shelf" } | null>(null);
-  const shelf = useRef<HTMLElement>(null);
+  const [view, setView] = useState<HomeView>("home");
   const [plans, setPlans] = useState<SweepPlan[] | null>(null);
   const [offers, setOffers] = useState<Room[]>([]);
   // 방에서 돌아오면 패널 없이 주름관을 고르는 첫 화면으로 옵니다.
@@ -559,11 +559,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   };
   const scene = rooms && { rooms, stats, now, actions };
   return (
-    <main className="home">
+    <main className="home" data-view={view}>
       <EngineContext.Provider value={engine}>
-        <div className="home-stage">
-          {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-          <HomeHeader rooms={rooms ?? []} ready={ready} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+        {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
+        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={setView} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+        {/* 두 화면은 늘 겹쳐 그려 두고, 안 보는 쪽은 숨기고(inert) 손대지 못하게 해요. 홈을 지우지 않아 프로도가 먹던 상태가 남아요. */}
+        <div className="home-stage" inert={view === "drawer"}>
           <div className="home-sheet">
             {loadFailed ? (
               <div className="scene page-status" role="alert">
@@ -576,14 +577,12 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
               <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} sweepDue={overdue} onSweepLater={sweepLater} paneOpen={Boolean(viewingThing)} />
             )}
           </div>
-          {/* 아래 형식별 칸으로 가는 손잡이. 휠·트랙패드로 내려도 되고, 키보드로는 이 단추로 가요. 방을 고른 동안은 비켜요. */}
-          {rooms && rooms.some((room) => !room.care.done && room.things.length > 0) && !selected && (
-            <button type="button" className="shelf-hint" onClick={() => shelf.current?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}>
-              Drawer <span aria-hidden="true">↓</span>
-            </button>
-          )}
         </div>
-        {rooms && <KindShelf ref={shelf} rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />}
+        {rooms && (
+          <div className={view === "drawer" ? "drawer-view on" : "drawer-view"} inert={view !== "drawer"}>
+            <KindShelf rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />
+          </div>
+        )}
       </EngineContext.Provider>
       {!isNative() && (
         <input
