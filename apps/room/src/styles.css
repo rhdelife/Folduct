@@ -1616,6 +1616,14 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .cover-options .room-cover { --ink: var(--room-color); }
 /* 파일 형식 아이콘 만들기. 빈 흰 캔버스 위 투명한 칸에서 긋고, 손을 떼면 프로도 펜으로 다시 그려요. */
 .kind-icon-maker h3 { font-size: var(--text-md); line-height: var(--lh-md); }
+/* Icons 탭 페이지(2026-11-17, 창에서 페이지로). 머리줄 아래에서 위아래로 스크롤하고, 저장 줄은 아래에 붙어 있어요. */
+.icons-view .kind-icon-page { height: 100dvh; overflow-y: auto; padding: var(--topbar-h) var(--gutter) 0; }
+.kind-icon-body { display: grid; gap: var(--space-4); max-width: calc(var(--space-12) * 14); margin: 0 auto; }
+.kind-icon-head { display: flex; justify-content: flex-start; }
+.kind-icon-modes { display: flex; }
+.kind-icon-keys { margin: 0; font-size: var(--text-xs); }
+.kind-icon-page .settings-foot { bottom: 0; margin: 0 calc(var(--gutter) * -1); padding: var(--space-3) var(--gutter) var(--space-5); background: var(--bg); }
+@media (max-width: 720px) { .kind-icon-page .settings-foot { padding-bottom: calc(var(--space-12) + var(--space-8)); } }
 .icon-kinds, .icon-tools .seg { display: flex; flex-wrap: wrap; }
 .icon-board { display: grid; place-items: center; padding: var(--space-4); border-radius: var(--radius-md); background: var(--bg); }
 .icon-canvas { position: relative; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-1); }

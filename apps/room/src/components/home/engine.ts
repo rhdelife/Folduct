@@ -53,7 +53,7 @@ const ownsScroll = (target: EventTarget | null) => {
 };
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // 아래 서랍장 장면으로 내려가 있나요.
-export const awayFromHome = () => document.querySelector<HTMLElement>(".home")?.dataset.view === "drawer";
+export const awayFromHome = () => (document.querySelector<HTMLElement>(".home")?.dataset.view ?? "home") !== "home";
 
 export type Engine = {
   readonly pos: number;

@@ -70,7 +70,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [iconsOpen, setIconsOpen] = useState<"make" | "archive" | false>(false);
+  // Icons 탭 안에서 그리기와 보관함 중 어느 화면인지. 메뉴의 두 항목이 각 화면으로 바로 가요.
+  const [iconsMode, setIconsMode] = useState<"make" | "archive">("make");
   // 작업 보고 창. true면 지금 기간, Period면 그 기간으로 열어요.
   const [reportOpen, setReportOpen] = useState<Period | true | null>(null);
   const reportBusy = useRef(false);
@@ -565,9 +566,9 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     <main className="home" data-view={view}>
       <EngineContext.Provider value={engine}>
         {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} onIcons={() => setIconsOpen("make")} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
         {/* 두 화면은 늘 겹쳐 그려 두고, 안 보는 쪽은 숨기고(inert) 손대지 못하게 해요. 홈을 지우지 않아 프로도가 먹던 상태가 남아요. */}
-        <div className="home-stage" inert={view === "drawer"}>
+        <div className="home-stage" inert={view !== "home"}>
           <div className="home-sheet">
             {loadFailed ? (
               <div className="scene page-status" role="alert">
@@ -586,6 +587,10 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             <KindShelf rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />
           </div>
         )}
+        {/* Icons 탭: 다른 탭에 다녀와도 그리던 그림이 남게 지우지 않고 숨겨 둬요. */}
+        <div className={view === "icons" ? "drawer-view icons-view on" : "drawer-view icons-view"} inert={view !== "icons"}>
+          <KindIconMaker mode={iconsMode} onMode={setIconsMode} active={view === "icons"} />
+        </div>
       </EngineContext.Provider>
       {!isNative() && (
         <input
@@ -630,8 +635,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
                 이번 주 정리 보기
               </button>
               <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
-              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen("make"))}>아이콘 만들기</button>
-              <button type="button" className="quiet" onClick={fromMenu(() => setIconsOpen("archive"))}>아이콘 보관함</button>
+              <button type="button" className="quiet" onClick={fromMenu(() => { setIconsMode("make"); setView("icons"); })}>아이콘 만들기</button>
+              <button type="button" className="quiet" onClick={fromMenu(() => { setIconsMode("archive"); setView("icons"); })}>아이콘 보관함</button>
               {hasSample ? (
                 <button type="button" className="quiet" onClick={fromMenu(actions.clearSamples)}>샘플 방 치우기</button>
               ) : (
@@ -642,7 +647,6 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
         />
       )}
       {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
-      {iconsOpen && <KindIconMaker start={iconsOpen} onClose={() => setIconsOpen(false)} />}
       {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
         <NewRoomDialog
@@ -688,7 +692,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           }}
         />
       )}
-      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && !iconsOpen && !reportOpen && !settingsRoom && (
+      {entered && onHome.length > homeLimit && !plans && !creating && !viewing && !menuOpen && !settingsOpen && view !== "icons" && !reportOpen && !settingsRoom && (
         <HomeRoomsDialog rooms={onHome} prefer={[raised.current, returnTo]} now={now} onKeep={keepOnHome} />
       )}
       {/* 판 밖에 둡니다. 판과 카메라의 transform 안에서는 fixed 자리가 어긋나요. */}

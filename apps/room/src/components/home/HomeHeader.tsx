@@ -5,11 +5,11 @@ import { Icon } from "../Icon";
 import { useWorkSession } from "./WorkControl";
 
 // 머리 왼쪽은 오늘 작업 시간을 크게. 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
-export type HomeView = "home" | "drawer";
+export type HomeView = "home" | "drawer" | "icons";
 
 // 홈과 Drawer는 머리줄 탭으로 오가요. 지금 화면은 색이 아니라 굵은 글자와 밑줄로 알려요. 좁은 창에서는 탭이 아래 가운데로 내려가요.
 // 작업 아이콘(.work-tab)은 왼쪽 아래 작업 기록 카드가 숨는 좁은·낮은 창에서만 보여요. 누르면 작업 판이 열리고, 작업 중이면 아이콘이 검은 알약이 돼요.
-export function HomeHeader({ rooms, ready, today, view, onView, onIcons, workOpen, onWork, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; today: number; view: HomeView; onView: (view: HomeView) => void; onIcons: () => void; workOpen: boolean; onWork: () => void; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+export function HomeHeader({ rooms, ready, today, view, onView, workOpen, onWork, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; today: number; view: HomeView; onView: (view: HomeView) => void; workOpen: boolean; onWork: () => void; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const awake = rooms.length > 0;
   const session = useWorkSession();
   return (
@@ -20,8 +20,8 @@ export function HomeHeader({ rooms, ready, today, view, onView, onIcons, workOpe
         <nav className="home-tabs" aria-label="화면">
           <button type="button" className="quiet" aria-current={view === "home" ? "page" : undefined} onClick={() => onView("home")}>Home</button>
           <button type="button" className="quiet" aria-current={view === "drawer" ? "page" : undefined} onClick={() => onView("drawer")}>Drawer</button>
-          {/* 파일 형식 아이콘을 그리는 창(아이콘 만들기)으로 가요. 화면을 바꾸는 탭이 아니라 창을 여는 단추라 aria-current는 없어요. */}
-          <button type="button" className="quiet" aria-haspopup="dialog" onClick={onIcons}>Icons</button>
+          {/* 파일 형식 아이콘을 그리고 모아 두는 페이지(2026-11-17부터 창이 아니라 탭 화면). */}
+          <button type="button" className="quiet" aria-current={view === "icons" ? "page" : undefined} onClick={() => onView("icons")}>Icons</button>
           {isNative() && (
             <button type="button" className={`quiet work-tab${session ? " on" : ""}`} aria-label={session ? (session.status === "working" ? "작업 중" : "작업 멈춤") : "작업"} title={session ? "작업 중" : "작업"} aria-expanded={workOpen} aria-controls="work-bar" onClick={onWork}>
               <Icon name="work" size={20} />
