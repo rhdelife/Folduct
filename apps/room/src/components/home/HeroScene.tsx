@@ -21,10 +21,13 @@ type HeroProps = SceneProps & {
   onSweepLater: () => void;
   // 오른쪽 미리보기 창이 열려 있으면 홈 배치가 그 폭만큼 비켜요.
   paneOpen: boolean;
+  // 머리줄 작업 아이콘으로 여는 작업 판(좁은·낮은 창 전용).
+  workOpen: boolean;
+  onWorkClose: () => void;
 };
 
 // 첫 화면: 프로도들이 한 줄로 선 홈. 고른 프로도는 다가가 보고, 파일은 그 아래로 나와요.
-export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, sweepDue, onSweepLater, paneOpen }: HeroProps) {
+export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doorItems, onDoorMenu, workLog, staleFiles, sweepDue, onSweepLater, paneOpen, workOpen, onWorkClose }: HeroProps) {
   const selected = rooms.find((room) => room.id === selectedId) ?? null;
   const session = useWorkSession();
 
@@ -41,10 +44,10 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
         </div>
       ) : (
         <div className={`sky-layout${selected ? " focused" : ""}`}>
-          {/* 작업(시간 재기)은 왼쪽 아래 작업 기록 카드 위에서만 다뤄요. 그 카드가 숨는 좁은·낮은 창에서는 아래 탭 위 막대로 둬요. 프로도 아래는 먹인 방의 파일을 보는 자리예요. */}
-          {isNative() && (
-            <div className="work-bar">
-              <WorkControl rooms={rooms} session={session} />
+          {/* 작업(시간 재기)은 왼쪽 아래 작업 기록 카드 위에서만 다뤄요. 그 카드가 숨는 좁은·낮은 창에서는 머리줄(좁으면 아래 알약) 작업 아이콘을 눌러 여는 판으로 둬요. 프로도 아래는 먹인 방의 파일을 보는 자리예요. */}
+          {isNative() && workOpen && (
+            <div className="work-bar" id="work-bar">
+              <WorkControl rooms={rooms} session={session} pick={!session} onDone={onWorkClose} />
             </div>
           )}
           <section className="sky-stage">

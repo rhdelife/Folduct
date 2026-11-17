@@ -13,6 +13,8 @@ import { Meta } from "./Meta";
 const dragSlop = 4;
 const keyStep = 10;
 const found = 60;
+// 판 배율 하한. 375 폭에서 종이 하나가 손가락으로 집을 만큼(약 70) 보여요.
+const boardFloor = 0.6;
 
 type Drag = { key: string; kind: "move" | "size"; x: number; y: number; start: CanvasItem; moved: boolean };
 
@@ -33,7 +35,8 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
   useLayoutEffect(() => {
     const el = board.current;
     if (!el) return;
-    const measure = () => el.clientWidth > 0 && setScale(el.clientWidth / canvasWidth);
+    // 좁은 창에서도 종이가 읽히게 배율은 boardFloor 밑으로 줄이지 않고, 남는 폭은 판 안에서 옆으로 밀어 봐요.
+    const measure = () => el.clientWidth > 0 && setScale(Math.max(boardFloor, el.clientWidth / canvasWidth));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);

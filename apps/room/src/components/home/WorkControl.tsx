@@ -31,9 +31,14 @@ export function useWorkSession(): Session | null {
 // 시간은 메뉴 막대 작은 창이 재고, 이 막대는 그 창의 상태를 따라가요.
 // 꺼져 있으면 '작업 시작' 하나. 누르면 막대 아래로 방 알약이 펼쳐지고, 고르면 작은 창을 열지 않고 바로 시간을 재요.
 // 작업 중이면 방 이름·시간·멈춤·끝내기로 갈라져요. 누르면 작은 창에 부탁해요(시간은 그 창이 재요).
-export function WorkControl({ rooms, session }: { rooms: Room[]; session: Session | null }) {
+// pick: 처음부터 방 알약을 펼쳐요(머리줄 작업 아이콘으로 연 판). onDone: 고르기를 닫거나 방을 고르면 불러요.
+export function WorkControl({ rooms, session, pick = false, onDone }: { rooms: Room[]; session: Session | null; pick?: boolean; onDone?: () => void }) {
   const [now, setNow] = useState(Date.now);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPickingState] = useState(pick);
+  const setPicking = (next: boolean) => {
+    setPickingState(next);
+    if (!next) onDone?.();
+  };
   const working = session?.status === "working";
   useEffect(() => {
     if (!working) return;

@@ -1088,7 +1088,7 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .room-canvas { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-6); }
 .room-canvas-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .room-canvas-head h2 { font-size: var(--text-lg); line-height: var(--lh-lg); }
-.room-canvas-board { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.room-canvas-board { position: relative; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
 .room-canvas-plane { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .room-canvas-empty { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: var(--space-3); color: var(--ink-soft); font-size: var(--text-sm); text-align: center; }
 .canvas-item { position: absolute; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
@@ -1318,7 +1318,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .home-panel { position: absolute; left: var(--space-6); top: max(calc(var(--topbar-h) + var(--space-2)), 35%); bottom: var(--space-4); z-index: calc(var(--hero-tip-z) + 1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; width: min(var(--home-panel-w), calc(100% - 2 * var(--space-6))); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); }
 /* 작업 줄: 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
 /* 작업 줄: 왼쪽 아래 작업 기록 카드 바로 위(.home-stack). 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
-   카드가 숨는 좁은·낮은 창(.home-stack과 같은 기준)에서는 아래 홈 | Drawer 알약 바로 위 막대(.work-bar)로 둬요. */
+   카드가 숨는 좁은·낮은 창(.home-stack과 같은 기준)에서는 홈 | Drawer 탭 옆 작업 아이콘(.work-tab)을 눌러 여는 판(.work-bar)으로 둬요. */
 .home-stack .work-control { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); white-space: normal; }
 .home-stack .work-control button { min-height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-sm); }
 .home-stack .work-start { width: 100%; min-width: 0; }
@@ -1326,13 +1326,19 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .home-stack .work-control.on > button { flex: 1; }
 .home-stack .work-control.picking { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
 @media (min-width: 720px) and (min-height: 640px) { .work-bar { display: none; } }
-.work-bar { position: absolute; top: var(--chrome-y); left: 50%; z-index: 81; translate: -50% -50%; display: flex; justify-content: center; }
+/* 머리줄 탭 옆 작업 아이콘. 작업 중이면 색 대신 검은 알약(잉크 반전)으로 알려요. */
+.home-tabs .work-tab { display: inline-grid; place-items: center; min-width: var(--control-md); padding: 0; border-radius: var(--radius-pill); color: var(--ink-caption); }
+.home-tabs .work-tab[aria-expanded="true"] { color: var(--ink); }
+.home-tabs .work-tab.on, .home-tabs .work-tab.on:hover:not(:disabled) { background: var(--ink); color: var(--surface); }
+@media (min-width: 720px) and (min-height: 640px) { .home-tabs .work-tab { display: none; } }
+.work-bar { position: absolute; top: calc(var(--chrome-y) + var(--control-md)); left: 50%; z-index: 81; translate: -50% 0; display: flex; justify-content: center; }
+.work-bar .work-control.on { padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-2); }
 .work-bar .work-control { min-height: var(--control-md); gap: var(--space-1); }
 .work-bar .work-control button { min-height: var(--control-md); padding: 0 var(--space-4); font-size: var(--text-sm); }
 .work-bar .work-start { min-width: 0; }
 .work-bar .work-clock { display: inline-flex; align-items: baseline; gap: var(--space-2); justify-items: start; }
 .work-bar .work-clock b { font-size: var(--text-md); line-height: var(--lh-md); }
-.work-bar .work-control.picking { position: absolute; top: calc(var(--control-md) * -0.5); left: 50%; translate: -50% 0; width: max-content; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); }
+.work-bar .work-control.picking { position: absolute; top: 0; left: 50%; translate: -50% 0; width: max-content; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); }
 .work-pick-title { flex-basis: 100%; margin: 0; text-align: center; font-size: var(--text-sm); font-weight: 700; }
 .room-working { display: block; color: var(--ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; }
 @media (max-width: 720px) {
