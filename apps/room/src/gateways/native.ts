@@ -116,6 +116,13 @@ export async function firstPage(root: string, path: string): Promise<Blob> {
   return new Blob([await invoke<ArrayBuffer>("thumbnail", { path: inside(root, path) })], { type: "image/png" });
 }
 
+// 발표 파일 전체를 Quick Look 미리보기로 받아요(macOS). PDF로 나오면 pdf, 아니면 그림을 data URL로 넣은 HTML 글이에요.
+export async function slidePreview(root: string, path: string): Promise<{ pdf: Blob } | { html: string }> {
+  const bytes = new Uint8Array(await invoke<ArrayBuffer>("slide_preview", { path: inside(root, path) }));
+  const pdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  return pdf ? { pdf: new Blob([bytes], { type: "application/pdf" }) } : { html: new TextDecoder().decode(bytes) };
+}
+
 export type ChildFolder = { name: string; path: string };
 
 // 상위 폴더 하나를 고르면 바로 아래 폴더들을 방 후보로 돌려줍니다. 이때는 하위 내용까지 열지 않습니다.

@@ -6,7 +6,7 @@ import { formatBytes, kindLabels, type Room, type Thing } from "../../domain/mod
 import { currentOs } from "../../domain/platform";
 import { isExcludedName } from "../../gateways/folder";
 import { isNotFound, restoreTrashed, trashFile } from "../../gateways/mover";
-import { askFolder, folderAccess, isNative, firstPage, openInApp, readFolderFile, type Folder } from "../../gateways/native";
+import { askFolder, folderAccess, isNative, firstPage, openInApp, readFolderFile, slidePreview, type Folder } from "../../gateways/native";
 import { roomFolder } from "../../storage/box";
 import { patchRoom } from "../../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../../storage/pictures";
@@ -14,6 +14,7 @@ import { renameThing } from "../../storage/rename";
 import { FileViewer, Preview, previewLimit, previewMode, writeClipboard, type ViewerState } from "../FileViewer";
 import type { ToastAction } from "../Toast";
 import { Meta } from "../Meta";
+import { SlideView } from "../SlideView";
 import { Icon } from "../Icon";
 
 const splitName = (name: string) => {
@@ -45,6 +46,8 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
   // 앱 안에서 못 여는 형식(발표·문서 등)은 macOS Quick Look 첫 장 그림을 보여 줘요.
   const [page, setPage] = useState<string | null>(null);
   const [pageFile, setPageFile] = useState<File | null>(null);
+  // 발표 파일은 Quick Look으로 슬라이드 전체를 받아 보여 줘요(macOS). file은 크게 보기 창의 크기 표시용이에요.
+  const [deck, setDeck] = useState<{ html: string; file: File } | { pdf: File; file: File } | null>(null);
   // 미리보기(그림·글·첫 장)를 누르면 방에서처럼 큰 보기 창으로 열어요.
   const [big, setBig] = useState(false);
   useEffect(() => () => void (page && URL.revokeObjectURL(page)), [page]);
@@ -75,6 +78,15 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
         if (typeof found === "string" && (previewMode(thing) === "none" || thing.size > previewLimit)) {
           if (previewMode(thing) === "none" && currentOs() === "mac") {
             setState({ status: "loading" });
+            const slides = thing.kind === "slides" ? await slidePreview(found, thing.path).catch((error: unknown) => (console.error(error), null)) : null;
+            if (slides) {
+              if ("pdf" in slides) {
+                const pdf = new File([slides.pdf], `${thing.name}.pdf`, { type: "application/pdf" });
+                setDeck({ pdf, file: pdf });
+              } else setDeck({ html: slides.html, file: new File([slides.html], `${thing.name}.html`, { type: "text/plain" }) });
+              touch();
+              return setState({ status: "outside", big: false });
+            }
             const png = await firstPage(found, thing.path).catch(() => null);
             const made = png && URL.createObjectURL(png);
             if (png && made) {
@@ -228,7 +240,8 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
             </div>
           )}
           {state?.status === "outside" && page && <div className="viewer-stage preview-zoom" onClick={() => setBig(true)}><img src={page} alt={`${thing.name} 첫 장`} onError={() => setPage(null)} /></div>}
-          {state?.status === "outside" && !page && <p className="viewer-note">{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>}
+          {state?.status === "outside" && deck && ("html" in deck ? <SlideView html={deck.html} title={thing.name} /> : <Preview file={deck.pdf} mode="pdf" fallback="" unsupported="Folduct" />)}
+          {state?.status === "outside" && !page && !deck && <p className="viewer-note">{state.big ? "파일이 커서 미리 보지 않아요." : "이 형식은 Folduct에서 미리 볼 수 없어요."}</p>}
           {state?.status === "error" && (
             <div className="viewer-note">
               <p>{state.message}</p>
@@ -242,7 +255,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
             <Preview file={state.file} mode={mode} fallback={fallback} unsupported={native ? "Folduct" : "브라우저"} onVideo={setVideo} />
           </div>
         )}
-        {((state?.status === "ready" && mode !== "none") || (state?.status === "outside" && page)) && (
+        {((state?.status === "ready" && mode !== "none") || (state?.status === "outside" && (page || deck))) && (
           <button type="button" className="quiet preview-big" onClick={() => setBig(true)}>크게 보기</button>
         )}
 
@@ -302,7 +315,10 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
         {canOpen && <button type="button" onClick={() => void sendToTrash()}><Icon name="trash" />휴지통으로</button>}
       </footer>
       {big && state?.status === "ready" && <FileViewer thing={thing} state={state} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} />}
-      {big && state?.status === "outside" && pageFile && (
+      {big && state?.status === "outside" && deck && (
+        <FileViewer thing={thing} state={{ status: "ready", file: deck.file }} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} body={"html" in deck ? <div className="viewer-stage slide-stage"><SlideView html={deck.html} title={thing.name} /></div> : <Preview file={deck.pdf} mode="pdf" fallback="" unsupported="Folduct" />} />
+      )}
+      {big && state?.status === "outside" && !deck && pageFile && (
         <FileViewer thing={{ ...thing, kind: "image" }} state={{ status: "ready", file: pageFile }} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} />
       )}
     </aside>,

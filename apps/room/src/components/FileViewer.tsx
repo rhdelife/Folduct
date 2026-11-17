@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { formatBytes, kindLabels, type Thing } from "../domain/model";
 import { currentOs } from "../domain/platform";
@@ -71,6 +71,7 @@ export function FileViewer({
   onRetry,
   onCopy,
   onOpenApp,
+  body,
 }: {
   thing: Thing;
   state: ViewerState;
@@ -81,6 +82,8 @@ export function FileViewer({
   onRetry: () => void;
   onCopy: (path: string) => Promise<boolean>;
   onOpenApp?: () => void;
+  // 파일 그대로가 아니라 만든 미리보기(발표 슬라이드 같은)를 크게 볼 때 그 내용이에요.
+  body?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useModal(dialog);
@@ -139,7 +142,8 @@ export function FileViewer({
           )}
           {copied === false && <p className="error">복사하지 못했어요. 위의 경로를 직접 골라 복사해 주세요.</p>}
         </div>
-        {state.status === "ready" && <Preview file={state.file} mode={mode} fallback={fallback} unsupported={native ? "Folduct" : "브라우저"} />}
+        {state.status === "ready" && body}
+        {state.status === "ready" && !body && <Preview file={state.file} mode={mode} fallback={fallback} unsupported={native ? "Folduct" : "브라우저"} />}
         <div className="row end">
           {tabBlob && (
             <button

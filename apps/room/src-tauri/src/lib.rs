@@ -725,6 +725,107 @@ fn mp4_seconds(path: &Path) -> Option<f64> {
   (scale > 0).then(|| length as f64 / scale as f64)
 }
 
+// 발표 파일(pptx·key 같은)을 macOS Quick Look 미리보기로 바꿔 돌려줍니다. 사용자 파일은 읽기만 하고,
+// 앱 캐시 안에 이번 한 번 쓰는 폴더만 만들었다 지워요. HTML로 나오면 그림을 data URL로 넣은 HTML 한 덩어리, PDF로 나오면 PDF 바이트 그대로예요.
+// HTML은 화면이 스크립트 없이 안전한 태그만 골라 다시 그려요(FileViewer SlideView).
+#[tauri::command]
+async fn slide_preview<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<tauri::ipc::Response, String> {
+  in_scope(&app, &path)?;
+  if !path.is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+  let bytes = tauri::async_runtime::spawn_blocking(move || slides_of(&path, &cache)).await.map_err(|e| e.to_string())??;
+  Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[cfg(target_os = "macos")]
+fn slides_of(path: &Path, cache: &Path) -> Result<Vec<u8>, String> {
+  static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+  let out = cache.join(format!("slides-{}-{}", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst)));
+  std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+  let made = quick_look_preview(path, &out);
+  let _ = std::fs::remove_dir_all(&out);
+  made
+}
+
+#[cfg(not(target_os = "macos"))]
+fn slides_of(_: &Path, _: &Path) -> Result<Vec<u8>, String> {
+  Err("발표 미리보기는 macOS 앱에서만 돼요.".into())
+}
+
+// qlmanage -p -o 는 미리보기를 띄우지 않고 .qlpreview 묶음(Preview.html + 그림, 또는 Preview.pdf)으로 저장해요. 깨진 파일에서 멈추면 30초 뒤 끊어요.
+#[cfg(target_os = "macos")]
+fn quick_look_preview(path: &Path, out: &Path) -> Result<Vec<u8>, String> {
+  use std::process::Stdio;
+  use std::time::Instant;
+  let mut child = Command::new("/usr/bin/qlmanage").arg("-p").arg("-o").arg(out).arg(path).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())?;
+  let started = Instant::now();
+  while child.try_wait().map_err(|e| e.to_string())?.is_none() {
+    if started.elapsed() > Duration::from_secs(30) {
+      let _ = child.kill();
+      let _ = child.wait();
+      return Err("미리보기를 만드는 데 너무 오래 걸려요.".into());
+    }
+    std::thread::sleep(Duration::from_millis(100));
+  }
+  let bundle = std::fs::read_dir(out).map_err(|e| e.to_string())?.flatten().map(|entry| entry.path()).find(|made| made.extension().is_some_and(|ext| ext == "qlpreview")).ok_or("이 파일은 미리보기를 만들지 못했어요.")?;
+  let pdf = bundle.join("Preview.pdf");
+  if pdf.is_file() {
+    return std::fs::read(pdf).map_err(|e| e.to_string());
+  }
+  let html = std::fs::read_to_string(bundle.join("Preview.html")).map_err(|_| "이 파일은 미리보기를 만들지 못했어요.".to_string())?;
+  let mut files = Vec::new();
+  let mut total = 0u64;
+  for entry in std::fs::read_dir(&bundle).map_err(|e| e.to_string())?.flatten() {
+    let name = entry.file_name().to_string_lossy().into_owned();
+    if name.starts_with("Preview") || !entry.path().is_file() {
+      continue;
+    }
+    total += entry.metadata().map(|meta| meta.len()).unwrap_or(0);
+    // 그림을 다 넣어도 화면이 버틸 만큼만(80MB). 넘으면 앱에서 보지 않고 기본 앱으로 열게 해요.
+    if total > 80 * 1024 * 1024 {
+      return Err("발표 파일이 너무 커서 미리 보지 않아요.".into());
+    }
+    files.push((name, std::fs::read(entry.path()).map_err(|e| e.to_string())?));
+  }
+  Ok(inline_attachments(&html, &files).into_bytes())
+}
+
+// Preview.html 의 "Attachment1.png" 같은 그림 이름을 data URL로 바꿔요. 따옴표·괄호까지 맞춰 바꿔서 Attachment1 과 Attachment15 가 섞이지 않아요.
+fn inline_attachments(html: &str, files: &[(String, Vec<u8>)]) -> String {
+  let mut html = html.to_string();
+  for (name, bytes) in files {
+    let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    let mime = match ext.as_str() {
+      "png" => "image/png",
+      "jpg" | "jpeg" => "image/jpeg",
+      "gif" => "image/gif",
+      "tif" | "tiff" => "image/tiff",
+      "bmp" => "image/bmp",
+      "svg" => "image/svg+xml",
+      _ => continue,
+    };
+    let data = format!("data:{mime};base64,{}", base64(bytes));
+    for (open, close) in [("\"", "\""), ("'", "'"), ("(", ")")] {
+      html = html.replace(&format!("{open}{name}{close}"), &format!("{open}{data}{close}"));
+    }
+  }
+  html
+}
+
+fn base64(bytes: &[u8]) -> String {
+  const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+  for chunk in bytes.chunks(3) {
+    let n = (chunk[0] as u32) << 16 | (*chunk.get(1).unwrap_or(&0) as u32) << 8 | *chunk.get(2).unwrap_or(&0) as u32;
+    for at in 0..4 {
+      out.push(if at <= chunk.len() { TABLE[(n >> (18 - 6 * at)) as usize & 63] as char } else { '=' });
+    }
+  }
+  out
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -732,7 +833,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, set_panel_visible, set_tray_dot])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -985,6 +1086,19 @@ mod tests {
 
   // 진짜 휴지통으로 보냈다가 받은 자리에서 되돌려 원래 내용 그대로인지 봐요(macOS만, 휴지통에는 아무것도 남기지 않아요).
   #[cfg(target_os = "macos")]
+  #[test]
+  fn slide_attachments_become_data_urls() {
+    assert_eq!(base64(b""), "");
+    assert_eq!(base64(b"f"), "Zg==");
+    assert_eq!(base64(b"fo"), "Zm8=");
+    assert_eq!(base64(b"foo"), "Zm9v");
+    assert_eq!(base64(b"foob"), "Zm9vYg==");
+    let html = r#"<img src="Attachment1.png"><img src="Attachment15.png"><div style="background:url(Attachment1.png)"></div><a href="Attachment1.png.txt">"#;
+    let files = vec![("Attachment1.png".to_string(), b"a".to_vec()), ("Attachment15.png".to_string(), b"bc".to_vec()), ("note.txt".to_string(), b"x".to_vec())];
+    let out = inline_attachments(html, &files);
+    assert_eq!(out, r#"<img src="data:image/png;base64,YQ=="><img src="data:image/png;base64,YmM="><div style="background:url(data:image/png;base64,YQ==)"></div><a href="Attachment1.png.txt">"#);
+  }
+
   #[test]
   fn trash_then_restore_round_trip() {
     let base = std::env::temp_dir().join(format!("folduct-trash-{}", std::process::id()));

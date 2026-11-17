@@ -2068,3 +2068,7 @@ body:has(.preview-pane) .shelf-paper { grid-template-columns: calc(var(--space-1
 @keyframes preview-up { from { opacity: 0; translate: 0 var(--space-8); } }
 .preview-pane.still { animation: none; }
 @media (prefers-reduced-motion: reduce) { .preview-pane { animation: none; } }
+/* 발표 슬라이드 미리보기(SlideView): Quick Look이 만든 슬라이드를 상자 폭에 맞춰 줄여 위아래로 이어 보여요. 크게 보기 창에서는 그 안에서 스크롤해요. */
+.slide-view { width: 100%; border-radius: var(--radius-md); background: var(--surface-sunken); border: 1px solid var(--line); overflow: hidden; }
+.viewer-stage.slide-stage { display: block; overflow: auto; }
+.viewer-stage.slide-stage .slide-view { border: 0; border-radius: 0; }
