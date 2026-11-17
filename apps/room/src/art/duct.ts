@@ -452,11 +452,10 @@ export const stackSegLength = (length: number) => segMin + segGrow * Math.min(1,
 function stackSpec(lengths: number[]) {
   const total = stub + lengths.reduce((sum, length) => sum + stackSegLength(length), 0);
   const points: Pt[] = [];
-  // 받침에서 위로 곧게 서되 살짝 흔들립니다. 점 간격 2라 마디 경계를 점 번호로 잘라요.
-  for (let t = 0; t <= total; t += 2) points.push([stackX + 3 * Math.sin(t / 30), 108 - t]);
-  const [x0, y0] = points[points.length - 1];
-  // 목: 위로 올라가다 오른쪽으로 고개를 숙여요.
-  for (let a = 2 / neckR; a <= (50 * Math.PI) / 180; a += 2 / neckR) points.push([x0 + neckR - neckR * Math.cos(a), y0 - neckR * Math.sin(a)]);
+  // 받침에서 위로 곧게 서요. 점 간격 2라 마디 경계를 점 번호로 잘라요.
+  // 옆으로 흔들거나 고개를 오른쪽으로 꺾지 않아요(2026-11-17 요청: 한쪽으로 휘는 모양이 별로라서). 목은 예전 고개 숙인 호와 같은 길이만큼 곧게 더 올라가요.
+  const neck = (neckR * 50 * Math.PI) / 180;
+  for (let t = 0; t <= total + neck; t += 2) points.push([stackX, 108 - t]);
   let at = 0;
   const cuts = [0, ...[...lengths].reverse().map((length) => (at += stackSegLength(length)) / 2)].map((cut) => Math.round(cut + stub / 2)).reverse();
   const end = points[points.length - 1];
