@@ -178,11 +178,11 @@ fn ask_pet_toggle<R: Runtime>(app: &AppHandle<R>, event: &str) {
 }
 
 // 기다리는 새 파일이 있으면 아이콘 오른쪽 위에 잉크 점을 찍어요. 작은 창을 닫아 둬도 메뉴 막대만 보고 알 수 있어요.
-// 작업 중이면 얼굴의 흰 입구 테를 잉크로 채워 검은 얼굴에 흰 눈만 남겨요(켜진 아이콘). 색은 쓰지 않고 잉크·모양으로만 알려요.
-fn tray_logo(dot: bool, working: bool) -> Vec<u8> {
+// 작업 중이면 얼굴의 검은 구멍을 작업하는 방의 얼굴색(--face-*)으로 칠해요. 홈에서 방을 먹였을 때 얼굴색과 같아요. 흰 테와 흰 눈은 그대로예요.
+fn tray_logo(dot: bool, working: Option<[u8; 3]>) -> Vec<u8> {
   let mut px = TRAY_LOGO.to_vec();
-  if working {
-    fill_rim(&mut px);
+  if let Some(color) = working {
+    tint_hole(&mut px, color);
   }
   if dot {
     let (cx, cy, r, ring) = (28.5_f64, 7.5_f64, 5.0_f64, 7.0_f64);
@@ -201,22 +201,26 @@ fn tray_logo(dot: bool, working: bool) -> Vec<u8> {
   px
 }
 
-// 흰 입구 테: 왼쪽 위 테 한 점(5, 12)에서 이어진 밝은 픽셀(가장자리 반투명 포함)을 잉크로 바꿔요. 눈은 검은 구멍으로 막혀 있어 그대로 흰색이에요.
-fn fill_rim(px: &mut [u8]) {
-  let light = |px: &[u8], at: usize| px[at * 4] >= 90 && px[at * 4 + 3] >= 60;
-  let seed = 12 * 36 + 5;
-  if !light(px, seed) {
+// 검은 구멍: 구멍 위쪽 가운데 한 점(18, 12)에서 이어진 어두운 픽셀을 방 색으로 바꿔요. 가장자리의 덜 어두운 픽셀은 흰색 쪽으로 섞어 매끄럽게 둬요.
+// 흰 테가 바깥 검은 선과 구멍을 갈라 놓아서 바깥 선은 칠해지지 않아요. 흰 눈도 밝아서 그대로예요.
+fn tint_hole(px: &mut [u8], color: [u8; 3]) {
+  let dark = |px: &[u8], at: usize| px[at * 4] < 128 && px[at * 4 + 3] >= 60;
+  let seed = 12 * 36 + 18;
+  if !dark(px, seed) {
     return;
   }
   let mut seen = vec![false; 36 * 36];
   let mut stack = vec![seed];
   seen[seed] = true;
   while let Some(at) = stack.pop() {
-    px[at * 4..at * 4 + 3].copy_from_slice(&[23, 23, 23]);
+    let light = (px[at * 4].saturating_sub(23)) as u32;
+    for c in 0..3 {
+      px[at * 4 + c] = (color[c] as u32 + (255 - color[c] as u32) * light / 232) as u8;
+    }
     let (x, y) = (at % 36, at / 36);
     let near = [(x > 0).then(|| at - 1), (x < 35).then(|| at + 1), (y > 0).then(|| at - 36), (y < 35).then(|| at + 36)];
     for next in near.into_iter().flatten() {
-      if !seen[next] && light(px, next) {
+      if !seen[next] && dark(px, next) {
         seen[next] = true;
         stack.push(next);
       }
@@ -224,13 +228,14 @@ fn fill_rim(px: &mut [u8]) {
   }
 }
 
-// 점과 작업 중 표시는 따로 바뀌어서, 둘 다 기억해 두고 아이콘을 다시 그려요.
+// 점과 작업 중 방 색은 따로 바뀌어서, 둘 다 기억해 두고 아이콘을 다시 그려요.
 static TRAY_DOT: AtomicBool = AtomicBool::new(false);
-static TRAY_WORKING: AtomicBool = AtomicBool::new(false);
+static TRAY_WORKING: std::sync::Mutex<Option<[u8; 3]>> = std::sync::Mutex::new(None);
 
 fn redraw_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
   let Some(tray) = app.tray_by_id(TRAY) else { return Ok(()) };
-  tray.set_icon(Some(Image::new_owned(tray_logo(TRAY_DOT.load(Ordering::SeqCst), TRAY_WORKING.load(Ordering::SeqCst)), 36, 36))).map_err(|e| e.to_string())
+  let working = *TRAY_WORKING.lock().map_err(|e| e.to_string())?;
+  tray.set_icon(Some(Image::new_owned(tray_logo(TRAY_DOT.load(Ordering::SeqCst), working), 36, 36))).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -239,10 +244,20 @@ fn set_tray_dot<R: Runtime>(app: AppHandle<R>, on: bool) -> Result<(), String> {
   redraw_tray(&app)
 }
 
+// color: 작업하는 방의 얼굴색 "#rrggbb". 작업하지 않으면 null이라 원래 얼굴로 돌아가요.
 #[tauri::command]
-fn set_tray_working<R: Runtime>(app: AppHandle<R>, on: bool) -> Result<(), String> {
-  TRAY_WORKING.store(on, Ordering::SeqCst);
+fn set_tray_working<R: Runtime>(app: AppHandle<R>, color: Option<String>) -> Result<(), String> {
+  *TRAY_WORKING.lock().map_err(|e| e.to_string())? = color.as_deref().and_then(hex_rgb);
   redraw_tray(&app)
+}
+
+fn hex_rgb(text: &str) -> Option<[u8; 3]> {
+  let hex = text.trim().strip_prefix('#')?;
+  if hex.len() != 6 {
+    return None;
+  }
+  let byte = |at: usize| u8::from_str_radix(hex.get(at..at + 2)?, 16).ok();
+  Some([byte(0)?, byte(2)?, byte(4)?])
 }
 
 // 아이콘 아래에 작은 창을 열고 닫아요. 연 창은 바로 입력을 받아, 다른 곳을 누르면 닫힐 수 있어요(blur).
@@ -343,7 +358,7 @@ fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
   #[cfg(not(target_os = "linux"))]
   let menu = Menu::with_items(app, &[&toggle, &open, &PredefinedMenuItem::separator(app)?, &quit])?;
   TrayIconBuilder::with_id(TRAY)
-    .icon(Image::new_owned(tray_logo(false, false), 36, 36))
+    .icon(Image::new_owned(tray_logo(false, None), 36, 36))
     .tooltip("Folduct")
     .menu(&menu)
     // 누르면 아이콘 아래 작은 창이 열리고(띄워 둔 플로팅 창이면 아이콘으로 들어가고), 메뉴는 오른쪽 클릭으로 열어요.
@@ -931,8 +946,8 @@ mod tests {
 
   #[test]
   fn tray_dot_marks_only_the_corner() {
-    let plain = tray_logo(false, false);
-    let dotted = tray_logo(true, false);
+    let plain = tray_logo(false, None);
+    let dotted = tray_logo(true, None);
     assert_eq!(plain, TRAY_LOGO);
     assert_eq!(dotted.len(), 36 * 36 * 4);
     // 점 가운데는 잉크, 왼쪽 아래 구석은 로고 그대로예요.
@@ -1142,16 +1157,20 @@ mod tests {
   }
 
   #[test]
-  fn working_tray_fills_rim_but_keeps_eyes() {
-    let plain = tray_logo(false, false);
-    let on = tray_logo(false, true);
+  fn working_tray_paints_hole_with_room_color() {
+    let plain = tray_logo(false, None);
+    let on = tray_logo(false, Some([122, 90, 31]));
     let at = |x: usize, y: usize| (y * 36 + x) * 4;
-    // 테(5, 12)는 흰색 → 잉크, 왼쪽 눈(11, 18)은 흰색 그대로, 투명한 모서리(0, 0)는 그대로예요.
-    assert!(plain[at(5, 12)] > 200 && on[at(5, 12)] < 40);
-    assert!(plain[at(11, 18)] > 200 && on[at(11, 18)] > 200);
-    assert_eq!(plain[at(0, 0) + 3], on[at(0, 0) + 3]);
-    assert_eq!(tray_logo(true, true).len(), 36 * 36 * 4);
+    // 구멍(18, 12)은 검정 → 방 색, 테(5, 12)와 왼쪽 눈(11, 18)은 흰색 그대로, 바깥 검은 선(1, 18)도 그대로예요.
+    assert_eq!(plain[at(18, 12)], 23);
+    assert_eq!(&on[at(18, 12)..at(18, 12) + 3], &[122, 90, 31]);
+    assert_eq!(on[at(5, 12)], plain[at(5, 12)]);
+    assert_eq!(on[at(11, 18)], plain[at(11, 18)]);
+    assert_eq!(&on[at(1, 18)..at(1, 18) + 4], &plain[at(1, 18)..at(1, 18) + 4]);
+    assert_eq!(hex_rgb("#7a5a1f"), Some([122, 90, 31]));
+    assert_eq!(hex_rgb("var(--face-5)"), None);
   }
+
 
   #[test]
   fn trash_then_restore_round_trip() {

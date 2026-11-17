@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { cssToken } from "./tokens";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { downloadDir } from "@tauri-apps/api/path";
@@ -525,10 +526,11 @@ export function Pet() {
   useEffect(() => {
     if (isNative()) invoke("set_tray_dot", { on: dot }).catch((error: unknown) => console.error(error));
   }, [dot]);
-  // 작업 중이면 메뉴 막대 프로도 얼굴을 검게 채워 켜진 것을 알려요. 멈추거나 끝내면 원래 얼굴로 돌아가요.
+  // 작업 중이면 메뉴 막대 프로도 얼굴의 검은 구멍을 작업하는 방의 얼굴색으로 칠해요. 멈추거나 끝내면 원래 얼굴로 돌아가요.
+  const workColor = working && room ? cssToken(`--face-${room.face.color + 1}`) : null;
   useEffect(() => {
-    if (isNative()) invoke("set_tray_working", { on: working }).catch((error: unknown) => console.error(error));
-  }, [working]);
+    if (isNative()) invoke("set_tray_working", { color: workColor }).catch((error: unknown) => console.error(error));
+  }, [workColor]);
 
   function start(roomId: string) {
     setMenuOpen(false);
