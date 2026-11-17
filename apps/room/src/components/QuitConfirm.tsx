@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { isNative } from "../gateways/native";
-import { PoseArt } from "./RoomFace";
 import { useModal } from "./useModal";
 
 // 작업 시간을 재는 중에 끄려고 하면 Rust(ask_quit)가 메인 창을 앞으로 데려와 'quit-asked'를 보내요. 그때 뜨는 Folduct 모달이에요(2026-11-17 요청, OS 알림 창 대신).
@@ -45,9 +44,8 @@ function QuitSheet({ onAnswer }: { onAnswer: (quit: boolean) => void }) {
       }}
     >
       <div className="sheet-body">
-        <span className="quit-frodo" aria-hidden="true"><PoseArt pose="watch" px={96} mood="tilt" /></span>
         <h2 id="quit-title">작업 중에 끌까요?</h2>
-        <p id="quit-text" className="soft">지금 작업 시간을 재고 있어요. 끄면 시간 재기가 멈추고, 다시 켜면 멈춤 상태로 이어져요.</p>
+        <p id="quit-text" className="soft">끄면 작업 시간 재기가 멈춰요.</p>
         <div className="quit-actions">
           {/* 실수로 끄지 않게 계속 작업을 앞에 둬 먼저 포커스를 받아요(showModal이 첫 단추에 포커스를 줘요). */}
           <button type="button" className="primary" onClick={() => onAnswer(false)}>계속 작업</button>

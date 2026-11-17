@@ -2096,11 +2096,9 @@ body:has(.preview-pane) .shelf-paper { grid-template-columns: calc(var(--space-1
 .viewer-stage.slide-stage { display: block; overflow: auto; }
 .viewer-stage.slide-stage .slide-view { border: 0; border-radius: 0; }
 
-/* 작업 중 끄기 확인(QuitConfirm): 가운데 정렬 작은 모달. 프로도가 고개를 갸웃하고, 계속 작업이 먼저 눈에 들어와요. */
+/* 작업 중 끄기 확인(QuitConfirm): 가운데 정렬 작은 모달. 캐릭터 없이 제목과 한 줄 설명, 계속 작업이 먼저 눈에 들어와요. */
 dialog.sheet.quit-sheet { max-width: min(calc(var(--space-12) * 8), calc(100vw - 2 * var(--space-4))); }
 .quit-sheet .sheet-body { justify-items: center; gap: var(--space-3); text-align: center; }
 .quit-sheet h2 { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); }
-.quit-sheet p { margin: 0; }
-.quit-frodo { display: block; width: calc(var(--space-12) * 2); }
-.quit-frodo svg { display: block; width: 100%; height: auto; }
+.quit-sheet p { margin: 0; white-space: nowrap; }
 .quit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); width: 100%; margin-top: var(--space-2); }
