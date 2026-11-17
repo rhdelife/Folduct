@@ -3,6 +3,7 @@ import { colorGroups } from "../../art/palette";
 import { formatBytes, kindLabels, type Kind } from "../../domain/model";
 import { drawerStats, extCounts, kindCounts, leftoverItems, type ShelfItem } from "../../domain/shelves";
 import { allKinds, cleanDrawers, parseExts, shelfNameMax, uniqueName, type Drawer } from "../../domain/shelfViews";
+import { formatMB, formatMinutes, lengthSteps, rangeText, sizeSteps, stepAt, stepEnd, stepValue } from "../../domain/stepRange";
 import { Icon } from "../Icon";
 import { useModal } from "../useModal";
 
@@ -11,11 +12,6 @@ const kindStyle = (kind: Kind) => ({ "--kind": kindColor(kind) }) as CSSProperti
 const countText = (count: number) => count.toLocaleString("ko-KR");
 let made = 0;
 const newId = () => `drawer-${Date.now().toString(36)}-${made++}`;
-// 숫자 칸: 비었거나 0 이하면 조건을 빼요.
-const amount = (text: string) => {
-  const value = Number(text);
-  return text.trim() && Number.isFinite(value) && value > 0 ? value : undefined;
-};
 // 확장자 칩은 많은 것부터 이만큼만 보여 줘요. 고른 것은 늘 보여요.
 const extShown = 12;
 // 영상 길이는 영상을 고르거나 형식을 안 골랐을 때만 걸 수 있어요.
@@ -170,22 +166,12 @@ export function ShelfEditor({ title, name, drawers, items, seconds, onSave, onDe
                       </fieldset>
                       <fieldset className="shelf-editor-field">
                         <legend>크기</legend>
-                        <span className="shelf-editor-range">
-                          <input type="number" min="0" step="any" inputMode="decimal" aria-label="크기 이상(MB)" placeholder="이상" value={drawer.minMB ?? ""} onChange={(event) => patch(drawer.id, { minMB: amount(event.target.value) })} />
-                          <span aria-hidden="true">~</span>
-                          <input type="number" min="0" step="any" inputMode="decimal" aria-label="크기 미만(MB)" placeholder="미만" value={drawer.maxMB ?? ""} onChange={(event) => patch(drawer.id, { maxMB: amount(event.target.value) })} />
-                          <span>MB</span>
-                        </span>
+                        <StepRange name="크기" steps={sizeSteps} format={formatMB} low={drawer.minMB} high={drawer.maxMB} onChange={(minMB, maxMB) => patch(drawer.id, { minMB, maxMB })} />
                       </fieldset>
                       {canLength(drawer) && (
                         <fieldset className="shelf-editor-field">
                           <legend>영상 길이</legend>
-                          <span className="shelf-editor-range">
-                            <input type="number" min="0" step="any" inputMode="decimal" aria-label="영상 길이 이상(분)" placeholder="이상" value={drawer.minMin ?? ""} onChange={(event) => patch(drawer.id, { minMin: amount(event.target.value) })} />
-                            <span aria-hidden="true">~</span>
-                            <input type="number" min="0" step="any" inputMode="decimal" aria-label="영상 길이 미만(분)" placeholder="미만" value={drawer.maxMin ?? ""} onChange={(event) => patch(drawer.id, { maxMin: amount(event.target.value) })} />
-                            <span>분</span>
-                          </span>
+                          <StepRange name="영상 길이" steps={lengthSteps} format={formatMinutes} low={drawer.minMin} high={drawer.maxMin} onChange={(minMin, maxMin) => patch(drawer.id, { minMin, maxMin })} />
                         </fieldset>
                       )}
                       <div className="shelf-editor-detail-foot">
@@ -218,5 +204,25 @@ export function ShelfEditor({ title, name, drawers, items, seconds, onSave, onDe
         </footer>
       </form>
     </dialog>
+  );
+}
+
+// 두 손잡이 범위 바. 정해 둔 눈금 사이에서만 움직이고, 왼쪽 끝은 '처음부터', 오른쪽 끝은 '끝까지'(조건 없음)예요.
+// 두 손잡이는 겹치지 않게 한 칸 이상 떨어져요. 화살표 키로도 한 칸씩 옮겨요.
+function StepRange({ name, steps, format, low, high, onChange }: { name: string; steps: number[]; format: (value: number) => string; low?: number; high?: number; onChange: (low: number | undefined, high: number | undefined) => void }) {
+  const end = stepEnd(steps);
+  const lo = stepAt(steps, low, "low");
+  const hi = Math.max(lo + 1, stepAt(steps, high, "high"));
+  const label = (at: number) => (at <= 0 ? "처음부터" : at >= end ? "끝까지" : format(steps[at - 1]));
+  const fill = { "--from": `${(lo / end) * 100}%`, "--to": `${(hi / end) * 100}%` } as CSSProperties;
+  return (
+    <div className="step-range">
+      <div className="step-range-bar" style={fill}>
+        <span className="step-range-track" aria-hidden="true"><span className="step-range-fill" /></span>
+        <input type="range" min={0} max={end} step={1} value={lo} aria-label={`${name} 아래 끝`} aria-valuetext={label(lo)} onChange={(event) => onChange(stepValue(steps, Math.min(Number(event.target.value), hi - 1)), stepValue(steps, hi))} />
+        <input type="range" min={0} max={end} step={1} value={hi} aria-label={`${name} 위 끝`} aria-valuetext={label(hi)} onChange={(event) => onChange(stepValue(steps, lo), stepValue(steps, Math.max(Number(event.target.value), lo + 1)))} />
+      </div>
+      <output className="step-range-text">{rangeText(stepValue(steps, lo), stepValue(steps, hi), format)}</output>
+    </div>
   );
 }

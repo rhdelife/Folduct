@@ -1797,7 +1797,19 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .shelf-editor-chip:has(:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .shelf-editor-chip input { position: absolute; opacity: 0; pointer-events: none; }
 .shelf-editor-ext-input { width: calc(var(--space-12) * 2); min-height: var(--control-sm); padding: 0 var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-xs); }
-.shelf-editor-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); max-width: calc(var(--space-12) * 6); font-size: var(--text-sm); color: var(--ink-soft); }
+/* 크기·영상 길이 범위 바(StepRange): 두 range 입력을 겹치고 손잡이만 누를 수 있게 해요. 고른 사이는 잉크 막대, 오른쪽에 지금 범위 글. */
+.step-range { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); max-width: calc(var(--space-12) * 7); }
+.step-range-bar { --thumb: var(--space-5); position: relative; height: var(--control-sm); }
+.step-range-track { position: absolute; top: 50%; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); height: var(--space-1); translate: 0 -50%; border-radius: var(--radius-pill); background: var(--line); }
+.step-range-fill { position: absolute; top: 0; bottom: 0; left: var(--from); right: calc(100% - var(--to)); border-radius: var(--radius-pill); background: var(--ink); }
+.step-range-bar input[type="range"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; background: none; border: 0; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.step-range-bar input[type="range"]::-webkit-slider-runnable-track { height: 100%; background: none; }
+.step-range-bar input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: var(--thumb); height: var(--thumb); margin-top: calc((var(--control-sm) - var(--thumb)) / 2); border: 2px solid var(--ink); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-1); cursor: grab; }
+.step-range-bar input[type="range"]::-moz-range-track { background: none; }
+.step-range-bar input[type="range"]::-moz-range-thumb { pointer-events: auto; width: var(--thumb); height: var(--thumb); border: 2px solid var(--ink); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-1); cursor: grab; }
+.step-range-bar input[type="range"]:focus-visible { outline: none; }
+.step-range-bar input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--ink); outline-offset: 2px; }
+.step-range-text { min-width: calc(var(--space-12) * 2); font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
 .shelf-editor-detail-foot { display: flex; align-items: center; gap: var(--space-1); }
 .shelf-editor-move { display: grid; place-items: center; width: var(--control-sm); min-height: var(--control-sm); padding: 0; }
 .shelf-editor-move.up svg { rotate: -90deg; }
