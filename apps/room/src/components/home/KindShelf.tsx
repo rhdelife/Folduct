@@ -21,9 +21,8 @@ import type { ToastAction } from "../Toast";
 import { isNative } from "../../gateways/native";
 import { patchRoom } from "../../storage/db";
 
-// 목록 종이에 처음엔 이만큼, 더 보기를 누르면 shownMost장까지 놓아요(파일 수백 개짜리 방).
-const shownAtFirst = 12;
-const shownMost = 120;
+// 목록 종이는 이만큼씩 놓고, 끝에 가까이 내려가면 다음 묶음을 더 놓아요(무한 스크롤, 2026-11-17 요청). 파일 수백 개짜리 방도 처음엔 가벼워요.
+const shownStep = 24;
 // 열린 서랍 안에 앞뒤로 겹쳐 꽂힌 종이 수.
 const peekCount = 5;
 const cardArtPx = 40;
@@ -463,8 +462,18 @@ function Drawer({ shelf, on, closing, onToggle }: { shelf: Shelf; on: boolean; c
 // 목록 종이 몸: 파일 카드가 위아래로 겹쳐 쌓여 있고, 파일이 많으면 여기서 내려요.
 // picked가 있으면 고르는 중이라 카드를 누르면 열지 않고 골라요.
 export function KindFolder({ shelf, folders, onOpenFile, picked = null, canPick, onPick }: { shelf: Shelf; folders: Map<string, Folder>; onOpenFile: (roomId: string, thingId: string) => void; picked?: Set<string> | null; canPick?: (item: ShelfItem) => boolean; onPick?: (item: ShelfItem) => void }) {
-  const [all, setAll] = useState(false);
-  const shown = shelf.items.slice(0, all ? shownMost : shownAtFirst);
+  const [count, setCount] = useState(shownStep);
+  const shown = shelf.items.slice(0, count);
+  const more = shelf.items.length > shown.length;
+  const end = useRef<HTMLDivElement>(null);
+  // 목록 끝 표시가 스크롤 상자(.kind-folder) 아래 한 화면 안에 들어오면 다음 묶음을 놓아요.
+  useEffect(() => {
+    const el = end.current;
+    if (!more || !el) return;
+    const observer = new IntersectionObserver((seen) => seen.some((entry) => entry.isIntersecting) && setCount((now) => now + shownStep), { root: el.parentElement, rootMargin: "0px 0px 100% 0px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [more, count]);
   return (
     <div className="kind-folder" role="group" aria-labelledby="kind-slip-title" tabIndex={-1}>
       <ul className="kind-folder-things">
@@ -474,12 +483,7 @@ export function KindFolder({ shelf, folders, onOpenFile, picked = null, canPick,
           </li>
         ))}
       </ul>
-      {shelf.items.length > shown.length &&
-        (all ? (
-          <p className="kind-folder-more">최근 {shownMost}개까지만 보여요. 나머지는 방 안에서 찾아 주세요.</p>
-        ) : (
-          <button type="button" className="kind-folder-more" onClick={() => setAll(true)}>나머지 {countText(shelf.items.length - shown.length)}개도 보기</button>
-        ))}
+      {more && <div ref={end} className="kind-folder-end" aria-hidden="true" />}
     </div>
   );
 }
