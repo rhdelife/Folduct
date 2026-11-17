@@ -1720,6 +1720,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 메뉴 막대 아이콘 아래 작은 창. 투명한 창 안에 흰 판 하나를 두고, 그림자는 창 안 여백에서 끝나요. 끌어 옮기지 않아요. */
 .pet.pet-panel { width: var(--pet-panel-w); padding: var(--space-2); display: block; cursor: default; }
 .pet-card { display: grid; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--glass-chip-shadow); }
+.pet-panel-art { cursor: grab; touch-action: none; }
+.pet-panel-art:active { cursor: grabbing; }
 .pet-panel-head { display: grid; grid-template-columns: var(--pet-panel-art) minmax(0, 1fr); align-items: center; gap: var(--space-3); }
 .pet-panel .pet-pose > svg { width: var(--pet-panel-art); height: var(--pet-panel-art); }
 .pet-panel-row, .pet-panel-foot { display: flex; gap: var(--space-2); }

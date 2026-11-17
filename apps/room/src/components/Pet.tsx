@@ -324,7 +324,7 @@ export function Pet() {
   // 아이콘 아래 작은 창은 다른 곳을 누르면 닫혀요. 화면을 가리지 않게요.
   const onBlurPanel = useRef(() => {});
   onBlurPanel.current = () => {
-    if (!pet.floating && panelOpen) closePanel();
+    if (!pet.floating && panelOpen && !pulling.current) closePanel();
   };
   useEffect(() => {
     const onFocus = reloadRooms;
@@ -416,6 +416,21 @@ export function Pet() {
     press.current = null;
     dragged.current = true;
     if (isNative()) getCurrentWindow().startDragging().catch((error: unknown) => console.error(error));
+  }
+
+  // 아이콘 아래 작은 창의 프로도를 끌어 밖으로 꺼내면 그 자리에서 띄워 두기가 켜지고, 손을 떼기 전까지 그대로 끌려와요(2026-11-17 요청, '띄워 두기' 단추 대신).
+  // 같은 창이 작은 창 모양에서 프로도 모양으로 바뀌는 거라, 아이콘에서 미끄러져 나오는 움직임 없이 지금 자리에서 바로 끌어요.
+  const pulling = useRef(false);
+  function onPanelPointerDown(event: PointerEvent<HTMLElement>) {
+    press.current = { x: event.clientX, y: event.clientY };
+  }
+  function onPanelPointerMove(event: PointerEvent<HTMLElement>) {
+    if (!press.current || Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) < dragSlop) return;
+    press.current = null;
+    pulling.current = true;
+    if (isNative()) getCurrentWindow().startDragging().catch((error: unknown) => console.error(error));
+    setFloating(true);
+    window.setTimeout(() => (pulling.current = false), 1000);
   }
 
   function openApp() {
@@ -615,13 +630,13 @@ export function Pet() {
     </ul>
   );
 
-  // 아이콘 아래 작은 창: 지금 상태, 시작·멈춤·끝, 묻는 것, 아래에 앱 열기·띄워 두기·끄기. Esc나 다른 곳을 누르면 닫혀요.
+  // 아이콘 아래 작은 창: 지금 상태, 시작·멈춤·끝, 묻는 것, 아래에 앱 열기·끄기. 프로도를 끌어내면 띄워 둬요. Esc나 다른 곳을 누르면 닫혀요.
   if (panel) {
     return (
       <main ref={root} className={`pet pet-panel pet-${state}`}>
         <div className="pet-card">
           <header className="pet-panel-head">
-            <span className="pet-panel-art" aria-hidden="true">{art(panelPx)}</span>
+            <span className="pet-panel-art" aria-hidden="true" title="끌어서 화면에 띄워 두기" onPointerDown={onPanelPointerDown} onPointerMove={onPanelPointerMove} onPointerUp={() => (press.current = null)}>{art(panelPx)}</span>
             <p className="pet-status" role="status">
               {session ? (
                 <>
@@ -653,7 +668,6 @@ export function Pet() {
           {isNative() && (
             <footer className="pet-panel-foot">
               <button type="button" onClick={openApp}>앱 열기</button>
-              <button type="button" onClick={() => setFloating(true)}>띄워 두기</button>
               <button type="button" onClick={() => void quit()}>Folduct 끄기</button>
             </footer>
           )}
