@@ -565,7 +565,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     <main className="home" data-view={view}>
       <EngineContext.Provider value={engine}>
         {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} onIcons={() => setIconsOpen("make")} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} today={todayWork(workLog, now)} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
         {/* 두 화면은 늘 겹쳐 그려 두고, 안 보는 쪽은 숨기고(inert) 손대지 못하게 해요. 홈을 지우지 않아 프로도가 먹던 상태가 남아요. */}
         <div className="home-stage" inert={view === "drawer"}>
           <div className="home-sheet">

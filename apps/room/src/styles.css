@@ -1744,7 +1744,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .drawer-view.on { opacity: 1; visibility: visible; transition: opacity var(--dur-2) var(--ease-standard), visibility 0s; }
 /* 머리줄(로고·탭·단추)이 위에 떠 있어 Drawer 내용은 그 아래에서 시작해요. */
 .drawer-view .kind-shelves { padding-top: var(--topbar-h); }
-.home-tabs { position: absolute; top: var(--chrome-y); left: calc(var(--chrome-x) + var(--space-12)); translate: 0 -50%; display: flex; align-items: center; gap: var(--space-1); }
+.home-tabs { position: absolute; top: var(--chrome-y); left: var(--chrome-x); translate: 0 -50%; display: flex; align-items: center; gap: var(--space-1); }
 .home-tabs button { white-space: nowrap; font-size: var(--text-md); font-weight: 500; color: var(--ink-caption); }
 .home-tabs button:hover:not(:disabled) { background: none; color: var(--ink); }
 .home-tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: var(--space-2); }
