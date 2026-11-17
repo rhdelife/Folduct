@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { Intro, replayIntroEvent } from "./components/Intro";
+import { QuitConfirm } from "./components/QuitConfirm";
 import { isNative } from "./gateways/native";
 import { Home } from "./pages/Home";
 import { getIntroOn } from "./storage/db";
@@ -78,6 +79,7 @@ export default function App() {
           <Intro leaving={intro === "leaving"} onLeave={leaveIntro} onDone={endIntro} />
         </ErrorBoundary>
       )}
+      <QuitConfirm />
     </>
   );
 }

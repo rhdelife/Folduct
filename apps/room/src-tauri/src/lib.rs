@@ -505,35 +505,46 @@ fn quit_app<R: Runtime>(app: AppHandle<R>) {
 
 // 작업 중(시간을 재는 중)이면 끄기 전에 한 번 물어요(2026-11-17 요청). 끄면 시간 재기가 멈추고, 다시 켜면 멈춤 상태로 이어져요.
 // 작은 창의 'Folduct 끄기', 메뉴 막대 메뉴의 '끝내기', ⌘Q 모두 여기로 와요. 멈춤이거나 작업 전이면 묻지 않고 꺼요.
+// 묻는 창은 OS 알림 창이 아니라 메인 창의 Folduct 모달(QuitConfirm)이에요. 고른 답은 quit_answer로 돌아와요.
 static QUIT_OK: AtomicBool = AtomicBool::new(false);
-static QUIT_ASKING: AtomicBool = AtomicBool::new(false);
+
+// macOS의 ⌘Q·앱 메뉴 'Quit'은 ExitRequested를 거치지 않고 바로 꺼져서 막을 수 없었어요.
+// 그래서 기본 메뉴의 Quit 항목을 같은 이름·같은 단축키(⌘Q)의 우리 항목으로 바꿔 ask_quit으로 보내요.
+#[cfg(target_os = "macos")]
+fn app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+  let menu = Menu::default(app)?;
+  if let Some(tauri::menu::MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
+    for item in first.items()? {
+      if let tauri::menu::MenuItemKind::Predefined(predefined) = &item {
+        if predefined.text().unwrap_or_default().starts_with("Quit") {
+          first.remove(predefined)?;
+        }
+      }
+    }
+    first.append(&MenuItem::with_id(app, "app-quit", format!("Quit {}", app.package_info().name), true, Some("CmdOrCtrl+Q"))?)?;
+  }
+  Ok(menu)
+}
 
 fn ask_quit<R: Runtime>(app: &AppHandle<R>) {
-  use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
   let working = TRAY_WORKING.lock().map(|color| color.is_some()).unwrap_or(false);
   if !working || QUIT_OK.load(Ordering::SeqCst) {
     QUIT_OK.store(true, Ordering::SeqCst);
     app.exit(0);
     return;
   }
-  // 이미 묻는 중이면 창을 하나 더 띄우지 않아요.
-  if QUIT_ASKING.swap(true, Ordering::SeqCst) {
-    return;
+  // 메인 창을 앞으로 데려와 모달을 띄워요. 이미 떠 있으면 그대로예요.
+  show_main_window(app);
+  let _ = app.emit_to("main", "quit-asked", ());
+}
+
+// 모달에서 고른 답. 끄기면 이번에는 묻지 않고 꺼요.
+#[tauri::command]
+fn quit_answer<R: Runtime>(app: AppHandle<R>, quit: bool) {
+  if quit {
+    QUIT_OK.store(true, Ordering::SeqCst);
+    app.exit(0);
   }
-  let handle = app.clone();
-  app
-    .dialog()
-    .message("지금 작업 시간을 재고 있어요. 끄면 시간 재기가 멈추고, 다시 켜면 멈춤 상태로 이어져요.")
-    .title("작업 중에 Folduct를 끌까요?")
-    .kind(MessageDialogKind::Warning)
-    .buttons(MessageDialogButtons::OkCancelCustom("끄기".into(), "계속 작업".into()))
-    .show(move |quit| {
-      QUIT_ASKING.store(false, Ordering::SeqCst);
-      if quit {
-        QUIT_OK.store(true, Ordering::SeqCst);
-        handle.exit(0);
-      }
-    });
 }
 
 #[tauri::command]
@@ -923,7 +934,18 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .menu(|app| {
+      #[cfg(target_os = "macos")]
+      return app_menu(app);
+      #[cfg(not(target_os = "macos"))]
+      return Menu::default(app);
+    })
+    .on_menu_event(|app, event| {
+      if event.id().as_ref() == "app-quit" {
+        ask_quit(app);
+      }
+    })
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
