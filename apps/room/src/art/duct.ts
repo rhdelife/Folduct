@@ -32,7 +32,7 @@ export type DuctPart = "head" | "armL" | "armR";
 export type DuctGroup = { rib?: number; transform?: string; part?: DuctPart; parts: (DuctPiece | DuctFaceSlot)[] };
 export type DuctDrawing = { viewBox: string; items: (DuctPiece | DuctGroup)[] };
 export type DuctLayer = { label: string; color: string; share: number };
-export type DuctPose = "idle" | "watch" | "offer" | "move" | "done" | "rest" | "shock";
+export type DuctPose = "idle" | "watch" | "offer" | "move" | "done" | "rest" | "shock" | "lean";
 
 const f1 = (n: number) => n.toFixed(1).replace(/\.0$/, "");
 
@@ -260,24 +260,29 @@ export const ductSilhouetteUnder = 32;
 const board = { x: -8, y: -8, w: 136, h: 130 };
 const boardBox = `${board.x} ${board.y} ${board.w} ${board.h}`;
 
-// ── 플로팅 창과 인트로의 자세 7가지 ──
-const stand = { line: "M36 108C36 88 36 72 44 60C50 52 58 48 68 46", width: 34, rib: 6, scallop: 2.2, head: [70, 38, 29, 25], inner: [70, 38, 22, 18], eyes: [[60, 37], [81, 36]], foot: "M12 106L58 106L60 114L10 114Z" } as const;
+// ── 플로팅 창(메뉴 막대 작은 창)의 자세 7가지 ──
+// 2026-11-17: 한쪽으로 휘지 않고 받침 가운데(x 60)에서 위로 곧게 서요(요청: 방향을 띠며 휘는 게 별로라서). 자세는 팔·머리 높이·종이로만 달라요.
+// lean은 예전 오른쪽으로 고개 숙인 idle 그대로예요. 인트로 먹는 시트(art/duct-eat.png)가 이 모양으로 그려져 있어 인트로만 lean을 써요.
+const lean = { line: "M36 108C36 88 36 72 44 60C50 52 58 48 68 46", width: 34, rib: 6, scallop: 2.2, head: [70, 38, 29, 25], inner: [70, 38, 22, 18], eyes: [[60, 37], [81, 36]], foot: "M12 106L58 106L60 114L10 114Z" } as const;
 const restArm = "M22 82C14 82 8 86 5 93";
+const stand = { line: "M60 108C60 90 60 70 60 50", width: 34, rib: 6, scallop: 2.2, head: [60, 36, 29, 25], inner: [60, 36, 22, 18], eyes: [[50, 35], [71, 34]], foot: "M36 106L82 106L84 114L34 114Z" } as const;
+const leftArm = "M46 82C38 82 32 86 29 93";
 const poses: Record<DuctPose, Spec> = {
-  idle: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[60, 37], [81, 36]], arms: [restArm, "M50 80C58 79 65 82 70 89"] },
-  watch: { ...stand, line: "M36 108C34 86 38 68 52 58C62 52 74 50 84 50", head: [86, 42, 27, 24], inner: [88, 42, 20, 17], eyes: [[87, 41], [102, 40]], arms: ["M22 84C14 84 8 88 5 95", "M52 80C60 79 68 82 73 89"] },
-  offer: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[60, 37], [81, 36]], arms: [restArm, "M50 80C62 81 76 82 90 80"], paperAt: [102, 78, 10] },
-  move: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[60, 37], [81, 36]], arms: [restArm, "M50 80C62 78 72 72 78 64"], paperAt: [80, 54, -6] },
-  done: { ...stand, line: "M50 108C50 92 52 72 56 56C58 48 60 44 62 40", head: [62, 30, 29, 25], inner: [62, 30, 22, 18], eyes: [[52, 30], [73, 29]], face: "happy", foot: "M26 106L74 106L76 114L24 114Z", ticks: ["M20 14L12 8", "M102 12L110 5"], arms: ["M37 78C26 72 20 62 18 50", "M68 76C80 70 88 60 90 48"] },
-  rest: { ...stand, line: "M36 108C36 102 38 96 44 92C50 88 58 86 66 86", rib: 3, head: [70, 78, 29, 24], inner: [70, 78, 22, 17], eyes: [[60, 78], [81, 77]], face: "closed", arms: ["M24 100C18 100 12 102 8 107", "M58 104C68 105 78 106 88 108"] },
-  shock: { ...stand, line: "M42 108C42 90 40 74 32 60C28 52 26 48 24 44", head: [26, 34, 27, 23], inner: [26, 34, 20, 16], eyes: [[18, 33], [35, 32]], face: "wide", foot: "M18 106L66 106L68 114L16 114Z", arms: ["M26 76C16 70 8 62 2 62", "M56 78C68 72 78 62 84 50"], ticks: ["M64 18L72 12", "M68 34L78 32"] },
+  lean: { ...lean, head: [...lean.head], inner: [...lean.inner], eyes: [[60, 37], [81, 36]], arms: [restArm, "M50 80C58 79 65 82 70 89"] },
+  idle: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[50, 35], [71, 34]], arms: [leftArm, "M74 80C82 79 89 82 94 89"] },
+  watch: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[55, 35], [76, 34]], arms: [leftArm, "M74 80C82 79 89 82 94 89"] },
+  offer: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[52, 35], [73, 34]], arms: [leftArm, "M74 80C84 81 94 82 102 80"], paperAt: [112, 78, 10] },
+  move: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[50, 34], [71, 33]], arms: [leftArm, "M74 80C86 78 96 72 102 64"], paperAt: [104, 54, -6] },
+  done: { ...stand, line: "M60 108C60 90 60 66 60 44", head: [60, 30, 29, 25], inner: [60, 30, 22, 18], eyes: [[50, 30], [71, 29]], face: "happy", foot: "M36 106L82 106L84 114L34 114Z", ticks: ["M20 14L12 8", "M102 12L110 5"], arms: ["M47 78C36 72 30 62 28 50", "M78 76C90 70 98 60 100 48"] },
+  rest: { ...stand, line: "M60 108C60 102 60 96 60 90", rib: 3, head: [60, 78, 29, 24], inner: [60, 78, 22, 17], eyes: [[50, 78], [71, 77]], face: "closed", arms: ["M46 100C40 100 34 102 30 107", "M74 100C80 100 86 102 90 107"] },
+  shock: { ...stand, line: "M60 108C60 90 60 66 60 46", head: [60, 32, 27, 23], inner: [60, 32, 20, 16], eyes: [[52, 31], [69, 30]], face: "wide", foot: "M36 106L82 106L84 114L34 114Z", arms: ["M44 76C34 70 26 62 20 62", "M76 78C88 72 98 62 104 50"], ticks: ["M92 18L100 12", "M96 34L106 32"] },
 };
 
 export function drawPose(pose: DuctPose, { px, layers, live, flow }: { px: number; layers?: DuctLayer[]; live?: boolean; flow?: boolean }): DuctDrawing {
   return { viewBox: boardBox, items: draw(poses[pose], { w: ductWeight(px), layers, moving: pose === "move", live, flow }) };
 }
 
-// ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 idle과 같아 벡터 그림과 이어집니다. ──
+// ── 인트로에서 파일을 먹는 프레임. 스프라이트 시트(art/duct-eat.png)의 원본이고, 0번은 lean(예전 idle)과 같아 인트로의 벡터 그림과 이어집니다. ──
 // 허리가 휘어도 팔이 몸에서 떨어지지 않게 관 안쪽에서 시작합니다.
 const armsUp = ["M34 82C18 78 8 72 6 64", "M42 80C60 76 68 70 72 62"];
 const armsDown = ["M34 82C14 82 8 86 5 93", "M42 80C58 79 65 82 70 89"];
@@ -291,22 +296,22 @@ const shut = { ...mouth(70, 42, 34, 20, 27, 8), eyes: [[60, 42], [81, 41]] as [P
 const chewUp = { ...mouth(70, 39, 31, 23, 24, 14), eyes: [[60, 38], [81, 37]] as [Pt, Pt], face: "happy" as const, arms: armsDown };
 const shutEnd: Pt = [68, 46];
 const eatFrames: Spec[] = [
-  poses.idle,
-  { ...poses.idle, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
-  { ...poses.idle, line: wriggle(0), ...mouth(71, 35, 30, 27.5, 23.5, 21), eyes: [[61, 27], [83, 26]], eyeScale: 0.95, arms: armsUp },
-  { ...poses.idle, ...wide, line: wriggle(0) },
-  { ...poses.idle, ...tall, line: wriggle(2) },
+  poses.lean,
+  { ...poses.lean, ...mouth(68, 43, 30, 22, 23, 15), eyes: [[58, 42], [79, 41]] },
+  { ...poses.lean, line: wriggle(0), ...mouth(71, 35, 30, 27.5, 23.5, 21), eyes: [[61, 27], [83, 26]], eyeScale: 0.95, arms: armsUp },
+  { ...poses.lean, ...wide, line: wriggle(0) },
+  { ...poses.lean, ...tall, line: wriggle(2) },
   // 받아먹는 한 바퀴: 입을 여닫는 동안 삼킨 덩어리가 위에서 아래로 내려가고 허리가 좌우로 휩니다.
-  { ...poses.idle, ...wide, line: wriggle(4), bulge: [0.86, 6] },
-  { ...poses.idle, ...closing, line: wriggle(6, shutEnd), bulge: [0.72, 7] },
-  { ...poses.idle, ...shut, line: wriggle(2, shutEnd), bulge: [0.58, 7] },
-  { ...poses.idle, ...closing, line: wriggle(-4, shutEnd), bulge: [0.44, 7] },
-  { ...poses.idle, ...wide, line: wriggle(-6), bulge: [0.3, 7] },
-  { ...poses.idle, ...tall, line: wriggle(-2), bulge: [0.16, 6] },
-  { ...poses.idle, ...chewUp, line: wriggle(3, shutEnd) },
-  { ...poses.idle, ...shut, ...mouth(70, 42, 32, 21, 25, 10), line: wriggle(-3, shutEnd) },
+  { ...poses.lean, ...wide, line: wriggle(4), bulge: [0.86, 6] },
+  { ...poses.lean, ...closing, line: wriggle(6, shutEnd), bulge: [0.72, 7] },
+  { ...poses.lean, ...shut, line: wriggle(2, shutEnd), bulge: [0.58, 7] },
+  { ...poses.lean, ...closing, line: wriggle(-4, shutEnd), bulge: [0.44, 7] },
+  { ...poses.lean, ...wide, line: wriggle(-6), bulge: [0.3, 7] },
+  { ...poses.lean, ...tall, line: wriggle(-2), bulge: [0.16, 6] },
+  { ...poses.lean, ...chewUp, line: wriggle(3, shutEnd) },
+  { ...poses.lean, ...shut, ...mouth(70, 42, 32, 21, 25, 10), line: wriggle(-3, shutEnd) },
   // 마지막 꿀꺽: 가장 크게 불룩해져 받침까지 내려갑니다. 끝으로 갈수록 잦아들어 서 있는 그림에 닿아요.
-  ...([[0.84, 8, 5], [0.62, 9, -5], [0.4, 9, 3], [0.18, 8, -2]] as const).map(([at, size, sway]): Spec => ({ ...poses.idle, line: wriggle(sway, shutEnd), bulge: [at, size], face: "happy", arms: armsDown })),
+  ...([[0.84, 8, 5], [0.62, 9, -5], [0.4, 9, 3], [0.18, 8, -2]] as const).map(([at, size, sway]): Spec => ({ ...poses.lean, line: wriggle(sway, shutEnd), bulge: [at, size], face: "happy", arms: armsDown })),
 ];
 export const eatFrameCount = eatFrames.length;
 export const eatBoard = { width: board.w, height: board.h };
@@ -366,7 +371,7 @@ export function lookExpr(dx: number, dy: number): FaceExpr {
   return lookOrder[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
 }
 
-export const poseFace: Record<DuctPose, FaceExpr> = { idle: "base", watch: "lookR", offer: "lookR", move: "lookU", done: "happy", rest: "sleepy", shock: "wide" };
+export const poseFace: Record<DuctPose, FaceExpr> = { lean: "base", idle: "base", watch: "lookR", offer: "lookR", move: "lookU", done: "happy", rest: "sleepy", shock: "wide" };
 
 // ── 방마다 다른 주름관 8가지. 길이는 용량이라 긴 선을 용량만큼만 잘라 씁니다. ──
 const roomLines = [
