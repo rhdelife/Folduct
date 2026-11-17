@@ -367,7 +367,7 @@ fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
       "pet" => ask_pet_toggle(app, "tray-float"),
       "panel" => ask_pet_toggle(app, "tray-pet"),
       "main" => show_main_window(app),
-      "quit" => app.exit(0),
+      "quit" => ask_quit(app),
       _ => {}
     })
     .on_tray_icon_event(|tray, event| {
@@ -500,7 +500,40 @@ fn show_main<R: Runtime>(app: AppHandle<R>) {
 
 #[tauri::command]
 fn quit_app<R: Runtime>(app: AppHandle<R>) {
-  app.exit(0);
+  ask_quit(&app);
+}
+
+// 작업 중(시간을 재는 중)이면 끄기 전에 한 번 물어요(2026-11-17 요청). 끄면 시간 재기가 멈추고, 다시 켜면 멈춤 상태로 이어져요.
+// 작은 창의 'Folduct 끄기', 메뉴 막대 메뉴의 '끝내기', ⌘Q 모두 여기로 와요. 멈춤이거나 작업 전이면 묻지 않고 꺼요.
+static QUIT_OK: AtomicBool = AtomicBool::new(false);
+static QUIT_ASKING: AtomicBool = AtomicBool::new(false);
+
+fn ask_quit<R: Runtime>(app: &AppHandle<R>) {
+  use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+  let working = TRAY_WORKING.lock().map(|color| color.is_some()).unwrap_or(false);
+  if !working || QUIT_OK.load(Ordering::SeqCst) {
+    QUIT_OK.store(true, Ordering::SeqCst);
+    app.exit(0);
+    return;
+  }
+  // 이미 묻는 중이면 창을 하나 더 띄우지 않아요.
+  if QUIT_ASKING.swap(true, Ordering::SeqCst) {
+    return;
+  }
+  let handle = app.clone();
+  app
+    .dialog()
+    .message("지금 작업 시간을 재고 있어요. 끄면 시간 재기가 멈추고, 다시 켜면 멈춤 상태로 이어져요.")
+    .title("작업 중에 Folduct를 끌까요?")
+    .kind(MessageDialogKind::Warning)
+    .buttons(MessageDialogButtons::OkCancelCustom("끄기".into(), "계속 작업".into()))
+    .show(move |quit| {
+      QUIT_ASKING.store(false, Ordering::SeqCst);
+      if quit {
+        QUIT_OK.store(true, Ordering::SeqCst);
+        handle.exit(0);
+      }
+    });
 }
 
 #[tauri::command]
@@ -919,6 +952,13 @@ pub fn run() {
     .build(tauri::generate_context!())
     .expect("error while running tauri application")
     .run(|_app, _event| {
+      // ⌘Q 같은 OS 쪽 끄기도 작업 중이면 한 번 물어요. 허락한 뒤 app.exit로 다시 오면 그대로 꺼요.
+      if let tauri::RunEvent::ExitRequested { api, .. } = &_event {
+        if !QUIT_OK.load(Ordering::SeqCst) && TRAY_WORKING.lock().map(|color| color.is_some()).unwrap_or(false) {
+          api.prevent_exit();
+          ask_quit(_app);
+        }
+      }
       // Dock 아이콘을 누르면 숨긴 메인 창을 다시 엽니다.
       #[cfg(target_os = "macos")]
       if let tauri::RunEvent::Reopen { .. } = _event {
