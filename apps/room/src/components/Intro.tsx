@@ -91,7 +91,7 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
                 <div className="intro-sprite" aria-hidden="true">
                   <img ref={sprite} src={eatSheet} alt="" style={{ width: `${eatFrameCount * 100}%` }} onLoad={(event) => void event.currentTarget.decode().catch(() => undefined)} />
                 </div>
-                <PoseArt pose="lean" parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
+                <PoseArt pose="idle" parts={phase === "scatter" || phase === "gather" ? [] : parts} px={introPx} band="intro-band" className="vase-art" />
               </div>
             </div>
             <div className="intro-foot">

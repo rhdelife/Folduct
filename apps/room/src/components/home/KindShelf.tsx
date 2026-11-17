@@ -506,6 +506,8 @@ function ShelfPaper({ item, order, folder, picked, pickDisabled = false, onOpen 
       disabled={pickDisabled}
       onClick={onOpen}
     >
+      {/* 카드 테두리: 서랍장과 같은 펜 선. 글자가 흔들리지 않게 선만 따로 그려요. */}
+      <span className="shelf-paper-line" aria-hidden="true" />
       <span className="shelf-art">
         <ObjectShape kind={thing.kind} size={cardArtPx} seed={thing.id} picture={own ?? thumb} />
       </span>
