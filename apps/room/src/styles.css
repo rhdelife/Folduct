@@ -589,6 +589,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 700; color: var(--ink); }
 .room-sub { max-width: 100%; justify-content: center; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-soft); }
 .room-sub > span { white-space: nowrap; }
+/* 미리보기 창이 열려 방 카드 줄이 좁아지면 용량·안 쓴 파일 줄이 두세 줄로 넘쳐 썸네일과 겹쳤어요. 그동안은 그 줄을 숨기고 이름만 둬요(2026-11-17 요청). 읽기 프로그램은 카드 이름(aria-label)으로 그대로 들어요. */
+.sky-canvas.pane-open .room-sub { display: none; }
 /* 방이 많으면 이름표가 겹칩니다. 고르거나 가리킨 방만 이름을 보입니다. 이름은 메뉴 목록과 화면 읽기 이름표에 그대로 있어요. */
 /* 좁은 지도에서는 이름만 둡니다. 용량과 상태는 패널과 메뉴의 목록, 화면 읽기 이름표에 그대로 있어요. */
 
