@@ -23,7 +23,7 @@ const same = (a: KindIcon | undefined, b: KindIcon) => Boolean(a) && JSON.string
 // 홈·방·Drawer·미리보기에서 그 형식 파일이 이 그림으로 바뀌어요. 선은 프로도와 같은 펜으로 다시 그어져요.
 // mode: 그리기(make)와 보관함(archive). 메뉴의 '아이콘 만들기'·'아이콘 보관함'이 각 화면으로 바로 와요. 보관함에서 아이콘을 누르면 그리기로 넘어가 고쳐요.
 // active: 지금 이 탭을 보고 있는지. 단축키는 이때만 들어요. 탭을 떠나도 지우지 않고 숨겨서 그리던 그림이 남아요.
-// 단축키: ⌘/Ctrl+Z 되돌리기, ⌘/Ctrl+Shift+Z·Ctrl+Y 다시 하기, ⌘/Ctrl+S 저장, Shift+끌기 곧은 선·정원·정사각형, Esc 긋던 선 취소, 1~4 도구.
+// 단축키: ⌘/Ctrl+Z 되돌리기, ⌘/Ctrl+Shift+Z·Ctrl+Y 다시 하기, ⌘/Ctrl+S 등록, Shift+끌기 곧은 선·정원·정사각형, Esc 긋던 선 취소, 1~4 도구.
 export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" | "archive"; onMode: (mode: "make" | "archive") => void; active: boolean }) {
   const store = useKindIcons();
   const [draft, setDraft] = useState<KindIcon>(() => fresh("image"));
@@ -156,7 +156,9 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
     return true;
   }
 
-  const canSave = changed && !saving && !full && draft.strokes.length > 0;
+  // 등록은 이름(아이콘 이름)을 꼭 넣어야 해요(2026-11-17 요청). 보관함에서 이름으로 찾고 고르니까요.
+  const named = draft.name.trim() !== "";
+  const canSave = changed && named && !saving && !full && draft.strokes.length > 0;
   // 단축키. 이름 칸에 쓰는 중에는 ⌘Z가 글자 되돌리기라 저장(⌘S)만 받아요. 홈의 다른 Esc로 번지지 않게 긋던 선이 있을 때만 Esc를 써요.
   const keys = useRef((_: KeyboardEvent) => {});
   keys.current = (event: KeyboardEvent) => {
@@ -207,7 +209,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         {mode === "make" && (
           <>
         {/* 이름은 창 맨 위에 둬요. 아래에 두면 붙어 있는 단추 줄에 가려졌어요. */}
-        <label className="field">이름 <input value={draft.name} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
+        <label className="field">이름 <input value={draft.name} required aria-describedby={named ? undefined : "kind-icon-need-name"} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
         <fieldset className="face-picker">
           <legend>파일 형식</legend>
           <div className="seg icon-kinds" role="radiogroup" aria-label="파일 형식 고르기">
@@ -218,7 +220,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         </fieldset>
         <div className="icon-board">
           <div className="icon-canvas" style={{ width: stagePx }}>
-            <ObjectShape kind={draft.kind} size={stagePx} art={art} name={draft.name.trim() || `${kindLabels[draft.kind]} 파일`} />
+            {/* 판 위에는 글을 쓰지 않아요(2026-11-17 요청). 이름 칸 자리와 판 크기는 그대로 두려고 빈 이름(" ")을 넘겨요. */}
+            <ObjectShape kind={draft.kind} size={stagePx} art={art} name=" " />
             <svg
               className="icon-pad"
               viewBox={`0 0 ${base.w} ${base.h}`}
@@ -247,7 +250,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           <button type="button" disabled={!future.length} title={`${cmd()}Shift+Z`} onClick={redo}>다시 하기</button>
           <button type="button" disabled={!draft.strokes.length} onClick={() => setStrokes([])}>모두 지우기</button>
         </div>
-        <p className="soft kind-icon-keys">{cmd()}Z 되돌리기 · {cmd()}Shift+Z 다시 하기 · {cmd()}S 저장 · Shift 곧은 선·정원·정사각형 · 1~4 도구 · Esc 긋던 선 취소</p>
+        {!named && <p id="kind-icon-need-name" className="soft">이름을 넣어야 등록할 수 있어요.</p>}
+        <p className="soft kind-icon-keys">{cmd()}Z 되돌리기 · {cmd()}Shift+Z 다시 하기 · {cmd()}S 등록 · Shift 곧은 선·정원·정사각형 · 1~4 도구 · Esc 긋던 선 취소</p>
           </>
         )}
         {mode === "archive" && (
@@ -280,9 +284,9 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           {inUse ? (
             <button type="button" disabled={saving} onClick={() => void useHere(false)}>기본으로 돌리기</button>
           ) : (
-            <button type="button" disabled={saving || full || !draft.strokes.length} onClick={() => void useHere(true)}>이 형식에 쓰기</button>
+            <button type="button" disabled={saving || full || !named || !draft.strokes.length} onClick={() => void useHere(true)}>이 형식에 쓰기</button>
           )}
-          <button type="button" className="primary" title={`${cmd()}S`} disabled={!canSave} onClick={() => void save()}>{saving ? "저장하는 중" : "저장"}</button>
+          <button type="button" className="primary" title={`${cmd()}S`} disabled={!canSave} onClick={() => void save()}>{saving ? "등록하는 중" : "등록"}</button>
         </div>
         )}
       </div>
