@@ -137,7 +137,23 @@ export function StackArt({ lengths, parts = [], px, foot, className, actor, mood
             backgroundSize: `${faceFrames.length * 100}% 100%`,
             backgroundPositionX: `${(at / (faceFrames.length - 1)) * 100}%`,
           }}
-        />
+        >
+          {/* 방을 먹으면 얼굴의 검은 구멍도 받침과 같은 방 색으로(2026-11-17 요청). 같은 시트를 가면으로 써서 얼굴 모양 안에만 칠하고, lighten이라 흰 눈은 그대로예요. */}
+          {foot && (
+            <span
+              className="frodo-face-tint"
+              style={{
+                backgroundColor: foot,
+                maskImage: `url(${faceSheet})`,
+                WebkitMaskImage: `url(${faceSheet})`,
+                maskSize: `${faceFrames.length * 100}% 100%`,
+                WebkitMaskSize: `${faceFrames.length * 100}% 100%`,
+                maskPosition: `${(at / (faceFrames.length - 1)) * 100}% 0`,
+                WebkitMaskPosition: `${(at / (faceFrames.length - 1)) * 100}% 0`,
+              }}
+            />
+          )}
+        </span>
       )}
       {/* 색 띠 위를 가리키면 비율을 보여 주려고, 보이지 않는 띠만 따로 둬요. 다시 그릴 일이 없어요. */}
       {layers.length > 0 && (

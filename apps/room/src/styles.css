@@ -531,6 +531,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .frodo-fill, .frodo-fill-in { position: absolute; inset: 0; display: block; }
 .frodo-fill { overflow: hidden; }
 .frodo-face { position: absolute; display: block; background-repeat: no-repeat; pointer-events: none; }
+.frodo-face-tint { position: absolute; inset: 0; mix-blend-mode: lighten; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
 .frodo-hit { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 /* 솟기를 받는 껍데기는 늘 자기 레이어에 둬요. 먹을 때만 레이어를 만들면 앱(WebKit)에서 시작·끝에 프로도가 깜빡였어요. */
 .frodo-lift { will-change: translate; }

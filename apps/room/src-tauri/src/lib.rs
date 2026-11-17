@@ -178,8 +178,12 @@ fn ask_pet_toggle<R: Runtime>(app: &AppHandle<R>, event: &str) {
 }
 
 // 기다리는 새 파일이 있으면 아이콘 오른쪽 위에 잉크 점을 찍어요. 작은 창을 닫아 둬도 메뉴 막대만 보고 알 수 있어요.
-fn tray_logo(dot: bool) -> Vec<u8> {
+// 작업 중이면 얼굴의 흰 입구 테를 잉크로 채워 검은 얼굴에 흰 눈만 남겨요(켜진 아이콘). 색은 쓰지 않고 잉크·모양으로만 알려요.
+fn tray_logo(dot: bool, working: bool) -> Vec<u8> {
   let mut px = TRAY_LOGO.to_vec();
+  if working {
+    fill_rim(&mut px);
+  }
   if dot {
     let (cx, cy, r, ring) = (28.5_f64, 7.5_f64, 5.0_f64, 7.0_f64);
     for y in 0..36 {
@@ -197,10 +201,48 @@ fn tray_logo(dot: bool) -> Vec<u8> {
   px
 }
 
+// 흰 입구 테: 왼쪽 위 테 한 점(5, 12)에서 이어진 밝은 픽셀(가장자리 반투명 포함)을 잉크로 바꿔요. 눈은 검은 구멍으로 막혀 있어 그대로 흰색이에요.
+fn fill_rim(px: &mut [u8]) {
+  let light = |px: &[u8], at: usize| px[at * 4] >= 90 && px[at * 4 + 3] >= 60;
+  let seed = 12 * 36 + 5;
+  if !light(px, seed) {
+    return;
+  }
+  let mut seen = vec![false; 36 * 36];
+  let mut stack = vec![seed];
+  seen[seed] = true;
+  while let Some(at) = stack.pop() {
+    px[at * 4..at * 4 + 3].copy_from_slice(&[23, 23, 23]);
+    let (x, y) = (at % 36, at / 36);
+    let near = [(x > 0).then(|| at - 1), (x < 35).then(|| at + 1), (y > 0).then(|| at - 36), (y < 35).then(|| at + 36)];
+    for next in near.into_iter().flatten() {
+      if !seen[next] && light(px, next) {
+        seen[next] = true;
+        stack.push(next);
+      }
+    }
+  }
+}
+
+// 점과 작업 중 표시는 따로 바뀌어서, 둘 다 기억해 두고 아이콘을 다시 그려요.
+static TRAY_DOT: AtomicBool = AtomicBool::new(false);
+static TRAY_WORKING: AtomicBool = AtomicBool::new(false);
+
+fn redraw_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+  let Some(tray) = app.tray_by_id(TRAY) else { return Ok(()) };
+  tray.set_icon(Some(Image::new_owned(tray_logo(TRAY_DOT.load(Ordering::SeqCst), TRAY_WORKING.load(Ordering::SeqCst)), 36, 36))).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn set_tray_dot<R: Runtime>(app: AppHandle<R>, on: bool) -> Result<(), String> {
-  let Some(tray) = app.tray_by_id(TRAY) else { return Ok(()) };
-  tray.set_icon(Some(Image::new_owned(tray_logo(on), 36, 36))).map_err(|e| e.to_string())
+  TRAY_DOT.store(on, Ordering::SeqCst);
+  redraw_tray(&app)
+}
+
+#[tauri::command]
+fn set_tray_working<R: Runtime>(app: AppHandle<R>, on: bool) -> Result<(), String> {
+  TRAY_WORKING.store(on, Ordering::SeqCst);
+  redraw_tray(&app)
 }
 
 // 아이콘 아래에 작은 창을 열고 닫아요. 연 창은 바로 입력을 받아, 다른 곳을 누르면 닫힐 수 있어요(blur).
@@ -301,7 +343,7 @@ fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
   #[cfg(not(target_os = "linux"))]
   let menu = Menu::with_items(app, &[&toggle, &open, &PredefinedMenuItem::separator(app)?, &quit])?;
   TrayIconBuilder::with_id(TRAY)
-    .icon(Image::new_owned(tray_logo(false), 36, 36))
+    .icon(Image::new_owned(tray_logo(false, false), 36, 36))
     .tooltip("Folduct")
     .menu(&menu)
     // 누르면 아이콘 아래 작은 창이 열리고(띄워 둔 플로팅 창이면 아이콘으로 들어가고), 메뉴는 오른쪽 클릭으로 열어요.
@@ -833,7 +875,7 @@ pub fn run() {
     // 고른 폴더 권한을 앱을 다시 열어도 유지합니다(fs 플러그인 다음에 등록해야 합니다).
     .plugin(tauri_plugin_persisted_scope::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -889,8 +931,8 @@ mod tests {
 
   #[test]
   fn tray_dot_marks_only_the_corner() {
-    let plain = tray_logo(false);
-    let dotted = tray_logo(true);
+    let plain = tray_logo(false, false);
+    let dotted = tray_logo(true, false);
     assert_eq!(plain, TRAY_LOGO);
     assert_eq!(dotted.len(), 36 * 36 * 4);
     // 점 가운데는 잉크, 왼쪽 아래 구석은 로고 그대로예요.
@@ -1097,6 +1139,18 @@ mod tests {
     let files = vec![("Attachment1.png".to_string(), b"a".to_vec()), ("Attachment15.png".to_string(), b"bc".to_vec()), ("note.txt".to_string(), b"x".to_vec())];
     let out = inline_attachments(html, &files);
     assert_eq!(out, r#"<img src="data:image/png;base64,YQ=="><img src="data:image/png;base64,YmM="><div style="background:url(data:image/png;base64,YQ==)"></div><a href="Attachment1.png.txt">"#);
+  }
+
+  #[test]
+  fn working_tray_fills_rim_but_keeps_eyes() {
+    let plain = tray_logo(false, false);
+    let on = tray_logo(false, true);
+    let at = |x: usize, y: usize| (y * 36 + x) * 4;
+    // 테(5, 12)는 흰색 → 잉크, 왼쪽 눈(11, 18)은 흰색 그대로, 투명한 모서리(0, 0)는 그대로예요.
+    assert!(plain[at(5, 12)] > 200 && on[at(5, 12)] < 40);
+    assert!(plain[at(11, 18)] > 200 && on[at(11, 18)] > 200);
+    assert_eq!(plain[at(0, 0) + 3], on[at(0, 0) + 3]);
+    assert_eq!(tray_logo(true, true).len(), 36 * 36 * 4);
   }
 
   #[test]

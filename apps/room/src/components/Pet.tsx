@@ -525,6 +525,10 @@ export function Pet() {
   useEffect(() => {
     if (isNative()) invoke("set_tray_dot", { on: dot }).catch((error: unknown) => console.error(error));
   }, [dot]);
+  // 작업 중이면 메뉴 막대 프로도 얼굴을 검게 채워 켜진 것을 알려요. 멈추거나 끝내면 원래 얼굴로 돌아가요.
+  useEffect(() => {
+    if (isNative()) invoke("set_tray_working", { on: working }).catch((error: unknown) => console.error(error));
+  }, [working]);
 
   function start(roomId: string) {
     setMenuOpen(false);
