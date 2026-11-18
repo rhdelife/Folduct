@@ -314,7 +314,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
       <footer className="row wrap preview-foot">
         {canOpen && <button type="button" onClick={() => void openApp()}>기본 앱으로 열기</button>}
         <button type="button" onClick={() => void writeClipboard(thing.path).then((ok) => toast(ok ? "경로를 복사했어요." : "복사하지 못했어요."))}>경로 복사</button>
-        {canOpen && <button type="button" onClick={() => void sendToTrash()}><Icon name="trash" />휴지통으로</button>}
+        {canOpen && <button type="button" onClick={() => void sendToTrash()}><Icon name="trash" />휴지통</button>}
       </footer>
       {big && state?.status === "ready" && <FileViewer thing={thing} state={state} busy={false} folderHint={room.name} onClose={() => setBig(false)} onConnect={() => setBig(false)} onRetry={retry} onCopy={writeClipboard} onOpenApp={canOpen ? () => void openApp() : undefined} />}
       {big && state?.status === "outside" && deck && (

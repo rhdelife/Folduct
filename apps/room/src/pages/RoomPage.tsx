@@ -676,7 +676,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           {picked && (
             <div className="room-pick-bar" role="status">
               <span>{picked.size > 0 ? `${picked.size.toLocaleString("ko-KR")}개 골랐어요` : "휴지통으로 보낼 파일을 눌러 골라 주세요"}</span>
-              <button type="button" disabled={picked.size === 0 || busy !== null} onClick={() => void trashPicked()}><Icon name="trash" />휴지통으로</button>
+              <button type="button" disabled={picked.size === 0 || busy !== null} onClick={() => void trashPicked()}><Icon name="trash" />휴지통</button>
             </div>
           )}
           <RoomScene
@@ -860,7 +860,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForg
         <button type="button" aria-pressed={thing.pinned} onClick={() => onPatch(thing.id, { pinned: !thing.pinned })}><Icon name="pin" />고정</button>
         {thing.missing ? <button type="button" onClick={() => onForget(thing.id)}>기록 빼기</button>
           : <button type="button" aria-disabled={!onBox} onClick={() => onBox?.(thing.id)}><Icon name="sweep" />정리 상자에 넣기</button>}
-        {onTrash && !thing.missing && <button type="button" onClick={() => onTrash(thing.id)}><Icon name="trash" />휴지통으로</button>}
+        {onTrash && !thing.missing && <button type="button" onClick={() => onTrash(thing.id)}><Icon name="trash" />휴지통</button>}
       </div>
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />

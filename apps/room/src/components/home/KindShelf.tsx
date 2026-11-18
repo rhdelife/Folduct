@@ -422,7 +422,7 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
       {picked && (
         <div className="kind-pick-bar" role="status">
           <span>{picked.size > 0 ? `${countText(picked.size)}개 골랐어요` : "보낼 파일을 눌러 골라 주세요"}</span>
-          <button type="button" disabled={picked.size === 0 || busy} onClick={() => void trashPicked()}><Icon name="trash" />{busy ? "보내는 중…" : "휴지통으로"}</button>
+          <button type="button" disabled={picked.size === 0 || busy} onClick={() => void trashPicked()}><Icon name="trash" />{busy ? "보내는 중…" : "휴지통"}</button>
         </div>
       )}
     </div>
