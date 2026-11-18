@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
@@ -7,25 +7,24 @@ import { Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
 import { AiNotePanel } from "../components/AiNotePanel";
-import { useToast, type ToastAction } from "../components/Toast";
+import { useToast } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, shownActivity, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, thingScaleRange, type Kind, type Room, type ScannedFile, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, thingScaleRange, type Kind, type Room, type Thing } from "../domain/model";
 import { kinds } from "../domain/kindIcon";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, pickThumbnail, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
-import { getRoom, listRooms, saveHandle, saveRoom } from "../storage/db";
-import { canReceive, transferThings, undoMove, type TransferMode } from "../storage/transfer";
+import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
-import { isNotFound, restoreTrashed, trashFile } from "../gateways/mover";
 import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
+import { useRoomSend } from "./useRoomSend";
 
 // 방 설정(RoomSettingsDialog)은 방 머리의 단추나 홈에서 방을 우클릭해 엽니다.
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
@@ -84,8 +83,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const heading = useRef<HTMLHeadingElement>(null);
   // 여러 파일 고르기(휴지통으로). null이면 고르는 중이 아니에요.
   const [picked, setPicked] = useState<Set<string> | null>(null);
-  // 옮기기·복제할 방 고르는 중이면 그 방법과 받을 수 있는 방들.
-  const [send, setSend] = useState<{ mode: TransferMode; rooms: Room[] } | null>(null);
   const side = useRef<HTMLElement>(null);
 
   // 고칠 때마다 상태를 바꾸고, 0.3초 뒤에 한 번에 저장합니다. 방을 떠나거나 창을 가릴 때도 남은 것을 저장합니다.
@@ -263,111 +260,11 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     update((current) => ({ ...current, things: current.things.map((thing) => (thing.id === id ? { ...thing, ...patch } : thing)) }), touch ? [id] : []);
   }
 
+  // 고르기 줄의 옮기기·복제·휴지통과 파일 하나 휴지통으로 보내기, 그 되돌리기(useRoomSend.ts).
+  const { send, setSend, chooseTarget, sendTo, trashPicked, trashThing } = useRoomSend({ latest, handle, picked, setPicked, selectedId, setSelectedId, setBusy, update, toast, heading });
+
   // 폴더에서 찾지 못한 파일의 기록만 방에서 뺍니다(T314). 실제 파일은 건드리지 않고, 알림에서 되돌릴 수 있어요.
   // shortcut: 꾸민 이미지(pic:방:물건)는 되돌리기를 위해 남겨 두고 방을 잊을 때 함께 지워요. 쌓여 문제가 되면 그때 따로 치워요.
-  // '고르기'로 고른 파일들을 한 번 묻고 차례로 휴지통으로 보내요. 하나가 실패해도 나머지는 계속해요.
-  async function trashPicked() {
-    const chosen = (latest.current?.things ?? []).filter((thing) => picked?.has(thing.id) && !thing.missing);
-    if (chosen.length === 0 || typeof handle !== "string" || !(await window.confirm(`파일 ${chosen.length.toLocaleString("ko-KR")}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
-    setBusy("휴지통으로 보내는 중…");
-    const done: { thing: Thing; place: string | null }[] = [];
-    for (const thing of chosen) {
-      try {
-        done.push({ thing, place: await trashFile(handle, thing.path) });
-      } catch (error) {
-        // 이미 없는 파일은 기록에서만 빼요.
-        if (isNotFound(error)) done.push({ thing, place: null });
-        else console.error(error);
-      }
-    }
-    const sent = new Set(done.map(({ thing }) => thing.id));
-    setBusy(null);
-    if (sent.size > 0) update((room) => ({ ...room, things: room.things.filter((thing) => !sent.has(thing.id)) }));
-    if (selectedId && sent.has(selectedId)) setSelectedId(null);
-    setPicked(null);
-    const failed = chosen.length - sent.size;
-    toast(`${sent.size > 0 ? `파일 ${sent.size.toLocaleString("ko-KR")}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 보내지 못했어요.` : ""}`.trim(), undoTrash(handle, done));
-  }
-
-  // 고른 파일들을 다른 방으로 옮기거나 복제해요(2026-11-18 요청). 먼저 받을 방을 고르게 해요.
-  async function chooseTarget(mode: TransferMode) {
-    const current = latest.current;
-    if (!current) return;
-    setSend({ mode, rooms: (await listRooms()).filter((other) => canReceive(other, current)) });
-  }
-
-  async function sendTo(to: Room) {
-    const from = latest.current;
-    if (!from || !send) return;
-    const mode = send.mode;
-    const chosen = from.things.filter((thing) => picked?.has(thing.id) && !thing.missing && !thing.box);
-    if (chosen.length === 0) return;
-    setSend(null);
-    setBusy(mode === "move" ? "옮기는 중…" : "복제하는 중…");
-    const { done, failed, message } = await transferThings(from, to, chosen, mode);
-    setBusy(null);
-    const gone = new Set(done.map(({ thing }) => thing.id));
-    if (mode === "move" && gone.size > 0) {
-      update((room) => ({ ...room, things: room.things.filter((thing) => !gone.has(thing.id)) }));
-      if (selectedId && gone.has(selectedId)) setSelectedId(null);
-    }
-    setPicked(null);
-    const verb = mode === "move" ? "옮겼어요" : "복제했어요";
-    const text = `${done.length > 0 ? `파일 ${done.length.toLocaleString("ko-KR")}개를 ‘${to.name}’ 방으로 ${verb}.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 못 했어요.${message ? ` ${message}` : ""}` : ""}`.trim();
-    // 옮기기만 되돌릴 수 있어요. 복제는 원본이 그대로라 되돌릴 게 없어요.
-    toast(text, mode === "move" && done.length > 0 ? {
-      label: "되돌리기",
-      run: () =>
-        void undoMove(from, to, done).then((back) => {
-          if (back.length > 0) update((room) => ({ ...room, things: [...room.things, ...back.map(({ thing }) => thing).filter((thing) => !room.things.some((item) => item.id === thing.id))] }));
-          toast(back.length === done.length ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.` : `${back.length.toLocaleString("ko-KR")}개만 되돌렸어요. 원래 자리에 같은 이름 파일이 생겼을 수 있어요.`);
-        }),
-    } : undefined);
-  }
-
-  // 휴지통으로 보낸 파일들을 원래 자리로 되돌리고 방 기록에 다시 넣는 알림 단추. 자리를 모르면(macOS 밖) 단추가 없어요.
-  function undoTrash(root: string, done: { thing: Thing; place: string | null }[]): ToastAction | undefined {
-    const known = done.filter((item): item is { thing: Thing; place: string } => item.place !== null);
-    if (known.length === 0) return undefined;
-    return {
-      label: "되돌리기",
-      run: () =>
-        void (async () => {
-          const back: Thing[] = [];
-          for (const { thing, place } of known) {
-            try {
-              await restoreTrashed(root, thing.path, place);
-              back.push(thing);
-            } catch (error) {
-              console.error(error);
-            }
-          }
-          if (back.length > 0) update((room) => ({ ...room, things: [...room.things, ...back.filter((thing) => !room.things.some((item) => item.id === thing.id))] }));
-          const failed = known.length - back.length;
-          toast(back.length > 0 ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.");
-        })(),
-    };
-  }
-
-  // 묻고 나서 휴지통으로 보내고, 방 기록에서도 빼요(데스크톱만). 휴지통에서 되살릴 수 있어요.
-  async function trashThing(id: string) {
-    const gone = latest.current?.things.find((thing) => thing.id === id);
-    if (!gone || typeof handle !== "string" || !(await window.confirm(`‘${gone.name}’ 파일을 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
-    let place: string | null;
-    try {
-      place = await trashFile(handle, gone.path);
-    } catch (error) {
-      if (!isNotFound(error)) return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
-      update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
-      setSelectedId(null);
-      return toast(`‘${gone.name}’ 파일이 이미 없어서 목록에서만 뺐어요.`);
-    }
-    update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
-    setSelectedId(null);
-    heading.current?.focus();
-    toast(`‘${gone.name}’ 파일을 휴지통으로 보냈어요.`, undoTrash(handle, [{ thing: gone, place }]));
-  }
-
   function forgetThing(id: string) {
     const current = latest.current?.things ?? [];
     const at = current.findIndex((thing) => thing.id === id);

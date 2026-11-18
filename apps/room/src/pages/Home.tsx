@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
 import { awayFromHome, type HomeActions } from "../components/home/actions";
 import { HeroScene } from "../components/home/HeroScene";
