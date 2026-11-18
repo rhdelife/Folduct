@@ -9,7 +9,8 @@ export type IconTone = "pale" | "soft" | "color" | "edge" | "ink";
 export const iconTones: IconTone[] = ["pale", "soft", "color", "edge", "ink"];
 // pen은 지나간 점들(x, y, x, y…), 도장은 끌어 놓은 두 점(시작 x, y, 끝 x, y)이에요. 점(dot)은 가운데와 끌어 간 끝(반지름)이에요. 좌표는 바탕 종이 판 기준이에요.
 export type IconStroke = { tool: IconTool; pts: number[]; fill: boolean; tone?: IconTone };
-export type KindIcon = { id: string; name: string; kind: Kind; base: string; strokes: IconStroke[]; at: number };
+// image가 있으면 그린 선 대신 그 그림(작게 줄인 data URL)을 종이 틀에 끼워 아이콘으로 써요(2026-11-18 요청).
+export type KindIcon = { id: string; name: string; kind: Kind; base: string; strokes: IconStroke[]; at: number; image?: string };
 // use는 형식마다 지금 쓰는 아이콘 id예요. 없으면 기본 종이예요.
 export type KindIconStore = { icons: KindIcon[]; use: Partial<Record<Kind, string>> };
 
@@ -17,6 +18,9 @@ export const kindIconLimit = 100;
 export const strokeLimit = 80;
 export const pointLimit = 400;
 export const kindIconNameMax = 20;
+// 아이콘 이미지 한 장의 상한(data URL 글자 수). 256px로 줄여 넣으니 보통 이보다 훨씬 작아요.
+export const iconImageMax = 600_000;
+export const isIconImage = (value: unknown): value is string => typeof value === "string" && /^data:image\/(png|jpeg|webp);base64,/.test(value) && value.length <= iconImageMax;
 // 펜이 잘리지 않게 모든 점은 종이 가장자리에서 6 안쪽에 둬요(paperArts와 같은 규칙).
 const edge = 6;
 
@@ -93,7 +97,7 @@ export function normalizeKindIcons(value: unknown): KindIconStore {
       const tone = iconTones.includes(stroke.tone as IconTone) ? (stroke.tone as IconTone) : undefined;
       return [{ tool: stroke.tool as IconTool, pts, fill: stroke.fill === true, ...(tone ? { tone } : {}) }];
     }).slice(0, strokeLimit);
-    return [{ id: icon.id, kind: icon.kind, base: base.id, strokes, name: typeof icon.name === "string" ? icon.name.trim().slice(0, kindIconNameMax) : "", at: finite(icon.at) ? icon.at : 0 }];
+    return [{ id: icon.id, kind: icon.kind, base: base.id, strokes, ...(isIconImage(icon.image) ? { image: icon.image } : {}), name: typeof icon.name === "string" ? icon.name.trim().slice(0, kindIconNameMax) : "", at: finite(icon.at) ? icon.at : 0 }];
   }).slice(0, kindIconLimit);
   const use: KindIconStore["use"] = {};
   const usable = raw.use && typeof raw.use === "object" ? (raw.use as Record<string, unknown>) : {};

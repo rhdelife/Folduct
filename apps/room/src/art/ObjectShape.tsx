@@ -1,7 +1,7 @@
 import { Fragment, useId, type ReactNode } from "react";
 import type { Kind } from "../domain/model";
 import { usePicture } from "../storage/pictures";
-import { useKindArt } from "../storage/kindIcons";
+import { useKindArt, useKindImage } from "../storage/kindIcons";
 import { makePen, type DuctPiece } from "./duct";
 import { kindColors, kindTones, tonesFrom, type PaperTones } from "./palette";
 import { paperArts, quad, type PaperArt, type Slot } from "./paperArts";
@@ -169,8 +169,10 @@ function Parts({ art, inkKey, paint, full, width, perPixel, after }: { art: Pape
 export function ObjectShape({ kind, color, size, name, seed, nameFrom = 56, picture, art: given }: { kind: Kind; color?: string; size: number; name?: string; seed?: string; nameFrom?: number; picture?: string | null; art?: PaperArt }) {
   const id = useId();
   const stored = usePicture(seed);
-  const pictureUrl = picture === undefined ? stored : picture ?? undefined;
   const mine = useKindArt(kind);
+  const kindImage = useKindImage(kind);
+  // 파일 자기 그림(썸네일·직접 고른 그림)이 먼저, 없으면 이 형식에 쓰는 이미지 아이콘이에요. 아이콘 만들기 미리보기(art를 줌)는 형식 이미지를 섞지 않아요.
+  const pictureUrl = (picture === undefined ? stored : picture) ?? (given ? undefined : kindImage);
   const base = given ?? mine ?? pickArt(kind, seed);
   const tones = color && color !== kindColors[kind] ? tonesFrom(color) : kindTones[kind];
   const full = Boolean(name) && size >= 40;

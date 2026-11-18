@@ -7,6 +7,7 @@ import { getKindIcons, setKindIcons } from "./db";
 // 형식 아이콘 보관함을 한 번 읽어 두고, 저장하면 그 형식 종이를 그린 모든 화면이 같이 바뀌어요.
 let store: KindIconStore = emptyKindIcons;
 let arts: Partial<Record<Kind, PaperArt>> = {};
+let images: Partial<Record<Kind, string>> = {};
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => {
@@ -17,9 +18,11 @@ const subscribe = (listener: () => void) => {
 function apply(next: KindIconStore) {
   store = next;
   arts = {};
+  images = {};
   for (const [kind, id] of Object.entries(next.use) as [Kind, string][]) {
     const icon = next.icons.find((item) => item.id === id);
-    if (icon) arts[kind] = iconArt(icon);
+    if (icon?.image) images[kind] = icon.image;
+    else if (icon) arts[kind] = iconArt(icon);
   }
   listeners.forEach((listener) => listener());
 }
@@ -42,6 +45,12 @@ export function useKindIcons(): KindIconStore {
 export function useKindArt(kind: Kind): PaperArt | undefined {
   useEffect(load, []);
   return useSyncExternalStore(subscribe, () => arts[kind], () => undefined);
+}
+
+// 이 형식에 쓰기로 고른 아이콘이 이미지면 그 그림. 자기 썸네일이 없는 파일 종이에 끼워요.
+export function useKindImage(kind: Kind): string | undefined {
+  useEffect(load, []);
+  return useSyncExternalStore(subscribe, () => images[kind], () => undefined);
 }
 
 export async function saveKindIcons(next: KindIconStore): Promise<void> {

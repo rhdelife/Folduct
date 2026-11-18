@@ -47,4 +47,12 @@ describe("파일 형식 아이콘", () => {
     const read = normalizeKindIcons({ icons: [{ ...icon, strokes: [{ tool: "dot", pts: [50, 50, 90, 90], fill: false, tone: "#ff0000" }] }] });
     expect(read.icons[0].strokes[0]).toEqual({ tool: "dot", pts: [50, 50, 90, 90], fill: false });
   });
+  it("이미지 아이콘은 작은 그림 data URL만 남기고, 다른 값은 버려요", () => {
+    const base = { id: "i", name: "그림", kind: "pdf", base: blankPaper.id, strokes: [], at: 1 };
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    expect(normalizeKindIcons({ icons: [{ ...base, image: png }] }).icons[0].image).toBe(png);
+    for (const bad of ["https://example.com/a.png", "data:text/html;base64,PHA+", `data:image/png;base64,${"A".repeat(700_000)}`, 3]) {
+      expect(normalizeKindIcons({ icons: [{ ...base, image: bad }] }).icons[0]).not.toHaveProperty("image");
+    }
+  });
 });

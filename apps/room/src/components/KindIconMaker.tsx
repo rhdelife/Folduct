@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { kindTones } from "../art/palette";
-import { baseOf, blankPaper, clampPoint, iconArt, kindIconLimit, iconTones, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTone, type IconTool, type KindIcon } from "../domain/kindIcon";
+import { baseOf, blankPaper, clampPoint, iconArt, kindIconLimit, iconImageMax, iconTones, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTone, type IconTool, type KindIcon } from "../domain/kindIcon";
 import { kindLabels, type Kind } from "../domain/model";
 import { currentOs } from "../domain/platform";
 import { saveKindIcons, useKindIcons } from "../storage/kindIcons";
@@ -20,6 +20,19 @@ const toneNames: Record<IconTone, string> = { pale: "아주 옅게", soft: "옅�
 const penStep = 1.5;
 // 단축키 글은 Mac은 ⌘, 다른 OS는 Ctrl+로 보여 줘요.
 const cmd = () => (currentOs() === "mac" ? "⌘" : "Ctrl+");
+// 고른 그림을 긴 변 256px 안으로 줄여 data URL로. 크면 JPEG로 한 번 더 줄여요.
+const iconImageSide = 256;
+async function shrinkImage(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, iconImageSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const png = canvas.toDataURL("image/png");
+  return png.length <= iconImageMax ? png : canvas.toDataURL("image/jpeg", 0.85);
+}
 const fresh = (kind: Kind): KindIcon => ({ id: crypto.randomUUID(), name: "", kind, base: blankPaper.id, strokes: [], at: Date.now() });
 const same = (a: KindIcon | undefined, b: KindIcon) => Boolean(a) && JSON.stringify({ ...a, at: 0 }) === JSON.stringify({ ...b, at: 0 });
 
@@ -40,6 +53,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
   const [past, setPast] = useState<IconStroke[][]>([]);
   const [future, setFuture] = useState<IconStroke[][]>([]);
   const [error, setError] = useState<string | null>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const base = baseOf(draft.kind, draft.base);
   const art = useMemo(() => iconArt(draft), [draft]);
@@ -164,7 +178,9 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
 
   // 등록은 이름(아이콘 이름)을 꼭 넣어야 해요(2026-11-17 요청). 보관함에서 이름으로 찾고 고르니까요.
   const named = draft.name.trim() !== "";
-  const canSave = changed && named && !saving && !full && draft.strokes.length > 0;
+  // 그린 선이나 이미지 중 하나는 있어야 등록해요.
+  const drawn = draft.strokes.length > 0 || Boolean(draft.image);
+  const canSave = changed && named && !saving && !full && drawn;
   // 단축키. 이름 칸에 쓰는 중에는 ⌘Z가 글자 되돌리기라 저장(⌘S)만 받아요. 홈의 다른 Esc로 번지지 않게 긋던 선이 있을 때만 Esc를 써요.
   const keys = useRef((_: KeyboardEvent) => {});
   keys.current = (event: KeyboardEvent) => {
@@ -227,8 +243,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         <div className="icon-board">
           <div className="icon-canvas">
             {/* 판 위에는 글을 쓰지 않아요(2026-11-17 요청). 이름 칸 자리와 판 크기는 그대로 두려고 빈 이름(" ")을 넘겨요. */}
-            <ObjectShape kind={draft.kind} size={stagePx} art={art} name=" " />
-            <svg
+            <ObjectShape kind={draft.kind} size={stagePx} art={art} name=" " picture={draft.image ?? null} />
+            {!draft.image && <svg
               className="icon-pad"
               viewBox={`0 0 ${base.w} ${base.h}`}
               role="img"
@@ -240,9 +256,34 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
             >
               {/* 긋는 동안은 가벼운 선으로 보여 주고, 손을 떼면 프로도 펜으로 다시 그어요. */}
               {liveArt?.parts.slice(base.parts.length).map((part, at) => <path key={at} d={part.d} className="icon-live" />)}
-            </svg>
+            </svg>}
           </div>
         </div>
+        <div className="row icon-image">
+          <button type="button" onClick={() => imageInput.current?.click()}>{draft.image ? "이미지 바꾸기" : "이미지로 만들기"}</button>
+          {draft.image && <button type="button" className="quiet" onClick={() => setDraft(({ image: _, ...now }) => now)}>이미지 빼고 그리기</button>}
+          <input
+            ref={imageInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              // 같은 그림을 다시 골라도 onChange가 오게 비워요.
+              event.target.value = "";
+              if (!file) return;
+              setError(null);
+              void shrinkImage(file).then(
+                (image) => (image.length <= iconImageMax ? setDraft((now) => ({ ...now, image })) : setError("이미지가 너무 커요. 더 작은 그림을 골라 주세요.")),
+                () => setError("이 그림은 읽지 못했어요. PNG·JPEG 그림을 골라 주세요."),
+              );
+            }}
+          />
+        </div>
+        {draft.image ? (
+          <p className="soft">이미지 아이콘이에요. 자기 썸네일이 없는 이 형식 파일에 이 그림이 보여요.</p>
+        ) : (
+          <>
         <div className="row icon-tools">
           <div className="seg" role="radiogroup" aria-label="도구 고르기">
             {toolNames.map(({ tool: name, label }) => (
@@ -269,6 +310,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         </div>
           </>
         )}
+          </>
+        )}
         {mode === "archive" && (
         <section className="cover-picker" aria-labelledby="kind-icon-archive">
           <h3 id="kind-icon-archive">{store.icons.length}개</h3>
@@ -278,7 +321,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
             <div className="cover-options" role="group" aria-label="보관한 아이콘">
               {shelf.map((icon) => (
                 <button key={icon.id} type="button" className="cover-option" aria-pressed={icon.id === draft.id} title={icon.name} onClick={() => void open(icon).then((opened) => opened && setMode("make"))}>
-                  <ObjectShape kind={icon.kind} size={48} art={iconArt(icon)} />
+                  <ObjectShape kind={icon.kind} size={48} art={iconArt(icon)} picture={icon.image ?? null} />
                   {/* 쓰는 중인 아이콘은 색이 아니라 굵은 글자로 알려요. */}
                   <span className={store.use[icon.kind] === icon.id ? "icon-on" : undefined}>{store.use[icon.kind] === icon.id ? "쓰는 중 · " : ""}{icon.name || kindLabels[icon.kind]}</span>
                 </button>
@@ -299,7 +342,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           {inUse ? (
             <button type="button" disabled={saving} onClick={() => void useHere(false)}>기본으로 돌리기</button>
           ) : (
-            <button type="button" disabled={saving || full || !named || !draft.strokes.length} onClick={() => void useHere(true)}>이 형식에 쓰기</button>
+            <button type="button" disabled={saving || full || !named || !drawn} onClick={() => void useHere(true)}>이 형식에 쓰기</button>
           )}
           <button type="button" className="primary" title={`${cmd()}S`} disabled={!canSave} onClick={() => void save()}>{saving ? "등록하는 중" : "등록"}</button>
         </div>
