@@ -1,6 +1,6 @@
-// 로고 파일을 만듭니다: design/logo/folduct-symbol.svg, design/logo/app-icon.svg, public/favicon.svg, 메뉴 막대 아이콘 src-tauri/icons/tray-logo.rgba(36px 날 RGBA). 그림은 art/duct.ts의 drawBrandFace예요.
+// 로고 파일을 만듭니다: design/logo/folduct-symbol.svg, public/favicon.svg, 메뉴 막대 아이콘 src-tauri/icons/tray-logo.rgba(36px 날 RGBA). 그림은 art/duct.ts의 drawBrandFace예요.
 // shortcut: 메뉴 막대 아이콘은 macOS의 Chrome으로 그려 픽셀을 읽어요(make-duct-sprite.mjs와 같은 방식). 다른 환경이면 Chrome 경로만 바꾸면 돼요.
-// 앱 아이콘은 이어서 돌립니다: npx tauri icon design/logo/app-icon.svg
+// 데스크톱 앱 아이콘은 별도 원본으로 만듭니다: npx tauri icon design/logo/app-icon.png
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,11 +16,10 @@ const { drawBrandFace } = await import(pathToFileURL(join(work, "duct.mjs")).hre
 const { viewBox, items } = drawBrandFace();
 const paths = items.map((p) => `<path d="${p.d}" fill="${p.tone === "ink" ? "#171717" : "#fff"}"${p.even ? ' fill-rule="evenodd"' : ""}/>`).join("");
 const plate = `<rect x="100" y="100" width="824" height="824" rx="185" fill="#fff"/><svg x="100" y="100" width="824" height="824" viewBox="${viewBox}">${paths}</svg><rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="#111" stroke-opacity=".08" stroke-width="4"/>`;
-const svg = (box) => `<!-- 프로도 얼굴 로고. scripts/make-logo.mjs 가 만듦 -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}">${plate}</svg>\n`;
+const svg = `<!-- 프로도 얼굴 로고. scripts/make-logo.mjs 가 만듦 -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 824 824">${plate}</svg>\n`;
 
-writeFileSync(join(root, "design/logo/folduct-symbol.svg"), svg("100 100 824 824"));
-writeFileSync(join(root, "public/favicon.svg"), svg("100 100 824 824"));
-writeFileSync(join(root, "design/logo/app-icon.svg"), svg("0 0 1024 1024"));
+writeFileSync(join(root, "design/logo/folduct-symbol.svg"), svg);
+writeFileSync(join(root, "public/favicon.svg"), svg);
 
 // 메뉴 막대 아이콘: 18pt × 2배 = 36px. 흰 테·흰 눈이 있어 어두운 막대에서도 보여요. 캔버스에 그려 픽셀을 글자로 꺼내요.
 const size = 36;
@@ -34,4 +33,4 @@ const dom = execFileSync(chrome, ["--headless=new", "--disable-gpu", "--virtual-
 const rgba = Buffer.from(dom.match(/<pre id="out">([^<]+)<\/pre>/)[1], "base64");
 if (rgba.length !== size * size * 4) throw new Error(`메뉴 막대 아이콘 크기가 달라요: ${rgba.length}`);
 writeFileSync(join(root, "src-tauri/icons/tray-logo.rgba"), rgba);
-console.log("로고 파일 네 개를 만들었어요");
+console.log("로고 파일 세 개를 만들었어요");
