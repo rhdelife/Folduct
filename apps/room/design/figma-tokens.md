@@ -241,7 +241,7 @@
 | `scene/pet-panel-art` | `64px` |  |
 | `scene/pet-vase` | `104px` |  |
 | `scene/pet-list-h` | `168px` |  |
-| `scene/stack-w` | `248px` |  |
+| `scene/stack-w` | `288px` |  |
 | `scene/home-panel-w` | `380px` |  |
 | `scene/trend-number` | `32px` |  |
 | `scene/preview-w` | `380px` |  |

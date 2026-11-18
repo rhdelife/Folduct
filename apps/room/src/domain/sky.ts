@@ -93,7 +93,7 @@ export type Placed = { room: Room; at: Point; scale: number; spread: number; lim
 
 // 왼쪽 아래 '작업 시작' 단추와 탭 카드 자리예요. 좁거나 낮은 창에서는 숨겨요. 크기와 창 기준은 styles.css의 .home-stack에 맞춰요.
 export function calendarSpot(view: View): Box[] {
-  return (view.stack ?? (view.w >= 720 && view.h >= 640)) ? [{ x: 150, y: view.h - 100, hw: 130, hh: 100 }] : [];
+  return (view.stack ?? (view.w >= 720 && view.h >= 640)) ? [{ x: 168, y: view.h - 130, hw: 150, hh: 130 }] : [];
 }
 
 // 홈에 둘 수 있는 방의 수. 지금 하는 일만 보여 주려는 약속이에요. 숫자는 여기서만 정합니다.

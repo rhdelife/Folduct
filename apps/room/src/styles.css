@@ -208,7 +208,7 @@
   --text-hero: 32px;
   --lh-hero: 1.1;
   /* 홈 왼쪽 아래 작업 시작·탭 카드 묶음과, 탭을 누르면 열리는 왼쪽 판 */
-  --stack-w: 248px;
+  --stack-w: 288px;
   --home-panel-w: 380px;
   /* 추세 판의 큰 숫자와 그래프 높이 */
   --trend-number: 32px;
@@ -1336,12 +1336,14 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 작업 줄: 작업을 시작하면 '작업 시작' 한 알약이 시간·멈춤·끝내기로 갈라져요. */
 /* 작업 줄: 왼쪽 아래 작업 기록 카드 바로 위(.home-stack). 파일 보기(프로도에게 방 먹이기)와 떨어진 자리에서 작업 시작·시간·멈춤·끝내기만 다뤄요.
    카드가 숨는 좁은·낮은 창(.home-stack과 같은 기준)에서는 홈 | Drawer 탭 옆 작업 아이콘(.work-tab)을 눌러 여는 판(.work-bar)으로 둬요. */
-.home-stack .work-control { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); white-space: normal; }
-.home-stack .work-control button { min-height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-sm); }
+/* 작업 줄·보기 기준 탭·작업 기록 카드는 같은 폭(--stack-w)이고, 작업 줄도 카드와 같은 판(테두리·모서리·안쪽 여백)이에요(2026-11-18 요청). */
+.home-stack .work-control { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); width: 100%; min-height: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); white-space: normal; }
+.home-stack .work-control button { min-height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-base); }
+.home-stack .work-time { font-size: var(--text-xl); line-height: 1; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .home-stack .work-start { width: 100%; min-width: 0; }
 .home-stack .work-control.on .work-clock { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; margin: 0; }
 .home-stack .work-control.on > button { flex: 1; }
-.home-stack .work-control.picking { padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+
 @media (min-width: 720px) and (min-height: 640px) { .work-bar { display: none; } }
 /* 머리줄 탭 옆 작업 아이콘. 작업 중이면 색 대신 검은 알약(잉크 반전)으로 알려요. */
 .home-tabs .work-tab { display: inline-grid; place-items: center; min-width: var(--control-md); padding: 0; border-radius: var(--radius-pill); color: var(--ink-caption); }
@@ -1449,8 +1451,8 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-cal.month i { width: var(--space-3); height: var(--space-3); }
 .trend-cal.month .trend-cal-week { order: -1; }
 .trend-cal-week b { font-size: var(--text-2xs); line-height: var(--lh-2xs); font-weight: 500; color: var(--ink-soft); }
-.work-cal-period { align-self: flex-start; }
-.work-cal-period label { min-height: var(--control-sm); padding-inline: var(--space-3); font-size: var(--text-xs); }
+.work-cal-period { display: flex; width: 100%; }
+.work-cal-period label { flex: 1; justify-content: center; min-height: var(--control-md); padding-inline: var(--space-3); font-size: var(--text-sm); }
 .trend-chart { position: relative; height: var(--trend-chart-h); margin-top: var(--space-6); touch-action: pan-y; }
 .trend-tip { position: absolute; top: 0; display: grid; margin: 0; padding: var(--space-1) var(--space-2); translate: -50% -100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); pointer-events: none; white-space: nowrap; }
 /* 작업 시간 막대: 칸마다 방 색으로 쌓아요(많이 한 방이 아래). 가리키는 칸 말고는 살짝 옅어져요. */
@@ -1827,6 +1829,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
   /* 좁은 창은 머리줄에 자리가 없어 탭을 아래 가운데 알약으로 내려요. Drawer 목록은 그만큼 아래를 비워요. */
   .home-tabs { position: fixed; top: auto; bottom: var(--space-5); left: 50%; translate: -50% 0; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-1); }
   .drawer-view .kind-shelves { padding-bottom: calc(var(--space-12) + var(--space-8)); }
+  /* 알약과 왼쪽 아래 카드 묶음이 함께 보이는 폭(720)에서는 카드 묶음을 알약 위로 올려요. */
+  .home-stack { bottom: calc(var(--space-5) + var(--control-lg) + var(--space-4)); }
 }
 .kind-shelves { --pen: calc(var(--room-hair) * 4); container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); }
 /* 분류 기준과 서랍장 관리 버튼을 머리줄 오른쪽에 붙여요. */
