@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { canvasHeight, canvasScale, canvasWidth, clampItem, fileKey, folderKey, folderThings, itemBase, keyFolder, keyThing, listAt, nextSpot, type FolderEntry } from "../domain/canvas";
 import { laneOf } from "../domain/care";
@@ -16,6 +16,15 @@ const found = 60;
 // 판 배율 하한. 375 폭에서 종이 하나가 손가락으로 집을 만큼(약 70) 보여요.
 const boardFloor = 0.6;
 
+// 폴더를 누르면 그 아래에 안의 파일을 펼쳐요. 한 줄 칸 수·종이 크기·최대 장수(판 단위)예요.
+const spreadCols = 4;
+const spreadPaper = itemBase * 0.7;
+const spreadGap = 16;
+const spreadMost = 12;
+const spreadWidth = spreadCols * spreadPaper + (spreadCols - 1) * spreadGap;
+// 펼친 칸 높이: 종이(이름 칸 포함 약 1.25배) 줄 수만큼, 그리고 '외 N개' 줄.
+const spreadHeight = (count: number) => Math.ceil(Math.min(count, spreadMost) / spreadCols) * (spreadPaper * 1.25 + spreadGap) + (count > spreadMost ? 32 : 0);
+
 type Drag = { key: string; kind: "move" | "size"; x: number; y: number; start: CanvasItem; moved: boolean };
 
 // 방 판: 빈 캔버스예요. '꺼내기'로 필요한 파일·폴더만 골라 놓고, 끌어서 옮기고 모서리로 크기를 바꿔요.
@@ -30,6 +39,8 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
     return folderThings(room.things, keyFolder(item.key)!).length > 0;
   });
   const [picker, setPicker] = useState<{ dir: string } | null>(null);
+  // 펼친 폴더 하나(판 key). 다시 누르면 접어요.
+  const [spread, setSpread] = useState<string | null>(null);
   const board = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => {
@@ -46,7 +57,10 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
   const [live, setLive] = useState<CanvasItem | null>(null);
   const drag = useRef<Drag | null>(null);
   const placed = shown.map((item) => (live && live.key === item.key ? live : item));
-  const height = canvasHeight(placed);
+  const spreadItem = placed.find((item) => item.key === spread && keyFolder(item.key));
+  const spreadThings = spreadItem ? folderThings(room.things, keyFolder(spreadItem.key)!) : [];
+  // 펼친 칸이 판 아래로 잘리지 않게 판을 그만큼 늘려요.
+  const height = Math.max(canvasHeight(placed), spreadItem ? spreadItem.y + itemBase * spreadItem.s * 1.6 + spreadHeight(spreadThings.length) : 0);
 
   // 손댄 것은 맨 뒤로 보내 다른 것 위에 그려지게 해요.
   const save = (next: CanvasItem) => onChange([...items.filter((item) => item.key !== next.key), clampItem(next)]);
@@ -133,9 +147,9 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
                 onPointerMove={move}
                 onPointerUp={(event) => {
                   const wasDrag = up();
-                  if (wasDrag || (event.target as Element).closest(".canvas-item-tool")) return;
+                  if (wasDrag || (event.target as Element).closest(".canvas-item-tool, .canvas-spread")) return;
                   if (thing) onSelect(thing.id);
-                  else setPicker({ dir: path! });
+                  else setSpread(spread === item.key ? null : item.key);
                 }}
                 onPointerCancel={() => {
                   drag.current = null;
@@ -147,12 +161,13 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
                   className="canvas-item-face"
                   aria-describedby="room-canvas-hint"
                   aria-pressed={thing ? thing.id === selectedId : undefined}
-                  aria-label={thing ? `${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${thing.missing ? ", 파일 없음" : ""}` : `${label} 폴더, 누르면 안을 보여 줘요`}
+                  aria-expanded={thing ? undefined : spread === item.key}
+                  aria-label={thing ? `${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${thing.missing ? ", 파일 없음" : ""}` : `${label} 폴더, 누르면 안의 파일을 펼쳐요`}
                   onClick={(event) => {
                     // 마우스는 위 onPointerUp이 맡아요. 여기는 키보드(Enter·Space)일 때만이에요.
                     if (event.detail !== 0) return;
                     if (thing) onSelect(thing.id);
-                    else setPicker({ dir: path! });
+                    else setSpread(spread === item.key ? null : item.key);
                   }}
                   onDoubleClick={() => thing && onOpen(thing.id)}
                   onKeyDown={(event) => {
@@ -168,6 +183,19 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
                 </button>
                 <button type="button" className="quiet canvas-item-tool canvas-item-remove" aria-label={`${label} 판에서 빼기`} title="판에서 빼기(파일은 그대로예요)" onPointerDown={(event) => event.stopPropagation()} onClick={() => remove(item.key)}><Icon name="close" size={14} /></button>
                 <span className="canvas-item-tool canvas-item-size" aria-hidden="true" onPointerDown={(event) => down(event, item, "size")} />
+                {!thing && spread === item.key && (
+                  <FolderSpread
+                    things={spreadThings}
+                    name={label}
+                    // 판 밖으로 나가지 않게 가운데 맞춤 자리를 판 폭 안으로 당겨요.
+                    left={Math.min(Math.max(0, item.x + (itemBase * item.s - spreadWidth) / 2), canvasWidth - spreadWidth) - item.x}
+                    from={itemBase * item.s / 2}
+                    folder={folder}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    onOpen={onOpen}
+                  />
+                )}
               </div>
             );
           })}
@@ -202,6 +230,47 @@ function CanvasFolder({ things, name, px }: { things: Thing[]; name: string; px:
         <ObjectShape kind={top.kind} size={px} name={name} seed={top.id} />
       </span>
       <span className="lane-meta"><b>{things.length.toLocaleString("ko-KR")}개</b>{formatBytes(size)}</span>
+    </span>
+  );
+}
+
+// 펼친 폴더: 안의 큰 파일부터 종이로 늘어놓아요. 누르면 서랍에 띄우고, 두 번 누르면 열어요. 폴더에서 튀어나오듯 펼쳐져요.
+function FolderSpread({ things, name, left, from, folder, selectedId, onSelect, onOpen }: { things: Thing[]; name: string; left: number; from: number; folder: Folder | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void }) {
+  const shown = [...things].sort((a, b) => b.size - a.size).slice(0, spreadMost);
+  return (
+    <div className="canvas-spread" role="group" aria-label={`${name} 폴더 안`} style={{ left, width: spreadWidth, gap: spreadGap }} onPointerDown={(event) => event.stopPropagation()}>
+      {shown.map((thing, at) => {
+        const col = at % spreadCols;
+        const row = Math.floor(at / spreadCols);
+        return (
+          <button
+            key={thing.id}
+            type="button"
+            className={`canvas-spread-paper${thing.id === selectedId ? " selected" : ""}`}
+            title={thing.name}
+            aria-pressed={thing.id === selectedId}
+            aria-label={`${thing.name}, ${kindLabels[thing.kind]}, ${formatBytes(thing.size)}${thing.missing ? ", 파일 없음" : ""}`}
+            // 폴더 가운데에서 제자리로 날아가요.
+            style={{ width: spreadPaper, "--fx": `${from - left - col * (spreadPaper + spreadGap) - spreadPaper / 2}px`, "--fy": `${-(row * (spreadPaper * 1.25 + spreadGap) + spreadPaper)}px`, "--i": at } as CSSProperties}
+            onClick={() => onSelect(thing.id)}
+            onDoubleClick={() => onOpen(thing.id)}
+          >
+            <SpreadPaper thing={thing} folder={folder} px={spreadPaper} />
+          </button>
+        );
+      })}
+      {things.length > shown.length && <p className="canvas-spread-more">외 {(things.length - shown.length).toLocaleString("ko-KR")}개는 ‘꺼내기’에서 봐요.</p>}
+    </div>
+  );
+}
+
+function SpreadPaper({ thing, folder, px }: { thing: Thing; folder: Folder | null; px: number }) {
+  const self = useRef<HTMLSpanElement>(null);
+  const own = usePicture(thing.id);
+  const thumb = useThumb(self, own ? null : folder, thing);
+  return (
+    <span ref={self} className={`canvas-art${thing.missing ? " missing" : ""}`}>
+      <ObjectShape kind={thing.kind} size={px} name={thing.name} seed={thing.id} picture={own ?? thumb} />
     </span>
   );
 }

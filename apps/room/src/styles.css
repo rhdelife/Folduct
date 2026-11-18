@@ -1101,6 +1101,16 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .canvas-item.selected .canvas-item-face { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
 .canvas-art { display: grid; justify-items: center; gap: var(--space-1); width: 100%; }
 .canvas-art .object { display: block; width: 100%; height: auto; overflow: visible; }
+/* 펼친 폴더: 폴더 바로 아래에 안의 파일을 줄지어 놓아요. 종이는 폴더 가운데에서 차례로 튀어나와요. */
+.canvas-item:has(.canvas-spread) { z-index: 1; }
+.canvas-spread { position: absolute; top: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; margin-top: var(--space-4); cursor: default; }
+.canvas-spread-paper { display: block; min-height: 0; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; box-shadow: none; animation: canvas-spread-in var(--dur-2) var(--ease-standard) both; animation-delay: calc(var(--i) * 25ms); }
+.canvas-spread-paper:hover:not(:disabled) { background: none; transform: translateY(calc(var(--space-1) * -1)); }
+.canvas-spread-paper[aria-pressed="true"]::before { content: none; }
+.canvas-spread-paper.selected { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
+.canvas-spread-more { flex-basis: 100%; margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-soft); }
+@keyframes canvas-spread-in { from { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(0.4); } }
+@media (prefers-reduced-motion: reduce) { .canvas-spread-paper { animation: none; } }
 .canvas-art.missing .object { opacity: 0.45; }
 .canvas-item-remove { position: absolute; top: calc(var(--space-2) * -1); right: calc(var(--space-2) * -1); min-width: var(--control-sm); min-height: var(--control-sm); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); opacity: 0; transition: opacity var(--dur-1) var(--ease-standard); }
 .canvas-item-size { position: absolute; right: calc(var(--space-1) * -1); bottom: var(--space-6); width: var(--space-4); height: var(--space-4); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); border-radius: 0 0 var(--radius-xs) 0; cursor: nwse-resize; opacity: 0; transition: opacity var(--dur-1) var(--ease-standard); }
