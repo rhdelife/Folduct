@@ -541,7 +541,8 @@ const MapLayers = memo(function MapLayers({
                   <span className="room-label">{room.name}</span>
                   {/* 좁은 창은 아래 보조 줄을 숨겨서, 작업 중 표시는 따로 둬요. */}
                   {room.id === workingId && <b className="room-working">작업 중</b>}
-                  <Meta className="room-sub" items={[size, stale > 0 && <b>안 쓴 파일 {stale}개</b>]} />
+                  {/* 카드엔 용량만 둬요. 안 쓴 파일 수는 이번 주 정리와 작업 기록 판에서 보여요(2026-11-18 요청). */}
+                  <Meta className="room-sub" items={[size]} />
                 </button>
                 {/* 오른쪽 클릭으로만 열리던 방 메뉴(방 설정·홈에서 빼기)를 보이는 단추로도 열어요. */}
                 <button
