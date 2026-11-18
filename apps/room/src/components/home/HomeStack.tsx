@@ -193,7 +193,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
               {staleFiles > 0 && (
                 <p className="home-panel-row">
                   <span>안 쓴 파일 {staleFiles}개</span>
-                  <button type="button" aria-haspopup="dialog" onClick={onSweep}>주간 정리</button>
+                  <button type="button" aria-haspopup="dialog" onClick={onSweep}>Review</button>
                 </p>
               )}
             </section>

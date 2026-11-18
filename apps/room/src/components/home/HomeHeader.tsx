@@ -31,7 +31,7 @@ export function HomeHeader({ rooms, ready, view, onView, workOpen, onWork, onWee
       <div className="home-actions">
         {ready && awake && (
           <button type="button" className="quiet" aria-haspopup="dialog" onClick={onWeekly}>
-            주간 정리
+            Review
           </button>
         )}
         <button type="button" className="quiet" aria-haspopup="dialog" disabled={!ready} onClick={onMenu}>메뉴</button>

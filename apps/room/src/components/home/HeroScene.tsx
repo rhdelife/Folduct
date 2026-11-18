@@ -17,7 +17,7 @@ type HeroProps = SceneProps & {
   onDoorMenu: OpenRoomMenu;
   workLog: WorkLog;
   staleFiles: number;
-  // 이번 주 정리할 때가 되면 홈 프로도가 말풍선으로 알려요.
+  // Review할 때가 되면 홈 프로도가 말풍선으로 알려요.
   sweepDue: boolean;
   onSweepLater: () => void;
   // 오른쪽 미리보기 창이 열려 있으면 홈 배치가 그 폭만큼 비켜요.
@@ -80,14 +80,14 @@ function RoomBubble({ lines }: { lines: string[] }) {
   );
 }
 
-// 이번 주 정리 말풍선: 프로도 말투(반말). 안 쓴 파일이 없으면 오래 안 쓴 방 때문에 뜬 거예요.
+// Review 말풍선: 프로도 말투(반말). 안 쓴 파일이 없으면 오래 안 쓴 방 때문에 뜬 거예요.
 function SweepBubble({ staleFiles, onOpen, onLater }: { staleFiles: number; onOpen: () => void; onLater: () => void }) {
   return (
     <div className="frodo-bubble sweep-bubble" role="status">
-      <p>{staleFiles > 0 ? `안 쓴 파일이 ${staleFiles}개 쌓였어. 이번 주 정리할까?` : "오래 안 쓴 방이 있어. 이번 주 정리할까?"}</p>
+      <p>{staleFiles > 0 ? `안 쓴 파일이 ${staleFiles}개 쌓였어. 지금 정리할까?` : "오래 안 쓴 방이 있어. 지금 정리할까?"}</p>
       <div className="sweep-bubble-actions">
         <button type="button" className="primary" aria-haspopup="dialog" onClick={onOpen}>보기</button>
-        <button type="button" className="quiet" onClick={onLater}>다음 주에</button>
+        <button type="button" className="quiet" onClick={onLater}>다음에</button>
       </div>
     </div>
   );

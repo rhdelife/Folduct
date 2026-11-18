@@ -1,6 +1,6 @@
 import { normalizeWorkLog, type WorkLog } from "../domain/worklog";
 import { normalizePet, normalizeSession, type PetSettings, type Session } from "../domain/session";
-import { normalizeCare } from "../domain/care";
+import { normalizeCare, reviewDays } from "../domain/care";
 import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doorstep";
 import { normalizeFace } from "../domain/face";
 import { normalizeCanvas } from "../domain/canvas";
@@ -173,6 +173,15 @@ export async function getLastSweepAt(): Promise<number | null> {
 
 export function setLastSweepAt(at: number): Promise<unknown> {
   return run("meta", "readwrite", (store) => store.put(at, "lastSweepAt"));
+}
+
+// Review 주기(일). meta 칸 하나라 저장소 구조는 그대로예요. 없거나 고를 수 없는 값이면 7일이에요.
+export async function getReviewDays(): Promise<number> {
+  return reviewDays(await run<unknown>("meta", "readonly", (store) => store.get("reviewDays")));
+}
+
+export function setReviewDays(days: number): Promise<unknown> {
+  return run("meta", "readwrite", (store) => store.put(reviewDays(days), "reviewDays"));
 }
 
 // 메뉴 막대 작은 창에 '이번 주 정리'를 마지막으로 알린 때. 한 주에 한 번만 알려요.

@@ -3,7 +3,10 @@ import { newId } from "./model";
 
 // 방 돌보기 규칙. 화면·저장소와 무관한 순수 함수만 둡니다.
 export const boxFolderName = "_Folduct 정리상자";
+// Review(옛 이름 주간 정리)가 뜨는 주기. 환경설정에서 고르고, 고른 적이 없으면 7일이에요(2026-11-18 요청).
 export const sweepIntervalDays = 7;
+export const reviewChoices = [3, 7, 14, 30] as const;
+export const reviewDays = (value: unknown): number => (reviewChoices as readonly unknown[]).includes(value) ? (value as number) : sweepIntervalDays;
 export const dayMs = 24 * 60 * 60 * 1000;
 export const defaultCare: CareSettings = { done: false, staleAfterDays: 30 };
 // 방 전체를 이만큼 안 쓰면 홈에서 뺄지 묻습니다.
@@ -111,8 +114,8 @@ export function doneOfferDue(room: Room, now: number): boolean {
   return last > 0 && now - last > doneAfterDays * dayMs && (room.doneOfferAt === null || last > room.doneOfferAt);
 }
 
-export function sweepDue(lastSweepAt: number | null, now: number): boolean {
-  return lastSweepAt !== null && now - lastSweepAt >= sweepIntervalDays * dayMs;
+export function sweepDue(lastSweepAt: number | null, now: number, days: number = sweepIntervalDays): boolean {
+  return lastSweepAt !== null && now - lastSweepAt >= days * dayMs;
 }
 
 export function firstLine(text: string): string {

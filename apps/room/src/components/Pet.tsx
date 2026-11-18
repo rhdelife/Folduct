@@ -6,14 +6,14 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { cursorPosition, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, poseFace, type DuctPose } from "../art/duct";
 import { kindTones } from "../art/palette";
-import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue, sweepIntervalDays } from "../domain/care";
+import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue } from "../domain/care";
 import { faceColorVar } from "../domain/face";
 import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
 import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo } from "../gateways/native";
-import { getDoorstep, getLastSweepAt, getPetSettings, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
+import { getDoorstep, getLastSweepAt, getPetSettings, getReviewDays, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
@@ -102,15 +102,15 @@ export function Pet() {
     })();
   }, [change, loadRooms]);
 
-  // 이번 주 정리 알림: 정리할 때가 됐고 이번 주에 아직 알리지 않았으면 이 창에 한 번만 띄워요(메인 창에 정리 창을 띄우지 않아요).
-  // 다시 보려면 앱 메뉴의 '이번 주 정리 보기'나 머리의 '주간 정리'를 눌러요.
+  // Review 알림: 정리할 때가 됐고 이번 주기에 아직 알리지 않았으면 이 창에 한 번만 띄워요(메인 창에 정리 창을 띄우지 않아요).
+  // 다시 보려면 앱 메뉴의 'Review 보기'나 머리의 'Review'를 눌러요.
   const [sweepNotice, setSweepNotice] = useState<number | null>(null);
   useEffect(() => {
     void (async () => {
-      const [last, noticed] = await Promise.all([getLastSweepAt(), getSweepNoticeAt()]);
+      const [last, noticed, every] = await Promise.all([getLastSweepAt(), getSweepNoticeAt(), getReviewDays()]);
       const now = Date.now();
-      if (last === null || !sweepDue(last, now)) return setSweepNotice(null);
-      if (noticed !== null && noticed > last && now - noticed < sweepIntervalDays * dayMs) return;
+      if (last === null || !sweepDue(last, now, every)) return setSweepNotice(null);
+      if (noticed !== null && noticed > last && now - noticed < every * dayMs) return;
       const active = rooms.filter((item) => !item.care.done);
       const count = active.reduce((sum, item) => sum + sweepCandidates(item, now).length, 0) + active.filter((item) => doneOfferDue(item, now)).length;
       setSweepNotice(count > 0 ? count : null);
@@ -599,7 +599,7 @@ export function Pet() {
   // 이번 주 정리 알림: 프로도 바로 아래 말풍선으로, 프로도 말투(반말)예요. 꼬리는 위의 프로도를 가리켜요.
   const sweepBubble = sweepNotice !== null && (
     <div className="pet-ask frodo-bubble tail-up" data-no-drag>
-      <p role="status">안 쓴 파일이나 방이 {sweepNotice}개 있어. 이번 주 정리할까?</p>
+      <p role="status">안 쓴 파일이나 방이 {sweepNotice}개 있어. 지금 정리할까?</p>
       <div>
         <button
           type="button"
@@ -611,7 +611,7 @@ export function Pet() {
         >
           보기
         </button>
-        <button type="button" onClick={() => dismissSweep(true)}>다음 주에</button>
+        <button type="button" onClick={() => dismissSweep(true)}>다음에</button>
       </div>
     </div>
   );

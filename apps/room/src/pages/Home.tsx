@@ -20,7 +20,7 @@ import { useToast } from "../components/Toast";
 import { PreviewPane } from "../components/home/PreviewPane";
 import { createReport, WorkReportDialog } from "../components/WorkReportDialog";
 import { aiReady } from "../domain/aiNote";
-import { doneOfferDue, mergeScan, sweepDue } from "../domain/care";
+import { doneOfferDue, mergeScan, sweepDue, sweepIntervalDays } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
@@ -32,7 +32,7 @@ import { getReportEvery, getWorkReports } from "../storage/workReport";
 import { homeLimit, roomStats } from "../domain/sky";
 import { doorChanged, isNative, sessionEnded, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo, workLogged } from "../gateways/native";
 import { planSweep, refreshRooms, roomFolder, type SweepPlan } from "../storage/box";
-import { forgetRoom, getDoorstep, getLastSweepAt, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
+import { forgetRoom, getDoorstep, getLastSweepAt, getReviewDays, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
 
@@ -67,6 +67,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [lastSweepAt, setLastSweep] = useState<number | null>(null);
+  const [reviewEvery, setReviewEvery] = useState(sweepIntervalDays);
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -129,7 +130,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     const list = await load();
     if (!list) return;
     try {
-      const last = await getLastSweepAt();
+      const [last, every] = await Promise.all([getLastSweepAt(), getReviewDays()]);
+      setReviewEvery(every);
       if (last === null) {
         const at = Date.now();
         await setLastSweepAt(at);
@@ -140,7 +142,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       // 데스크톱 앱은 메뉴 막대 작은 창이 한 주에 한 번 알려요. 켤 때마다 정리 창을 띄우지 않아요.
       if (sweepChecked || isNative()) return;
       sweepChecked = true;
-      if (!sweepDue(last, Date.now())) return;
+      if (!sweepDue(last, Date.now(), every)) return;
       await findSweep(list);
     } catch (error) {
       // 정리 확인이 안 돼도 방은 그대로 씁니다.
@@ -363,8 +365,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const kinds = useMemo(() => new Set((rooms ?? []).flatMap((room) => room.things.map((thing) => thing.kind))), [rooms]);
   let staleFiles = 0;
   for (const stat of stats.values()) staleFiles += stat.stale;
-  const overdue = sweepDue(lastSweepAt, now) && (staleFiles > 0 || (rooms ?? []).some((room) => doneOfferDue(room, now)));
-  // 홈 프로도의 '다음 주에': 플로팅 창 알림과 같이 이번 주 정리를 한 주 미뤄요.
+  const overdue = sweepDue(lastSweepAt, now, reviewEvery) && (staleFiles > 0 || (rooms ?? []).some((room) => doneOfferDue(room, now)));
+  // 홈 프로도의 '다음에': 플로팅 창 알림과 같이 Review를 한 주기 미뤄요.
   const sweepLater = () => {
     const at = Date.now();
     setLastSweep(at);
@@ -633,7 +635,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
               )}
               <button type="button" className="quiet" onClick={fromMenu(actions.openSweep)}>
                 <Icon name="sweep" />
-                이번 주 정리 보기
+                Review 보기
               </button>
               <button type="button" className="quiet" onClick={fromMenu(() => setReportOpen(true))}>작업 보고</button>
               <button type="button" className="quiet" onClick={fromMenu(() => { setIconsMode("make"); setView("icons"); })}>아이콘 만들기</button>
@@ -651,7 +653,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       )}
       {macOpen && <MacDownloadDialog onClose={() => setMacOpen(false)} />}
       {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
-      {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
+      {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} reviewDays={reviewEvery} onReviewDays={setReviewEvery} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
         <NewRoomDialog
           onClose={() => setCreating(false)}
@@ -688,9 +690,10 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           plans={plans}
           offers={offers}
           now={now}
+          days={reviewEvery}
           onDone={(changed) => {
             setPlans(null);
-            // '다음 주에'도 정리 시각을 미루므로 늘 다시 읽습니다.
+            // '다음에'도 정리 시각을 미루므로 늘 다시 읽습니다.
             getLastSweepAt().then(setLastSweep, (error: unknown) => console.error(error));
             if (changed) void load();
           }}

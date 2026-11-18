@@ -174,7 +174,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
             <label><input type="radio" name="room-status" checked={!draft.care.done} onChange={() => onCare({ done: false })} />홈에 둠</label>
             <label><input type="radio" name="room-status" checked={draft.care.done} onChange={() => onCare({ done: true })} />홈에서 뺌</label>
           </div>
-          <p className="soft">{draft.care.done ? "홈에서 뺌: 주간 정리를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 주간 정리 때 정리 상자로 옮길지 물어요"}</p>
+          <p className="soft">{draft.care.done ? "홈에서 뺌: Review를 멈추고 메뉴의 방 목록으로 옮겨요" : "홈에 둠: 오래 안 쓴 물건은 Review 때 정리 상자로 옮길지 물어요"}</p>
           <div className="row">
             <label>오래됨 기준 <input type="number" min={1} max={365} value={draft.care.staleAfterDays} onChange={(event) => onCare({ staleAfterDays: days(event.target.value) })} />일</label>
           </div>

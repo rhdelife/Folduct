@@ -4,14 +4,15 @@ import { removeFolder, type Doorstep } from "../domain/doorstep";
 import { trayPlaceName } from "../domain/platform";
 import { askChoices, defaultPet, type PetSettings } from "../domain/session";
 import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible } from "../gateways/native";
-import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn } from "../storage/db";
+import { reviewChoices } from "../domain/care";
+import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn, setReviewDays } from "../storage/db";
 import { addDoorFolder } from "../storage/doorstep";
 import { AiSettingsRows } from "./AiSettingsRows";
 import { replayIntroEvent } from "./Intro";
 import { useModal } from "./useModal";
 import { Icon } from "./Icon";
 
-export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doorstep: Doorstep; onDoorstep: (state: Doorstep) => void; onClose: () => void; onError: (message: string) => void }) {
+export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays, onClose, onError }: { doorstep: Doorstep; onDoorstep: (state: Doorstep) => void; reviewDays: number; onReviewDays: (days: number) => void; onClose: () => void; onError: (message: string) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
   const addButton = useRef<HTMLButtonElement>(null);
@@ -133,6 +134,27 @@ export function SettingsDialog({ doorstep, onDoorstep, onClose, onError }: { doo
           </span>
           <button type="button" onClick={() => window.dispatchEvent(new Event(replayIntroEvent))}>다시 보기</button>
         </div>
+        <label className="setting-row">
+          <span>
+            <strong>Review 주기</strong>
+            <small>안 쓴 파일을 정리 상자로 옮길지 이만큼마다 물어요.</small>
+          </span>
+          <select
+            value={reviewDays}
+            onChange={(event) => {
+              const days = Number(event.target.value);
+              const before = reviewDays;
+              onReviewDays(days);
+              setReviewDays(days).catch((error: unknown) => {
+                console.error(error);
+                onReviewDays(before);
+                onError("설정을 저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+              });
+            }}
+          >
+            {reviewChoices.map((days) => <option key={days} value={days}>{days}일마다</option>)}
+          </select>
+        </label>
         {isNative() && (
           <>
             <label className="setting-row">

@@ -13,8 +13,8 @@ import { Meta } from "./Meta";
 // 방마다 처음부터 체크해 두는 파일 수(큰 것부터)
 const prechecked = 5;
 
-// 일주일에 한 번 앱을 열 때 떠오르고, 머리의 주간 정리 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
-export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; onDone: (changed: boolean) => void }) {
+// Review(옛 이름 주간 정리): 환경설정의 주기(기본 7일)마다 앱을 열 때 떠오르고, 머리의 Review 버튼으로 언제든 엽니다. 옮기기 전에 묻습니다. 고른 파일만, '정리하기'를 누른 클릭 안에서 옮깁니다. 오래 안 쓴 방은 파일 대신 방 하나로 묻습니다.
+export function SweepDialog({ plans, offers, now, days, onDone }: { plans: SweepPlan[]; offers: Room[]; now: number; days: number; onDone: (changed: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   // 방마다 큰 파일 몇 개만 골라 둡니다. 새로 이은 방은 잠잠한 파일이 한꺼번에 많을 수 있어요.
@@ -49,13 +49,13 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
     }
   }
 
-  // '다음 주에': 이번 주는 묻지 않습니다. 저장에 실패해도 닫기는 막지 않습니다.
+  // '다음에': 한 주기 동안 묻지 않습니다. 저장에 실패해도 닫기는 막지 않습니다.
   async function later() {
     await setLastSweepAt(now).catch(() => undefined);
     onDone(answered.current);
   }
 
-  // 표시만 바뀌고 폴더와 파일은 그대로예요. 물을 게 더 없으면 이번 주 정리도 끝난 것으로 칩니다.
+  // 표시만 바뀌고 폴더와 파일은 그대로예요. 물을 게 더 없으면 이번 Review도 끝난 것으로 칩니다.
   async function answer(room: Room, done: boolean) {
     setBusy(room.id);
     setOfferError(false);
@@ -82,7 +82,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
   const movedBytes = outcomes?.reduce((sum, outcome) => sum + outcome.movedBytes, 0) ?? 0;
   const skipped = outcomes?.filter((outcome) => outcome.skipped).length ?? 0;
   const failed = outcomes?.reduce((sum, outcome) => sum + outcome.failures.length, 0) ?? 0;
-  const week = `${new Date(now - 6 * dayMs).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} – ${new Date(now).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}`;
+  const week = `${new Date(now - (days - 1) * dayMs).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} – ${new Date(now).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}`;
   return (
     <dialog
       ref={dialog}
@@ -96,7 +96,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
       }}
     >
       <div className="sheet-body">
-        <h2 id="sweep-title">이번 주 정리 <span className="sweep-week">{week}</span></h2>
+        <h2 id="sweep-title">Review <span className="sweep-week">{week}</span></h2>
         {stopped ? (
           <>
             <p className="error" role="alert">정리하다 멈췄어요. 이미 옮긴 파일은 상자에 있어요.</p>
@@ -182,7 +182,7 @@ export function SweepDialog({ plans, offers, now, onDone }: { plans: SweepPlan[]
             {plans.length > 0 && <p className="soft">방마다 큰 파일 {prechecked}개까지만 골라 뒀어요. 다른 앱에서 쓰는 파일이면 체크를 빼 주세요.</p>}
             {permits > 0 && <p className="soft">정리하기를 누르면 브라우저가 폴더 {permits}개에 대해 ‘수정 허용’을 물어요.</p>}
             <div className="row end">
-              <button type="button" onClick={() => void later()} disabled={busy !== null}>다음 주에</button>
+              <button type="button" onClick={() => void later()} disabled={busy !== null}>다음에</button>
               {plans.length > 0 && <button type="button" className="primary" onClick={() => void sweep(plans, "all")} disabled={busy !== null || selected.size === 0}>{busy === "all" ? "옮기는 중…" : `${selected.size}개 정리하기`}</button>}
             </div>
           </>

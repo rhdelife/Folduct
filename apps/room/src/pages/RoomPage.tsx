@@ -669,7 +669,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.care.done && (
           <p className="banner room-off-banner">
-            <span>홈에서 뺀 방이에요. 주간 정리가 쉬어요.</span>
+            <span>홈에서 뺀 방이에요. Review가 쉬어요.</span>
             <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>홈에 올리기</button>
           </p>
         )}
@@ -913,7 +913,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForg
       <p className={`state${age.stale ? " state-stale" : ""}`}>
         {thing.missing ? "폴더에서 찾지 못했어요."
           : thing.pinned ? "고정한 물건이라 정리 후보가 되지 않아요."
-          : age.stale ? `${age.days}일째 그대로예요. 다음 주간 정리 때 물어볼게요.`
+          : age.stale ? `${age.days}일째 그대로예요. 다음 Review 때 물어볼게요.`
           : last > (handTouchedAt(thing, room) ?? 0) ? `방 밖에서 ${relativeDay(last, now)} ${last === thing.lastUsedAt ? "썼어요" : "고쳤어요"}.`
           : "최근에 손댄 물건이에요."}
       </p>
