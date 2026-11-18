@@ -147,7 +147,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
     const icons = saved ? store.icons.map((item) => (item.id === icon.id ? icon : item)) : [icon, ...store.icons];
     // 다른 형식으로 바꿔 저장하면 예전 형식에 쓰던 자리는 비워요.
     const use = Object.fromEntries(Object.entries(store.use).filter(([kind, id]) => id !== icon.id || kind === icon.kind));
-    return { icon, next: { icons, use } };
+    return { icon, next: { ...store, icons, use } };
   };
 
   async function save() {
@@ -166,7 +166,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
   async function remove() {
     if (!saved || !(await window.confirm(`‘${saved.name || "이름 없는 아이콘"}’을 보관함에서 지울까요?${inUse ? ` ${kindLabels[saved.kind]} 파일은 기본 종이로 돌아가요.` : ""}`))) return;
     const use = Object.fromEntries(Object.entries(store.use).filter(([, id]) => id !== saved.id));
-    if (await write({ icons: store.icons.filter((item) => item.id !== saved.id), use })) setDraft(fresh(draft.kind));
+    const things = Object.fromEntries(Object.entries(store.things).filter(([, id]) => id !== saved.id));
+    if (await write({ icons: store.icons.filter((item) => item.id !== saved.id), use, things })) setDraft(fresh(draft.kind));
   }
 
   // 앱(Tauri)에서는 confirm이 약속(Promise)으로 와서 기다려요.

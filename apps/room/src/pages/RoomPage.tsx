@@ -19,6 +19,7 @@ import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFold
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, saveHandle, saveRoom } from "../storage/db";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
+import { setThingIcon, useKindIcons } from "../storage/kindIcons";
 import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
@@ -746,6 +747,28 @@ function ThingImage({ folder, thing }: { folder: Folder; thing: Thing }) {
   return url && <img className="thing-image" src={url} alt={`${thing.name} 미리보기`} onError={() => setUrl(null)} />;
 }
 
+// 파일 하나의 아이콘을 Icons 보관함에서 골라요(2026-11-19 요청). 이 형식 아이콘을 앞에 두고, 기본으로 돌릴 수 있어요. 파일은 건드리지 않아요.
+function ThingIconSelect({ thing, onToast }: { thing: Thing; onToast: (message: string) => void }) {
+  const store = useKindIcons();
+  const icons = [...store.icons].sort((a, b) => Number(b.kind === thing.kind) - Number(a.kind === thing.kind));
+  return (
+    <label className="paper-size">
+      <span>아이콘</span>
+      <select
+        value={store.things[thing.id] ?? ""}
+        disabled={icons.length === 0}
+        onChange={(event) => setThingIcon(thing.id, event.target.value || null).catch((error: unknown) => {
+          console.error(error);
+          onToast("아이콘을 바꾸지 못했어요. 다시 해 주세요.");
+        })}
+      >
+        <option value="">{icons.length ? "기본" : "Icons에서 먼저 만들어요"}</option>
+        {icons.map((icon) => <option key={icon.id} value={icon.id}>{icon.name || "이름 없음"} · {kindLabels[icon.kind]}</option>)}
+      </select>
+    </label>
+  );
+}
+
 // 파일마다 내 이미지로 꾸미기. 고른 그림은 줄여서 앱 저장소에만 두고, 파일과 폴더는 건드리지 않아요.
 function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; onToast: (message: string) => void }) {
   const picture = usePicture(thing.id);
@@ -828,6 +851,7 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForg
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />
       </div>
+      <ThingIconSelect thing={thing} onToast={onToast} />
       {/* 이 파일 아이콘만 크거나 작게. 손댄 날로 치지 않아 정리 판정은 그대로예요. */}
       <label className="paper-size">
         <span>아이콘 크기</span>

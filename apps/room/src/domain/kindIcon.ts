@@ -12,7 +12,8 @@ export type IconStroke = { tool: IconTool; pts: number[]; fill: boolean; tone?: 
 // image가 있으면 그린 선 대신 그 그림(작게 줄인 data URL)을 종이 틀에 끼워 아이콘으로 써요(2026-11-18 요청).
 export type KindIcon = { id: string; name: string; kind: Kind; base: string; strokes: IconStroke[]; at: number; image?: string };
 // use는 형식마다 지금 쓰는 아이콘 id예요. 없으면 기본 종이예요.
-export type KindIconStore = { icons: KindIcon[]; use: Partial<Record<Kind, string>> };
+// things: 파일 하나에 고른 아이콘(파일 id → 아이콘 id, 2026-11-19 요청). 형식 아이콘보다 먼저 써요.
+export type KindIconStore = { icons: KindIcon[]; use: Partial<Record<Kind, string>>; things: Record<string, string> };
 
 export const kindIconLimit = 100;
 export const strokeLimit = 80;
@@ -24,7 +25,8 @@ export const isIconImage = (value: unknown): value is string => typeof value ===
 // 펜이 잘리지 않게 모든 점은 종이 가장자리에서 6 안쪽에 둬요(paperArts와 같은 규칙).
 const edge = 6;
 
-export const emptyKindIcons: KindIconStore = { icons: [], use: {} };
+export const emptyKindIcons: KindIconStore = { icons: [], use: {}, things: {} };
+const thingIconMax = 5000;
 export const kinds = Object.keys(kindLabels) as Kind[];
 const tools: IconTool[] = ["pen", "ring", "box", "wave", "dot", "square"];
 // 끌지 않고 누르기만 한 점의 반지름, 끌어서 키울 수 있는 최대 반지름(판 단위).
@@ -107,5 +109,9 @@ export function normalizeKindIcons(value: unknown): KindIconStore {
     // 지운 아이콘이나 다른 형식의 아이콘을 가리키면 기본 종이로 돌아가요.
     if (typeof id === "string" && icons.some((icon) => icon.id === id && icon.kind === kind)) use[kind] = id;
   }
-  return { icons, use };
+  // 예전 기록에는 없어요. 지운 아이콘을 가리키는 짝은 버려요.
+  const ids = new Set(icons.map((icon) => icon.id));
+  const rawThings = raw.things && typeof raw.things === "object" ? (raw.things as Record<string, unknown>) : {};
+  const things = Object.fromEntries(Object.entries(rawThings).filter((entry): entry is [string, string] => typeof entry[1] === "string" && ids.has(entry[1])).slice(0, thingIconMax));
+  return { icons, use, things };
 }

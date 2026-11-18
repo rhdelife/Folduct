@@ -32,7 +32,7 @@ describe("파일 형식 아이콘", () => {
     expect(store.icons[0].strokes).toEqual([{ tool: "pen", pts: [6, 6, blankPaper.w - 6, blankPaper.h - 6], fill: false }]);
     // 다른 형식에 붙은 아이콘이나 없는 아이콘은 기본 종이로 돌아가요.
     expect(store.use).toEqual({ video: "a" });
-    expect(normalizeKindIcons(undefined)).toEqual({ icons: [], use: {} });
+    expect(normalizeKindIcons(undefined)).toEqual({ icons: [], use: {}, things: {} });
   });
   it("점은 누르기만 해도 찍히고, 고른 색 단은 그 형식 색 안에서만 남아요", () => {
     const icon: KindIcon = { id: "d", name: "점", kind: "image", base: blankPaper.id, at: 1, strokes: [
@@ -46,6 +46,12 @@ describe("파일 형식 아이콘", () => {
     expect(parts[3]).toMatchObject({ fill: "edge" });
     const read = normalizeKindIcons({ icons: [{ ...icon, strokes: [{ tool: "dot", pts: [50, 50, 90, 90], fill: false, tone: "#ff0000" }] }] });
     expect(read.icons[0].strokes[0]).toEqual({ tool: "dot", pts: [50, 50, 90, 90], fill: false });
+  });
+  it("파일 하나에 고른 아이콘은 있는 아이콘만 남고, 예전 기록은 빈 짝으로 읽어요", () => {
+    const icon = { id: "i", name: "내 종이", kind: "video", base: blankPaper.id, at: 1, strokes: [] };
+    const read = normalizeKindIcons({ icons: [icon], use: {}, things: { a: "i", b: "지운", c: 3 } });
+    expect(read.things).toEqual({ a: "i" });
+    expect(normalizeKindIcons({ icons: [icon], use: {} }).things).toEqual({});
   });
   it("네모 점도 점처럼 누르기만 해도 찍히고, 저장했다 읽어도 남아요", () => {
     const icon: KindIcon = { id: "s", name: "네모", kind: "image", base: blankPaper.id, at: 1, strokes: [{ tool: "square", pts: [50, 50, 50, 50], fill: false, tone: "color" }] };
