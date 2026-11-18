@@ -47,6 +47,13 @@ describe("파일 형식 아이콘", () => {
     const read = normalizeKindIcons({ icons: [{ ...icon, strokes: [{ tool: "dot", pts: [50, 50, 90, 90], fill: false, tone: "#ff0000" }] }] });
     expect(read.icons[0].strokes[0]).toEqual({ tool: "dot", pts: [50, 50, 90, 90], fill: false });
   });
+  it("네모 점도 점처럼 누르기만 해도 찍히고, 저장했다 읽어도 남아요", () => {
+    const icon: KindIcon = { id: "s", name: "네모", kind: "image", base: blankPaper.id, at: 1, strokes: [{ tool: "square", pts: [50, 50, 50, 50], fill: false, tone: "color" }] };
+    const parts = iconArt(icon).parts;
+    expect(parts[0]).toMatchObject({ fill: "color" });
+    expect(parts[0].d).not.toBe(iconArt({ ...icon, strokes: [{ ...icon.strokes[0], tool: "dot" }] }).parts[0].d);
+    expect(normalizeKindIcons({ icons: [icon] }).icons[0].strokes[0].tool).toBe("square");
+  });
   it("이미지 아이콘은 작은 그림 data URL만 남기고, 다른 값은 버려요", () => {
     const base = { id: "i", name: "그림", kind: "pdf", base: blankPaper.id, strokes: [], at: 1 };
     const png = "data:image/png;base64,iVBORw0KGgo=";

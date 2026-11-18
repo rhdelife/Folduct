@@ -3,7 +3,7 @@ import { kindLabels, type Kind } from "./model";
 
 // 사용자가 그린 파일 형식 아이콘. 빈 흰 캔버스(blank)에 그은 선과 도장만 둬요. 예전에 기존 종이 위에 그린 것은 그 종이를 바탕으로 그대로 그려요.
 // 선은 그릴 때 그대로가 아니라 ObjectShape가 프로도와 같은 펜으로 다시 그어서, 누가 그려도 같은 그림체예요.
-export type IconTool = "pen" | "ring" | "box" | "wave" | "dot";
+export type IconTool = "pen" | "ring" | "box" | "wave" | "dot" | "square";
 // 그 형식 색의 다섯 단(palette.ts PaperTones) 안에서만 골라요(2026-11-18 요청). 없으면 기본: 선은 펜 잉크, 채움은 형식 색, 점은 가장 진한 단.
 export type IconTone = "pale" | "soft" | "color" | "edge" | "ink";
 export const iconTones: IconTone[] = ["pale", "soft", "color", "edge", "ink"];
@@ -26,7 +26,7 @@ const edge = 6;
 
 export const emptyKindIcons: KindIconStore = { icons: [], use: {} };
 export const kinds = Object.keys(kindLabels) as Kind[];
-const tools: IconTool[] = ["pen", "ring", "box", "wave", "dot"];
+const tools: IconTool[] = ["pen", "ring", "box", "wave", "dot", "square"];
 // 끌지 않고 누르기만 한 점의 반지름, 끌어서 키울 수 있는 최대 반지름(판 단위).
 const dotMin = 2.5;
 const dotMax = 18;
@@ -38,11 +38,12 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 export const clampPoint = (art: Pick<PaperArt, "w" | "h">, x: number, y: number): [number, number] => [r1(Math.min(art.w - edge, Math.max(edge, x))), r1(Math.min(art.h - edge, Math.max(edge, y)))];
 
 function strokePath({ tool, pts }: IconStroke, art: Pick<PaperArt, "w" | "h">): string | null {
-  if (tool === "dot") {
+  if (tool === "dot" || tool === "square") {
     const [cx, cy, ex, ey] = pts;
-    // 펜이 잘리지 않게 종이 가장자리 안쪽까지만 키워요.
+    // 펜이 잘리지 않게 종이 가장자리 안쪽까지만 키워요. 네모 점(square)은 같은 크기의 정사각형이에요(2026-11-19 요청).
     const room = Math.min(cx, cy, art.w - cx, art.h - cy) - edge / 2;
-    return ring(cx, cy, r1(Math.max(1, Math.min(Math.max(dotMin, Math.hypot(ex - cx, ey - cy)), dotMax, room))));
+    const r = r1(Math.max(1, Math.min(Math.max(dotMin, Math.hypot(ex - cx, ey - cy)), dotMax, room)));
+    return tool === "dot" ? ring(cx, cy, r) : quad(r1(cx - r), r1(cy - r), r1(r * 2), r1(r * 2), 0.8);
   }
   if (tool === "pen") {
     if (pts.length < 4) return null;
@@ -65,7 +66,7 @@ export function iconArt(icon: Pick<KindIcon, "id" | "kind" | "base" | "strokes" 
   const parts: PaperPart[] = icon.strokes.flatMap((stroke): PaperPart[] => {
     const d = strokePath(stroke, base);
     if (!d) return [];
-    if (stroke.tool === "dot") return [{ d, fill: stroke.tone ?? "ink" }, { d, pen: 0.7 }];
+    if (stroke.tool === "dot" || stroke.tool === "square") return [{ d, fill: stroke.tone ?? "ink" }, { d, pen: 0.7 }];
     const closed = stroke.tool === "ring" || stroke.tool === "box";
     if (closed && stroke.fill) return [{ d, fill: stroke.tone ?? "color" }, { d, pen: 0.7 }];
     // 고른 색이 있으면 선을 그 색으로, 없으면 펜 잉크로 그어요.

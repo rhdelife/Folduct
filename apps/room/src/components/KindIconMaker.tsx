@@ -13,6 +13,7 @@ const toolNames: { tool: IconTool; label: string }[] = [
   { tool: "box", label: "네모" },
   { tool: "wave", label: "물결줄" },
   { tool: "dot", label: "점" },
+  { tool: "square", label: "네모 점" },
 ];
 // 형식 색 다섯 단의 이름. 색은 그 형식 색 안에서만 골라요.
 const toneNames: Record<IconTone, string> = { pale: "아주 옅게", soft: "옅게", color: "형식 색", edge: "진하게", ink: "아주 진하게" };
@@ -57,6 +58,8 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
   const [saving, setSaving] = useState(false);
   const base = baseOf(draft.kind, draft.base);
   const art = useMemo(() => iconArt(draft), [draft]);
+  // 앱(WebKit)은 바뀐 SVG를 다시 칠하지 않고 옛 그림을 남길 때가 있어요(프로도 때와 같은 문제). 그림이 바뀔 때마다 SVG를 새로 끼워요.
+  const artKey = useMemo(() => `${draft.kind}:${draft.base}:${JSON.stringify(draft.strokes)}`, [draft.kind, draft.base, draft.strokes]);
   const saved = store.icons.find((icon) => icon.id === draft.id);
   const changed = !same(saved, draft);
   const inUse = store.use[draft.kind] === draft.id;
@@ -205,7 +208,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
       event.preventDefault();
       event.stopPropagation();
       setLive(null);
-    } else if (!mod && !event.altKey && /^[1-5]$/.test(event.key)) {
+    } else if (!mod && !event.altKey && /^[1-6]$/.test(event.key)) {
       setTool(toolNames[Number(event.key) - 1].tool);
     }
   };
@@ -243,7 +246,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         <div className="icon-board">
           <div className="icon-canvas">
             {/* 판 위에는 글을 쓰지 않아요(2026-11-17 요청). 이름 칸 자리와 판 크기는 그대로 두려고 빈 이름(" ")을 넘겨요. */}
-            <ObjectShape kind={draft.kind} size={stagePx} art={art} name=" " picture={draft.image ?? null} />
+            <ObjectShape key={artKey} kind={draft.kind} size={stagePx} art={art} name=" " picture={draft.image ?? null} />
             {!draft.image && <svg
               className="icon-pad"
               viewBox={`0 0 ${base.w} ${base.h}`}
@@ -255,7 +258,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
               onPointerCancel={() => setLive(null)}
             >
               {/* 긋는 동안은 가벼운 선으로 보여 주고, 손을 떼면 프로도 펜으로 다시 그어요. */}
-              {liveArt?.parts.slice(base.parts.length).map((part, at) => <path key={at} d={part.d} className="icon-live" />)}
+              {liveArt?.parts.slice(base.parts.length).map((part, at) => <path key={`${at}:${live?.pts.length}:${live?.pts.slice(-2).join()}`} d={part.d} className="icon-live" />)}
             </svg>}
           </div>
         </div>
