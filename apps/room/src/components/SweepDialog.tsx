@@ -125,7 +125,6 @@ export function SweepDialog({ plans, offers, now, days, onDone }: { plans: Sweep
                 );
               })}
             </ul>
-            <p className="soft">상자에 넣은 파일은 언제든 제자리로 돌릴 수 있어요.</p>
             <div className="row end"><button ref={closeButton} type="button" className="primary" aria-describedby="sweep-summary" onClick={() => onDone(true)} disabled={busy !== null}>닫기</button></div>
           </>
         ) : (

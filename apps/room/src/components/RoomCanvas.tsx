@@ -129,7 +129,6 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
       <div ref={board} className="room-canvas-board" style={{ height: height * scale }}>
         {shown.length === 0 && (
           <p className="room-canvas-empty">
-            빈 판이에요. 필요한 파일이나 폴더만 꺼내 놓아 보세요.
             {!picker && <button type="button" onClick={() => setPicker({ dir: "" })}>꺼내기</button>}
           </p>
         )}

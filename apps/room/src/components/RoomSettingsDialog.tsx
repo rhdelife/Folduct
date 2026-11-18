@@ -129,7 +129,6 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
           setDraft((now) => ({ ...now, group }));
         }} /></label>
         <datalist id="room-group-list">{groups.map((name) => <option key={name} value={name} />)}</datalist>
-        <p className="soft">홈에서 분류로 걸러 볼 수 있어요.</p>
         {/* 방 색: 홈 방 카드 썸네일, 작업 시작 알약, 프로도 받침, 작업 기록 막대에 같이 쓰여요. */}
         <fieldset className="face-picker">
           <legend>방 색</legend>

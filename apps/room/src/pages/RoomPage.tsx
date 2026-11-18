@@ -611,7 +611,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           </div>
           {picked && (
             <div className="room-pick-bar" role="status">
-              <span>{picked.size > 0 ? `${picked.size.toLocaleString("ko-KR")}개 골랐어요` : "휴지통으로 보낼 파일을 눌러 골라 주세요"}</span>
+              <span>{`${picked.size.toLocaleString("ko-KR")}개 골랐어요`}</span>
               <button type="button" disabled={picked.size === 0 || busy !== null} aria-expanded={send?.mode === "move"} onClick={() => (send?.mode === "move" ? setSend(null) : void chooseTarget("move"))}>옮기기</button>
               <button type="button" disabled={picked.size === 0 || busy !== null} aria-expanded={send?.mode === "copy"} onClick={() => (send?.mode === "copy" ? setSend(null) : void chooseTarget("copy"))}>복제</button>
               <button type="button" disabled={picked.size === 0 || busy !== null} onClick={() => void trashPicked()}><Icon name="trash" />휴지통</button>
@@ -680,7 +680,6 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               <div>
                 <div className="drawer-head">
                   <h2 tabIndex={-1}>파일</h2>
-                  <p className="soft">파일을 누르면 여기서 열 수 있어요.</p>
                 </div>
               </div>
             )}
