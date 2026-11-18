@@ -18,6 +18,7 @@ import { useReadableFolders, useThumb } from "../storage/thumbs";
 import { Meta } from "./Meta";
 import { faceHex, RoomCover } from "./RoomCover";
 import { cssToken } from "./tokens";
+import { Icon } from "./Icon";
 
 type Tip = { star: Card; room: Room };
 
@@ -138,6 +139,9 @@ export function SkyMap({
   // 고른 분류가 사라지면(방을 지우거나 분류를 바꾸면) 전체로 돌아가요.
   const groups = useMemo(() => roomGroups(homeRooms(rooms)), [rooms]);
   const [pickedGroup, setPickedGroup] = useState<string | null>(null);
+  // 말풍선을 닫아 둔 상태(2026-11-18 요청). 다른 방을 먹이면 다시 떠요. 프로도 얼굴을 누르면 다시 열고 닫아요.
+  const [bubbleShut, setBubbleShut] = useState(false);
+  useEffect(() => setBubbleShut(false), [selectedId]);
   const group = pickedGroup && groups.includes(pickedGroup) ? pickedGroup : null;
   const shown = useMemo(() => (group ? rooms.filter((room) => room.group === group) : rooms), [rooms, group]);
   const chipRow = groups.length > 0 ? parseFloat(cssToken("--control-sm")) + parseFloat(cssToken("--space-2")) : 0;
@@ -234,7 +238,16 @@ export function SkyMap({
           onHideTip={hideTip}
           onCloseTip={closeTip}
         />
-        {frodo && overFrodo && <div className="over-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>{overFrodo}</div>}
+        {frodo && overFrodo && !bubbleShut && (
+          <div className="over-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>
+            {overFrodo}
+            <button type="button" className="quiet icon-close bubble-close" aria-label="말풍선 닫기" onClick={() => setBubbleShut(true)}><Icon name="close" /></button>
+          </div>
+        )}
+        {/* 프로도 얼굴 자리. 얼굴은 몸 그림 맨 위, 가운데에서 조금 왼쪽(팔이 오른쪽으로 더 뻗어요)이에요. */}
+        {frodo && overFrodo && (
+          <button type="button" className="frodo-face-hit" aria-label={bubbleShut ? "프로도 말풍선 다시 보기" : "프로도 말풍선 닫기"} aria-pressed={!bubbleShut} style={{ left: frodo.left + frodo.width * 0.45, top: frodo.top, width: frodo.width * 0.46, height: frodo.width * 0.4 }} onClick={() => setBubbleShut((shut) => !shut)} />
+        )}
         <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
         {tip && (
           <div
