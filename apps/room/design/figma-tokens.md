@@ -102,6 +102,7 @@
 | `fontWeight/semibold` | `600` |  |
 | `fontWeight/bold` | `700` |  |
 | `fontWeight/heavy` | `800` |  |
+| `size/text/display` | `clamp(36px, 6.4vw, 72px)` |  |
 | `size/text/2xs` | `11px` |  |
 | `size/text/xs` | `12px` |  |
 | `size/text/sm` | `13px` |  |
@@ -112,6 +113,7 @@
 | `size/text/xl` | `22px` |  |
 | `size/text/2xl` | `28px` |  |
 | `size/text/hero` | `32px` |  |
+| `size/lineHeight/display` | `1.08` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/2xs` | `1.35` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/xs` | `1.4` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
 | `size/lineHeight/sm` | `1.45` | 글자 크기의 배수. Figma에서는 % (×100)로 넣으세요. |
@@ -200,6 +202,7 @@
 | `scene/sheet-backdrop` | `rgb(27 26 24 / 0.35)` |  |
 | `scene/sheet-backdrop-soft` | `rgb(27 26 24 / 0.18)` |  |
 | `scene/icon-stage` | `520px` |  |
+| `scene/page-max` | `1120px` |  |
 | `scene/topbar-stacked-h` | `100px` |  |
 | `scene/topbar-phone-h` | `112px` |  |
 | `scene/glass-blur` | `blur(24px) saturate(160%)` |  |

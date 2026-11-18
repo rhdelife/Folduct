@@ -317,6 +317,10 @@
   },
   "size": {
     "text": {
+      "display": {
+        "$type": "dimension",
+        "$value": "clamp(36px, 6.4vw, 72px)"
+      },
       "2xs": {
         "$type": "dimension",
         "$value": "11px"
@@ -359,6 +363,11 @@
       }
     },
     "lineHeight": {
+      "display": {
+        "$type": "number",
+        "$value": 1.08,
+        "$description": "글자 크기의 배수. Figma에서는 % (×100)로 넣으세요."
+      },
       "2xs": {
         "$type": "number",
         "$value": 1.35,
@@ -825,6 +834,10 @@
     "icon-stage": {
       "$type": "other",
       "$value": "520px"
+    },
+    "page-max": {
+      "$type": "other",
+      "$value": "1120px"
     },
     "topbar-stacked-h": {
       "$type": "other",
