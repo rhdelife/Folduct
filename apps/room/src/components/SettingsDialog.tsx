@@ -55,7 +55,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
       } catch (error) {
         console.error(error);
         setPet(before);
-        onError("설정을 저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+        onError("설정을 저장하지 못했어요. 다시 해 주세요.");
       }
     })();
   }
@@ -65,7 +65,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
     setIntroOn(on).catch((error: unknown) => {
       console.error(error);
       setOn(!on);
-      onError("설정을 저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+      onError("설정을 저장하지 못했어요. 다시 해 주세요.");
     });
   }
 
@@ -95,7 +95,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
       addButton.current?.focus();
     } catch (error) {
       console.error(error);
-      setDoorError("저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+      setDoorError("저장하지 못했어요. 다시 해 주세요.");
     }
   }
 
@@ -148,7 +148,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
               setReviewDays(days).catch((error: unknown) => {
                 console.error(error);
                 onReviewDays(before);
-                onError("설정을 저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+                onError("설정을 저장하지 못했어요. 다시 해 주세요.");
               });
             }}
           >
@@ -167,7 +167,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
             <label className="setting-row">
               <span>
                 <strong>상태 확인 주기</strong>
-                <small>작은 창에서 지금 작업 중인지 물어봐요. 창을 닫아 두었으면 아이콘에 점이 찍혀요.</small>
+                <small>작업 중인지 작은 창에서 물어봐요.</small>
               </span>
               <select value={pet.askEvery} onChange={(event) => changePet({ ...pet, askEvery: Number(event.target.value) })}>
                 {askChoices.map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "묻지 않기" : `${minutes}분마다`}</option>)}
@@ -181,7 +181,7 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
           <section className="setting-door" aria-labelledby="setting-door-title">
             <div>
               <h3 id="setting-door-title">현관</h3>
-              <small>고른 폴더에 새로 생긴 문서를 첫 화면 위쪽에 모아 줘요. 방을 고른 문서만 옮겨요.</small>
+              <small>이 폴더에 새로 생긴 문서를 홈 위쪽에 모아요.</small>
             </div>
             {doorstep.folders.length > 0 && (
               <ul>

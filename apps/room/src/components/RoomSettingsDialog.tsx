@@ -7,7 +7,7 @@ import { faceColors, faceColorVar } from "../domain/face";
 import { CoverPaper, faceHex, OwnCover } from "./RoomCover";
 import { useModal } from "./useModal";
 
-const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
+const saveFailed = "저장하지 못했어요. 다시 해 주세요.";
 // 썸네일로 고를 수 있게 보여 주는 방 그림 수. 최근 것부터예요.
 const coverChoices = 23;
 const choicePx = 56;
@@ -129,7 +129,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
           setDraft((now) => ({ ...now, group }));
         }} /></label>
         <datalist id="room-group-list">{groups.map((name) => <option key={name} value={name} />)}</datalist>
-        <p className="soft">홈 방 카드 위 분류로 걸러 볼 수 있어요. 비워 두면 분류 없음이에요.</p>
+        <p className="soft">홈에서 분류로 걸러 볼 수 있어요.</p>
         {/* 방 색: 홈 방 카드 썸네일, 작업 시작 알약, 프로도 받침, 작업 기록 막대에 같이 쓰여요. */}
         <fieldset className="face-picker">
           <legend>방 색</legend>
@@ -141,7 +141,7 @@ export function RoomSettingsDialog({ room, onClose, onForgotten }: { room: Room;
         </fieldset>
         <fieldset className="cover-picker">
           <legend>방 썸네일</legend>
-          <p className="soft">홈 방 카드에 보여요. 고르지 않으면 가장 최근 그림을 써요.</p>
+          <p className="soft">홈 방 카드에 보여요.</p>
           <div className="cover-options" role="group" aria-label="방 썸네일 고르기" style={{ "--room-color": faceColorVar(draft.color) } as CSSProperties}>
             <button type="button" className="cover-option" aria-pressed={draft.cover === null} onClick={() => pick(null)}>
               {auto ? <CoverPaper thing={auto} folder={folder} px={choicePx} color={tint} /> : <span className="cover-empty" aria-hidden="true" />}

@@ -325,7 +325,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
                   </li>
                 );
               })}
-              {parent.folders.length === 0 && <li className="soft">안에 폴더가 없어요. 프로젝트 폴더들이 들어 있는 상위 폴더를 골라 주세요.</li>}
+              {parent.folders.length === 0 && <li className="soft">안에 폴더가 없어요.</li>}
             </ul>
           </section>
           {error && <p className="error" role="alert">{error}</p>}
@@ -379,7 +379,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
           <p><Meta items={[`‘${draft.rootName}’`, `물건 ${draft.scan.files.length.toLocaleString("ko-KR")}개`, `${formatBytes(total)}${draft.scan.complete && draft.scan.failed === 0 ? "" : " (최소)"}`]} /></p>
           {draft.scan.note && <p className="soft">{draft.scan.note}</p>}
           {draft.scan.failed > 0 && <p className="soft">읽지 못한 항목 {draft.scan.failed}개는 빼고 들였어요.</p>}
-          {draft.source === "input" && <p className="soft">이 브라우저에서는 폴더 안 파일을 옮기지 못해요. 정리 상자는 Folduct 안에서만 쓰여요.</p>}
+          {draft.source === "input" && <p className="soft">이 브라우저에서는 파일을 옮기지 못해요.</p>}
           <label className="field">방 이름 <input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} required /></label>
           {error && <p className="error" role="alert">{error}</p>}
           <div className="row end">

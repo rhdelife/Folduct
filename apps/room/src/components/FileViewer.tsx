@@ -110,18 +110,18 @@ export function FileViewer({
         {/* 상태가 바뀔 때마다 읽어 주도록 이 영역은 늘 붙어 있습니다. 미리보기 내용은 밖에 둬서 읽지 않아요. */}
         <div aria-live="polite">
           {state.status === "loading" && <p className="loading">파일을 여는 중…</p>}
-          {state.status === "sample" && <p className="viewer-note">샘플 방이라 실제 파일이 없어요. 내 폴더로 만든 방에서는 여기서 파일 내용을 볼 수 있어요.</p>}
+          {state.status === "sample" && <p className="viewer-note">샘플 방이라 실제 파일이 없어요.</p>}
           {state.status === "need-folder" && (canConnect ? (
             <div className="viewer-note">
-              <p><strong>이 방은 아직 폴더가 연결되지 않았어요.</strong> {native ? "" : "브라우저는 사용자가 직접 고른 폴더만 열 수 있어요. "}열리는 창에서 <b>{folderHint}</b> 폴더를 한 번 골라 주면, 이 방의 파일을 모두 열 수 있어요.</p>
+              <p><strong>이 방은 아직 폴더가 연결되지 않았어요.</strong> {native ? "" : "브라우저는 사용자가 직접 고른 폴더만 열 수 있어요. "}열리는 창에서 <b>{folderHint}</b> 폴더를 고르면 파일을 열 수 있어요.</p>
               <button type="button" className="primary" disabled={busy} onClick={onConnect}>{busy ? "폴더를 읽는 중…" : "폴더 연결하고 열기"}</button>
             </div>
           ) : (
-            <p className="viewer-note">이 브라우저에서는 Folduct 안에서 파일을 열 수 없어요. 경로를 복사해 원래 앱으로 열어 주세요.</p>
+            <p className="viewer-note">이 브라우저에서는 열 수 없어요. 경로를 복사해 열어 주세요.</p>
           ))}
           {state.status === "denied" && (
             <div className="viewer-note">
-              <p><strong>폴더 접근이 허용되지 않았어요.</strong> {native ? "다시 허용하면 열 수 있어요." : "브라우저가 묻는 창에서 ‘허용’(또는 ‘방문할 때마다 허용’)을 누르면 열 수 있어요."}</p>
+              <p><strong>폴더 접근이 허용되지 않았어요.</strong> {native ? "다시 허용하면 열 수 있어요." : "브라우저가 물으면 ‘허용’을 눌러 주세요."}</p>
               <div className="row">
                 <button type="button" className="primary" onClick={onRetry}>다시 허용하고 열기</button>
                 {canConnect && <button type="button" disabled={busy} onClick={onConnect}>{busy ? "폴더를 읽는 중…" : "폴더 다시 고르기"}</button>}

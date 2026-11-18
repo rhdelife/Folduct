@@ -22,7 +22,7 @@ export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; n
   const byRoom = useMemo(() => roomTotals(log, period, now), [log, period, now]);
   const names = new Map(rooms.map((room) => [room.id, room.name]));
   const roomColor = (id: string) => { const room = rooms.find((item) => item.id === id); return room ? faceColorVar(room.face.color) : "var(--line-strong)"; };
-  if (Object.keys(log).length === 0) return <p className="trend-empty">{isNative() ? "플로팅 창에서 작업을 시작하면 여기에 쌓여요." : "작업 시간은 데스크톱 앱에서 재요. 앱에서 작업하면 여기에 쌓여요."}</p>;
+  if (Object.keys(log).length === 0) return <p className="trend-empty">{isNative() ? "플로팅 창에서 작업을 시작하면 여기에 쌓여요." : "작업 시간은 데스크톱 앱에서 재요."}</p>;
   const topRoom = byRoom[0]?.[1] ?? 0;
   const topDay = Math.max(...week.byWeekday, 1);
   return (

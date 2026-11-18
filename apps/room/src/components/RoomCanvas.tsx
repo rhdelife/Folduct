@@ -122,7 +122,7 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
     <section className="room-canvas" aria-labelledby="room-canvas-title">
       <div className="room-canvas-head">
         <h2 id="room-canvas-title">판 <span className="lane-count">{shown.length}</span></h2>
-        <p id="room-canvas-hint" className="sr-only">끌어서 옮기고 모서리로 크기를 바꿔요. 화살표로 옮기고 +·−로 크기, Delete로 판에서 빼요. 실제 파일은 그대로예요.</p>
+        <p id="room-canvas-hint" className="sr-only">끌어서 옮기고 모서리로 크기를 바꿔요. 키보드는 화살표, +·−, Delete예요.</p>
         <button type="button" className={picker ? "quiet" : "primary"} aria-expanded={picker !== null} aria-controls="room-pick" onClick={() => setPicker(picker ? null : { dir: "" })}>{picker ? "꺼내기 닫기" : "꺼내기"}</button>
       </div>
       {picker && <Picker room={room} folder={folder} now={now} selectedId={selectedId} onSelect={onSelect} dir={picker.dir} onDir={(dir) => setPicker({ dir })} onBoard={onBoard} onAdd={add} />}

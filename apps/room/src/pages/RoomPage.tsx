@@ -33,7 +33,7 @@ import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 const imageLimit = 30 * 1024 ** 2;
 const folderIssues = {
   denied: "폴더 접근 권한이 없어요. 목록은 그대로예요.",
-  gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록은 그대로예요.",
+  gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 봐 주세요.",
   other: "폴더를 읽지 못했어요. 목록은 그대로예요.",
 };
 // 창이 보이는 동안 폴더를 다시 읽는 간격(Home.tsx와 같은 값)
@@ -344,7 +344,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           }
           if (back.length > 0) update((room) => ({ ...room, things: [...room.things, ...back.filter((thing) => !room.things.some((item) => item.id === thing.id))] }));
           const failed = known.length - back.length;
-          toast(back.length > 0 ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+          toast(back.length > 0 ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.");
         })(),
     };
   }
@@ -431,7 +431,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       if (left()) return;
       const problem = folderProblem(error);
       setFolderIssue(problem);
-      if (!silent && problem === "other") toast("폴더를 읽지 못했어요. 잠시 뒤 다시 해 주세요. 목록은 그대로예요.");
+      if (!silent && problem === "other") toast("폴더를 읽지 못했어요. 잠시 뒤 다시 해 주세요.");
     } finally {
       if (!left()) setBusy(null);
     }
@@ -483,7 +483,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
 
   async function connectFromPage() {
     const result = await connectFolder();
-    if (result) toast("error" in result ? result.error : "폴더를 연결했어요. 이제 파일 열기, 다시 보기, 정리 상자 이동을 할 수 있어요.");
+    if (result) toast("error" in result ? result.error : "폴더를 연결했어요.");
   }
 
   // 파일 안으로 들어가기. 폴더가 없으면 연결부터, 권한이 없으면 같은 클릭 안에서 묻습니다(읽기 권한만).
@@ -520,7 +520,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     } catch (error) {
       if (stale()) return;
       const missing = error instanceof DOMException && (error.name === "NotFoundError" || error.name === "TypeMismatchError");
-      setViewer({ thingId, state: { status: "error", message: missing ? "폴더에서 이 파일을 찾지 못했어요. 옮겨졌거나 지워졌다면 ‘폴더 다시 보기’로 목록을 맞춰 주세요." : "파일을 열지 못했어요. 다른 앱이 쓰고 있거나 권한이 바뀌었을 수 있어요." } });
+      setViewer({ thingId, state: { status: "error", message: missing ? "파일을 찾지 못했어요. ‘폴더 다시 보기’를 눌러 주세요." : "파일을 열지 못했어요." } });
     }
   }
 
@@ -594,7 +594,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     return (
       <main className="page-status">
         <h1>방을 불러오지 못했어요</h1>
-        <p>저장된 방 기록을 읽는 중에 문제가 생겼어요. 기록은 지우지 않았어요.</p>
+        <p>방 기록을 읽지 못했어요. 기록은 그대로예요.</p>
         <div className="row">
           <button type="button" className="primary" onClick={() => { setLoadError(false); setAttempt((count) => count + 1); }}>다시 시도</button>
           <button type="button" onClick={onBack}>집으로</button>
@@ -659,7 +659,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {(canPickFolder() || isNative()) && <button type="button" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 다시 고르기</button>}
           </p>
         )}
-        {room.source === "sample" && <p className="banner soft-banner">샘플 방이에요. 실제 파일은 없고, 옮기기·정리는 Folduct 안에서만 일어나요.</p>}
+        {room.source === "sample" && <p className="banner soft-banner">샘플 방이에요. 실제 파일은 없어요.</p>}
         {handle && access !== "granted" && (
           <p className="banner soft-banner">
             폴더 접근을 허용하면 상자 정리와 다시 보기를 할 수 있어요. <button type="button" className="primary" onClick={() => void allowFolder()}>폴더 접근 허용</button>
@@ -675,7 +675,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
         )}
         {room.source === "input" && (
           <p className="banner soft-banner">
-            {room.origin ? `가져온 목록으로 만든 보기 전용 방이에요(${shortPath(room.origin)}).` : "이 방은 브라우저가 폴더를 기억하지 못하는 방식으로 연결됐어요."} 폴더를 연결하면 다시 보기와 정리 상자 이동을 할 수 있어요. 그 전에는 정리 상자가 Folduct 안에서만 쓰여요.
+            {room.origin ? `가져온 목록으로 만든 보기 전용 방이에요.` : "이 방은 폴더 연결이 끊겨 있어요."} 폴더를 연결해 주세요.
             {(canPickFolder() || isNative()) && <button type="button" className="primary" onClick={() => void connectFromPage()} disabled={busy !== null}>폴더 연결</button>}
           </p>
         )}
@@ -783,7 +783,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               <div>
                 <div className="drawer-head">
                   <h2 tabIndex={-1}>파일</h2>
-                  <p className="soft">판 위 파일을 누르면 여기서 열거나 고정할 수 있어요. 필요한 파일은 ‘꺼내기’로 판에 놓아요.</p>
+                  <p className="soft">파일을 누르면 여기서 열 수 있어요.</p>
                 </div>
               </div>
             )}

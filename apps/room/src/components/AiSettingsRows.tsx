@@ -61,7 +61,7 @@ export function AiSettingsRows({ onError }: { onError: (message: string) => void
       <label className="setting-row">
         <span>
           <strong>AI 요약</strong>
-          <small>파일 상세 아래에서 누를 때만 그 파일을 Anthropic에 보내 짧은 요약과 판단을 받아요.</small>
+          <small>누른 파일만 보내 짧은 요약을 받아요.</small>
         </span>
         <input type="checkbox" role="switch" checked={ai?.on ?? false} disabled={ai === null} onChange={(event) => ai && void change({ ...ai, on: event.target.checked })} />
       </label>
@@ -69,7 +69,7 @@ export function AiSettingsRows({ onError }: { onError: (message: string) => void
         <label className="setting-row">
           <span>
             <strong>작업 보고</strong>
-            <small>고른 기간이 끝나면 방별 시간과 적어 둔 한 일을 Anthropic에 보내 짧은 보고를 받아요. 파일은 보내지 않아요.</small>
+            <small>기간이 끝나면 작업 기록으로 짧은 보고를 받아요. 파일은 보내지 않아요.</small>
           </span>
           <select value={every} onChange={(event) => changeEvery(event.target.value as ReportEvery)}>
             {reportChoices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -93,7 +93,7 @@ export function AiSettingsRows({ onError }: { onError: (message: string) => void
             onBlur={saveKey}
             onKeyDown={(event) => event.key === "Enter" && saveKey()}
           />
-          <small role="status">{saved ? (key.trim() ? "저장했어요. 이 기기에만 둬요." : "키를 지웠어요.") : "이 기기의 앱 저장소에만 두고, 요약을 누를 때 Anthropic에만 보내요. 비우면 지워져요."}</small>
+          <small role="status">{saved ? (key.trim() ? "저장했어요. 이 기기에만 둬요." : "키를 지웠어요.") : "이 기기에만 저장해요. 비우면 지워져요."}</small>
         </label>
       )}
     </>

@@ -69,7 +69,7 @@ export function AiNotePanel({ room, thing, folder }: { room: Room; thing: Thing;
           <p className="ai-meta">{readLabels[note.read]} {new Date(note.at).toLocaleDateString("ko-KR")}{aiNoteStale(note, thing) && ". 그 뒤로 파일이 바뀌었어요."}</p>
         </>
       ) : (
-        <p className="ai-meta">{plan === "none" ? "파일 이름·위치·크기와 같은 폴더의 다른 파일 이름(40개까지)만 Anthropic에 보내요." : "이 파일 내용과 이름·위치, 같은 폴더의 다른 파일 이름(40개까지)을 Anthropic에 보내 요약을 받아요."}</p>
+        <p className="ai-meta">{plan === "none" ? "파일 이름과 위치, 같은 폴더의 파일 이름만 보내요." : "이 파일 내용과 이름을 보내 요약을 받아요."}</p>
       )}
       {/* 상태 줄은 비어 있어도 늘 붙어 있어야 화면 읽기 프로그램이 바뀐 내용을 읽어 줘요. */}
       <p role="status" className="ai-status">{busy ? "요약하는 중이에요…" : state.status === "error" ? state.message : state.status === "done" ? "요약했어요." : ""}</p>

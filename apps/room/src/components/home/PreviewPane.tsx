@@ -103,7 +103,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
         touch();
       } catch (error) {
         if (error instanceof DOMException && error.name === "SecurityError") return setState({ status: "denied" });
-        setState({ status: "error", message: isNotFound(error) ? "폴더에서 이 파일을 찾지 못했어요. 방에서 ‘폴더 다시 보기’로 목록을 맞춰 주세요." : "파일을 열지 못했어요. 다른 앱이 쓰고 있는지 확인해 주세요." });
+        setState({ status: "error", message: isNotFound(error) ? "파일을 찾지 못했어요. ‘폴더 다시 보기’를 눌러 주세요." : "파일을 열지 못했어요. 다른 앱이 쓰고 있는지 확인해 주세요." });
       }
     })();
   }, [tries]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -204,7 +204,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
             toast(`‘${gone.name}’ 파일을 되돌렸어요.`);
           }, (error: unknown) => {
             console.error(error);
-            toast("되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+            toast("되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.");
           }),
     });
     onChanged();
@@ -228,7 +228,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
       <div className="preview-body">
         <div aria-live="polite">
           {state?.status === "loading" && <p className="loading">파일을 여는 중…</p>}
-          {state?.status === "sample" && <p className="viewer-note">샘플 방이라 실제 파일이 없어요. 이름·메모·썸네일은 바꿔 볼 수 있어요.</p>}
+          {state?.status === "sample" && <p className="viewer-note">샘플 방이라 실제 파일이 없어요.</p>}
           {state?.status === "need-folder" && (
             <div className="viewer-note">
               <p>이 방은 아직 폴더가 연결되지 않았어요.</p>
@@ -303,7 +303,7 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
             </label>
             <button type="submit" disabled={!nameOk || busy !== null}>{busy === "rename" ? "바꾸는 중…" : "바꾸기"}</button>
           </form>
-          <p className="soft">{hiddenName ? "점으로 시작하는 이름이나 시스템 파일 이름은 쓸 수 없어요. 폴더에서 숨겨져요." : unlinked ? "폴더를 연결하면 실제 파일 이름을 바꿀 수 있어요." : room.source === "sample" ? "샘플 방은 Folduct 안 이름만 바뀌어요." : "폴더의 실제 파일 이름이 바뀌어요. 같은 이름이 있으면 바꾸지 않아요."}</p>
+          <p className="soft">{hiddenName ? "점으로 시작하는 이름은 쓸 수 없어요." : unlinked ? "폴더를 연결하면 실제 파일 이름을 바꿀 수 있어요." : room.source === "sample" ? "샘플 방은 Folduct 안 이름만 바뀌어요." : "실제 파일 이름이 바뀌어요."}</p>
         </section>
 
         <section className="preview-section" aria-labelledby="preview-note">

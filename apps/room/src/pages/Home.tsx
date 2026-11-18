@@ -535,7 +535,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     await forgetRoom(room.id);
     afterForget(room.id);
   }
-  const saveFailed = "저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.";
+  const saveFailed = "저장하지 못했어요. 다시 해 주세요.";
   const moveFailed = "옮기지 못했어요. 폴더 권한을 확인해 주세요.";
   const hasSample = rooms?.some((room) => room.source === "sample");
   const onHome = (rooms ?? []).filter((room) => !room.care.done);
@@ -575,7 +575,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
           <div className="home-sheet">
             {loadFailed ? (
               <div className="scene page-status" role="alert">
-                <p>저장소를 열지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.</p>
+                <p>저장소를 열지 못했어요. 다시 열어 주세요.</p>
                 <button type="button" onClick={() => { setLoadFailed(false); void start(); }}>다시 시도</button>
               </div>
             ) : !scene ? (
@@ -607,7 +607,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
             if (!file) return;
             setImporting(true);
             void importRooms(file)
-              .catch(fail("가져오지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요."))
+              .catch(fail("가져오지 못했어요. 다시 해 주세요."))
               .finally(() => setImporting(false));
           }}
         />

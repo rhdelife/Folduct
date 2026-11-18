@@ -197,7 +197,7 @@ export function WorkReportDialog({ rooms, now, start, onClose }: { rooms: Room[]
           {report && <p className="soft">{new Date(report.at).toLocaleDateString("ko-KR")}에 정리했어요.</p>}
           {canAsk ? (
             <>
-              {!report && <p className="soft">기간, 방 이름과 시간, 적은 한 일만 Anthropic에 보내요. 파일은 보내지 않아요.</p>}
+              {!report && <p className="soft">기간, 방별 시간, 적은 한 일만 보내요. 파일은 보내지 않아요.</p>}
               <button type="button" aria-disabled={busy} onClick={() => void ask()}>{busy ? "정리하는 중…" : report ? "다시 정리" : "AI로 정리하기"}</button>
             </>
           ) : (

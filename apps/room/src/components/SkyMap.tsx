@@ -248,7 +248,7 @@ export function SkyMap({
         {frodo && overFrodo && (
           <button type="button" className="frodo-face-hit" aria-label={bubbleShut ? "프로도 말풍선 다시 보기" : "프로도 말풍선 닫기"} aria-pressed={!bubbleShut} style={{ left: frodo.left + frodo.width * 0.45, top: frodo.top, width: frodo.width * 0.46, height: frodo.width * 0.4 }} onClick={() => setBubbleShut((shut) => !shut)} />
         )}
-        <p id="sky-hint" className="sr-only">방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고 그 방 파일을 보여 줘요. 화살표로 다른 방을 먹일 수 있어요. 먹은 방 카드를 한 번 더 누르면 방으로 들어가요. Esc로 돌아오고, 메뉴 키로는 방 설정을 열 수 있어요. 아래로 내리면 형식별로 볼 수 있어요.</p>
+        <p id="sky-hint" className="sr-only">방 카드를 누르면 프로도가 그 방 파일을 보여 줘요. 한 번 더 누르면 방으로 들어가요. 화살표로 다른 방, Esc로 돌아와요.</p>
         {tip && (
           <div
             ref={tipBox}
@@ -506,7 +506,7 @@ const MapLayers = memo(function MapLayers({
         )}
         {bandTip && bandTip.room === picked?.id && <p className="band-tip" aria-hidden="true" style={{ left: bandTip.x, top: bandTip.y }}>{bandTip.text}</p>}
         {shelf && (
-          <div className="room-shelf" role="group" aria-label="내 방들. 방 카드를 프로도에게 끌어다 놓거나 누르면 프로도가 그 방을 먹고, 그 방 용량만큼 길어지며 그 방 파일을 보여 줘요." aria-describedby="sky-hint" style={{ top: shelf.top, height: shelf.height, "--n": rooms.length + (adding ? 1 : 0) } as CSSProperties}>
+          <div className="room-shelf" role="group" aria-label="내 방들. 방 카드를 누르면 프로도가 그 방 파일을 보여 줘요." aria-describedby="sky-hint" style={{ top: shelf.top, height: shelf.height, "--n": rooms.length + (adding ? 1 : 0) } as CSSProperties}>
             {rooms.map((room) => {
               const { usage, stale } = stats.get(room.id)!;
               const parts = kindParts(room.things);

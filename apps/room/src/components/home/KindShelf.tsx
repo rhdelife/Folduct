@@ -436,7 +436,7 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
           await Promise.all([...back].map(([roomId, things]) => patchRoom(roomId, (current) => ({ ...current, things: [...current.things, ...things.filter((thing) => !current.things.some((item) => item.id === thing.id))] })).catch((error: unknown) => console.error(error))));
           const restored = [...back.values()].reduce((sum, things) => sum + things.length, 0);
           const missed = placed.length - restored;
-          onTrashed?.(restored > 0 ? `파일 ${countText(restored)}개를 되돌렸어요.${missed > 0 ? ` ${countText(missed)}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 같은 이름 파일이 생겼거나 휴지통에서 옮겨졌어요. 휴지통에서 직접 꺼내 주세요.");
+          onTrashed?.(restored > 0 ? `파일 ${countText(restored)}개를 되돌렸어요.${missed > 0 ? ` ${countText(missed)}개는 되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.` : ""}` : "되돌리지 못했어요. 휴지통에서 직접 꺼내 주세요.");
         })(),
     };
     onTrashed?.(`${sent > 0 ? `파일 ${countText(sent)}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${countText(failed)}개는 보내지 못했어요.` : ""}`.trim(), undo);

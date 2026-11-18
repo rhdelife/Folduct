@@ -96,7 +96,7 @@ function failure(error: unknown): unknown {
   if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) return new AiError("API 키를 확인해 주세요. 환경설정에서 바꿀 수 있어요.");
   if (error instanceof Anthropic.APIError && (error.type === "billing_error" || /credit balance/i.test(error.message))) return new AiError("API 크레딧이 부족해요. Anthropic 콘솔에서 확인해 주세요.");
   if (error instanceof Anthropic.RateLimitError) return new AiError("요청이 많아요. 잠시 뒤 다시 해 주세요.");
-  if (error instanceof Anthropic.BadRequestError || (error instanceof Anthropic.APIError && error.status === 413)) return new AiError("이 파일은 보낼 수 없었어요. 너무 크거나 읽을 수 없는 형식일 수 있어요.");
+  if (error instanceof Anthropic.BadRequestError || (error instanceof Anthropic.APIError && error.status === 413)) return new AiError("이 파일은 보낼 수 없어요.");
   if (error instanceof Anthropic.APIConnectionTimeoutError) return new AiError("응답이 늦어요. 잠시 뒤 다시 해 주세요.");
   if (error instanceof Anthropic.APIConnectionError) return new AiError("인터넷 연결을 확인해 주세요.");
   if (error instanceof Anthropic.APIError) return new AiError("AI가 지금 답하지 못했어요. 잠시 뒤 다시 해 주세요.");

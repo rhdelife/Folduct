@@ -132,7 +132,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
       return true;
     } catch (cause) {
       console.error(cause);
-      setError("저장하지 못했어요. 저장 공간이 가득 찼거나 다른 창이 쓰고 있을 수 있어요.");
+      setError("저장하지 못했어요. 다시 해 주세요.");
       return false;
     } finally {
       setSaving(false);
@@ -281,7 +281,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           />
         </div>
         {draft.image ? (
-          <p className="soft">이미지 아이콘이에요. 자기 썸네일이 없는 이 형식 파일에 이 그림이 보여요.</p>
+          <p className="soft">썸네일이 없는 파일에 이 그림이 보여요.</p>
         ) : (
           <>
         <div className="row icon-tools">
@@ -316,7 +316,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         <section className="cover-picker" aria-labelledby="kind-icon-archive">
           <h3 id="kind-icon-archive">{store.icons.length}개</h3>
           {store.icons.length === 0 ? (
-            <p className="soft">저장한 아이콘이 여기 모여요. 누르면 고치고 ‘이 형식에 쓰기’를 할 수 있어요.</p>
+            <p className="soft">저장한 아이콘이 여기 모여요.</p>
           ) : (
             <div className="cover-options" role="group" aria-label="보관한 아이콘">
               {shelf.map((icon) => (
