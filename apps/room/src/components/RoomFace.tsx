@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { useMemo, type CSSProperties, type RefObject } from "react";
-import { drawBrandFace, drawPose, drawRoom, drawStack, ductLayers, ductSilhouetteUnder, faceCell, faceFrames, type DuctDrawing, type DuctFaceSlot, type DuctGroup, type DuctPiece, type DuctPose, type DuctTone, type FaceExpr } from "../art/duct";
+import { drawPose, drawRoom, drawStack, ductLayers, ductSilhouetteUnder, faceCell, faceFrames, type DuctDrawing, type DuctFaceSlot, type DuctGroup, type DuctPiece, type DuctPose, type DuctTone, type FaceExpr } from "../art/duct";
 import faceSheet from "../art/duct-faces.png";
 import { faceColorVar } from "../domain/face";
 import type { RoomFace } from "../domain/model";
@@ -71,17 +71,6 @@ export function RoomFaceArt({ face, parts = [], length = 0.7, px, className, act
   const drawing = useMemo(() => drawRoom(face.shape, level, { px, layers: ductLayers(parts), live }), [face.shape, level, px, key, live]); // eslint-disable-line react-hooks/exhaustive-deps
   const { faceRef, expr, body } = useFrodo(live ? actor : undefined, mood);
   return <DuctArt drawing={drawing} className={className} foot={faceColorVar(face.color)} expr={expr} faceRef={faceRef} body={body} />;
-}
-
-// 방을 고르는 단추와 작업 줄의 작은 방 표식: 로고와 같은 프로도 얼굴(흰 테·구멍·흰 눈)을 그 방 색으로 칠해요.
-// 작은 크기의 몸 실루엣은 눈이 없어 무서워 보인다는 말에 바꿨어요(2026-11-19).
-const markFace = drawBrandFace();
-export function RoomMark({ color, className }: { color: string; className?: string }) {
-  return (
-    <svg className={className} viewBox={markFace.viewBox} aria-hidden="true" focusable="false">
-      {markFace.items.map((item, i) => "d" in item && <path key={i} d={item.d} fill={item.tone === "ink" ? color : "var(--surface)"} fillRule={item.even ? "evenodd" : undefined} />)}
-    </svg>
-  );
 }
 
 // 플로팅 창과 인트로, 도우미의 자세. 창 안에서는 표준 자세에 그 방의 색만 입혀요. 자세를 모양마다 그리면 56가지가 됩니다.
