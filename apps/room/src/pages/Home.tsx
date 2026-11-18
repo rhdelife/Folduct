@@ -35,6 +35,7 @@ import { planSweep, refreshRooms, roomFolder, type SweepPlan } from "../storage/
 import { forgetRoom, getDoorstep, getLastSweepAt, getReviewDays, getWorkLog, listPictures, listRooms, patchDoorstep, patchRoom, putPicture, saveRoom, setLastSweepAt } from "../storage/db";
 import { assignDoorItem, refreshDoorstep, undoDoorMove } from "../storage/doorstep";
 import { sampleRooms } from "../storage/sample";
+import { canReceive, transferThings, undoMove } from "../storage/transfer";
 
 // 파일 보기는 방 화면과 같은 묶음이라 첫 화면에 싣지 않습니다.
 
@@ -518,6 +519,37 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     });
   }
 
+  // 홈 파일 종이를 다른 방 카드에 끌어 놓으면 그 방 폴더 맨 위로 옮겨요(2026-11-18 요청). 작업 중 자동으로 잘못 들어온 파일을 바로 고치는 길이에요.
+  async function moveThing(fromId: string, thingId: string, toId: string) {
+    const from = rooms?.find((room) => room.id === fromId);
+    const to = rooms?.find((room) => room.id === toId);
+    const thing = from?.things.find((item) => item.id === thingId);
+    if (!from || !to || !thing) return;
+    if (!canReceive(to, from)) {
+      toast("폴더를 연결한 방으로만 옮길 수 있어요.");
+      return;
+    }
+    const { done, message } = await transferThings(from, to, [thing], "move");
+    if (done.length === 0) {
+      toast(message ?? moveFailed);
+      return;
+    }
+    await patchRoom(from.id, (room) => ({ ...room, things: room.things.filter((item) => item.id !== thing.id) }));
+    setViewing((now) => (now?.thingId === thing.id ? null : now));
+    await load();
+    toast(`‘${to.name}’ 방으로 옮겼어요.`, {
+      label: "되돌리기",
+      run: () =>
+        void undoMove(from, to, done)
+          .then(async (back) => {
+            if (back.length > 0) await patchRoom(from.id, (room) => (room.things.some((item) => item.id === thing.id) ? room : { ...room, things: [...room.things, thing] }));
+            await load();
+            toast(back.length > 0 ? "되돌렸어요." : "되돌리지 못했어요. 원래 자리에 같은 이름 파일이 생겼을 수 있어요.");
+          })
+          .catch(fail(moveFailed)),
+    });
+  }
+
   // 메뉴의 동작은 메뉴를 닫고 실행합니다. 대화상자와 알림이 메뉴 뒤에 가리지 않게요.
   const fromMenu = (run: () => void) => () => {
     setMenuOpen(false);
@@ -556,6 +588,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
     openRoom: onOpen,
     openSweep: () => void openSweep().catch(fail("정리할 파일을 찾지 못했어요. 잠시 뒤 다시 해 주세요.")),
     openFile,
+    moveThing: isNative() ? (fromId, thingId, toId) => void moveThing(fromId, thingId, toId).catch(fail(moveFailed)) : null,
     openNew: () => setCreating(true),
     openMenu: () => setMenuOpen(true),
     importList: isNative() ? null : () => importInput.current?.click(),

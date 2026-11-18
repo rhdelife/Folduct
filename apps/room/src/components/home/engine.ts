@@ -308,6 +308,8 @@ export type HomeActions = {
   openSweep: () => void;
   // 방에 들어가지 않고 파일을 봅니다.
   openFile: (roomId: string, thingId: string) => void;
+  // 파일을 다른 방 폴더로 옮겨요. 데스크톱 앱에서만 있고, 아니면 null이에요.
+  moveThing: ((roomId: string, thingId: string, toRoomId: string) => void) | null;
   openNew: () => void;
   openMenu: () => void;
   // 데스크톱 앱에는 목록 파일 가져오기가 없어 null입니다.

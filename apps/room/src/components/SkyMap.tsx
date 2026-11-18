@@ -41,6 +41,7 @@ export function SkyMap({
   onOpenRoom,
   onFocusThing,
   onOpenThing,
+  onMoveThing = null,
   onRoomMenu,
   onNewRoom,
   workingId = null,
@@ -57,6 +58,8 @@ export function SkyMap({
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
+  // 파일 종이를 다른 방 카드에 끌어 놓으면 그 방 폴더로 옮겨요. 데스크톱만, 없으면 끌지 않아요.
+  onMoveThing?: ((roomId: string, thingId: string, toRoomId: string) => void) | null;
   onRoomMenu: OpenRoomMenu;
   // 방 카드 줄 끝의 + 카드가 여는 새 방 만들기. 없으면 + 카드를 두지 않아요.
   onNewRoom?: () => void;
@@ -235,6 +238,7 @@ export function SkyMap({
           onOpenRoom={onOpenRoom}
           onFocusThing={onFocusThing}
           onOpenThing={onOpenThing}
+          onMoveThing={onMoveThing}
           onRoomMenu={onRoomMenu}
           onNewRoom={homeRooms(rooms).length < homeLimit ? onNewRoom : undefined}
           onShowTip={showTip}
@@ -293,6 +297,7 @@ const MapLayers = memo(function MapLayers({
   onOpenRoom,
   onFocusThing,
   onOpenThing,
+  onMoveThing,
   onRoomMenu,
   onNewRoom,
   onShowTip,
@@ -317,6 +322,7 @@ const MapLayers = memo(function MapLayers({
   onOpenRoom: (id: string) => void;
   onFocusThing: (roomId: string, thingId: string) => void;
   onOpenThing: (roomId: string, thingId: string) => void;
+  onMoveThing: ((roomId: string, thingId: string, toRoomId: string) => void) | null;
   onRoomMenu: OpenRoomMenu;
   onNewRoom?: () => void;
   onShowTip: (tip: Tip) => void;
@@ -444,7 +450,7 @@ const MapLayers = memo(function MapLayers({
   return (
     <div className="sky-camera">
       {find && cards.length > 0 && (
-        <FedPapers key={JSON.stringify([find.room.id, query, label])} cards={cards} find={find} view={view} focusId={focusId} folder={folders.get(find.room.id) ?? null} onOpenThing={onOpenThing} onShowTip={onShowTip} onHideTip={onHideTip} onCloseTip={onCloseTip} />
+        <FedPapers key={JSON.stringify([find.room.id, query, label])} cards={cards} find={find} view={view} focusId={focusId} folder={folders.get(find.room.id) ?? null} onOpenThing={onOpenThing} onMoveThing={onMoveThing} onShowTip={onShowTip} onHideTip={onHideTip} onCloseTip={onCloseTip} />
       )}
       <div className="sky-rooms">
         {frodo && (
@@ -587,13 +593,14 @@ const MapLayers = memo(function MapLayers({
 });
 
 // 처음 화면만 먼저 그려요. 목록 끝에 가까워지면 다음 종이 묶음을 준비해요.
-function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip, onHideTip, onCloseTip }: {
+function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onMoveThing, onShowTip, onHideTip, onCloseTip }: {
   cards: Card[];
   find: FindSpot;
   view: View;
   focusId: string | null;
   folder: Folder | null;
   onOpenThing: (roomId: string, thingId: string) => void;
+  onMoveThing: ((roomId: string, thingId: string, toRoomId: string) => void) | null;
   onShowTip: (tip: Tip) => void;
   onHideTip: () => void;
   onCloseTip: () => void;
@@ -601,23 +608,82 @@ function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip,
   const scroller = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(paperBatch);
-  const shown = cards.slice(0, Math.max(count, find.visible));
+  // 처음에는 입에서 나오는 움직임이 붙는 종이(첫 화면에 온전히 들어가는 만큼)만 그려요. 아래 종이가 움직임 없이 먼저 떠 보였어요(2026-11-18 요청).
+  // 더보기를 누른 뒤부터 나머지를 스크롤에 맞춰 불러와요. 한 장도 안 들어가는 낮은 창은 예전처럼 바로 불러와요.
+  const [opened, setOpened] = useState(false);
+  const open = opened || find.visible === 0;
+  const shown = open ? cards.slice(0, Math.max(count, find.visible)) : cards.slice(0, find.visible);
   const more = shown.length < cards.length;
   const last = shown[shown.length - 1];
   const bottom = toPx(last, view).y - find.filesTop + last.height / 2;
   useEffect(() => {
     const el = end.current;
-    if (!more || !el) return;
+    if (!open || !more || !el) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) setCount(shown.length + paperBatch);
     }, { root: scroller.current, rootMargin: "0px 0px 100% 0px" });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [more, shown.length]);
+  }, [open, more, shown.length]);
 
   // 손가락이 판을 밀고 지나간 끝에서는 말풍선을 열지 않습니다.
   const pressed = useRef({ x: 0, y: 0 });
+  // 마우스로 종이를 끌어 위쪽 방 카드에 놓으면 그 방으로 옮겨요(2026-11-18 요청).
+  // 종이 판은 넘치는 부분을 잘라서, 끄는 동안은 화면 위에 띄운 복사본을 움직여요. 손가락은 판 스크롤로 남겨 둬요.
+  const drag = useRef<{ pointer: number; x: number; y: number; ghost: HTMLElement | null; to: HTMLElement | null } | null>(null);
+  const dragged = useRef(false);
+  const dropTarget = (x: number, y: number) => {
+    const node = document.elementFromPoint(x, y)?.closest<HTMLElement>(".room-node[data-room-id]") ?? null;
+    return node && node.dataset.roomId !== find.room.id ? node : null;
+  };
+  const onPaperDown = (event: PointerEvent<HTMLDivElement>) => {
+    pressed.current = { x: event.clientX, y: event.clientY };
+    if (!onMoveThing || event.pointerType !== "mouse" || event.button !== 0 || drag.current) return;
+    dragged.current = false;
+    drag.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, ghost: null, to: null };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPaperMove = (event: PointerEvent<HTMLDivElement>) => {
+    const now = drag.current;
+    if (!now || event.pointerId !== now.pointer) return;
+    const dx = event.clientX - now.x;
+    const dy = event.clientY - now.y;
+    if (!now.ghost) {
+      if (Math.hypot(dx, dy) < 6) return;
+      const paper = event.currentTarget.parentElement!;
+      const box = paper.getBoundingClientRect();
+      const ghost = document.createElement("div");
+      ghost.className = "paper-ghost";
+      ghost.style.cssText = `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px`;
+      ghost.append(event.currentTarget.cloneNode(true));
+      document.body.append(ghost);
+      now.ghost = ghost;
+      event.currentTarget.classList.add("lifted");
+      onCloseTip();
+    }
+    now.ghost.style.translate = `${dx}px ${dy}px`;
+    const to = dropTarget(event.clientX, event.clientY);
+    if (to !== now.to) {
+      now.to?.classList.remove("drop-to");
+      to?.classList.add("drop-to");
+      now.to = to;
+    }
+  };
+  const onPaperEnd = (event: PointerEvent<HTMLDivElement>, card: Card) => {
+    const now = drag.current;
+    if (!now || event.pointerId !== now.pointer) return;
+    drag.current = null;
+    if (!now.ghost) return;
+    now.ghost.remove();
+    now.to?.classList.remove("drop-to");
+    event.currentTarget.classList.remove("lifted");
+    // 끈 뒤 따라오는 click 하나는 미리보기로 치지 않아요.
+    dragged.current = true;
+    setTimeout(() => (dragged.current = false));
+    if (event.type === "pointerup" && now.to?.dataset.roomId) onMoveThing?.(card.room.id, card.thing.id, now.to.dataset.roomId);
+  };
   const onPaperUp = (event: PointerEvent<HTMLDivElement>, card: Card) => {
+    onPaperEnd(event, card);
     if (event.pointerType === "mouse") return;
     if (Math.hypot(event.clientX - pressed.current.x, event.clientY - pressed.current.y) < 10) onShowTip({ star: card, room: card.room, anchor: event.currentTarget });
   };
@@ -633,7 +699,7 @@ function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip,
       onScroll={onCloseTip}
       style={{ left: find.left, top: find.filesTop, width: `calc(${find.width}px + var(--space-4))`, height: find.bottom - find.filesTop }}
     >
-      <div className="papers-content" style={{ height: `calc(${bottom}px + var(--space-2))` }}>
+      <div className="papers-content" style={{ height: !open && more ? `calc(${bottom}px + var(--space-4) + var(--control-sm))` : `calc(${bottom}px + var(--space-2))` }}>
         {shown.map((card, index) => {
           const at = toPx(card, view);
           const focused = card.thing.id === focusId;
@@ -652,6 +718,7 @@ function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip,
                 aria-label={`${card.thing.name}, ${kindLabels[card.thing.kind]}, ${formatBytes(card.thing.size)}`}
                 style={{ rotate: `${card.rot}deg` }}
                 onClick={() => {
+                  if (dragged.current) return;
                   cue(homeActor, { body: "nod" });
                   onOpenThing(card.room.id, card.thing.id);
                 }}
@@ -660,8 +727,10 @@ function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip,
                   event.preventDefault();
                   onOpenThing(card.room.id, card.thing.id);
                 }}
-                onPointerDown={(event) => (pressed.current = { x: event.clientX, y: event.clientY })}
+                onPointerDown={onPaperDown}
+                onPointerMove={onPaperMove}
                 onPointerUp={(event) => onPaperUp(event, card)}
+                onPointerCancel={(event) => onPaperEnd(event, card)}
                 onMouseEnter={(event) => {
                   // 프로도가 종이를 바라봅니다.
                   cue(homeActor, { look: centerOf(event.currentTarget) });
@@ -678,7 +747,21 @@ function FedPapers({ cards, find, view, focusId, folder, onOpenThing, onShowTip,
             </div>
           );
         })}
-        {more && <div ref={end} className="papers-end" aria-hidden="true" />}
+        {more && open && <div ref={end} className="papers-end" aria-hidden="true" />}
+        {more && !open && (
+          <button
+            type="button"
+            className="quiet papers-more"
+            style={{ top: `calc(${bottom}px + var(--space-2))` }}
+            onClick={() => {
+              setOpened(true);
+              // 단추가 사라져도 포커스가 판에 남아요.
+              scroller.current?.focus({ preventScroll: true });
+            }}
+          >
+            더보기
+          </button>
+        )}
       </div>
     </div>
   );
