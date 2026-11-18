@@ -11,7 +11,8 @@ import { useToast, type ToastAction } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, shownActivity, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, type Room, type ScannedFile, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, type Kind, type Room, type ScannedFile, type Thing } from "../domain/model";
+import { kinds } from "../domain/kindIcon";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
@@ -58,6 +59,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   // 색으로 보기: 색 네모에 처음 손이 가거나 색을 고르면 이미지 색을 읽기 시작해요.
+  // 형식으로 먼저 거르고, 이미지를 골랐을 때만 그 아래에 색 네모를 띄워요(2026-11-18 요청).
+  const [kind, setKind] = useState<Kind | "">("");
   const [hue, setHue] = useState<Hue | "">("");
   const [hueOn, setHueOn] = useState(false);
   // 지금 하고 있는 일(폴더 읽기, 옮기기)을 글자로 보여 줍니다. null이면 쉬는 중.
@@ -646,7 +649,25 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             {room.things.length > 0 && (
               <input type="search" className="room-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름이나 폴더로 찾기" aria-label="이 방에서 파일 이름이나 폴더 이름으로 찾기" />
             )}
-            {imageCount > 0 && <HueSwatches value={hue} found={hues} total={imageCount} onReach={() => setHueOn(true)} onPick={setHue} />}
+            {room.things.length > 0 && (
+              <div className="seg room-kinds" role="radiogroup" aria-label="형식으로 보기">
+                {(["", ...kinds.filter((name) => room.things.some((thing) => thing.kind === name && !thing.box))] as (Kind | "")[]).map((name) => (
+                  <label key={name || "all"}>
+                    <input
+                      type="radio"
+                      name="room-kind"
+                      checked={kind === name}
+                      onChange={() => {
+                        setKind(name);
+                        if (name !== "image") setHue("");
+                      }}
+                    />
+                    {name ? kindLabels[name] : "전체"}
+                  </label>
+                ))}
+              </div>
+            )}
+            {kind === "image" && imageCount > 0 && <HueSwatches value={hue} found={hues} total={imageCount} onReach={() => setHueOn(true)} onPick={setHue} />}
             {access === "granted" && typeof handle === "string" && room.things.length > 0 && (
               <button type="button" className="quiet room-pick-toggle" aria-pressed={picked !== null} onClick={() => setPicked(picked ? null : new Set())}>{picked ? "고르기 끝" : "고르기"}</button>
             )}
@@ -663,7 +684,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
             now={now}
             folder={readable}
             query={query}
-            only={hue && imageCount > 0 ? new Set([...hues].filter(([, found]) => found === hue).map(([id]) => id)) : null}
+            only={!kind ? null : kind === "image" && hue && imageCount > 0 ? new Set([...hues].filter(([, found]) => found === hue).map(([id]) => id)) : new Set(room.things.filter((thing) => thing.kind === kind).map((thing) => thing.id))}
             selectedId={selected?.id ?? null}
             onSelect={(id) => {
               setSelectedId(id);
