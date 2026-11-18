@@ -1,7 +1,7 @@
 import { drawBrandFace, makePen, type DuctPiece } from "../art/duct";
 import { poly, ring } from "../art/paperArts";
 
-export type IconName = "sweep" | "import" | "pin" | "settings" | "close" | "trash" | "chevron" | "work";
+export type IconName = "sweep" | "import" | "pin" | "settings" | "close" | "trash" | "chevron" | "work" | "pause" | "play";
 
 // 프로도와 같은 펜으로 그린 손그림 아이콘(2026-11-18 요청). 200칸 격자의 절대 좌표 길(M·L·C·Z)을 makePen이 흔들리는 잉크 면으로 바꿔요.
 // 색은 글자색(currentColor)을 따라가고, 뜻은 늘 옆의 글자가 말합니다. 그림은 한 번만 만들어 둬요.
@@ -13,6 +13,8 @@ const lines: Record<IconName, string[]> = {
   close: ["M52 52L148 148", "M148 52L52 148"],
   chevron: [poly([[80, 50], [130, 100], [80, 150]])],
   work: [ring(100, 106, 62), poly([[100, 70], [100, 106], [124, 120]]), "M84 22L116 22"],
+  pause: ["M72 48L72 152", "M128 48L128 152"],
+  play: [poly([[64, 44], [156, 100], [64, 156]], true)],
   settings: [ring(100, 100, 24), ring(100, 100, 50), "M100 22L100 50", "M100 150L100 178", "M22 100L50 100", "M150 100L178 100", "M45 45L65 65", "M135 135L155 155", "M45 155L65 135", "M135 65L155 45"],
 };
 const pen = makePen(7, 2.6, 1);

@@ -1,5 +1,5 @@
 import { emit, listen } from "@tauri-apps/api/event";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { faceColorVar } from "../../domain/face";
 import type { Room } from "../../domain/model";
 import { formatWorked, normalizeSession, workedTime, type Session } from "../../domain/session";
@@ -87,14 +87,73 @@ export function WorkControl({ rooms, session, pick = false, onDone }: { rooms: R
     );
   }
   const room = rooms.find((item) => item.id === session.roomId);
+  // 어느 방인지 한눈에: 작은 방 실루엣과 굵은 이름, 그 아래 상태. 멈춤은 테두리 단추(❚❚), 다시 시작은 검은 단추(▶)로 달라요(2026-11-18 요청).
   return (
-    <div className="work-control on" key="on" role="group" aria-label={`${room?.name ?? "방"} ${working ? "작업 중" : "멈춤"}`}>
+    <div className={`work-control on${working ? "" : " paused"}`} key="on" role="group" aria-label={`${room?.name ?? "방"} ${working ? "작업 중" : "멈춤"}`}>
       <span className="work-clock" aria-live="off">
-        <small>{room?.name ?? "방"} · {working ? "작업 중" : "멈춤"}</small>
-        <b>{formatWorked(workedTime(session, now))}</b>
+        <span className="work-room">
+          {room && <RoomFaceArt face={room.face} px={28} className="work-room-art" />}
+          <span>
+            <b className="work-room-name">{room?.name ?? "방"}</b>
+            <small className="work-state">{working ? "작업 중" : "멈춤"}</small>
+          </span>
+        </span>
+        <b className="work-time">{formatWorked(workedTime(session, now))}</b>
       </span>
-      <button type="button" className={working ? "stop" : "primary"} onClick={() => ask(workPauseAsked)}>{working ? "멈춤" : "다시 시작"}</button>
-      <button type="button" className="end" onClick={() => ask(workEndAsked)}>끝내기</button>
+      <button type="button" className={working ? "pause" : "primary resume"} onClick={() => ask(workPauseAsked)}>
+        <Icon name={working ? "pause" : "play"} size={14} />
+        {working ? "멈춤" : "다시 시작"}
+      </button>
+      <HoldToEnd onEnd={() => ask(workEndAsked)} />
     </div>
+  );
+}
+
+// 끝내기는 꾹 눌러 게이지가 다 차야 해요(2026-11-18 요청). 손을 떼거나 밖으로 나가면 취소돼요. 키보드는 Space·Enter를 누르고 있으면 돼요.
+// 차는 시간은 styles.css의 --dur-hold와 같아요.
+const holdMs = 1200;
+function HoldToEnd({ onEnd }: { onEnd: () => void }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | null>(null);
+  const start = () => {
+    if (timer.current !== null) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setHolding(false);
+      onEnd();
+    }, holdMs);
+  };
+  const cancel = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+  useEffect(() => cancel, []);
+  return (
+    <button
+      type="button"
+      className={`end hold${holding ? " holding" : ""}`}
+      aria-label="끝내기. 꾹 누르고 있으면 끝나요"
+      title="꾹 누르고 있으면 끝나요"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        start();
+      }}
+      onPointerUp={cancel}
+      onPointerCancel={cancel}
+      onLostPointerCapture={cancel}
+      onKeyDown={(event) => {
+        if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+          event.preventDefault();
+          start();
+        }
+      }}
+      onKeyUp={(event) => (event.key === " " || event.key === "Enter") && cancel()}
+      onBlur={cancel}
+      onClick={(event) => event.preventDefault()}
+    >
+      <span>{holding ? "계속 누르세요" : "꾹 눌러 끝내기"}</span>
+    </button>
   );
 }

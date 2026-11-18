@@ -738,6 +738,10 @@
     }
   },
   "motion": {
+    "dur-hold": {
+      "$type": "duration",
+      "$value": "1200ms"
+    },
     "dur-1": {
       "$type": "duration",
       "$value": "120ms"

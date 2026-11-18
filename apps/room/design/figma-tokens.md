@@ -181,6 +181,7 @@
 ## 움직임
 | 토큰 | 값 | 설명 |
 | --- | --- | --- |
+| `motion/dur-hold` | `1200ms` |  |
 | `motion/dur-1` | `120ms` |  |
 | `motion/dur-2` | `200ms` |  |
 | `motion/dur-3` | `320ms` |  |
