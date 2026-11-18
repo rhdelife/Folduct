@@ -102,7 +102,7 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
 .f-cap { margin-top: 4mm; }
 .f-cap h4 { font-size: 15pt; font-weight: 760; margin-bottom: 1.2mm; }
 .f-cap p { font-size: 12pt; line-height: 1.5; }
-.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; margin-top: 9mm; }
+.flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5mm; margin-top: 9mm; }
 .flow div { background: var(--paper); border-radius: 5mm; padding: 6mm 6mm 6.5mm; box-shadow: 0 .5mm 0 var(--line); }
 .flow div small { display: block; font-size: 10.5pt; font-weight: 700; letter-spacing: .1em; color: var(--ink-3); }
 .flow div h4 { font-size: 16pt; font-weight: 760; margin: 2mm 0 2mm; letter-spacing: -.01em; }
@@ -150,7 +150,7 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
       <h3>세 걸음이면<br>정리가 시작돼요.</h3>
       <ol>
         <li><b>1</b><div><h4>흩어진 파일 보기</h4><p>첫 화면에서 다운로드 폴더처럼 흩어진 파일을 오브제로 보여 줘요.</p></div></li>
-        <li><b>2</b><div><h4>작업 폴더로 방 만들기</h4><p>폴더를 고르면 방이 생기고, 받침 위에 프로도가 서요.</p></div></li>
+        <li><b>2</b><div><h4>작업 폴더로 방 만들기</h4><p>폴더 이름으로 찾거나 최근 폴더 목록에서 여러 개 골라 한 번에 방을 만들어요.</p></div></li>
         <li><b>3</b><div><h4>먹이고 작업 시작</h4><p>방 카드를 프로도에게 먹이고 시작하면, 새 파일은 알아서 그 방으로 가요.</p></div></li>
       </ol>
       <div class="go"><span>정리 시작</span><div class="dots"><i class="on"></i><i></i><i></i></div></div>
@@ -206,10 +206,11 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
         <div class="f-cap"><div class="dots"><i></i><i></i><i class="on"></i></div><h4>서랍장</h4><p>모든 방의 파일을 형식별·컬러별 서랍으로 모아 봐요. 방을 몰라도 형식으로 찾을 수 있어요.</p></div></div>
     </div>
     <div class="flow">
-      <div><small>STEP 1</small><h4>방 만들기</h4><p>작업 폴더를 고르면 방이 생기고, 프로도가 받침 위에 서요.</p></div>
+      <div><small>STEP 1</small><h4>방 만들기</h4><p>폴더 이름으로 찾아 여러 개를 골라요. Finder를 뒤질 필요가 없어요.</p></div>
       <div><small>STEP 2</small><h4>작업 시작</h4><p>작업 기록 카드나 플로팅 창에서 시작·멈춤·끝을 정하고 시간을 재요.</p></div>
       <div><small>STEP 3</small><h4>현관 자동 이동</h4><p>작업 중 다운로드 폴더에 들어온 파일을 묻지 않고 지금 방으로 옮겨요.</p></div>
-      <div><small>STEP 4</small><h4>방 캔버스</h4><p>필요한 파일만 판에 꺼내 놓고, 끌어서 옮기고 크기를 바꿔요.</p></div>
+      <div><small>STEP 4</small><h4>방 캔버스</h4><p>필요한 파일만 꺼내 판에 놓고, 골라서 다른 방으로 옮기거나 복제해요.</p></div>
+      <div><small>ICONS</small><h4>형식 아이콘 그리기</h4><p>형식 색 안에서 직접 그리거나 그림 파일로 내 아이콘을 만들어요.</p></div>
     </div>
   </section>
 
@@ -220,16 +221,17 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
         <li><b>영구 삭제·덮어쓰기 코드가 없어요.</b> 휴지통으로 보내기도 확인 창에서 허락한 파일 하나만.</li>
         <li><b>모든 이동에 되돌리기</b>를 남겨요. 정리 상자에서 제자리로 돌릴 수 있어요.</li>
         <li><b>앱 권한에 쓰기·지우기가 없어요.</b> 범위를 검사하는 앱 명령으로만 움직여요.</li>
-        <li><b>인터넷에 접속하지 않아요.</b> 파일 내용은 저장하지 않고 기록만 기기 안에.</li>
+        <li><b>옮기기·복제는 덮어쓰지 않아요.</b> 같은 이름이면 '이름 (2)'로 비켜요.</li>
+        <li><b>기록은 기기 안에만.</b> AI 메모는 내가 켜고 누른 파일만 Claude에 보내요.</li>
       </ul>
     </div>
     <div>
       <div class="label"><b>05</b>만든 방법</div>
       <div class="nums">
-        <div><strong>402</strong><span>자동 테스트 통과</span></div>
-        <div><strong>220</strong><span>커밋</span></div>
-        <div><strong>18.7k</strong><span>TypeScript 줄</span></div>
-        <div><strong>1.4k</strong><span>Rust 줄</span></div>
+        <div><strong>411</strong><span>자동 테스트 통과</span></div>
+        <div><strong>236</strong><span>커밋</span></div>
+        <div><strong>19.5k</strong><span>TypeScript 줄</span></div>
+        <div><strong>1.6k</strong><span>Rust 줄</span></div>
       </div>
       <p class="stackline"><b>React 19 · TypeScript · Vite · Tauri 2(Rust)</b><br>몸은 코드로, 표정은 스프라이트로 그려요.<br>밤하늘 → 화병 → 주름관으로 다듬었어요.</p>
     </div>
