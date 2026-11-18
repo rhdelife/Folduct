@@ -1700,6 +1700,9 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :
 .toast { border-radius: var(--radius-md); background: var(--glass-dark); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--shadow-2); }
 .toast button { background: transparent; box-shadow: none; }
 .banner, .banner.danger, .banner.happy-banner { border-radius: var(--radius-sm); }
+/* 홈에서 뺀 방 알림: 한 줄 상자로, 글은 왼쪽·단추는 오른쪽 끝(2026-11-18 요청). */
+.banner.room-off-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); font-weight: 500; }
+.banner.room-off-banner button:not(.link) { margin-left: 0; }
 .context-menu { padding: var(--space-1); border-radius: var(--radius-md); background: var(--glass-bg-strong); }
 .sky-tip { border-radius: var(--radius-md); background: var(--glass-bg-strong); }
 

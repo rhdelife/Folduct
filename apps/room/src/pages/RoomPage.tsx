@@ -668,8 +668,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           </p>
         )}
         {room.care.done && (
-          <p className="banner happy-banner">
-            홈에서 뺀 방이에요. 주간 정리가 쉬어요.{" "}
+          <p className="banner room-off-banner">
+            <span>홈에서 뺀 방이에요. 주간 정리가 쉬어요.</span>
             <button type="button" onClick={() => { update((current) => ({ ...current, care: { ...current.care, done: false } })); heading.current?.focus(); }}>홈에 올리기</button>
           </p>
         )}
