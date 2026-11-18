@@ -1339,6 +1339,19 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 작업 줄·보기 기준 탭·작업 기록 카드는 같은 폭(--stack-w)이고, 작업 줄도 카드와 같은 판(테두리·모서리·안쪽 여백)이에요(2026-11-18 요청). */
 .home-stack .work-control { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); width: 100%; min-height: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); white-space: normal; }
 .home-stack .work-control button { min-height: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-base); }
+/* 작업 시작 단추만 있을 때는 상자 없이 단추만(2026-11-18 요청). */
+.home-stack .work-control:not(.on, .picking) { padding: 0; border-color: transparent; background: none; }
+/* 방 고르기·작업 줄이 열릴 때: 단추에서 물방울이 떨어져 나오듯 늘어났다가 출렁이며 자리 잡아요. 속은 조금 늦게 떠올라요. */
+.home-stack .work-control:is(.on, .picking) { transform-origin: 50% 100%; animation: work-drop var(--dur-drawer) var(--ease-drawer) both; }
+.home-stack .work-control:is(.on, .picking) > * { animation: work-drop-in var(--dur-3) var(--ease-standard) both; animation-delay: calc(var(--dur-drawer) * 0.35); }
+@keyframes work-drop {
+  0% { transform: translateY(var(--space-4)) scale(0.55, 0.3); border-radius: var(--radius-pill); opacity: 0.4; }
+  40% { transform: translateY(calc(var(--space-2) * -1)) scale(0.9, 1.08); border-radius: 46% 46% 50% 50% / 58% 58% 42% 42%; opacity: 1; }
+  68% { transform: translateY(var(--space-1)) scale(1.03, 0.96); border-radius: var(--radius-xl); }
+  100% { transform: none; border-radius: var(--radius-lg); }
+}
+@keyframes work-drop-in { from { opacity: 0; translate: 0 var(--space-2); } }
+@media (prefers-reduced-motion: reduce) { .home-stack .work-control:is(.on, .picking), .home-stack .work-control:is(.on, .picking) > * { animation: none; } }
 .home-stack .work-time { font-size: var(--text-xl); line-height: 1; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .home-stack .work-start { width: 100%; min-width: 0; }
 .home-stack .work-control.on .work-clock { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; margin: 0; }
