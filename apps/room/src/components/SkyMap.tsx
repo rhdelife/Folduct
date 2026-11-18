@@ -20,6 +20,9 @@ import { Icon } from "./Icon";
 import { FedPapers, type Tip } from "./home/FedPapers";
 
 
+// 비울 때 몸이 받침 속으로 가라앉는 시간. 솟는 시간(heroMotion growMs)과 비슷하게요.
+const shrinkMs = 520;
+
 const paperAspect = (thing: Thing) => {
   const art = pickArt(thing.kind, thing.id);
   return art.h / art.w;
@@ -153,7 +156,35 @@ export function SkyMap({
   // 미리보기 창이 판을 실제로 좁히는 넓은 창(styles.css .sky-canvas.pane-open, 1200 이상)에서만 좁은 배치를 써요. 더 좁은 창은 창이 판 위에 떠요. 창 크기가 바뀌면 view가 바뀌어 다시 읽어요.
   const narrowed = paneOpen && view.w > 0 && window.matchMedia("(min-width: 1200px)").matches;
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, narrowed ? { ...view, pane: true } : view, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, view, narrowed, doorOpen, filter, chipRow]);
+  const layoutView = useMemo(() => (narrowed ? { ...view, pane: true } : view), [view, narrowed]);
+  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, layoutView, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, layoutView, doorOpen, filter, chipRow]);
+  // 비울 때 늘어난 몸이 받침 속으로 가라앉은 뒤 기본 모습이 돼요(2026-11-19 요청). 가라앉는 동안은 먹었던 방의 몸과 자리를 그대로 그려요.
+  const [leaving, setLeaving] = useState<string | null>(null);
+  const lastSelected = useRef(selectedId);
+  useLayoutEffect(() => {
+    const before = lastSelected.current;
+    lastSelected.current = selectedId;
+    setLeaving(before && !selectedId && !matchMedia("(prefers-reduced-motion: reduce)").matches ? before : null);
+  }, [selectedId]);
+  const body = useMemo(() => (leaving && !selectedId ? heroLayout(shown, now, layoutView, paperAspect, doorOpen, leaving, filter, chipRow).frodo : null), [leaving, selectedId, shown, now, layoutView, doorOpen, filter, chipRow]);
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+  useLayoutEffect(() => {
+    const from = bodyRef.current;
+    const root = canvas.current;
+    if (!leaving || !from || !frodo || !root) return;
+    // 늘어난 만큼 받침 아래로 내리고(받침 선 아래는 .frodo-clip이 가려요), 받침도 기본 자리로 옮겨요. 끝나면 기본 몸으로 바꿔요.
+    const options: KeyframeAnimationOptions = { duration: shrinkMs, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" };
+    const anims = [
+      root.querySelector(".frodo-lift")?.animate([{ translate: "0px 0px" }, { translate: `0px ${Math.max(0, from.height - frodo.height)}px` }], options),
+      root.querySelector(".frodo-home")?.animate([{ translate: "0px 0px" }, { translate: `0px ${frodo.floor - from.floor}px` }], options),
+    ];
+    const done = window.setTimeout(() => setLeaving(null), shrinkMs);
+    return () => {
+      window.clearTimeout(done);
+      anims.forEach((anim) => anim?.cancel());
+    };
+  }, [leaving]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(closeTip, [closeTip, selectedId, query, label, view]);
   const pickGroup = (next: string | null) => {
     setPickedGroup(next);
@@ -221,7 +252,7 @@ export function SkyMap({
         <MapLayers
           shelf={shelf}
           rooms={shelfRooms}
-          frodo={frodo}
+          frodo={body ?? frodo}
           cards={cards}
           find={find}
           view={view}
@@ -231,6 +262,7 @@ export function SkyMap({
           ids={ids}
           stats={stats}
           selectedId={selectedId}
+          bodyId={selectedId ?? (body ? leaving : null)}
           focusId={focusId}
           workingId={workingId}
           onFeed={feed}
@@ -296,6 +328,7 @@ const MapLayers = memo(function MapLayers({
   ids,
   stats,
   selectedId,
+  bodyId,
   focusId,
   workingId,
   onFeed,
@@ -321,6 +354,8 @@ const MapLayers = memo(function MapLayers({
   ids: string[];
   stats: Map<string, RoomStat>;
   selectedId: string | null;
+  // 몸을 그릴 방. 비우는 동안(가라앉는 중)에는 먹었던 방이에요.
+  bodyId: string | null;
   focusId: string | null;
   workingId: string | null;
   onFeed: (id: string | null) => void;
@@ -425,7 +460,7 @@ const MapLayers = memo(function MapLayers({
   }
 
   const folders = useReadableFolders(rooms);
-  const picked = rooms.find((room) => room.id === selectedId);
+  const picked = rooms.find((room) => room.id === bodyId);
   const lengths = useMemo(() => fedLengths(picked), [picked]);
   // 다 세지 못한 방(읽지 못한 파일이 있거나 아직 세는 중)도 센 파일만으로 색을 칠해요. 큰 방일수록 그런 경우가 많아 색이 안 차 보였어요.
   const parts = useMemo(() => (picked ? kindParts(picked.things) : []), [picked]);
