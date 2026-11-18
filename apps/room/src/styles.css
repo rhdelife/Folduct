@@ -706,7 +706,8 @@ dialog.sheet::backdrop { background: var(--sheet-backdrop); -webkit-backdrop-fil
 .room-finder { width: min(100%, calc(var(--space-12) * 13)); }
 .room-finder-search { min-height: var(--control-lg); border-radius: var(--radius-pill); font-size: var(--text-base); }
 .room-finder-head { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; color: var(--ink-caption); }
-.room-finder-list { display: grid; gap: var(--space-1); max-height: min(calc(var(--space-12) * 8), 50dvh); overflow: auto; margin: 0; padding: 0; list-style: none; }
+/* 높이를 고정해 결과 수가 바뀌어도 모달이 위아래로 튀지 않게 해요. */
+.room-finder-list { display: grid; align-content: start; gap: var(--space-1); height: min(calc(var(--space-12) * 8), 50dvh); overflow: auto; margin: 0; padding: 0; list-style: none; }
 .room-finder-list label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; }
 .room-finder-list label:hover { border-color: var(--line-strong); }
 .room-finder-list label.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }

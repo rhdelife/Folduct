@@ -29,7 +29,8 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   const [known, setKnown] = useState<Room[]>([]);
   // 데스크톱 첫 화면: 폴더 이름 검색과 후보 목록. 고른 폴더는 검색어를 바꿔도 남아요.
   const [query, setQuery] = useState("");
-  const [found, setFound] = useState<FoundFolder[] | null>(null);
+  // found는 어떤 검색어의 결과인지 함께 들고 있어, 새 결과가 오기 전엔 '찾는 중'으로 보여요.
+  const [found, setFound] = useState<{ query: string; folders: FoundFolder[] } | null>(null);
   const [picked, setPicked] = useState<Map<string, FoundFolder>>(() => new Map());
   const scanning = useRef<HTMLParagraphElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
@@ -43,10 +44,10 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
       void Promise.all([findFolders(query), listRooms()]).then(
         ([folders, rooms]) => {
           if (!live) return;
-          setFound(folders);
+          setFound({ query, folders });
           setKnown(rooms);
         },
-        () => live && setFound([]),
+        () => live && setFound({ query, folders: [] }),
       );
     }, query ? 250 : 0);
     return () => {
@@ -260,10 +261,10 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
         <form className="sheet-body room-finder" onSubmit={(event) => void createFound(event)}>
           <h2 id="new-room-title">새 방 만들기</h2>
           <p className="soft">작업 폴더를 골라요. 폴더 하나가 방 하나예요.</p>
-          <input type="search" className="room-finder-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="폴더 이름으로 찾기" aria-label="방으로 만들 폴더를 이름으로 찾기" />
-          <p className="room-finder-head" aria-live="polite">{found === null ? "폴더를 찾는 중…" : query.trim() ? `‘${query.trim()}’ 폴더 ${found.length}개` : "최근에 고친 폴더"}</p>
+          <input type="search" className="room-finder-search" autoFocus autoCapitalize="off" autoCorrect="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="폴더 이름으로 찾기" aria-label="방으로 만들 폴더를 이름으로 찾기" />
+          <p className="room-finder-head" aria-live="polite">{found === null || found.query !== query ? "폴더를 찾는 중…" : query.trim() ? `‘${query.trim()}’ 폴더 ${found.folders.length}개` : "최근에 고친 폴더"}</p>
           <ul className="room-finder-list">
-            {(found ?? []).map((folder) => {
+            {(found?.folders ?? []).map((folder) => {
               const old = known.find((room) => sameFolder(room.origin, folder.path));
               const parentPath = folder.path.slice(0, Math.max(0, folder.path.length - folder.name.length - 1));
               return (
@@ -290,7 +291,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
                 </li>
               );
             })}
-            {found !== null && found.length === 0 && <li className="soft">{query.trim() ? "그런 이름의 폴더가 없어요. ‘Finder에서 고르기’로 찾아 주세요." : "후보 폴더가 없어요. 이름으로 찾거나 Finder에서 골라 주세요."}</li>}
+            {found !== null && found.query === query && found.folders.length === 0 && <li className="soft">{query.trim() ? "그런 이름의 폴더가 없어요. ‘Finder에서 고르기’로 찾아 주세요." : "후보 폴더가 없어요. 이름으로 찾거나 Finder에서 골라 주세요."}</li>}
           </ul>
           {error && <p className="error" role="alert">{error}</p>}
           <div className="row end">
