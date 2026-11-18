@@ -94,7 +94,11 @@ export function periodName(period: WorkPeriod, now: number): string {
   const month = (date: Date) => date.toLocaleString("en-US", { month: "short" });
   return first.getMonth() === last.getMonth() ? `${month(first)} ${first.getDate()}–${last.getDate()}` : `${month(first)} ${first.getDate()} – ${month(last)} ${last.getDate()}`;
 }
-export type PeriodWork = { totalMs: number; days: Map<string, number>; rows: string[][] };
+// tops: 날마다 가장 오래 한 방. 카드 점을 그 방 얼굴 색으로 칠해요(2026-11-18 요청).
+export type PeriodWork = { totalMs: number; days: Map<string, number>; tops: Map<string, string>; rows: string[][] };
+
+// 카드 점의 진하기 네 단계: 1시간·2시간·4시간을 넘을 때마다 한 단계씩 진해져요.
+export const dayLevel = (ms: number): 1 | 2 | 3 | 4 => (ms >= 4 * 3_600_000 ? 4 : ms >= 2 * 3_600_000 ? 3 : ms >= 3_600_000 ? 2 : 1);
 
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 // 월요일 0 … 일요일 6.
@@ -117,14 +121,17 @@ export function periodRows(period: WorkPeriod, now: number): string[][] {
 export function periodWork(log: WorkLog, period: WorkPeriod, now: number): PeriodWork {
   const rows = periodRows(period, now);
   const days = new Map<string, number>();
+  const tops = new Map<string, string>();
   let totalMs = 0;
   for (const day of rows.flat()) {
     if (!day || !log[day]) continue;
-    const ms = Object.values(log[day]).reduce((sum, value) => sum + value, 0);
+    const entries = Object.entries(log[day]);
+    const ms = entries.reduce((sum, [, value]) => sum + value, 0);
     if (ms > 0) {
       days.set(day, ms);
+      tops.set(day, entries.reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0]);
       totalMs += ms;
     }
   }
-  return { totalMs, days, rows };
+  return { totalMs, days, tops, rows };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWork, formatWork, formatWorkShort, normalizeWorkLog, periodName, periodRows, periodWork, workAmount, yearMonths, yearWork } from "../domain/worklog";
+import { addWork, dayLevel, formatWork, formatWorkShort, normalizeWorkLog, periodName, periodRows, periodWork, workAmount, yearMonths, yearWork } from "../domain/worklog";
 
 const min = 60_000;
 const hour = 60 * min;
@@ -110,5 +110,15 @@ describe("기간 이름", () => {
     expect(periodName("month", now)).toBe("November");
     expect(periodName("week", now)).toBe("Nov 16–22");
     expect(periodName("week", new Date(2026, 8, 30, 9).getTime())).toBe("Sep 28 – Oct 4");
+  });
+});
+
+describe("카드 점 색·진하기", () => {
+  it("날마다 가장 오래 한 방을 고르고, 1·2·4시간을 넘을 때마다 진해져요", () => {
+    const now = new Date(2026, 10, 18, 15).getTime();
+    const log = { "2026-11-17": { a: 30 * 60_000, b: 90 * 60_000 }, "2026-11-18": { a: 5 * 3_600_000 } };
+    const work = periodWork(log, "week", now);
+    expect([...work.tops]).toEqual([["2026-11-17", "b"], ["2026-11-18", "a"]]);
+    expect([59, 60, 119, 120, 239, 240].map((minutes) => dayLevel(minutes * 60_000))).toEqual([1, 2, 2, 3, 3, 4]);
   });
 });

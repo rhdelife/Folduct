@@ -1,8 +1,8 @@
 import { useMemo, useState, type CSSProperties, type PointerEvent } from "react";
 import { faceColorVar } from "../../domain/face";
 import type { Room } from "../../domain/model";
-import { buckets, periods, periodTotal, roomTotals, weekdayAverage, type Bucket, type Period } from "../../domain/trends";
-import { formatWorkShort, workParts, type WorkLog } from "../../domain/worklog";
+import { buckets, periodTotal, roomTotals, weekdayAverage, type Bucket, type Period } from "../../domain/trends";
+import { formatWorkShort, periodName, workParts, type WorkLog } from "../../domain/worklog";
 import { isNative } from "../../gateways/native";
 
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
@@ -11,10 +11,11 @@ const work = formatWorkShort;
 const BigWork = ({ ms }: { ms: number }) => <>{workParts(ms).map(({ n, u }) => <span key={u}>{n}<small>{u}</small></span>)}</>;
 const roomsShown = 6;
 
-// 홈 '작업 기록' 판의 추세: 기간 고르기 아래 카드 셋(작업 시간 그래프, 요일별 평균, 방별 시간).
+// 홈 '작업 기록' 판의 추세: 이번 주(월~일) 카드 셋(작업 시간 그래프, 요일별 평균, 방별 시간).
+// 합계·년·월 고르기는 뺐어요(2026-11-18 요청). 달마다 한 칸이라 기록이 한두 달이면 막대 하나에 방 색 줄만 남아 읽을 게 없었어요.
 // 작업 시간 막대와 방별 막대는 방 얼굴 색(메뉴 막대 알약과 같은 색)으로 그려요. 방이 여럿이라 범례를 둬요. 요일별 평균은 잉크 한 가지예요.
 export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; now: number }) {
-  const [period, setPeriod] = useState<Period>("week");
+  const period: Period = "week";
   const series = useMemo(() => buckets(log, period, now), [log, period, now]);
   const total = useMemo(() => periodTotal(log, period, now), [log, period, now]);
   const week = useMemo(() => weekdayAverage(log, period, now), [log, period, now]);
@@ -26,17 +27,10 @@ export function TrendPanel({ log, rooms, now }: { log: WorkLog; rooms: Room[]; n
   const topDay = Math.max(...week.byWeekday, 1);
   return (
     <div className="trend">
-      <div className="seg trend-periods" role="radiogroup" aria-label="기간">
-        {periods.map(({ value, label }) => (
-          <label key={value}>
-            <input type="radio" name="trend-period" checked={period === value} onChange={() => setPeriod(value)} />
-            {label}
-          </label>
-        ))}
-      </div>
       <section className="trend-card" aria-labelledby="trend-time">
         <h3 id="trend-time">작업 시간</h3>
         <p className="trend-number"><BigWork ms={total} /></p>
+        <p className="trend-sub">{periodName("week", now)}</p>
         <BarChart series={series} rooms={rooms} />
       </section>
       <section className="trend-card" aria-labelledby="trend-week">

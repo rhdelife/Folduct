@@ -3,12 +3,6 @@ import type { WorkLog } from "./worklog";
 
 // 홈 '추세' 판: 작업 기록(날짜 → 방 → 밀리초)을 기간마다 모아 봐요. 기록에 시각이 없어 '일' 기간은 두지 않아요.
 export type Period = "all" | "year" | "month" | "week";
-export const periods: { value: Period; label: string }[] = [
-  { value: "all", label: "합계" },
-  { value: "year", label: "년" },
-  { value: "month", label: "월" },
-  { value: "week", label: "주" },
-];
 // rooms: 그 칸의 방별 시간(방 id → 밀리초). 막대를 방 색으로 쌓아요.
 export type Bucket = { label: string; ms: number; rooms: Record<string, number> };
 

@@ -1423,8 +1423,6 @@ main.page-status { min-height: 100dvh; align-content: center; }
 
 /* 추세 판: 잉크 한 가지로 그려요. 색은 파일 형식 몫이에요. */
 .trend { display: grid; gap: var(--space-3); }
-.trend-periods { display: flex; width: 100%; }
-.trend-periods label { position: relative; flex: 1; justify-content: center; }
 .trend-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-sunken); }
 .trend-card h3 { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--ink-caption); }
 .trend-number { font-size: var(--trend-number); line-height: var(--lh-hero); font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
@@ -1438,7 +1436,11 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-cal > span { display: flex; gap: var(--cal-gap); }
 .trend-cal i { display: block; flex: none; width: var(--cal-dot); height: var(--cal-dot); border-radius: 50%; background: var(--line); }
 .trend-cal i.past { background: var(--line-strong); }
-.trend-cal i.on { background: var(--ink); }
+.trend-cal i.on { background: color-mix(in srgb, var(--c, var(--ink)) var(--lv), var(--surface)); }
+.trend-cal i.lv1 { --lv: 45%; }
+.trend-cal i.lv2 { --lv: 65%; }
+.trend-cal i.lv3 { --lv: 85%; }
+.trend-cal i.lv4 { --lv: 100%; }
 /* 작업 기록 카드 보기 기준(주·달·해). 주와 달은 요일 7칸이라 점이 커지고, 오늘은 잉크 테두리로 알려요. 빈 칸은 달력 앞뒤 자리예요. */
 .trend-cal i.today { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .trend-cal i.blank { visibility: hidden; }

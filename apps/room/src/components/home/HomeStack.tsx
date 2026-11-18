@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
 import { localDay } from "../../domain/care";
-import { periodName, periodWork, workAmount, workPeriods, yearWork, type WorkLog, type WorkPeriod } from "../../domain/worklog";
+import { faceColorVar } from "../../domain/face";
+import { dayLevel, periodName, periodWork, workAmount, workPeriods, yearWork, type WorkLog, type WorkPeriod } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
@@ -65,6 +66,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
   const periodTitle = periodName(period, now);
   const amount = workAmount(shown.totalMs);
   const names = new Map(rooms.map((room) => [room.id, room.name]));
+  const faces = new Map(rooms.map((room) => [room.id, faceColorVar(room.face.color)]));
   const lines = work.rooms.filter(([id]) => names.has(id)).slice(0, roomsShown);
   // closing은 일력을 다시 띄우는 표시, folding은 Esc를 거푸 눌러도 한 번만 접게 막는 표시(Esc 듣기는 연 때의 close를 붙잡고 있어요).
   const [closing, setClosing] = useState(false);
@@ -170,7 +172,14 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
           <span className={`trend-cal ${period}`} aria-hidden="true">
             {shown.rows.map((days, row) => (
               <span key={row}>
-                {days.map((day, at) => (day ? <i key={day} className={shown.days.get(day) ? "on" : day < today ? "past" : day === today ? "today" : undefined} /> : <i key={`blank-${at}`} className="blank" />))}
+                {days.map((day, at) => {
+                  if (!day) return <i key={`blank-${at}`} className="blank" />;
+                  const ms = shown.days.get(day);
+                  if (!ms) return <i key={day} className={day < today ? "past" : day === today ? "today" : undefined} />;
+                  // 일한 날은 그날 가장 오래 한 방의 얼굴 색, 오래 할수록 진하게. 지운 방은 잉크예요.
+                  const top = faces.get(shown.tops.get(day) ?? "");
+                  return <i key={day} className={`on lv${dayLevel(ms)}${day === today ? " today" : ""}`} style={top ? ({ "--c": top } as CSSProperties) : undefined} />;
+                })}
               </span>
             ))}
             {period !== "year" && <span className="trend-cal-week">{weekNames.map((name) => <b key={name}>{name}</b>)}</span>}
