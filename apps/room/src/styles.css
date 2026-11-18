@@ -1435,6 +1435,16 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-cal i { display: block; flex: none; width: var(--cal-dot); height: var(--cal-dot); border-radius: 50%; background: var(--line); }
 .trend-cal i.past { background: var(--line-strong); }
 .trend-cal i.on { background: var(--ink); }
+/* 작업 기록 카드 보기 기준(주·달·해). 주와 달은 요일 7칸이라 점이 커지고, 오늘은 잉크 테두리로 알려요. 빈 칸은 달력 앞뒤 자리예요. */
+.trend-cal i.today { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.trend-cal i.blank { visibility: hidden; }
+.trend-cal.week > span, .trend-cal.month > span { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); justify-items: center; }
+.trend-cal.week i { width: var(--space-6); height: var(--space-6); }
+.trend-cal.month i { width: var(--space-3); height: var(--space-3); }
+.trend-cal.month .trend-cal-week { order: -1; }
+.trend-cal-week b { font-size: var(--text-2xs); line-height: var(--lh-2xs); font-weight: 500; color: var(--ink-soft); }
+.work-cal-period { align-self: flex-start; }
+.work-cal-period label { min-height: var(--control-sm); padding-inline: var(--space-3); font-size: var(--text-xs); }
 .trend-chart { position: relative; height: var(--trend-chart-h); margin-top: var(--space-6); touch-action: pan-y; }
 .trend-tip { position: absolute; top: 0; display: grid; margin: 0; padding: var(--space-1) var(--space-2); translate: -50% -100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); pointer-events: none; white-space: nowrap; }
 /* 작업 시간 막대: 칸마다 방 색으로 쌓아요(많이 한 방이 아래). 가리키는 칸 말고는 살짝 옅어져요. */

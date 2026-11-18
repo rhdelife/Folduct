@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWork, formatWork, formatWorkShort, normalizeWorkLog, workAmount, yearMonths, yearWork } from "../domain/worklog";
+import { addWork, formatWork, formatWorkShort, normalizeWorkLog, periodRows, periodWork, workAmount, yearMonths, yearWork } from "../domain/worklog";
 
 const min = 60_000;
 const hour = 60 * min;
@@ -79,5 +79,26 @@ describe("일력 칸", () => {
     expect(formatWorkShort(120 * min)).toBe("2h");
     expect(formatWorkShort((38 * 60 + 5) * min)).toBe("1d 14h");
     expect(formatWorkShort(48 * 60 * min)).toBe("2d");
+  });
+});
+
+describe("작업 기록 카드 보기 기준", () => {
+  // 2026-11-18은 수요일이에요.
+  const now = new Date(2026, 10, 18, 12).getTime();
+  it("주는 월~일 한 줄, 달은 월요일부터 시작하는 요일 7칸 달력, 해는 열두 줄이에요", () => {
+    expect(periodRows("week", now)).toEqual([["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21", "2026-11-22"]]);
+    const month = periodRows("month", now);
+    // 11월 1일은 일요일이라 앞에 빈 칸 여섯이에요.
+    expect(month[0]).toEqual(["", "", "", "", "", "", "2026-11-01"]);
+    expect(month.every((row) => row.length === 7)).toBe(true);
+    expect(month.flat().filter(Boolean)).toHaveLength(30);
+    expect(periodRows("year", now)).toHaveLength(12);
+  });
+  it("고른 기간 안의 날만 더해요", () => {
+    const log = { "2026-11-17": { a: 60_000, b: 30_000 }, "2026-11-02": { a: 10_000 }, "2026-10-31": { a: 5_000 } };
+    expect(periodWork(log, "week", now).totalMs).toBe(90_000);
+    expect(periodWork(log, "month", now).totalMs).toBe(100_000);
+    expect(periodWork(log, "year", now)).toMatchObject({ totalMs: 105_000 });
+    expect(periodWork(log, "week", now).days.size).toBe(1);
   });
 });

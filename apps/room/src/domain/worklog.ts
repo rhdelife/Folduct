@@ -74,3 +74,46 @@ export function yearMonths(year: number): string[][] {
     Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, day) => `${year}-${two(month + 1)}-${two(day + 1)}`),
   );
 }
+
+// 작업 기록 카드의 보기 기준(2026-11-18 요청): 이번 주(월~일 한 줄), 이번 달(요일 7칸 달력), 올해(한 줄이 한 달).
+// rows의 빈 칸("")은 달력 앞뒤를 맞추는 자리예요.
+export type WorkPeriod = "week" | "month" | "year";
+export const workPeriods: { id: WorkPeriod; label: string; title: string }[] = [
+  { id: "week", label: "주", title: "이번 주" },
+  { id: "month", label: "달", title: "이번 달" },
+  { id: "year", label: "해", title: "올해" },
+];
+export type PeriodWork = { totalMs: number; days: Map<string, number>; rows: string[][] };
+
+const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+// 월요일 0 … 일요일 6.
+const weekday = (date: Date) => (date.getDay() + 6) % 7;
+
+export function periodRows(period: WorkPeriod, now: number): string[][] {
+  const today = new Date(now);
+  if (period === "year") return yearMonths(today.getFullYear());
+  if (period === "week") {
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - weekday(today));
+    return [Array.from({ length: 7 }, (_, at) => dayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + at)))];
+  }
+  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const count = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const cells = [...Array<string>(weekday(first)).fill(""), ...Array.from({ length: count }, (_, at) => dayKey(new Date(first.getFullYear(), first.getMonth(), at + 1)))];
+  while (cells.length % 7) cells.push("");
+  return Array.from({ length: cells.length / 7 }, (_, row) => cells.slice(row * 7, row * 7 + 7));
+}
+
+export function periodWork(log: WorkLog, period: WorkPeriod, now: number): PeriodWork {
+  const rows = periodRows(period, now);
+  const days = new Map<string, number>();
+  let totalMs = 0;
+  for (const day of rows.flat()) {
+    if (!day || !log[day]) continue;
+    const ms = Object.values(log[day]).reduce((sum, value) => sum + value, 0);
+    if (ms > 0) {
+      days.set(day, ms);
+      totalMs += ms;
+    }
+  }
+  return { totalMs, days, rows };
+}

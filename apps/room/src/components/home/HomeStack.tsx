@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
 import { localDay } from "../../domain/care";
-import { workAmount, yearMonths, yearWork, type WorkLog } from "../../domain/worklog";
+import { periodWork, workAmount, workPeriods, yearWork, type WorkLog, type WorkPeriod } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
@@ -31,6 +31,17 @@ function pinInside(panel: HTMLElement, width: string): () => void {
 }
 const roomsShown = 3;
 
+const periodKey = "folduct.workCalPeriod";
+const weekNames = ["월", "화", "수", "목", "금", "토", "일"];
+function readPeriod(): WorkPeriod {
+  try {
+    const saved = localStorage.getItem(periodKey);
+    return saved === "week" || saved === "month" || saved === "year" ? saved : "year";
+  } catch {
+    return "year";
+  }
+}
+
 // 홈 왼쪽 아래: 올해 일력 한 장(한 줄이 한 달, 점 하나가 하루). 누르면 그 자리에서 판이 자라나 진행 중(새 파일·안 쓴 파일)과 작업 추세를 보여 주고, 닫으면 다시 일력으로 접혀요.
 // workRow: 작업 시작·시간·멈춤·끝내기 줄. 작업은 이 왼쪽 아래 자리에서만 다뤄요(작업 기록 카드 바로 위).
 export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep, workRow }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void; workRow?: ReactNode }) {
@@ -40,8 +51,19 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
   const year = new Date(now).getFullYear();
   const today = localDay(now);
   const work = useMemo(() => yearWork(log, year), [log, year]);
-  const months = useMemo(() => yearMonths(year), [year]);
-  const amount = workAmount(work.totalMs);
+  // 카드는 주·달·해 중 고른 기준으로 보여요(2026-11-18 요청). 고른 것은 이 기기에만 기억해요.
+  const [period, setPeriodState] = useState<WorkPeriod>(readPeriod);
+  const setPeriod = (next: WorkPeriod) => {
+    setPeriodState(next);
+    try {
+      localStorage.setItem(periodKey, next);
+    } catch {
+      // 저장이 막힌 창에서는 이번만 바꿔요.
+    }
+  };
+  const shown = useMemo(() => periodWork(log, period, now), [log, period, now]);
+  const periodTitle = workPeriods.find((item) => item.id === period)!.title;
+  const amount = workAmount(shown.totalMs);
   const names = new Map(rooms.map((room) => [room.id, room.name]));
   const lines = work.rooms.filter(([id]) => names.has(id)).slice(0, roomsShown);
   // closing은 일력을 다시 띄우는 표시, folding은 Esc를 거푸 눌러도 한 번만 접게 막는 표시(Esc 듣기는 연 때의 close를 붙잡고 있어요).
@@ -121,12 +143,20 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
     <>
       <div className={`home-stack${closing ? " returning" : ""}`} inert={open ? true : undefined}>
         {workRow}
+        <div className="seg work-cal-period" role="radiogroup" aria-label="작업 기록 보기 기준">
+          {workPeriods.map((item) => (
+            <label key={item.id} title={item.title}>
+              <input type="radio" name="work-cal-period" checked={period === item.id} onChange={() => setPeriod(item.id)} aria-label={item.title} />
+              {item.label}
+            </label>
+          ))}
+        </div>
         <button
           type="button"
           className="work-cal"
           aria-expanded={open}
           aria-controls="home-panel"
-          aria-label={`올해 작업 ${amount.value}${amount.unit}, ${work.days.size}일. 누르면 작업 기록을 열어요`}
+          aria-label={`${periodTitle} 작업 ${amount.value}${amount.unit}, ${shown.days.size}일. 누르면 작업 기록을 열어요`}
           onClick={(event) => {
             opener.current = event.currentTarget;
             setOpen(true);
@@ -135,14 +165,15 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
           <span className="work-cal-total">
             <strong>{amount.value}</strong>
             <span>{amount.unit}</span>
-            {work.days.size > 0 && <small>{work.days.size}일 작업</small>}
+            <small>{periodTitle}{shown.days.size > 0 ? ` · ${shown.days.size}일 작업` : ""}</small>
           </span>
-          <span className="trend-cal" aria-hidden="true">
-            {months.map((days, month) => (
-              <span key={month}>
-                {days.map((day) => <i key={day} className={work.days.get(day) ? "on" : day < today ? "past" : undefined} />)}
+          <span className={`trend-cal ${period}`} aria-hidden="true">
+            {shown.rows.map((days, row) => (
+              <span key={row}>
+                {days.map((day, at) => (day ? <i key={day} className={shown.days.get(day) ? "on" : day < today ? "past" : day === today ? "today" : undefined} /> : <i key={`blank-${at}`} className="blank" />))}
               </span>
             ))}
+            {period !== "year" && <span className="trend-cal-week">{weekNames.map((name) => <b key={name}>{name}</b>)}</span>}
           </span>
           {/* 방별 시간 글줄은 뺐어요(2026-11-18 요청). 방별 시간은 카드를 펼친 판에서 봐요. 기록이 없을 때 안내만 남겨요. */}
           {lines.length === 0 && <span className="work-cal-rooms">{isNative() ? "플로팅 창에서 작업을 시작하면 쌓여요." : "작업 시간은 데스크톱 앱에서 재요."}</span>}
