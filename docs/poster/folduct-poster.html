@@ -128,6 +128,24 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
 .foot .msg small { display: block; font-size: 12pt; font-weight: 500; color: #bdb9b0; margin-top: 2mm; letter-spacing: 0; }
 .foot .who { text-align: right; font-size: 12pt; line-height: 1.7; color: #d9d6cf; }
 .foot .who b { color: #fff; font-size: 15pt; }
+
+/* 프로도 말풍선: 섹션마다 프로도가 한마디씩 해요. */
+.bubble { position: relative; display: inline-block; background: var(--paper); border: .6mm solid var(--ink); border-radius: 8mm; padding: 4.5mm 7mm; font-size: 17pt; font-weight: 750; line-height: 1.32; letter-spacing: -.02em; color: var(--ink); }
+.bubble::after { content: ""; position: absolute; left: 12mm; bottom: -3.4mm; width: 6mm; height: 6mm; background: var(--paper); border-right: .6mm solid var(--ink); border-bottom: .6mm solid var(--ink); transform: rotate(45deg); }
+.bubble.big { font-size: 30pt; padding: 7mm 10mm; border-radius: 11mm; }
+.bubble.big::after { left: 50%; margin-left: -3mm; }
+.hero-frodo { display: grid; justify-items: center; gap: 8mm; }
+.hero-frodo img { width: 120mm; height: auto; }
+.say { display: flex; align-items: flex-end; gap: 4mm; margin-bottom: 6mm; }
+.say img { width: 34mm; height: auto; flex: none; }
+.say .bubble { margin-bottom: 18mm; }
+.say .bubble::after { left: -3.4mm; bottom: 6mm; border-right: 0; border-bottom: .6mm solid var(--ink); border-left: .6mm solid var(--ink); }
+.say.right .bubble::after { left: auto; right: -3.4mm; border-left: 0; border-right: .6mm solid var(--ink); }
+.say.small img { width: 26mm; }
+.say.small .bubble { font-size: 14pt; margin-bottom: 12mm; }
+.plain { margin-top: 6mm; font-size: 14pt; line-height: 1.6; color: var(--ink-2); max-width: 230mm; }
+.feat-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10mm; }
+.kicker { font-size: 17pt; font-weight: 780; letter-spacing: -.02em; margin-bottom: 4mm; }
 </style>
 </head>
 <body>
@@ -145,41 +163,30 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
   <p class="lede">작업 폴더마다 <b>방</b>이 하나 생겨요. 방은 캐릭터 <b>프로도</b>, 파일은 이름이 적힌 종이예요. <b>색은 파일 형식, 크기는 용량</b>이에요.</p>
 
   <figure class="hero">
-    <div class="onb">
-      <small>처음 켜면</small>
-      <h3>세 걸음이면<br>정리가 시작돼요.</h3>
-      <ol>
-        <li><b>1</b><div><h4>흩어진 파일</h4><p>다운로드 폴더에 쌓인 파일을 보여 줘요.</p></div></li>
-        <li><b>2</b><div><h4>방 만들기</h4><p>작업 폴더를 골라 방으로 만들어요.</p></div></li>
-        <li><b>3</b><div><h4>작업 시작</h4><p>새 파일은 알아서 그 방으로 가요.</p></div></li>
-      </ol>
-      <div class="go"><span>정리 시작</span><div class="dots"><i class="on"></i><i></i><i></i></div></div>
+    <div class="hero-frodo">
+      <div class="bubble big">새 파일은 내가<br>제자리로 옮겨 둘게.</div>
+      <img src="assets/frodo-pose-3.png" alt="팔을 들고 반기는 프로도">
     </div>
-    <div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct</span><b></b></div><img src="assets/intro.png" alt="첫 실행 화면: 흩어진 파일 오브제 가운데 선 프로도"></div>
+    <div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct</span><b></b></div><img src="assets/intro.png" alt="흩어진 파일 가운데 선 프로도, 첫 화면"></div>
   </figure>
   <div class="ribbon"><i style="background:var(--img)"></i><i style="background:var(--txt)"></i><i style="background:var(--vid)"></i><i style="background:var(--pdf)"></i><i style="background:var(--sld)"></i><i style="background:var(--tbl)"></i><i style="background:var(--aud)"></i><i style="background:var(--dsn)"></i><i style="background:var(--zip)"></i><i style="background:var(--etc)"></i></div>
 
   <section class="sec row1">
     <div>
-      <div class="label"><b>01</b>문제</div>
-      <h2>다운로드 폴더는 늘 넘치고,<br>정리는 늘 다음으로 밀려요.</h2>
-      <div class="pain">
-        <div><span>①</span>받은 파일이 어느 작업 것인지 금방 잊혀요.</div>
-        <div><span>②</span>Finder는 언제 정리할지 알려 주지 않아요.</div>
-        <div><span>③</span>자동 정리 앱은 지울까 봐 맡기기 어려워요.</div>
-      </div>
+      <div class="say"><img src="assets/frodo-pose-9.png" alt=""><div class="bubble">다운로드 폴더,<br>또 꽉 찼지?</div></div>
+      <h2>받은 파일은 쌓이고,<br>정리는 늘 다음으로 밀려요.</h2>
+      <p class="plain">어느 작업 파일인지 금방 잊혀요. Finder는 언제 치울지 알려 주지 않고, 자동 정리 앱은 지울까 봐 맡기기 어려워요.</p>
       <div class="answer">
         <h3>Folduct는 지우지 않고, 옮기기만 해요.</h3>
-        <p>새 파일은 작업 중인 방으로, 안 쓴 파일은 정리 상자로. 모두 되돌릴 수 있어요.</p>
+        <p>새 파일은 작업 중인 방으로, 안 쓴 파일은 정리 상자로. 언제든 되돌릴 수 있어요.</p>
       </div>
     </div>
 
     <div>
-      <div class="label"><b>02</b>컨셉</div>
       <div class="grammar">
-        <img src="assets/frodo.png" alt="샘플 방을 먹고 몸이 길어진 프로도">
+        <img src="assets/frodo.png" alt="방을 먹고 몸이 길어진 프로도">
         <div>
-          <h3>방 하나 = 프로도 한 명</h3>
+          <h3>방 하나에 프로도 하나</h3>
           <div class="rules">
             <div><b>몸 길이</b><span>방 용량</span></div>
             <div><b>주름 색</b><span>파일 형식</span></div>
@@ -195,28 +202,23 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
   </section>
 
   <section class="sec">
-    <div class="label"><b>03</b>핵심 기능</div>
-    <h2>먹이고, 옮기고, 한 주에 한 번 치워요.</h2>
-    <div class="feat">
-      <div><div class="shot"><span class="step-n">1</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — 홈</span><b></b></div><img src="assets/home.png" alt="홈 화면"></div></div>
-        <div class="f-cap"><div class="dots"><i class="on"></i><i></i><i></i></div><h4>프로도에게 먹이기</h4><p>방을 먹이면 몸이 늘고, 그 방 파일을 보여 줘요.</p></div></div>
-      <div><div class="shot"><span class="step-n">2</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — 주간 정리</span><b></b></div><img src="assets/sweep.png" alt="주간 정리 창" style="object-position:50% 30%"></div></div>
-        <div class="f-cap"><div class="dots"><i></i><i class="on"></i><i></i></div><h4>주간 정리</h4><p>일주일에 한 번, 안 쓴 파일을 정리 상자로 옮겨요.</p></div></div>
-      <div><div class="shot"><span class="step-n">3</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — Drawer</span><b></b></div><img src="assets/drawer.png" alt="형식별 서랍장"></div></div>
-        <div class="f-cap"><div class="dots"><i></i><i></i><i class="on"></i></div><h4>서랍장</h4><p>모든 방의 파일을 형식별로 모아 봐요.</p></div></div>
+    <div class="feat-head">
+      <h2>먹이고, 옮기고,<br>가끔 같이 치워요.</h2>
+      <div class="say right"><div class="bubble">방 카드를 주면<br>내가 먹고 보여 줄게.</div><img src="assets/frodo-pose-16.png" alt=""></div>
     </div>
-    <div class="flow">
-      <div><small>STEP 1</small><h4>방 만들기</h4><p>폴더 이름으로 찾아 골라요.</p></div>
-      <div><small>STEP 2</small><h4>작업 시작</h4><p>시작하면 시간이 쌓여요.</p></div>
-      <div><small>STEP 3</small><h4>자동 이동</h4><p>작업 중 받은 파일은 그 방으로 가요.</p></div>
-      <div><small>STEP 4</small><h4>방 캔버스</h4><p>필요한 파일만 꺼내 놓아요.</p></div>
-      <div><small>STEP 5</small><h4>아이콘 그리기</h4><p>형식 아이콘을 직접 그려요.</p></div>
+    <div class="feat">
+      <div><div class="shot"><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>홈</span><b></b></div><img src="assets/home.png" alt="홈 화면"></div></div>
+        <div class="f-cap"><h4>프로도에게 먹이기</h4><p>방을 먹이면 몸이 늘고, 그 방 파일을 보여 줘요.</p></div></div>
+      <div><div class="shot"><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Review</span><b></b></div><img src="assets/sweep.png" alt="Review 창" style="object-position:50% 30%"></div></div>
+        <div class="f-cap"><h4>Review</h4><p>안 쓴 파일을 골라 정리 상자로 옮겨요.</p></div></div>
+      <div><div class="shot"><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Drawer</span><b></b></div><img src="assets/drawer.png" alt="형식별 서랍장"></div></div>
+        <div class="f-cap"><h4>서랍장</h4><p>모든 방의 파일을 형식별로 모아 봐요.</p></div></div>
     </div>
   </section>
 
   <section class="sec bottom">
     <div class="safe">
-      <div class="label"><b>04</b>안전</div>
+      <h3 class="kicker">파일은 안전해요</h3>
       <ul>
         <li><b>지우지 않아요.</b> 휴지통도 확인한 파일만 보내요.</li>
         <li><b>되돌릴 수 있어요.</b> 옮긴 파일은 언제든 제자리로.</li>
@@ -225,17 +227,17 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
       </ul>
     </div>
     <div>
-      <div class="label"><b>05</b>만든 방법</div>
+      <h3 class="kicker">혼자 만들었어요</h3>
       <div class="nums">
         <div><strong>411</strong><span>테스트</span></div>
         <div><strong>236</strong><span>커밋</span></div>
         <div><strong>19.5k</strong><span>TypeScript 줄</span></div>
         <div><strong>1.6k</strong><span>Rust 줄</span></div>
       </div>
-      <p class="stackline"><b>React · TypeScript · Tauri</b><br>캐릭터는 코드로 그렸어요.</p>
+      <p class="stackline"><b>React · TypeScript · Tauri</b><br>프로도도 코드로 그렸어요.</p>
     </div>
     <div class="next">
-      <div class="label"><b>06</b>다음 목표</div>
+      <div class="say small"><img src="assets/frodo-pose-7.png" alt=""><div class="bubble">다음엔 팀 폴더도<br>같이 볼래.</div></div>
       <ul>
         <li><b>정식 출시</b> 누구나 설치해서 쓰게.</li>
         <li><b>팀 공유</b> 팀원과 폴더를 함께 보기.</li>
