@@ -247,11 +247,11 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
 
   <footer class="foot">
     <div class="qr" id="qr"></div>
-    <div class="msg">브라우저에서 써 보세요.<small>folduct.vercel.app</small></div>
+    <div class="msg">맥 앱을 내려받아 써 보세요.<small>folduct.vercel.app/download</small></div>
   </footer>
 </main>
 <script>
-  try { const q = qrcode(0, "M"); q.addData("https://folduct.vercel.app"); q.make(); document.getElementById("qr").innerHTML = q.createSvgTag({ margin: 0, scalable: true }); } catch (e) {}
+  try { const q = qrcode(0, "M"); q.addData("https://folduct.vercel.app/download"); q.make(); document.getElementById("qr").innerHTML = q.createSvgTag({ margin: 0, scalable: true }); } catch (e) {}
   // 화면에서는 창 폭에 맞춰 줄이고, 인쇄할 때는 실제 A1 크기로 되돌려요.
   const poster = document.querySelector(".poster");
   const fit = () => { poster.style.zoom = Math.min(1, (innerWidth - 32) / poster.offsetWidth); };
