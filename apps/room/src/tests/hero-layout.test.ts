@@ -17,7 +17,7 @@ function room(id: string, things: Thing[], patch: Partial<Room> = {}): Room {
 const many = (rooms: number, files: number) =>
   Array.from({ length: rooms }, (_, r) => room(`room-${r}`, Array.from({ length: files }, (_, f) => thing(`r${r}-f${f}`, { size: 1024 * 2 ** ((f * 7 + r * 3) % 20), touchedAt: start - ((f * 5 + r) % 17) * dayMs }))));
 const aspect = () => 1.2;
-const views: View[] = [{ w: 1280, h: 840 }, { w: 375, h: 812 }, { w: 720, h: 520 }, { w: 720, h: 900 }, { w: 1920, h: 1080 }, { w: 1280, h: 600 }, { w: 320, h: 568 }];
+const views: View[] = [{ w: 1280, h: 840 }, { w: 375, h: 812 }, { w: 720, h: 520 }, { w: 720, h: 900 }, { w: 1920, h: 1080 }, { w: 1280, h: 600 }, { w: 320, h: 568 }, { w: 1264, h: 1000, stack: true, pane: true }];
 
 const boxOf = (card: Card, view: View): Box => {
   const at = toPx(card, view);
@@ -57,7 +57,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
       for (const fed of [small, mid, huge]) {
         expect(fed.scale, label).toBe(hungry.scale);
         expect(fed.left, label).toBe(hungry.left);
-        if (view.w >= 1000) expect(fed.top + fed.floor, label).toBeCloseTo(hungry.top + hungry.floor, 5);
+        if (view.w >= 1000 && !view.pane) expect(fed.top + fed.floor, label).toBeCloseTo(hungry.top + hungry.floor, 5);
         expect(fed.mouth.y, label).toBeLessThan(fed.floor);
       }
     }
@@ -181,6 +181,13 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     expect(heroLayout([], start, baseView, aspect)).toEqual({ shelf: null, rooms: [], frodo: null, cards: [], find: null });
   });
 
+  it("미리보기 창이 열려 판이 좁아지면 넓어도 파일 칸이 프로도 아래로 내려가요", () => {
+    const rooms = many(2, 30);
+    const wide = heroLayout(rooms, start, { w: 1264, h: 1000, stack: true }, aspect, false, rooms[0].id);
+    const pane = heroLayout(rooms, start, { w: 1264, h: 1000, stack: true, pane: true }, aspect, false, rooms[0].id);
+    expect(wide.find!.top).toBeLessThan(wide.frodo!.floor);
+    expect(pane.find!.top).toBeGreaterThan(pane.frodo!.floor);
+  });
   it("큰 파일일수록 큰 종이이고, 넓은 창에서는 이름이 찍히는 크기다", () => {
     const { cards } = heroLayout([room("a", Array.from({ length: 6 }, (_, f) => thing(`f${f}`, { size: 1024 * 8 ** f })))], start, baseView, aspect, false, "a");
     const bySize = [...cards].sort((a, b) => a.thing.size - b.thing.size);

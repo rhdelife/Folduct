@@ -83,7 +83,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
   const room = active.find((item) => item.id === selectedId);
-  const below = view.w < sideBySide;
+  // 미리보기 창이 열리면 파일 칸을 프로도 아래로 내려, 남은 폭을 다 쓰고 프로도 옆을 말풍선 자리로 비워요(2026-11-19 요청).
+  const below = view.w < sideBySide || Boolean(view.pane);
   const bottom = view.h - edge - bottomSpace(view);
   // 현관 줄은 왼쪽 아래 탭이 없는 좁은 창에서만 머리 아래에 펼쳐져요. 넓은 창에서는 '진행 중' 탭 안에 있어요.
   // lead: 방 카드 줄 위에 비워 둘 높이(분류 칩 줄).

@@ -28,7 +28,8 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 // 지도는 무대 전체를 씁니다. sky 좌표는 무대의 비율일 뿐이라 세로로 긴 폰에서도 위아래를 다 써요. 크기는 화면에서 나온 단위(1280에서 1)로 잽니다.
 // stack: 왼쪽 아래 작업 기록 카드가 실제로 보이는지. 카드는 창 크기로 보이는데(styles.css .home-stack), 미리보기 창이 열리면 판(w)만 좁아져서 따로 알려 줘요.
-export type View = { w: number; h: number; stack?: boolean };
+// pane: 오른쪽 미리보기 창이 열려 판이 좁아진 상태예요. 그때는 파일 칸을 프로도 아래에 둬요.
+export type View = { w: number; h: number; stack?: boolean; pane?: boolean };
 export const baseView: View = { w: 1280, h: 840 };
 export function stageUnit({ w, h }: View): number {
   return Math.max(w, lerp(0.9, 1, clamp((w - 480) / 544, 0, 1)) * h) / 1280;

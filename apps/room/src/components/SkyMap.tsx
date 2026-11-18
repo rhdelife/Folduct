@@ -150,8 +150,10 @@ export function SkyMap({
   const group = pickedGroup && groups.includes(pickedGroup) ? pickedGroup : null;
   const shown = useMemo(() => (group ? rooms.filter((room) => room.group === group) : rooms), [rooms, group]);
   const chipRow = groups.length > 0 ? parseFloat(cssToken("--control-sm")) + parseFloat(cssToken("--space-2")) : 0;
+  // 미리보기 창이 판을 실제로 좁히는 넓은 창(styles.css .sky-canvas.pane-open, 1200 이상)에서만 좁은 배치를 써요. 더 좁은 창은 창이 판 위에 떠요. 창 크기가 바뀌면 view가 바뀌어 다시 읽어요.
+  const narrowed = paneOpen && view.w > 0 && window.matchMedia("(min-width: 1200px)").matches;
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, view, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, view, doorOpen, filter, chipRow]);
+  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, narrowed ? { ...view, pane: true } : view, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, view, narrowed, doorOpen, filter, chipRow]);
   useLayoutEffect(closeTip, [closeTip, selectedId, query, label, view]);
   const pickGroup = (next: string | null) => {
     setPickedGroup(next);
@@ -243,7 +245,13 @@ export function SkyMap({
           onCloseTip={closeTip}
         />
         {frodo && overFrodo && !bubbleShut && (
-          <div className="over-frodo" style={{ left: frodo.left + frodo.width / 2, top: frodo.top }}>
+          // 미리보기 창이 열리면 말풍선을 머리 위(방 카드 줄과 겹침)가 아니라 머리 오른쪽 옆에 띄워요. 파일 칸은 그때 프로도 아래예요.
+          <div
+            className={`over-frodo${narrowed && selectedId ? " beside" : ""}`}
+            style={narrowed && selectedId
+              ? { left: frodo.left + frodo.width * 0.72, top: frodo.top, maxWidth: Math.max(160, view.w - (frodo.left + frodo.width * 0.72) - 16) }
+              : { left: frodo.left + frodo.width / 2, top: frodo.top }}
+          >
             {overFrodo}
             <button type="button" className="quiet icon-close bubble-close" aria-label="말풍선 닫기" onClick={() => setBubbleShut(true)}><Icon name="close" /></button>
           </div>

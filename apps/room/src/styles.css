@@ -852,6 +852,9 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .over-frodo { position: absolute; z-index: 3; translate: -50% calc(-100% - var(--space-3)); width: max-content; max-width: min(calc(100vw - 2 * var(--gutter)), calc(var(--space-12) * 9)); transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
 .room-bubble { display: grid; gap: var(--space-1); text-align: left; }
 .over-frodo .frodo-bubble { padding-right: var(--space-8); }
+/* 미리보기 창이 열린 동안: 머리 오른쪽 옆에 띄우고 꼬리를 왼쪽 위에 둬요. */
+.over-frodo.beside { translate: 0 0; width: max-content; }
+.over-frodo.beside .frodo-bubble::after { left: 0; top: var(--space-6); }
 .home button.frodo-face-hit, .home button.frodo-face-hit:is(:hover, :active):not(:disabled) { background: none; }
 .over-frodo button.bubble-close { position: absolute; top: var(--space-1); right: var(--space-1); min-width: var(--control-md); min-height: var(--control-md); }
 .frodo-face-hit { position: absolute; z-index: 2; translate: -50% 0; padding: 0; border: 0; border-radius: var(--radius-pill); cursor: pointer; transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
