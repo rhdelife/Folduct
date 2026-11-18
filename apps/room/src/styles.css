@@ -535,6 +535,10 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-cover { display: block; flex: none; width: var(--shelf-cover); rotate: -4deg; pointer-events: none; transition: scale var(--dur-2) var(--ease-standard), filter var(--dur-2) var(--ease-standard); }
 .room-cover .object { display: block; width: 100%; height: auto; }
 /* 주름관 그림의 색. 받침은 고른 방 색, 들고 있는 종이는 파일 형식 색이고 없으면 흰색이에요. */
+/* 프로도 몸 조각의 칠. 클래스 이름은 RoomFace.tsx Piece가 duct-${tone}으로 조립해요(검색에 안 걸려도 지우지 마세요). */
+.duct-ink { fill: var(--ink); }
+.duct-white { fill: var(--surface); }
+.duct-solid { fill: var(--duct-foot, var(--ink)); }
 .duct-foot { fill: var(--duct-foot, var(--surface)); }
 .duct-paper { fill: var(--duct-paper, var(--surface)); }
 .duct-rib { transform-box: fill-box; transform-origin: center; animation: duct-pass 2200ms ease-in-out infinite; animation-delay: calc(var(--rib) * 110ms); }
