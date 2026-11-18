@@ -697,6 +697,10 @@ dialog.sheet::backdrop { background: var(--sheet-backdrop); -webkit-backdrop-fil
 .room-finder-name small { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); }
 .room-finder-meta { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--ink-soft); white-space: nowrap; }
 .room-finder-finder { margin-right: auto; }
+/* 맥 앱 베타 내려받기 창. */
+.mac-download { width: min(100%, calc(var(--space-12) * 10)); }
+.mac-download-get { justify-self: start; text-decoration: none; }
+.mac-download-steps { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .sweep-room ul, .sweep-results { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .sweep-room label { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
 .sweep-room .name { font-weight: 700; overflow-wrap: anywhere; }

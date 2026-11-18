@@ -13,6 +13,7 @@ import { cue } from "../components/useFrodo";
 import { HomeMenu } from "../components/HomeMenu";
 import { HomeRoomsDialog } from "../components/HomeRoomsDialog";
 import { SettingsDialog } from "../components/SettingsDialog";
+import { MacDownloadDialog } from "../components/MacDownloadDialog";
 import { KindIconMaker } from "../components/KindIconMaker";
 import { SweepDialog } from "../components/SweepDialog";
 import { useToast } from "../components/Toast";
@@ -73,6 +74,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const [iconsMode, setIconsMode] = useState<"make" | "archive">("make");
   // 작업 보고 창. true면 지금 기간, Period면 그 기간으로 열어요.
   const [reportOpen, setReportOpen] = useState<Period | true | null>(null);
+  const [macOpen, setMacOpen] = useState(false);
   const reportBusy = useRef(false);
   const reportTried = useRef("");
   const [importing, setImporting] = useState(false);
@@ -641,10 +643,13 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
               ) : (
                 <button type="button" className="quiet" onClick={fromMenu(actions.addSample)}>샘플 방 구경하기</button>
               )}
+              {/* 웹에서만: 맥 앱 베타 내려받기. */}
+              {!isNative() && <button type="button" className="quiet" onClick={fromMenu(() => setMacOpen(true))}>맥 앱 내려받기 (베타)</button>}
             </>
           }
         />
       )}
+      {macOpen && <MacDownloadDialog onClose={() => setMacOpen(false)} />}
       {reportOpen && rooms && <WorkReportDialog rooms={rooms} now={now} start={reportOpen === true ? undefined : reportOpen} onClose={() => setReportOpen(null)} />}
       {settingsOpen && <SettingsDialog doorstep={door} onDoorstep={setDoor} onClose={() => setSettingsOpen(false)} onError={toast} />}
       {creating && (
