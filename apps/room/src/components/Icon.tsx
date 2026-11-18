@@ -1,4 +1,4 @@
-import { drawBrandFace, makePen, type DuctPiece } from "../art/duct";
+import { makePen, type DuctPiece } from "../art/duct";
 import { poly, ring } from "../art/paperArts";
 
 export type IconName = "sweep" | "import" | "pin" | "settings" | "close" | "trash" | "chevron" | "work" | "pause" | "play";
@@ -28,17 +28,7 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   );
 }
 
-// 프로도 얼굴 로고(design/logo/folduct-symbol.svg, scripts/make-logo.mjs). 흰 판 가운데에 방 그림과 같은 펜으로 그린 얼굴 하나예요.
-// 색은 흰 판(--surface)과 로고 전용 --brand 둘뿐이에요. size는 높이예요.
-const face = drawBrandFace();
+// 웹 로고는 데스크톱 앱 아이콘과 같은 입체 프로도 얼굴(design/logo/app-icon.png → public/app-icon.png, 2026-11-18 요청)이에요. size는 높이예요.
 export function BrandMark({ size }: { size: number }) {
-  return (
-    <svg className="mark" viewBox="100 100 824 824" width={size} height={size} aria-hidden="true" focusable="false">
-      <rect x="100" y="100" width="824" height="824" rx="185" fill="var(--surface)" />
-      <svg x="100" y="100" width="824" height="824" viewBox={face.viewBox}>
-        {face.items.map((item, i) => "d" in item && <path key={i} d={item.d} fill={item.tone === "ink" ? "var(--brand)" : "var(--surface)"} fillRule={item.even ? "evenodd" : undefined} />)}
-      </svg>
-      <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="var(--line-strong)" strokeWidth={8} />
-    </svg>
-  );
+  return <img className="mark" src="/app-icon.png" width={size} height={size} alt="" />;
 }
