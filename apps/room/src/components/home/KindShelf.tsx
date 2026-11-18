@@ -282,7 +282,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             ))}
           </div>
           <button type="button" className="quiet kind-shelves-add" aria-label="새 서랍장 만들기" title="새 서랍장 만들기" onClick={() => setEditing("new")}>+</button>
-          {mode !== "hue" && <button type="button" className="quiet" title="서랍장 고치기" onClick={() => setEditing("edit")}>Edit</button>}
+          {/* 컬러별엔 고칠 게 없지만 자리는 남겨, 보기를 바꿔도 이 줄이 옆으로 밀리지 않게 해요. */}
+          <button type="button" className={`quiet${mode === "hue" ? " kind-shelves-keep" : ""}`} title="서랍장 고치기" disabled={mode === "hue"} aria-hidden={mode === "hue" || undefined} onClick={() => setEditing("edit")}>Edit</button>
         </div>
         {mode !== "hue" && shelves.length === 0 && <p className="kind-shelves-note">이 서랍장에 보일 파일이 없어요. ‘Edit’에서 서랍에 형식을 골라 주세요.</p>}
         {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}

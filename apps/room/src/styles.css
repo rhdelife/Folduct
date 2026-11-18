@@ -1784,6 +1784,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-shelves-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .kind-shelves-tools > button { min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
 .kind-shelves-tools > .kind-shelves-add { min-width: var(--control-sm); padding: 0; border-radius: var(--radius-pill); font-size: var(--text-md); }
+.kind-shelves-tools > .kind-shelves-keep { visibility: hidden; }
 /* 서랍장 편집: 머리(이름)·아래 줄(저장)은 붙어 있고 가운데 서랍 목록만 스크롤해요. 서랍은 한 줄씩, 하나만 펼쳐요. */
 .shelf-editor .sheet-body { grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; padding: 0; overflow: hidden; }
 .shelf-editor-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3) var(--space-6); }
