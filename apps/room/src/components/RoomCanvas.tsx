@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ObjectShape } from "../art/ObjectShape";
 import { canvasHeight, canvasScale, canvasWidth, clampItem, fileKey, folderKey, folderThings, itemBase, keyFolder, keyThing, listAt, nextSpot, type FolderEntry } from "../domain/canvas";
 import { laneOf } from "../domain/care";
@@ -17,6 +17,8 @@ const found = 60;
 const boardFloor = 0.6;
 
 // 폴더를 누르면 그 아래에 안의 파일을 펼쳐요. 한 줄 칸 수·종이 크기·최대 장수(판 단위)예요.
+// 꺼내기 카드 종이 크기(판 단위와 같은 px).
+const pickPaper = 72;
 const spreadCols = 4;
 const spreadPaper = itemBase * 0.7;
 const spreadGap = 16;
@@ -123,7 +125,7 @@ export function RoomCanvas({ room, folder, now, selectedId, onSelect, onOpen, on
         <p id="room-canvas-hint" className="sr-only">끌어서 옮기고 모서리로 크기를 바꿔요. 화살표로 옮기고 +·−로 크기, Delete로 판에서 빼요. 실제 파일은 그대로예요.</p>
         <button type="button" className={picker ? "quiet" : "primary"} aria-expanded={picker !== null} aria-controls="room-pick" onClick={() => setPicker(picker ? null : { dir: "" })}>{picker ? "꺼내기 닫기" : "꺼내기"}</button>
       </div>
-      {picker && <Picker room={room} now={now} dir={picker.dir} onDir={(dir) => setPicker({ dir })} onBoard={onBoard} onAdd={add} />}
+      {picker && <Picker room={room} folder={folder} now={now} selectedId={selectedId} onSelect={onSelect} dir={picker.dir} onDir={(dir) => setPicker({ dir })} onBoard={onBoard} onAdd={add} />}
       <div ref={board} className="room-canvas-board" style={{ height: height * scale }}>
         {shown.length === 0 && (
           <p className="room-canvas-empty">
@@ -218,7 +220,7 @@ function CanvasPaper({ thing, folder, px }: { thing: Thing; folder: Folder | nul
 }
 
 // 폴더: 안의 큰 파일 세 장을 겹쳐 쌓고 맨 위 종이에 폴더 이름을 찍어요.
-function CanvasFolder({ things, name, px }: { things: Thing[]; name: string; px: number }) {
+function CanvasFolder({ things, name, px, bare = false }: { things: Thing[]; name: string; px: number; bare?: boolean }) {
   const [top, ...under] = [...things].sort((a, b) => b.size - a.size).slice(0, 3);
   const size = things.reduce((sum, thing) => sum + thing.size, 0);
   return (
@@ -229,7 +231,7 @@ function CanvasFolder({ things, name, px }: { things: Thing[]; name: string; px:
         ))}
         <ObjectShape kind={top.kind} size={px} name={name} seed={top.id} />
       </span>
-      <span className="lane-meta"><b>{things.length.toLocaleString("ko-KR")}개</b>{formatBytes(size)}</span>
+      {!bare && <span className="lane-meta"><b>{things.length.toLocaleString("ko-KR")}개</b>{formatBytes(size)}</span>}
     </span>
   );
 }
@@ -276,15 +278,15 @@ function SpreadPaper({ thing, folder, px }: { thing: Thing; folder: Folder | nul
 }
 
 // 꺼내기 목록: 방 폴더를 들어가며 보는 작은 탐색기예요. 맨 위에서는 새로 온 파일을 먼저 보여 줘요. 찾으면 방 전체에서 이름·경로로 찾아요.
-function Picker({ room, now, dir, onDir, onBoard, onAdd }: { room: Room; now: number; dir: string; onDir: (dir: string) => void; onBoard: Set<string>; onAdd: (key: string) => void }) {
+function Picker({ room, folder, now, selectedId, onSelect, dir, onDir, onBoard, onAdd }: { room: Room; folder: Folder | null; now: number; selectedId: string | null; onSelect: (id: string) => void; dir: string; onDir: (dir: string) => void; onBoard: Set<string>; onAdd: (key: string) => void }) {
   const [query, setQuery] = useState("");
   const { folders, files } = useMemo(() => listAt(room.things, dir), [room.things, dir]);
   const fresh = useMemo(() => (dir ? [] : room.things.filter((thing) => !thing.box && laneOf(thing, room, now) === "new").sort((a, b) => b.seenAt - a.seenAt).slice(0, 12)), [room, now, dir]);
   const words = query.trim().toLowerCase();
   const hits = words ? room.things.filter((thing) => !thing.box && thing.path.toLowerCase().includes(words)).slice(0, found) : [];
   const parent = dir.includes("/") ? dir.slice(0, dir.lastIndexOf("/")) : "";
-  const fileRow = (thing: Thing) => <PickRow key={thing.id} name={thing.name} meta={[kindLabels[thing.kind], formatBytes(thing.size), thing.path.includes("/") && words ? thing.path.slice(0, thing.path.lastIndexOf("/")) : null]} placed={onBoard.has(fileKey(thing.id))} onAdd={() => onAdd(fileKey(thing.id))} />;
-  const folderRow = (entry: FolderEntry) => <PickRow key={entry.path} folder name={entry.name} meta={[`${entry.things.length.toLocaleString("ko-KR")}개`, formatBytes(entry.size)]} placed={onBoard.has(folderKey(entry.path))} onAdd={() => onAdd(folderKey(entry.path))} onEnter={() => onDir(entry.path)} />;
+  const fileRow = (thing: Thing) => <PickRow key={thing.id} name={thing.name} art={<PickPaper thing={thing} folder={folder} />} meta={[kindLabels[thing.kind], formatBytes(thing.size), thing.path.includes("/") && words ? thing.path.slice(0, thing.path.lastIndexOf("/")) : null]} placed={onBoard.has(fileKey(thing.id))} selected={thing.id === selectedId} onPreview={() => onSelect(thing.id)} onAdd={() => onAdd(fileKey(thing.id))} />;
+  const folderRow = (entry: FolderEntry) => <PickRow key={entry.path} folder name={entry.name} art={<CanvasFolder things={entry.things} name={entry.name} px={pickPaper} bare />} meta={[`${entry.things.length.toLocaleString("ko-KR")}개`, formatBytes(entry.size)]} placed={onBoard.has(folderKey(entry.path))} onAdd={() => onAdd(folderKey(entry.path))} onEnter={() => onDir(entry.path)} />;
   return (
     <div className="room-pick" id="room-pick" role="region" aria-label="꺼내기">
       <div className="room-pick-head">
@@ -328,15 +330,27 @@ function Picker({ room, now, dir, onDir, onBoard, onAdd }: { room: Room; now: nu
   );
 }
 
-function PickRow({ name, meta, placed, folder = false, onAdd, onEnter }: { name: string; meta: (string | null)[]; placed: boolean; folder?: boolean; onAdd: () => void; onEnter?: () => void }) {
+// 꺼내기 카드: 위에 종이 그림(썸네일이 있으면 그것), 아래에 이름·형식·용량과 놓기.
+// 파일 그림을 누르면 판 위 파일처럼 서랍에 미리보기를 띄워, 보고 나서 놓을지 정해요. 폴더 그림을 누르면 안으로 들어가요.
+function PickRow({ name, art, meta, placed, selected = false, folder = false, onAdd, onEnter, onPreview }: { name: string; art: ReactNode; meta: (string | null)[]; placed: boolean; selected?: boolean; folder?: boolean; onAdd: () => void; onEnter?: () => void; onPreview?: () => void }) {
   return (
-    <li className="room-pick-row">
-      {onEnter ? (
-        <button type="button" className="quiet room-pick-name" onClick={onEnter} aria-label={`${name} 폴더 안 보기`}><b>{name}/</b><Meta items={meta} /></button>
-      ) : (
-        <span className="room-pick-name" title={name}><b>{name}</b><Meta items={meta} /></span>
-      )}
-      <button type="button" disabled={placed} onClick={onAdd} aria-label={placed ? `${name} 판에 있어요` : `${name}${folder ? " 폴더" : ""} 판에 놓기`}>{placed ? "판에 있음" : "놓기"}</button>
+    <li className={`room-pick-card${placed ? " placed" : ""}${selected ? " selected" : ""}`}>
+      <button type="button" className="room-pick-art" onClick={onEnter ?? onPreview} aria-pressed={onEnter ? undefined : selected} aria-label={onEnter ? `${name} 폴더 안 보기` : `${name} 미리보기`} title={name}>
+        {art}
+      </button>
+      <span className="room-pick-name" title={name}><b>{name}{folder ? "/" : ""}</b><Meta items={meta} /></span>
+      <button type="button" className="room-pick-add" disabled={placed} onClick={onAdd} aria-label={placed ? `${name} 판에 있어요` : `${name}${folder ? " 폴더" : ""} 판에 놓기`}>{placed ? "판에 있음" : "놓기"}</button>
     </li>
+  );
+}
+
+function PickPaper({ thing, folder }: { thing: Thing; folder: Folder | null }) {
+  const self = useRef<HTMLSpanElement>(null);
+  const own = usePicture(thing.id);
+  const thumb = useThumb(self, own ? null : folder, thing);
+  return (
+    <span ref={self} className={`canvas-art${thing.missing ? " missing" : ""}`}>
+      <ObjectShape kind={thing.kind} size={pickPaper} name={thing.name} seed={thing.id} picture={own ?? thumb} />
+    </span>
   );
 }
