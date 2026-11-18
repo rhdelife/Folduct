@@ -102,7 +102,7 @@ const wave = (t: number, k: number, seed: number) => Math.sin(2 * Math.PI * k * 
 
 // 펜 하나. 그을 때마다 다음 씨앗을 써서 선마다 다르게, 그러나 언제나 같게 흔들립니다. 파일 종이(ObjectShape)도 같은 펜으로 그려요.
 // step은 선을 따라 점을 찍는 간격이에요. 작게 그리는 종이는 화면 1px보다 촘촘한 점이 보이지 않으니 넓게 찍어요.
-export function makePen(start: number, step = 2.6) {
+export function makePen(start: number, step = 2.6, roughness = 1) {
   let count = start;
   return (d: string, w: number, tone: DuctTone = "ink"): DuctPiece[] =>
     flatten(d).map(({ pts, closed }) => {
@@ -123,8 +123,8 @@ export function makePen(start: number, step = 2.6) {
         const nx = -dy / m;
         const ny = dx / m;
         const t = i / (closed ? n : n - 1);
-        const shift = wave(t, k1, seed) * 0.5;
-        let half = (w / 2) * (1 + wave(t, k2, seed + 11) * 0.26);
+        const shift = wave(t, k1, seed) * 0.5 * roughness;
+        let half = (w / 2) * (1 + wave(t, k2, seed + 11) * 0.26 * roughness);
         if (!closed) half *= Math.min(1, 0.42 + (Math.min(t, 1 - t) * total) / 5);
         L.push([p[0] + nx * (shift + half), p[1] + ny * (shift + half)]);
         R.push([p[0] + nx * (shift - half), p[1] + ny * (shift - half)]);
@@ -136,6 +136,30 @@ export function makePen(start: number, step = 2.6) {
 const oval = ([x, y, rx, ry]: readonly number[]) => `M${x - rx} ${y}C${x - rx} ${y - ry * 1.32} ${x + rx} ${y - ry * 1.32} ${x + rx} ${y}C${x + rx} ${y + ry * 1.32} ${x - rx} ${y + ry * 1.32} ${x - rx} ${y}Z`;
 const poly = (pts: Pt[]) => `M${pts.map((p) => `${f1(p[0])} ${f1(p[1])}`).join("L")}Z`;
 const open = (pts: Pt[]) => `M${pts.map((p) => `${f1(p[0])} ${f1(p[1])}`).join("L")}`;
+
+function collar([x, y, rx, ry]: Spec["head"]): string {
+  const pt = (dx: number, dy: number) => `${f1(x + dx * rx)} ${f1(y + dy * ry)}`;
+  return `M${pt(-1, 0.03)}C${pt(-1, -0.53)} ${pt(-0.53, -1)} ${pt(0.03, -1)}`
+    + `C${pt(0.6, -1)} ${pt(1, -0.58)} ${pt(1, -0.04)}`
+    + `C${pt(1, 0.53)} ${pt(0.54, 1)} ${pt(-0.06, 1)}`
+    + `C${pt(-0.63, 1)} ${pt(-1, 0.59)} ${pt(-1, 0.03)}Z`;
+}
+
+function footAt(x: number): string {
+  return `M${x - 19} 106L${x + 17} 106`
+    + `C${x + 20} 106 ${x + 21} 107 ${x + 22} 109L${x + 23} 111`
+    + `C${x + 24} 113 ${x + 22} 114 ${x + 20} 114L${x - 22} 114`
+    + `C${x - 24} 114 ${x - 26} 113 ${x - 25} 111L${x - 24} 109`
+    + `C${x - 23} 107 ${x - 22} 106 ${x - 19} 106Z`;
+}
+
+// 주름선을 받침 쪽으로 살짝 휘어 관의 둥근 단면을 보여 줘요.
+function ribSeam([lx, ly]: Pt, [rx, ry]: Pt): string {
+  const dx = rx - lx;
+  const dy = ry - ly;
+  const control = (t: number) => `${f1(lx + dx * t + dy * 0.08)} ${f1(ly + dy * t - dx * 0.08)}`;
+  return `M${f1(lx)} ${f1(ly)}C${control(1 / 3)} ${control(2 / 3)} ${f1(rx)} ${f1(ry)}`;
+}
 
 const tilt = (-8 * Math.PI) / 180;
 function dot(x: number, y: number, r: number, tone: DuctTone = "ink"): DuctPiece {
@@ -156,7 +180,8 @@ function tube(spec: Spec) {
     const dy = b[1] - a[1];
     const m = Math.hypot(dx, dy) || 1;
     const swell = spec.bulge ? spec.bulge[1] * Math.exp(-(((i / (out.length - 1) - spec.bulge[0]) / 0.1) ** 2)) : 0;
-    const half = spec.width / 2 + spec.scallop * Math.abs(Math.sin((Math.PI * i) / spec.rib)) + swell;
+    const fold = Math.sin((Math.PI * i) / spec.rib) ** 2;
+    const half = spec.width / 2 + spec.scallop * fold + swell;
     // 꺾이는 안쪽은 굵기보다 반지름이 작으면 선이 되돌아가 엉킵니다. 되돌아가는 점은 앞 점에 붙여 접습니다.
     const unfold = (side: Pt[], point: Pt): Pt => {
       const last = side[side.length - 1];
@@ -180,17 +205,19 @@ function layerColorAt(layers: DuctLayer[], at: number): string | null {
 const armEnd = (d: string): Pt => (d.match(/-?\d*\.?\d+/g) ?? []).slice(-2).map(Number) as Pt;
 
 function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = false, flow = false }: { w: number; layers?: DuctLayer[]; moving?: boolean; seed?: number; live?: boolean; flow?: boolean }): DuctDrawing["items"] {
-  const pen = makePen(seed);
+  const pen = makePen(seed, 2.2, 0.48);
   const { L, R, body } = tube(spec);
+  const rim = collar(spec.head);
+  const shell = [{ d: rim, tone: "white" as const }, ...pen(rim, w * 0.9)];
   const items: DuctDrawing["items"] = [];
   // 팔은 관 뒤에서 나오고, 끝에 작은 손을 답니다.
   spec.arms.forEach((arm, at) => {
     const [x, y] = armEnd(arm);
-    const pieces = [...pen(arm, w), dot(x, y, Math.max(2.4, w * 0.8))];
+    const pieces = [...pen(arm, w * 0.78), dot(x, y, Math.max(2.1, w * 0.68))];
     if (live) items.push({ part: at === 0 ? "armL" : "armR", parts: pieces });
     else items.push(...pieces);
   });
-  items.push({ d: spec.foot, tone: "foot" }, ...pen(spec.foot, w));
+  items.push({ d: spec.foot, tone: "foot" }, ...pen(spec.foot, w * 0.83));
   const last = L.length - 1;
   if (moving) {
     // 주름 한 칸씩 부풀어 파일이 관을 지나가는 것처럼 보입니다.
@@ -200,7 +227,7 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = fal
       const right = R.slice(i, end + 1);
       const color = layerColorAt(layers, (i + end) / 2 / last);
       const fill = poly([...left, ...[...right].reverse()]);
-      items.push({ rib, parts: [color && layers.length ? { d: fill, tone: "layer", color } : { d: fill, tone: "white" }, ...pen(open(left), w), ...pen(open(right), w), ...pen(open([L[end], R[end]]), w * 0.62)] });
+      items.push({ rib, parts: [color && layers.length ? { d: fill, tone: "layer", color } : { d: fill, tone: "white" }, ...pen(open(left), w * 0.9), ...pen(open(right), w * 0.9), ...pen(open([L[end], R[end]]), w * 0.55)] });
     }
   } else {
     items.push({ d: body, tone: "white" });
@@ -215,17 +242,17 @@ function draw(spec: Spec, { w, layers = [], moving = false, seed = 1, live = fal
       if (to > from) items.push({ d: poly([...L.slice(from, Math.min(last, to + 1) + 1), ...R.slice(from, Math.min(last, to + 1) + 1).reverse()]), tone: "layer", color, i, n: layers.length });
       from = to;
     });
-    items.push(...pen(body, w));
-    for (let i = spec.rib; i < L.length - 2; i += spec.rib) items.push(...pen(open([L[i], R[i]]), w * 0.62));
+    items.push(...pen(body, w * 0.9));
+    for (let i = spec.rib; i < L.length - 2; i += spec.rib) items.push(...pen(ribSeam(L[i], R[i]), w * 0.55));
   }
   // 살아 있는 그림의 얼굴은 표정 시트가 맡습니다. 머리는 끄덕이고 갸웃하게 한 덩어리로 묶어요.
   if (live) {
-    items.push({ part: "head", parts: [{ d: oval(spec.head), tone: "white" }, ...pen(oval(spec.head), w), { face: spec.inner }] });
+    items.push({ part: "head", parts: [...shell, { face: spec.inner }] });
     for (const tick of spec.ticks ?? []) items.push(...pen(tick, w * 0.8));
     if (spec.paperAt) items.push(paperGroup(spec.paperAt, w, pen));
     return items;
   }
-  items.push({ d: oval(spec.head), tone: "white" }, ...pen(oval(spec.head), w), { d: oval(spec.inner), tone: "ink" });
+  items.push(...shell, { d: oval(spec.inner), tone: "ink" });
   const [a, b] = spec.eyes;
   const r = Math.max(3.4, w) * (spec.eyeScale ?? 1);
   if (spec.face === "happy") {
@@ -262,16 +289,16 @@ const boardBox = `${board.x} ${board.y} ${board.w} ${board.h}`;
 
 // ── 플로팅 창(메뉴 막대 작은 창)의 자세 7가지 ──
 // 2026-11-17: 한쪽으로 휘지 않고 받침 가운데(x 60)에서 위로 곧게 서요(요청: 방향을 띠며 휘는 게 별로라서). 자세는 팔·머리 높이·종이로만 달라요.
-const stand = { line: "M60 108C60 90 60 70 60 50", width: 34, rib: 6, scallop: 2.2, head: [60, 36, 29, 25], inner: [60, 36, 22, 18], eyes: [[50, 35], [71, 34]], foot: "M36 106L82 106L84 114L34 114Z" } as const;
+const stand = { line: "M60 108C60 90 60 70 60 50", width: 34, rib: 6, scallop: 2.2, head: [60, 36, 29, 25], inner: [60, 36, 22, 18], eyes: [[50, 35], [71, 34]], foot: footAt(60) } as const;
 const leftArm = "M46 82C38 82 32 86 29 93";
 const poses: Record<DuctPose, Spec> = {
   idle: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[50, 35], [71, 34]], arms: [leftArm, "M74 80C82 79 89 82 94 89"] },
   watch: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[55, 35], [76, 34]], arms: [leftArm, "M74 80C82 79 89 82 94 89"] },
   offer: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[52, 35], [73, 34]], arms: [leftArm, "M74 80C84 81 94 82 102 80"], paperAt: [112, 78, 10] },
   move: { ...stand, head: [...stand.head], inner: [...stand.inner], eyes: [[50, 34], [71, 33]], arms: [leftArm, "M74 80C86 78 96 72 102 64"], paperAt: [104, 54, -6] },
-  done: { ...stand, line: "M60 108C60 90 60 66 60 44", head: [60, 30, 29, 25], inner: [60, 30, 22, 18], eyes: [[50, 30], [71, 29]], face: "happy", foot: "M36 106L82 106L84 114L34 114Z", ticks: ["M20 14L12 8", "M102 12L110 5"], arms: ["M47 78C36 72 30 62 28 50", "M78 76C90 70 98 60 100 48"] },
+  done: { ...stand, line: "M60 108C60 90 60 66 60 44", head: [60, 30, 29, 25], inner: [60, 30, 22, 18], eyes: [[50, 30], [71, 29]], face: "happy", foot: footAt(60), ticks: ["M20 14L12 8", "M102 12L110 5"], arms: ["M47 78C36 72 30 62 28 50", "M78 76C90 70 98 60 100 48"] },
   rest: { ...stand, line: "M60 108C60 102 60 96 60 90", rib: 3, head: [60, 78, 29, 24], inner: [60, 78, 22, 17], eyes: [[50, 78], [71, 77]], face: "closed", arms: ["M46 100C40 100 34 102 30 107", "M74 100C80 100 86 102 90 107"] },
-  shock: { ...stand, line: "M60 108C60 90 60 66 60 46", head: [60, 32, 27, 23], inner: [60, 32, 20, 16], eyes: [[52, 31], [69, 30]], face: "wide", foot: "M36 106L82 106L84 114L34 114Z", arms: ["M44 76C34 70 26 62 20 62", "M76 78C88 72 98 62 104 50"], ticks: ["M92 18L100 12", "M96 34L106 32"] },
+  shock: { ...stand, line: "M60 108C60 90 60 66 60 46", head: [60, 32, 27, 23], inner: [60, 32, 20, 16], eyes: [[52, 31], [69, 30]], face: "wide", foot: footAt(60), arms: ["M44 76C34 70 26 62 20 62", "M76 78C88 72 98 62 104 50"], ticks: ["M92 18L100 12", "M96 34L106 32"] },
 };
 
 export function drawPose(pose: DuctPose, { px, layers, live, flow }: { px: number; layers?: DuctLayer[]; live?: boolean; flow?: boolean }): DuctDrawing {
@@ -318,9 +345,9 @@ export function drawEatFrame(frame: number, px: number): DuctDrawing {
 }
 
 // ── 표정 시트(art/duct-faces.png)의 프레임. 모든 프로도가 한 장을 같이 씁니다. 몸은 방마다 모양과 색이 달라 코드로 그려요. ──
-const faceEyes: [Pt, Pt] = [[-10, -1], [11, -2]];
+const faceEyes: [Pt, Pt] = [[-10.5, -1.4], [10.5, -1.6]];
 const faceOval = "M-22 0C-22 -23.8 22 -23.8 22 0C22 23.8 -22 23.8 -22 0Z";
-const lookBy = (dx: number, dy: number): DuctPiece[] => faceEyes.map(([x, y], at) => dot(x + dx, y + dy, at ? 4.1 : 3.8, "white"));
+const lookBy = (dx: number, dy: number): DuctPiece[] => faceEyes.map(([x, y]) => dot(x + dx, y + dy, 3.95, "white"));
 const lidBy = (dx: number, dy: number): ((pen: ReturnType<typeof makePen>) => DuctPiece[]) => (pen) => faceEyes.flatMap(([x, y]) => pen(`M${x - 5 + dx} ${y + dy}L${x + 5 + dx} ${y + dy}`, 2.4, "white"));
 const faceDraw = {
   base: () => lookBy(0, 0),
@@ -345,7 +372,7 @@ export const faceFrames = Object.keys(faceDraw) as FaceExpr[];
 export const faceCell = { width: 240, height: 196 };
 
 export function drawFaceFrame(frame: number): DuctDrawing {
-  const pen = makePen(frame + 1);
+  const pen = makePen(frame + 1, 2.2, 0.48);
   return { viewBox: "-22 -18 44 36", items: [{ d: faceOval, tone: "ink" }, ...faceDraw[faceFrames[frame]](pen)] };
 }
 
@@ -404,7 +431,7 @@ function roomSpec(shape: number, length: number): Spec {
   const ry = rx * 0.86;
   const spec: Spec = { points, width: 34 - 8 * level, rib: 6, scallop: 2.2, head: [x, y, rx, ry], inner: [x, y, rx - 7, ry - 7], eyes: [[x - 10, y - 1], [x + 11, y - 2]], foot: "", arms: [] };
   const base = points[0][0];
-  spec.foot = `M${base - 24} 106L${base + 22} 106L${base + 24} 114L${base - 26} 114Z`;
+  spec.foot = footAt(base);
   // 팔은 받침에서 일정한 높이에 답니다. 관이 짧으면 가운데쯤이에요.
   const { L, R } = tube(spec);
   const at = Math.min(Math.round(L.length / 2), 18);
@@ -467,7 +494,7 @@ function stackSpec(lengths: number[]) {
   const y = end[1] + ((end[1] - back[1]) / span) * 8;
   const rx = 27;
   const ry = rx * 0.86;
-  const spec: Spec = { points, width: 30, rib: 6, scallop: 2.2, head: [x, y, rx, ry], inner: [x, y, rx - 7, ry - 7], eyes: [[x - 10, y - 1], [x + 11, y - 2]], foot: `M${stackX - 24} 106L${stackX + 22} 106L${stackX + 24} 114L${stackX - 26} 114Z`, arms: [] };
+  const spec: Spec = { points, width: 30, rib: 6, scallop: 2.2, head: [x, y, rx, ry], inner: [x, y, rx - 7, ry - 7], eyes: [[x - 10, y - 1], [x + 11, y - 2]], foot: footAt(stackX), arms: [] };
   const { L, R } = tube(spec);
   const armAt = Math.min(Math.round(L.length / 2), 12);
   const center: Pt = [(L[armAt][0] + R[armAt][0]) / 2, (L[armAt][1] + R[armAt][1]) / 2];
