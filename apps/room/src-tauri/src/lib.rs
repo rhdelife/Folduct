@@ -641,6 +641,24 @@ fn move_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Resul
   rename_no_replace(&from, &to).map_err(|e| e.to_string())
 }
 
+// 고른 방 폴더 안 보통 파일 하나를 다른 방 폴더로 복제해요(2026-11-18 요청). 원본은 그대로 두고, 대상 자리에 무엇이 있으면 거절해요(덮어쓰지 않음).
+// 숨김 파일·폴더·바로가기는 받지 않아요. 복사 중에 멈추면 만든 사본을 지우지 않고 오류만 알려요.
+#[tauri::command]
+fn copy_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Result<(), String> {
+  in_scope(&app, &from)?;
+  in_scope(&app, &to)?;
+  if !std::fs::symlink_metadata(&from).map_err(|e| e.to_string())?.file_type().is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  if [&from, &to].iter().any(|path| path.file_name().and_then(|name| name.to_str()).map_or(true, |name| name.starts_with('.'))) {
+    return Err("숨김 파일은 복제할 수 없어요.".into());
+  }
+  let mut source = std::fs::File::open(&from).map_err(|e| e.to_string())?;
+  // create_new: 같은 이름이 있으면 OS가 거절해요. 확인과 쓰기 사이에 생긴 파일도 덮어쓰지 않아요.
+  let mut target = std::fs::OpenOptions::new().write(true).create_new(true).open(&to).map_err(|e| e.to_string())?;
+  std::io::copy(&mut source, &mut target).map(|_| ()).map_err(|e| format!("복제하다 멈췄어요. 만든 사본을 확인해 주세요. ({e})"))
+}
+
 #[cfg(target_os = "macos")]
 fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
   use std::ffi::{CString, c_char, c_int, c_uint};
@@ -945,7 +963,7 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -1120,6 +1138,39 @@ mod tests {
     assert!(invoke(&webview, "plugin:fs|remove", json!({ "path": from })).is_err());
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": from })).is_err());
     assert!(from.exists());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 복제는 고른 방 폴더 사이에서만, 원본은 그대로 두고 같은 이름은 덮어쓰지 않습니다.
+  #[test]
+  fn copies_between_rooms_without_overwriting() {
+    let base = std::env::temp_dir().join(format!("folduct-copy-{}", std::process::id()));
+    let (one, two, outside) = (base.join("one"), base.join("two"), base.join("outside"));
+    for dir in [&one, &two, &outside] {
+      std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(one.join("시안.psd"), "원본").unwrap();
+    std::fs::write(two.join("있음.psd"), "다른 파일").unwrap();
+    std::fs::write(one.join(".숨김"), "x").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![copy_file])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&one, true).unwrap();
+    app.fs_scope().allow_directory(&two, true).unwrap();
+    let from = one.join("시안.psd");
+
+    invoke(&webview, "copy_file", json!({ "from": from, "to": two.join("시안.psd") })).unwrap();
+    assert_eq!(std::fs::read_to_string(two.join("시안.psd")).unwrap(), "원본");
+    assert_eq!(std::fs::read_to_string(&from).unwrap(), "원본");
+    assert!(invoke(&webview, "copy_file", json!({ "from": from, "to": two.join("있음.psd") })).is_err());
+    assert_eq!(std::fs::read_to_string(two.join("있음.psd")).unwrap(), "다른 파일");
+    assert!(invoke(&webview, "copy_file", json!({ "from": from, "to": outside.join("시안.psd") })).is_err());
+    assert!(!outside.join("시안.psd").exists());
+    assert!(invoke(&webview, "copy_file", json!({ "from": one.join(".숨김"), "to": two.join("숨김") })).is_err());
+    assert!(invoke(&webview, "copy_file", json!({ "from": &one, "to": two.join("폴더") })).is_err());
     std::fs::remove_dir_all(&base).unwrap();
   }
 

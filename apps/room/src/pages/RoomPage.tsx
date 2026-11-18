@@ -17,7 +17,8 @@ import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
 import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
-import { getRoom, saveHandle, saveRoom } from "../storage/db";
+import { getRoom, listRooms, saveHandle, saveRoom } from "../storage/db";
+import { canReceive, transferThings, undoMove, type TransferMode } from "../storage/transfer";
 import { clearPicture, PictureError, setPicture, usePicture } from "../storage/pictures";
 import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
@@ -83,6 +84,8 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   const heading = useRef<HTMLHeadingElement>(null);
   // 여러 파일 고르기(휴지통으로). null이면 고르는 중이 아니에요.
   const [picked, setPicked] = useState<Set<string> | null>(null);
+  // 옮기기·복제할 방 고르는 중이면 그 방법과 받을 수 있는 방들.
+  const [send, setSend] = useState<{ mode: TransferMode; rooms: Room[] } | null>(null);
   const side = useRef<HTMLElement>(null);
 
   // 고칠 때마다 상태를 바꾸고, 0.3초 뒤에 한 번에 저장합니다. 방을 떠나거나 창을 가릴 때도 남은 것을 저장합니다.
@@ -284,6 +287,42 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     setPicked(null);
     const failed = chosen.length - sent.size;
     toast(`${sent.size > 0 ? `파일 ${sent.size.toLocaleString("ko-KR")}개를 휴지통으로 보냈어요.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 보내지 못했어요.` : ""}`.trim(), undoTrash(handle, done));
+  }
+
+  // 고른 파일들을 다른 방으로 옮기거나 복제해요(2026-11-18 요청). 먼저 받을 방을 고르게 해요.
+  async function chooseTarget(mode: TransferMode) {
+    const current = latest.current;
+    if (!current) return;
+    setSend({ mode, rooms: (await listRooms()).filter((other) => canReceive(other, current)) });
+  }
+
+  async function sendTo(to: Room) {
+    const from = latest.current;
+    if (!from || !send) return;
+    const mode = send.mode;
+    const chosen = from.things.filter((thing) => picked?.has(thing.id) && !thing.missing && !thing.box);
+    if (chosen.length === 0) return;
+    setSend(null);
+    setBusy(mode === "move" ? "옮기는 중…" : "복제하는 중…");
+    const { done, failed, message } = await transferThings(from, to, chosen, mode);
+    setBusy(null);
+    const gone = new Set(done.map(({ thing }) => thing.id));
+    if (mode === "move" && gone.size > 0) {
+      update((room) => ({ ...room, things: room.things.filter((thing) => !gone.has(thing.id)) }));
+      if (selectedId && gone.has(selectedId)) setSelectedId(null);
+    }
+    setPicked(null);
+    const verb = mode === "move" ? "옮겼어요" : "복제했어요";
+    const text = `${done.length > 0 ? `파일 ${done.length.toLocaleString("ko-KR")}개를 ‘${to.name}’ 방으로 ${verb}.` : ""}${failed > 0 ? ` ${failed.toLocaleString("ko-KR")}개는 못 했어요.${message ? ` ${message}` : ""}` : ""}`.trim();
+    // 옮기기만 되돌릴 수 있어요. 복제는 원본이 그대로라 되돌릴 게 없어요.
+    toast(text, mode === "move" && done.length > 0 ? {
+      label: "되돌리기",
+      run: () =>
+        void undoMove(from, to, done).then((back) => {
+          if (back.length > 0) update((room) => ({ ...room, things: [...room.things, ...back.map(({ thing }) => thing).filter((thing) => !room.things.some((item) => item.id === thing.id))] }));
+          toast(back.length === done.length ? `파일 ${back.length.toLocaleString("ko-KR")}개를 되돌렸어요.` : `${back.length.toLocaleString("ko-KR")}개만 되돌렸어요. 원래 자리에 같은 이름 파일이 생겼을 수 있어요.`);
+        }),
+    } : undefined);
   }
 
   // 휴지통으로 보낸 파일들을 원래 자리로 되돌리고 방 기록에 다시 넣는 알림 단추. 자리를 모르면(macOS 밖) 단추가 없어요.
@@ -676,7 +715,24 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
           {picked && (
             <div className="room-pick-bar" role="status">
               <span>{picked.size > 0 ? `${picked.size.toLocaleString("ko-KR")}개 골랐어요` : "휴지통으로 보낼 파일을 눌러 골라 주세요"}</span>
+              <button type="button" disabled={picked.size === 0 || busy !== null} aria-expanded={send?.mode === "move"} onClick={() => (send?.mode === "move" ? setSend(null) : void chooseTarget("move"))}>옮기기</button>
+              <button type="button" disabled={picked.size === 0 || busy !== null} aria-expanded={send?.mode === "copy"} onClick={() => (send?.mode === "copy" ? setSend(null) : void chooseTarget("copy"))}>복제</button>
               <button type="button" disabled={picked.size === 0 || busy !== null} onClick={() => void trashPicked()}><Icon name="trash" />휴지통</button>
+              {send && (
+                <div className="room-send" role="group" aria-label={send.mode === "move" ? "옮길 방 고르기" : "복제할 방 고르기"}>
+                  {send.rooms.length === 0 ? (
+                    <span>폴더를 연결한 다른 방이 없어요.</span>
+                  ) : (
+                    <>
+                      <span>{send.mode === "move" ? "어느 방으로 옮길까요?" : "어느 방에 복제할까요?"}</span>
+                      {send.rooms.map((other) => (
+                        <button key={other.id} type="button" disabled={busy !== null} onClick={() => void sendTo(other)}>{other.name}</button>
+                      ))}
+                    </>
+                  )}
+                  <button type="button" className="quiet" onClick={() => setSend(null)}>취소</button>
+                </div>
+              )}
             </div>
           )}
           <RoomScene

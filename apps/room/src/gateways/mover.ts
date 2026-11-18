@@ -5,7 +5,8 @@ import { childPath, fileManagerName, osErrorKind } from "../domain/platform";
 import { isExcludedName } from "./folder";
 
 // 실제 폴더에 하는 변경은 이 파일에만 있어요. 상자 안팎 이동(moveFile), 현관 문서를 방으로 옮기는 이동(moveDoorFile), 같은 폴더 안 이름 바꾸기(renameFile),
-// 그리고 사용자가 확인한 파일 하나를 OS 휴지통으로 보내기(trashFile, 데스크톱만). 영구 삭제나 내용 고쳐 쓰기는 하지 않습니다.
+// 사용자가 확인한 파일 하나를 OS 휴지통으로 보내기(trashFile, 데스크톱만), 그리고 고른 파일을 다른 방 폴더로 옮기기·복제(moveBetween·copyBetween, 2026-11-18 요청).
+// 영구 삭제나 내용 고쳐 쓰기는 하지 않습니다. 옮기기·복제 모두 대상에 같은 이름이 있으면 덮어쓰지 않아요.
 export type MoveDirectory = {
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MoveDirectory>;
   getFileHandle(name: string): Promise<MoveFile>;
@@ -69,6 +70,46 @@ export async function moveFile(root: MoveDirectory, fromPath: string, toPath: st
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: "failed", message: moveMessage(error) };
+  }
+}
+
+// 한 방 폴더의 파일 하나를 다른 방 폴더로 옮겨요(되돌리기는 거꾸로 부르기). 정리 상자 안 파일·상자 안 자리는 받지 않아요.
+export async function moveBetween(fromRoot: MoveDirectory, fromPath: string, toRoot: MoveDirectory, toPath: string): Promise<MoveResult> {
+  if (!isSafeRelativePath(fromPath) || !isSafeRelativePath(toPath) || isInBox(fromPath) || isInBox(toPath)) {
+    return { ok: false, reason: "invalid", message: "정리 상자 밖 파일만 다른 방으로 옮길 수 있어요." };
+  }
+  try {
+    if (await fileExists(toRoot, toPath)) return { ok: false, reason: "occupied", message: "옮길 자리에 같은 이름의 파일이 있어요." };
+    const fromParts = fromPath.split("/");
+    let file: MoveFile;
+    try {
+      file = await (await walk(fromRoot, fromParts.slice(0, -1), false)).getFileHandle(fromParts[fromParts.length - 1]);
+    } catch (error) {
+      if (isNotFound(error)) return { ok: false, reason: "missing", message: "원래 파일을 찾지 못했어요." };
+      throw error;
+    }
+    if (typeof file.move !== "function") return { ok: false, reason: "unsupported", message: "이 브라우저는 파일 이동을 지원하지 않아요." };
+    const toParts = toPath.split("/");
+    // 되돌릴 때 원래 폴더가 사라졌으면 만들지 않고 실패해요.
+    await file.move(await walk(toRoot, toParts.slice(0, -1), false), toParts[toParts.length - 1]);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: "failed", message: moveMessage(error) };
+  }
+}
+
+// 한 방 폴더의 파일 하나를 다른 방 폴더 맨 위에 복제해요(데스크톱만). 원본은 그대로예요. Tauri 쪽(copy_file)도 범위·숨김·덮어쓰기를 한 번 더 막아요.
+export async function copyBetween(fromRoot: string, fromPath: string, toRoot: string, toName: string): Promise<MoveResult> {
+  if (!isSafeRelativePath(fromPath) || isInBox(fromPath) || !isSafeRelativePath(toName) || toName.includes("/") || toName.startsWith(".") || isExcludedName(toName)) {
+    return { ok: false, reason: "invalid", message: "복제할 수 없는 파일이에요." };
+  }
+  try {
+    await invoke("copy_file", { from: fromPath.split("/").reduce(childPath, fromRoot), to: childPath(toRoot, toName) });
+    return { ok: true };
+  } catch (error) {
+    if (isNotFound(error)) return { ok: false, reason: "missing", message: "원래 파일을 찾지 못했어요." };
+    if (osErrorKind(String(error)) === null && /exists|os error 17/i.test(String(error))) return { ok: false, reason: "occupied", message: "복제할 자리에 같은 이름의 파일이 있어요." };
+    return { ok: false, reason: "failed", message: moveMessage(error).replace("옮기지 못했어요", "복제하지 못했어요") };
   }
 }
 
