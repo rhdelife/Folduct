@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContextMenu } from "../components/ContextMenu";
-import { awayFromHome, createEngine, EngineContext, type HomeActions } from "../components/home/engine";
+import { awayFromHome, type HomeActions } from "../components/home/actions";
 import { HeroScene } from "../components/home/HeroScene";
 import { HomeHeader, type HomeView } from "../components/home/HomeHeader";
 import { KindShelf } from "../components/home/KindShelf";
@@ -63,7 +63,6 @@ function landFocus(id: string) {
 }
 
 export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; entered: boolean; onOpen: (id: string) => void }) {
-  const [engine] = useState(() => createEngine());
   const [rooms, setRooms] = useState<Room[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -292,17 +291,15 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
       if (!focusId) panel.current?.scrollTo(0, 0);
       return;
     }
-    if (!panelId || engine.target !== 0) return;
+    if (!panelId) return;
     const active = document.activeElement;
     if (!active || active === document.body || panel.current?.contains(active)) landFocus(panelId);
   }, [selected?.id]);
 
-  // 줄에서 고르면 맨 위로 돌아옵니다.
   const selectRoom = useCallback((id: string | null) => {
     setSelectedId(id);
     setFocusId(null);
-    if (id) engine.goTo(0);
-  }, [engine]);
+  }, []);
 
   // 패널 글자나 별을 눌러 포커스가 패널 밖으로 나가도 Esc로 닫습니다. 대화상자와 오른쪽 클릭 메뉴가 먼저예요.
   const panelOpen = selected !== null;
@@ -329,8 +326,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const focusThing = useCallback((roomId: string, thingId: string) => {
     setSelectedId(roomId);
     setFocusId(thingId);
-    engine.goTo(0);
-  }, [engine]);
+  }, []);
 
   // 불러오는 중이거나 실패하면 움직일 게 없습니다.
   const ready = rooms !== null && !loadFailed;
@@ -338,29 +334,8 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   useEffect(() => {
     if (ready && returnTo) landFocus(returnTo);
   }, [ready]);
-  // 홈은 이제 진짜 스크롤로 아래 형식별 칸까지 내려가요. 예전 두 번째 화면용 엔진은 잠가 두고 입력도 받지 않아요.
-  // 붙이면 세로 휠·손가락·화살표를 먼저 가져가 페이지가 내려가지 않아요.
-  // shortcut: 엔진(engine.ts)은 pos 0에 멈춘 채 남아 있어요. 쓰는 곳(heroMotion·Home의 goTo)을 정리할 때 함께 걷어내요.
-  useEffect(() => engine.lock(true), [engine]);
-
-  // 줄로 향하면 고른 방은 닫습니다. 남겨 두면 돌아올 때 패널이 다시 열리며 포커스를 가져가요.
-  useEffect(() => {
-    if (!selected) return;
-    return engine.subscribe(() => {
-      if (engine.target !== 0) selectRoom(null);
-    });
-  }, [engine, !selected, selectRoom]);
-
   const openRoomMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => setRoomMenu({ id, opener, x, y }), []);
   const openDoorMenu = useCallback((id: string, opener: HTMLElement, x: number, y: number) => setDoorMenu({ id, opener, x, y }), []);
-  useEffect(() => {
-    if (!roomMenu || roomMenu.opener.closest("dialog")) return;
-    return engine.subscribe(() => setRoomMenu(null));
-  }, [engine, roomMenu]);
-  useEffect(() => {
-    if (!doorMenu) return;
-    return engine.subscribe(() => setDoorMenu(null));
-  }, [engine, doorMenu]);
 
   const stats = useMemo(() => roomStats(rooms ?? [], now), [rooms, now]);
   const kinds = useMemo(() => new Set((rooms ?? []).flatMap((room) => room.things.map((thing) => thing.kind))), [rooms]);
@@ -600,34 +575,32 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const scene = rooms && { rooms, stats, now, actions };
   return (
     <main className="home" data-view={view}>
-      <EngineContext.Provider value={engine}>
-        {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
-        <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
-        {/* 두 화면은 늘 겹쳐 그려 두고, 안 보는 쪽은 숨기고(inert) 손대지 못하게 해요. 홈을 지우지 않아 프로도가 먹던 상태가 남아요. */}
-        <div className="home-stage" inert={view !== "home"}>
-          <div className="home-sheet">
-            {loadFailed ? (
-              <div className="scene page-status" role="alert">
-                <p>저장소를 열지 못했어요. 다시 열어 주세요.</p>
-                <button type="button" onClick={() => { setLoadFailed(false); void start(); }}>다시 시도</button>
-              </div>
-            ) : !scene ? (
-              <p className="scene loading">저장된 방을 불러오는 중…</p>
-            ) : (
-              <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} sweepDue={overdue} onSweepLater={sweepLater} paneOpen={Boolean(viewingThing)} workOpen={workOpen} onWorkClose={() => setWorkOpen(false)} />
-            )}
-          </div>
+      {/* 머리를 앞에 두어 탭 키가 머리에서 살아 있는 장면으로 이어집니다. 겹치는 순서는 z-index가 정해요. */}
+      <HomeHeader rooms={rooms ?? []} ready={ready} view={view} onView={(next) => { setView(next); setWorkOpen(false); }} workOpen={workOpen} onWork={() => { setView("home"); setWorkOpen((open) => !open); }} onWeekly={actions.openSweep} onMenu={() => setMenuOpen(true)} onNew={() => setCreating(true)} onSettings={() => setSettingsOpen(true)} />
+      {/* 두 화면은 늘 겹쳐 그려 두고, 안 보는 쪽은 숨기고(inert) 손대지 못하게 해요. 홈을 지우지 않아 프로도가 먹던 상태가 남아요. */}
+      <div className="home-stage" inert={view !== "home"}>
+        <div className="home-sheet">
+          {loadFailed ? (
+            <div className="scene page-status" role="alert">
+              <p>저장소를 열지 못했어요. 다시 열어 주세요.</p>
+              <button type="button" onClick={() => { setLoadFailed(false); void start(); }}>다시 시도</button>
+            </div>
+          ) : !scene ? (
+            <p className="scene loading">저장된 방을 불러오는 중…</p>
+          ) : (
+            <HeroScene {...scene} selectedId={selected?.id ?? null} focusId={focusId} doorItems={door.items} onDoorMenu={openDoorMenu} workLog={workLog} staleFiles={staleFiles} sweepDue={overdue} onSweepLater={sweepLater} paneOpen={Boolean(viewingThing)} workOpen={workOpen} onWorkClose={() => setWorkOpen(false)} />
+          )}
         </div>
-        {rooms && (
-          <div className={view === "drawer" ? "drawer-view on" : "drawer-view"} inert={view !== "drawer"}>
-            <KindShelf rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />
-          </div>
-        )}
-        {/* Icons 탭: 다른 탭에 다녀와도 그리던 그림이 남게 지우지 않고 숨겨 둬요. */}
-        <div className={view === "icons" ? "drawer-view icons-view on" : "drawer-view icons-view"} inert={view !== "icons"}>
-          <KindIconMaker mode={iconsMode} onMode={setIconsMode} active={view === "icons"} />
+      </div>
+      {rooms && (
+        <div className={view === "drawer" ? "drawer-view on" : "drawer-view"} inert={view !== "drawer"}>
+          <KindShelf rooms={rooms} onOpenFile={openShelfFile} onListGone={closeShelfPreview} onTrashed={(message, undo) => { closeShelfPreview(); toast(message, undo); void load(); }} />
         </div>
-      </EngineContext.Provider>
+      )}
+      {/* Icons 탭: 다른 탭에 다녀와도 그리던 그림이 남게 지우지 않고 숨겨 둬요. */}
+      <div className={view === "icons" ? "drawer-view icons-view on" : "drawer-view icons-view"} inert={view !== "icons"}>
+        <KindIconMaker mode={iconsMode} onMode={setIconsMode} active={view === "icons"} />
+      </div>
       {!isNative() && (
         <input
           ref={importInput}

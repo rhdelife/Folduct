@@ -10,7 +10,7 @@ import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
 import { useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
-import { awayFromHome } from "./engine";
+import { awayFromHome } from "./actions";
 import { cssToken, tokenMs } from "../tokens";
 import { Icon } from "../Icon";
 import { builtInShelfViews, emptyShelfViews, reservedViewNames, shelfNameMax, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";

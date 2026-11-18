@@ -6,7 +6,7 @@ import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { PoseArt } from "../RoomFace";
 import { SkyMap } from "../SkyMap";
-import type { SceneProps } from "./engine";
+import type { SceneProps } from "./actions";
 import { HomeStack } from "./HomeStack";
 import { useWorkSession, WorkControl } from "./WorkControl";
 

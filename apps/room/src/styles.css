@@ -463,9 +463,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 
 /* 머리: 높이 없는 줄에 셋이 떠 있어, 머리 위에서도 휠이 그대로 장면으로 갑니다. */
 .home-header { position: absolute; inset: 0 0 auto; z-index: 80; height: 0; -webkit-user-select: none; user-select: none; }
-/* 로고는 방이 있을 때 머리글과 함께 나타납니다. */
-.home-brand { position: absolute; top: var(--chrome-y); left: var(--chrome-x); translate: 0 -50%; display: flex; pointer-events: none; opacity: 0; transition: opacity 400ms ease-out; }
-.home-header.has-caption .home-brand { opacity: 1; }
 .home-actions { position: absolute; top: var(--chrome-y); right: calc(var(--chrome-x) - var(--space-3)); translate: 0 -50%; display: flex; align-items: center; gap: var(--space-1); }
 .home-actions button { white-space: nowrap; font-size: var(--text-md); font-weight: 500; color: var(--ink-caption); }
 .home-actions button:hover:not(:disabled) { background: none; color: var(--ink); }
@@ -483,8 +480,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .home-empty p { font-size: var(--text-md); line-height: var(--lh-md); }
 /* 집 지도와 방 판은 같은 라이트박스입니다. 바느질 점선은 방에만 있습니다. */
 .sky-stage { width: min(100%, calc((100dvh - var(--topbar-h)) * 1000 / 680)); container: sky / inline-size; transition: transform 750ms var(--ease-standard); position: relative; }
-/* 패널이 열리면 지도 전체가 남은 자리 가운데로 비켜 납니다(다시 배치하지 않고 transform만). */
-.sky-layout.has-panel .sky-stage { transform: translateX(calc(var(--rail-w) / -2)); }
 .sky-canvas { position: relative; }
 /* 지도 밖 여백을 눌러도 고른 방이 풀리게 넓게 깝니다. 넘치는 부분은 .sky-layout이 자릅니다. */
 .sky-backdrop { position: absolute; inset: -100vmax; }
@@ -540,10 +535,7 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-cover { display: block; flex: none; width: var(--shelf-cover); rotate: -4deg; pointer-events: none; transition: scale var(--dur-2) var(--ease-standard), filter var(--dur-2) var(--ease-standard); }
 .room-cover .object { display: block; width: 100%; height: auto; }
 /* 주름관 그림의 색. 받침은 고른 방 색, 들고 있는 종이는 파일 형식 색이고 없으면 흰색이에요. */
-.duct-ink { fill: var(--ink); }
-.duct-white { fill: var(--surface); }
 .duct-foot { fill: var(--duct-foot, var(--surface)); }
-.duct-solid { fill: var(--duct-foot, var(--ink)); }
 .duct-paper { fill: var(--duct-paper, var(--surface)); }
 .duct-rib { transform-box: fill-box; transform-origin: center; animation: duct-pass 2200ms ease-in-out infinite; animation-delay: calc(var(--rib) * 110ms); }
 /* 위 방 카드 줄. 면을 칠하지 않고 그림·이름·용량만 놓아요. 끌어서 프로도에게 먹여요. */
@@ -758,7 +750,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 /* 창이 좁으면 한 줄로 쌓습니다. 데스크톱 앱 최소 폭(720)에서는 두 칸을 지킵니다. */
 @media (max-width: 719.98px) {
   /* 폰에서는 문장이 메뉴 앞에서 접힙니다. 오른쪽 여백은 메뉴와 새 방 버튼 자리예요. */
-  .home-brand { left: var(--gutter); }
   .home-actions { right: var(--space-2); gap: 0; }
   .home-actions button { padding-inline: var(--space-2); font-size: var(--text-sm); }
   /* 좁아서 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
@@ -768,7 +759,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .side { position: static; max-height: none; }
   /* 폰에서는 패널이 아래에서 올라오고, 지도는 남은 위쪽 가운데로 비켜 납니다. */
   .sky-panel { inset: auto 0 0 0; width: auto; height: 58%; border-left: 0; border-top: 1px solid var(--ink); transform: translateY(100%); }
-  .sky-layout.has-panel .sky-stage { transform: translateY(calc((100dvh - var(--topbar-h)) * -0.29)); }
   .drawer { max-height: none; }
 }
 @media (forced-colors: active) {
@@ -841,7 +831,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 @media (max-width: 719.98px) {
   .scene-hero { --shelf-cover: var(--shelf-cover-narrow); }
   .scene-hero .sky-panel { top: auto; }
-  .scene-hero .sky-layout.has-panel .sky-stage { transform: translateY(-29dvh); }
 }
 
 /* ══ 마무리·메뉴·패널 ══ */

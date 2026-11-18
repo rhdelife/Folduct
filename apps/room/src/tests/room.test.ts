@@ -5,7 +5,7 @@ import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane"
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
 import { previewMode } from "../components/FileViewer";
-import { clusterSpread, hash, homeActivity, homeLimit, progressText, roomActivity, staleCount, roomProgress, roomRadius, roomSpots, roomStars, roomsToKeep, sky, vaseHalf, vaseLift } from "../domain/sky";
+import { hash, homeActivity, homeLimit, staleCount, roomProgress, roomRadius, roomStars, roomsToKeep, vaseHalf, vaseLift } from "../domain/sky";
 import { kindParts } from "../art/duct";
 import { buildRoom, looksDone, parseRoomsFile } from "../domain/importFile";
 import { fileExists, freeBoxPath, moveFile, renameFile } from "../gateways/mover";
@@ -249,22 +249,8 @@ describe("방 밖 작업", () => {
     ]);
     const progress = roomProgress(r, now);
     expect(progress).toEqual({ lastActivityAt: day(9), recentCount: 2 });
-    expect(progressText(progress, now)).toBe("마지막 작업 어제 · 최근 7일에 2개 사용");
-    expect(progressText(roomProgress(r, day(30)), day(30))).toBe("마지막 작업 21일 전");
     const blank = roomProgress(room([thing({ touchedAt: null })]), now);
     expect(blank).toEqual({ lastActivityAt: null, recentCount: 0 });
-    expect(progressText(blank, now)).toBeNull();
-  });
-
-  it("하루 작업량은 손댄·고친·방 밖에서 연 파일을 그날 한 번씩 센다", () => {
-    const now = day(13);
-    const r = room([
-      thing({ touchedAt: now, lastModified: now, lastUsedAt: now }),
-      thing({ touchedAt: null, lastUsedAt: now }),
-      thing({ touchedAt: null, lastModified: day(12), lastUsedAt: now }),
-      thing({ touchedAt: day(11), lastModified: 0 }),
-    ]);
-    expect(roomActivity(r, now).slice(-3).map((bar) => bar.value)).toEqual([1, 1, 3]);
   });
 });
 
@@ -553,17 +539,11 @@ describe("정리 상자 폴더 이동", () => {
 });
 
 describe("밤하늘 지도", () => {
-  it("방은 하늘 안에 서로 떨어져 놓이고, 같은 id는 늘 같은 자리에 뜬다", () => {
-    for (const count of [1, 2, 3, 6, 12]) {
-      const spots = roomSpots(count);
-      expect(spots).toHaveLength(count);
-      for (const spot of spots) {
-        expect(spot.x).toBeGreaterThan(0);
-        expect(spot.x).toBeLessThan(sky.width);
-        expect(spot.y).toBeGreaterThan(0);
-        expect(spot.y).toBeLessThan(sky.height);
-      }
-    }
+  // 예전 방 자리 잡기(roomSpots)가 세 방 중 가운데에 주던 자리와 퍼짐이에요.
+  const center3 = { x: 500, y: 382 };
+  const spread3 = 560 / Math.sqrt(3);
+
+  it("같은 id는 늘 같은 값을 낸다", () => {
     expect(hash("abc")).toBe(hash("abc"));
     expect(Math.abs(hash("t1") - hash("t2"))).toBeGreaterThan(0.01);
   });
@@ -574,8 +554,8 @@ describe("밤하늘 지도", () => {
     const fallen = thing();
     const boxed = thing({ box: { state: "virtual", fromPath: "a", boxPath: "a", at: start } });
     const r = room([fresh, fallen, boxed], { workDays });
-    const center = roomSpots(3)[1];
-    const stars = roomStars(r, center, clusterSpread(3), start + 40 * dayMs);
+    const center = center3;
+    const stars = roomStars(r, center, spread3, start + 40 * dayMs);
     expect(stars.map((star) => star.thing.id)).toEqual([fresh.id, fallen.id]);
     const distance = (id: string) => {
       const star = stars.find((item) => item.thing.id === id)!;
@@ -596,7 +576,7 @@ describe("밤하늘 지도", () => {
     const r = room(things);
     const center = { x: 500, y: 300 };
     const half = vaseHalf(roomRadius(r));
-    for (const star of roomStars(r, center, clusterSpread(3), start)) {
+    for (const star of roomStars(r, center, spread3, start)) {
       const dx = star.x - center.x;
       const dy = star.y - center.y;
       expect(Math.abs(dx) >= star.r + 100 || dy + star.r <= half || dy - star.r >= half * vaseLift + 60).toBe(true);
@@ -612,7 +592,6 @@ describe("밤하늘 지도", () => {
     expect(home).toHaveLength(14);
     expect(home[0]).toEqual({ day: localDay(start), value: 1 });
     expect(home[13]).toEqual({ day: localDay(now), value: 2 });
-    expect(roomActivity(a, now)[13]).toEqual({ day: localDay(now), value: 1, worked: true });
   });
 });
 

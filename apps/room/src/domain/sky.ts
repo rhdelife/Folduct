@@ -1,5 +1,5 @@
-import { dayMs, lastActivity, localDay, relativeDay, roomLastActivity, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
-import type { CareSettings, Room, Thing } from "./model";
+import { dayMs, lastActivity, localDay, roomLastActivity, roomUsage, sizeRatio, thingAge, withinWeek, type RoomUsage } from "./care";
+import type { Room, Thing } from "./model";
 
 // 집 화면의 지도. 방은 받침 위에 선 주름관, 파일은 크기만큼의 작은 별이고, 손대지 않은 파일은 방에서 멀어집니다.
 export const sky = { width: 1000, height: 680, centerX: 500, centerY: 340 } as const;
@@ -38,37 +38,6 @@ export const toSky = (point: Point, view: View): Point => ({ x: (point.x / view.
 
 export type Box = { x: number; y: number; hw: number; hh: number };
 
-// 방 자리. 주름관이 판 가운데를 물결처럼 가로지릅니다. 좁은 창에서는 둘씩 줄을 지어요. 많으면 해바라기로 채웁니다.
-export function roomSpots(count: number, view: View = baseView): Point[] {
-  const { w, h } = view;
-  const spot = (x: number, y: number) => {
-    const at = toSky({ x, y }, view);
-    return { x: clamp(at.x, 60, sky.width - 60), y: clamp(at.y, 90, sky.height - 60) };
-  };
-  if (count <= 8) {
-    const columns = w < 720 ? Math.min(2, count) : count;
-    const rows = Math.ceil(count / columns);
-    return Array.from({ length: count }, (_, i) => {
-      const column = i % columns;
-      const row = Math.floor(i / columns);
-      const across = columns > 1 ? column / (columns - 1) : 0.5;
-      const reach = columns > 2 ? 0.36 : columns > 1 ? 0.22 : 0;
-      const wave = rows > 1 ? (column % 2 ? 0.03 : -0.03) : 0.09 * Math.sin(i * 2.3 + 0.6) * (count > 1 ? 1 : 0);
-      return spot(w * (0.5 + reach * (2 * across - 1)), h * (0.54 + (rows > 1 ? (row - (rows - 1) / 2) * (0.62 / rows) : 0) + wave));
-    });
-  }
-  return Array.from({ length: count }, (_, i) => {
-    const radius = Math.sqrt((i + 0.5) / count);
-    const angle = i * 2.39996 - Math.PI / 2;
-    return spot(w / 2 + w * 0.43 * radius * Math.cos(angle), h / 2 + h * 0.41 * radius * Math.sin(angle));
-  });
-}
-
-// 파일이 방에서 퍼지는 거리. 판 전체에 흩어지도록 넉넉합니다. 다듬는 건 heroLayout의 relax가 해요.
-export function clusterSpread(count: number): number {
-  return clamp(560 / Math.sqrt(Math.max(1, count)), 90, 520);
-}
-
 export function roomRadius(room: Room, scale = 1): number {
   return (20 + 28 * sizeRatio(roomUsage(room).totalBytes)) * scale;
 }
@@ -79,17 +48,12 @@ export function vaseHalf(radius: number): number {
   return radius * 1.35;
 }
 
-// 주름관 크기 1이 화면 단위 1에서 차지하는 px(1000칸 지도를 1280에 펼친 값).
-export const vaseUnit = 1.28;
-
 // 방 이름표 자리(주름관 아래). roomStars의 첫 자리 잡기에만 쓰는 어림값이고, 겹침은 heroLayout이 실제 이름으로 다시 봅니다.
 export const labelHalfWidth = 100;
 export const labelHeight = 60;
 export function starRadius(bytes: number, scale = 1): number {
   return (4 + 8 * sizeRatio(bytes)) * scale;
 }
-
-export type Placed = { room: Room; at: Point; scale: number; spread: number; limit: number };
 
 // 왼쪽 아래 '작업 시작' 단추와 탭 카드 자리예요. 좁거나 낮은 창에서는 숨겨요. 크기와 창 기준은 styles.css의 .home-stack에 맞춰요.
 export function calendarSpot(view: View): Box[] {
@@ -161,12 +125,6 @@ export function roomProgress(room: Room, now: number): RoomProgress {
   };
 }
 
-// 활동을 모르는 방은 null이라 줄째 숨깁니다.
-export function progressText({ lastActivityAt, recentCount }: RoomProgress, now: number): string | null {
-  if (lastActivityAt === null) return null;
-  return `마지막 작업 ${relativeDay(lastActivityAt, now)}${recentCount > 0 ? ` · 최근 7일에 ${recentCount}개 사용` : ""}`;
-}
-
 export type RoomStat = { usage: RoomUsage; stale: number; progress: RoomProgress };
 
 // 집 화면이 한 번만 계산해 지도·요약·목록에 나눠 줍니다.
@@ -193,18 +151,4 @@ export function recentDays(now: number, count = 14): string[] {
 // 집 전체: 그날 쓴 방의 수.
 export function homeActivity(rooms: Room[], now: number): { day: string; value: number }[] {
   return recentDays(now).map((day) => ({ day, value: rooms.filter((room) => room.workDays.includes(day)).length }));
-}
-
-// 방 하나: 그날 손대거나 고치거나 방 밖에서 연 물건 수(같은 날 여러 번이어도 한 번)와, 그날 방을 썼는지.
-export function roomActivity(room: Room, now: number): { day: string; value: number; worked: boolean }[] {
-  const counts = new Map<string, number>();
-  for (const thing of room.things) {
-    if (thing.missing) continue;
-    for (const day of new Set([thing.touchedAt ?? 0, thing.lastModified, thing.lastUsedAt ?? 0].map((at) => localDay(at)))) counts.set(day, (counts.get(day) ?? 0) + 1);
-  }
-  return recentDays(now).map((day) => ({
-    day,
-    value: counts.get(day) ?? 0,
-    worked: room.workDays.includes(day),
-  }));
 }

@@ -10,7 +10,7 @@ import { formatBytes, kindLabels, roomGroups, type Room, type Thing } from "../d
 import { homeLimit, stepRoom, toPx, type RoomStat, type View } from "../domain/sky";
 import { faceColorVar } from "../domain/face";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
-import { awayFromHome } from "./home/engine";
+import { awayFromHome } from "./home/actions";
 import { useHeroMotion } from "./home/heroMotion";
 import type { Folder } from "../gateways/native";
 import { usePicture } from "../storage/pictures";

@@ -12,7 +12,7 @@ export function HomeHeader({ rooms, ready, view, onView, workOpen, onWork, onWee
   const awake = rooms.length > 0;
   const session = useWorkSession();
   return (
-    <header className={`home-header${awake ? " has-caption" : ""}`}>
+    <header className="home-header">
       {/* 머리줄 로고는 뺐어요(2026-11-17 요청). 탭이 왼쪽 끝에서 시작해요. */}
       <h1 className="sr-only">Folduct</h1>
       {awake && (
