@@ -849,6 +849,16 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .frodo-bubble.tail-up::after { top: 0; }
 /* 홈 프로도 머리 위: 프로도 가운데 위에 붙고, 넓은 창에서는 한 줄 말에 단추 두 개. */
 .over-frodo { position: absolute; z-index: 3; translate: -50% calc(-100% - var(--space-3)); width: max-content; max-width: min(calc(100vw - 2 * var(--gutter)), calc(var(--space-12) * 9)); transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
+.room-bubble { display: grid; gap: var(--space-1); text-align: left; }
+.room-bubble p { margin: 0; font-size: var(--text-sm); line-height: var(--lh-base); }
+.room-bubble p:first-child { font-size: var(--text-base); font-weight: 600; }
+/* 좁은 창은 프로도 위가 방 카드 줄과 붙어 있어, 방 요약은 프로도 머리 오른쪽 옆에 띄우고 꼬리를 왼쪽에 둬요. */
+@media (max-width: 560px) {
+  .over-frodo:has(.room-bubble) { translate: var(--space-10) var(--space-6); width: calc(50vw - var(--space-10) - var(--gutter)); max-width: none; }
+  .room-bubble { padding: var(--space-3); }
+  .room-bubble p, .room-bubble p:first-child { font-size: var(--text-xs); line-height: var(--lh-xs); }
+  .room-bubble::after { left: 0; top: var(--space-6); }
+}
 .sweep-bubble { display: grid; justify-items: center; gap: var(--space-3); text-align: center; }
 .sweep-bubble p { font-size: var(--text-md); line-height: var(--lh-md); }
 .sweep-bubble-actions { display: flex; gap: var(--space-2); }

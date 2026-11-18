@@ -1,5 +1,6 @@
 import type { DoorItem } from "../../domain/doorstep";
-import type { WorkLog } from "../../domain/worklog";
+import { yearWork, type WorkLog } from "../../domain/worklog";
+import { roomSummary } from "../../domain/roomSummary";
 import { isNative } from "../../gateways/native";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
@@ -51,7 +52,7 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
             </div>
           )}
           <section className="sky-stage">
-            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} onNewRoom={actions.openNew} workingId={session?.roomId ?? null} overFrodo={sweepDue && !selected ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
+            <SkyMap rooms={rooms} stats={stats} now={now} selectedId={selected && !selected.care.done ? selected.id : null} focusId={focusId} doorOpen={doorItems.length > 0} onSelectRoom={actions.selectRoom} onOpenRoom={actions.openRoom} onFocusThing={actions.focusThing} onOpenThing={actions.openFile} onRoomMenu={actions.roomMenu} onNewRoom={actions.openNew} workingId={session?.roomId ?? null} overFrodo={selected && !selected.care.done && stats.get(selected.id) ? <RoomBubble lines={roomSummary(selected, stats.get(selected.id)!, yearWork(workLog, new Date(now).getFullYear()).rooms.find(([id]) => id === selected.id)?.[1] ?? 0)} /> : sweepDue ? <SweepBubble staleFiles={staleFiles} onOpen={actions.openSweep} onLater={onSweepLater} /> : undefined} paneOpen={paneOpen} />
             {rooms.every((room) => room.care.done) && (
               <div className="sky-empty">
                 <p>홈에 둔 방이 없어요.</p>
@@ -67,6 +68,15 @@ export function HeroScene({ rooms, stats, now, actions, selectedId, focusId, doo
         </div>
       )}
     </section>
+  );
+}
+
+// 먹인 방 요약 말풍선: 프로도가 그 방을 짧게 말해 줘요(2026-11-18 요청).
+function RoomBubble({ lines }: { lines: string[] }) {
+  return (
+    <div className="frodo-bubble room-bubble" role="status">
+      {lines.map((line) => <p key={line}>{line}</p>)}
+    </div>
   );
 }
 
