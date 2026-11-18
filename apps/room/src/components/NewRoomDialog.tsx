@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { localDay, mergeScan } from "../domain/care";
-import { buildRoom, doneAfterDays, looksDone } from "../domain/importFile";
+import { localDay, mergeScan, relativeDay } from "../domain/care";
+import { buildRoom } from "../domain/importFile";
+import { shortPath } from "../domain/platform";
 import { formatBytes, type Room, type RoomSource } from "../domain/model";
 import { canPickFolder, pickFolder, scanFileList, type ScanResult } from "../gateways/folder";
-import { allowRooms, folderName, isNative, pickParent, pickRoomFolder, sameFolder, scanRoomFolder, type ChildFolder } from "../gateways/native";
+import { allowFoundRooms, allowRooms, findFolders, folderName, isNative, pickParent, pickRoomFolder, sameFolder, scanRoomFolder, type ChildFolder, type FoundFolder } from "../gateways/native";
 import { getHandle, listRooms, saveHandle, saveRoom } from "../storage/db";
 import { useModal } from "./useModal";
 import { toggled } from "./sets";
@@ -26,9 +27,33 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   const [parent, setParent] = useState<{ path: string; folders: ChildFolder[] } | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(() => new Set());
   const [known, setKnown] = useState<Room[]>([]);
+  // 데스크톱 첫 화면: 폴더 이름 검색과 후보 목록. 고른 폴더는 검색어를 바꿔도 남아요.
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<FoundFolder[] | null>(null);
+  const [picked, setPicked] = useState<Map<string, FoundFolder>>(() => new Map());
   const scanning = useRef<HTMLParagraphElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   useModal(dialog);
+
+  // 데스크톱: 검색어가 바뀌면 잠깐 기다렸다 폴더를 찾아요. 늦게 온 옛 결과는 버려요.
+  useEffect(() => {
+    if (!isNative()) return;
+    let live = true;
+    const timer = window.setTimeout(() => {
+      void Promise.all([findFolders(query), listRooms()]).then(
+        ([folders, rooms]) => {
+          if (!live) return;
+          setFound(folders);
+          setKnown(rooms);
+        },
+        () => live && setFound([]),
+      );
+    }, query ? 250 : 0);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
 
   // 누른 버튼이 사라지니 세는 중 문구로 포커스를 옮깁니다.
   useEffect(() => {
@@ -107,21 +132,32 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
   async function createMany(event: FormEvent) {
     event.preventDefault();
     if (!parent) return;
-    const picks = parent.folders.filter((folder) => chosen.has(folder.path));
+    await createFrom(parent.folders.filter((folder) => chosen.has(folder.path)), allowRooms, "고른 폴더를 열 권한을 받지 못했어요. 상위 폴더를 다시 골라 주세요.");
+  }
+
+  // 목록에서 고른 폴더들로 방을 만들어요.
+  async function createFound(event: FormEvent) {
+    event.preventDefault();
+    await createFrom([...picked.values()], allowFoundRooms, "고른 폴더를 열지 못했어요. 홈 폴더 안의 폴더만 방으로 만들 수 있어요.");
+  }
+
+  // 직접 고른 폴더라 오래 안 고쳤어도 홈에서 빼지 않아요(2026-11-18 요청). 홈 줄이 차면 홈이 둘 방을 묻어요.
+  async function createFrom(picks: ChildFolder[], allow: (paths: string[]) => Promise<void>, denied: string) {
+    if (picks.length === 0) return;
     setStep("scanning");
     setCount(0);
     try {
-      await allowRooms(picks.map((folder) => folder.path));
+      await allow(picks.map((folder) => folder.path));
     } catch {
       setStep("pick");
-      setError("고른 폴더를 열 권한을 받지 못했어요. 상위 폴더를 다시 골라 주세요.");
+      setError(denied);
       return;
     }
+    const known = await listRooms().catch(() => [] as Room[]);
     const at = Date.now();
     const taken = known.map((room) => room.face);
     let added = 0;
     let refreshed = 0;
-    let done = 0;
     let failed = 0;
     let counted = 0;
     for (const folder of picks) {
@@ -134,9 +170,7 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
           refreshed += 1;
           continue;
         }
-        const finished = looksDone(scan.files, at);
-        if (finished) done += 1;
-        const built = buildRoom({ taken, name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, done: finished, workDays: [], now: at });
+        const built = buildRoom({ taken, name: folder.name.slice(0, 40), source: "handle", rootName: folder.name, origin: folder.path, files: scan.files, scan, done: false, workDays: [], now: at });
         taken.push(built.face);
         await saveRoom(built);
         added += 1;
@@ -146,7 +180,6 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
     }
     onCreatedMany(
       `새 방 ${added}개${refreshed ? `, 다시 이은 방 ${refreshed}개` : ""}를 만들었어요.` +
-        (done ? ` 그중 ${done}개는 ${doneAfterDays}일 넘게 쓰거나 고친 파일이 없어 홈에서 빼 두었어요.` : "") +
         (failed ? ` 읽지 못한 폴더 ${failed}개는 뺐어요.` : ""),
     );
   }
@@ -223,6 +256,49 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
             <button type="button" className="primary" autoFocus onClick={() => onOpenExisting(same.room.id)}>그 방으로 가기</button>
           </div>
         </div>
+      ) : isNative() && !parent && step === "pick" ? (
+        <form className="sheet-body room-finder" onSubmit={(event) => void createFound(event)}>
+          <h2 id="new-room-title">새 방 만들기</h2>
+          <p className="soft">작업 폴더를 골라요. 폴더 하나가 방 하나예요.</p>
+          <input type="search" className="room-finder-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="폴더 이름으로 찾기" aria-label="방으로 만들 폴더를 이름으로 찾기" />
+          <p className="room-finder-head" aria-live="polite">{found === null ? "폴더를 찾는 중…" : query.trim() ? `‘${query.trim()}’ 폴더 ${found.length}개` : "최근에 고친 폴더"}</p>
+          <ul className="room-finder-list">
+            {(found ?? []).map((folder) => {
+              const old = known.find((room) => sameFolder(room.origin, folder.path));
+              const parentPath = folder.path.slice(0, Math.max(0, folder.path.length - folder.name.length - 1));
+              return (
+                <li key={folder.path}>
+                  <label className={picked.has(folder.path) ? "on" : undefined}>
+                    <input
+                      type="checkbox"
+                      checked={picked.has(folder.path)}
+                      onChange={(event) =>
+                        setPicked((current) => {
+                          const next = new Map(current);
+                          if (event.target.checked) next.set(folder.path, folder);
+                          else next.delete(folder.path);
+                          return next;
+                        })
+                      }
+                    />
+                    <span className="room-finder-name">
+                      <b>{folder.name}</b>
+                      <small title={folder.path}>{shortPath(parentPath)}</small>
+                    </span>
+                    <span className="room-finder-meta">{old ? (old.source === "handle" ? "이미 방이 있어요" : `‘${old.name}’ 방과 이어요`) : folder.modified ? relativeDay(folder.modified, Date.now()) : ""}</span>
+                  </label>
+                </li>
+              );
+            })}
+            {found !== null && found.length === 0 && <li className="soft">{query.trim() ? "그런 이름의 폴더가 없어요. ‘Finder에서 고르기’로 찾아 주세요." : "후보 폴더가 없어요. 이름으로 찾거나 Finder에서 골라 주세요."}</li>}
+          </ul>
+          {error && <p className="error" role="alert">{error}</p>}
+          <div className="row end">
+            <button type="button" className="quiet room-finder-finder" onClick={() => void pickPath()}>Finder에서 고르기</button>
+            <button type="button" onClick={onClose}>그만두기</button>
+            <button type="submit" className="primary" disabled={picked.size === 0}>{picked.size > 0 ? `방 ${picked.size}개 만들기` : "방 만들기"}</button>
+          </div>
+        </form>
       ) : parent && step !== "scanning" ? (
         <form className="sheet-body" onSubmit={(event) => void createMany(event)}>
           <h2 id="new-room-title">방으로 만들 폴더를 고르세요</h2>
@@ -291,16 +367,6 @@ export function NewRoomDialog({ onClose, onCreated, onOpenExisting, onCreatedMan
             </>
           )}
           {error && <p className="error" role="alert">{error}</p>}
-          {step === "pick" && (
-            <details className="sheet-more">
-              <summary>폴더는 어떻게 쓰이나요?</summary>
-              <ul className="hints">
-                <li>파일 내용은 저장하지 않아요. 이름·크기·자리·메모만 {isNative() ? "이 컴퓨터에" : "이 브라우저에"} 남아요.</li>
-                <li>숨김 파일과 node_modules는 빼고, 파일 1,000개·깊이 10까지 들여요.</li>
-                <li>Folduct가 폴더에 하는 일은 주간 정리 때 정리 상자로 옮기기와 되돌리기뿐이에요. 지우지 않아요.</li>
-              </ul>
-            </details>
-          )}
           <div className="row end">
             {isNative() && step === "pick" && <button type="button" className="quiet" onClick={() => void pickParentFolder()}>상위 폴더에서 여러 개 고르기</button>}
             <button type="button" onClick={onClose}>닫기</button>

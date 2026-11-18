@@ -641,6 +641,122 @@ fn move_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Resul
   rename_no_replace(&from, &to).map_err(|e| e.to_string())
 }
 
+// 방 만들기 목록에 띄울 폴더(2026-11-18 요청). 이름·경로·고친 시각만 읽고 안의 파일은 열지 않아요.
+struct FoundFolder {
+  path: PathBuf,
+  name: String,
+  modified: Option<f64>,
+}
+
+// 홈 폴더 아래 보통 폴더만 방 후보예요. 홈 자체·숨김 폴더 안·~/Library·앱 묶음(.app)·개발 도구가 만든 폴더·바로가기는 빼요.
+fn room_candidate(home: &Path, path: &Path) -> bool {
+  let Ok(rest) = path.strip_prefix(home) else { return false };
+  let parts: Vec<&str> = rest.components().filter_map(|part| match part { Component::Normal(name) => name.to_str(), _ => None }).collect();
+  if parts.is_empty() || parts.len() != rest.components().count() || parts[0] == "Library" {
+    return false;
+  }
+  const MACHINE: [&str; 6] = ["node_modules", "target", "__pycache__", "Pods", "DerivedData", "venv"];
+  if parts.iter().any(|name| name.starts_with('.') || name.ends_with(".app") || name.ends_with(".photoslibrary") || MACHINE.contains(name)) {
+    return false;
+  }
+  std::fs::symlink_metadata(path).map(|meta| meta.is_dir()).unwrap_or(false)
+}
+
+fn found(path: PathBuf) -> FoundFolder {
+  let modified = std::fs::metadata(&path).and_then(|meta| meta.modified()).ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|age| age.as_millis() as f64);
+  let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+  FoundFolder { path, name, modified }
+}
+
+// 검색어가 없으면 자주 쓰는 자리(데스크톱·문서·다운로드·개발 폴더) 바로 아래 폴더를 최근에 고친 순으로,
+// 있으면 Spotlight(mdfind)로 이름에 그 글자가 든 폴더를 찾아요. 이름이 검색어로 시작하는 폴더를 먼저 보여요.
+#[tauri::command]
+async fn find_folders<R: Runtime>(app: AppHandle<R>, query: String) -> Result<Vec<(PathBuf, String, Option<f64>)>, String> {
+  let home = app.path().home_dir().map_err(|e| e.to_string())?;
+  let query = query.trim().to_string();
+  let mut paths: Vec<PathBuf> = Vec::new();
+  if query.is_empty() {
+    for root in ["Desktop", "Documents", "Downloads", "Developer", "Projects", "projects", "dev", "code", "Code", "workspace", "Workspace", "GitHub", "Sites"] {
+      if let Ok(entries) = std::fs::read_dir(home.join(root)) {
+        paths.extend(entries.flatten().map(|entry| entry.path()));
+      }
+    }
+  } else {
+    paths = search_folders(&home, &query);
+  }
+  let mut out: Vec<FoundFolder> = Vec::new();
+  for path in paths {
+    if out.len() >= 400 {
+      break;
+    }
+    if room_candidate(&home, &path) && !out.iter().any(|item| item.path == path) {
+      out.push(found(path));
+    }
+  }
+  let lower = query.to_lowercase();
+  out.sort_by(|a, b| {
+    let starts = |item: &FoundFolder| !lower.is_empty() && item.name.to_lowercase().starts_with(&lower);
+    starts(b).cmp(&starts(a)).then(b.modified.unwrap_or(0.0).total_cmp(&a.modified.unwrap_or(0.0)))
+  });
+  out.truncate(80);
+  // [경로, 이름, 고친 시각(ms)] 배열로 넘겨요(serde를 새 의존성으로 더하지 않으려고).
+  Ok(out.into_iter().map(|item| (item.path, item.name, item.modified)).collect())
+}
+
+#[cfg(target_os = "macos")]
+fn search_folders(home: &Path, query: &str) -> Vec<PathBuf> {
+  // Spotlight 질의 글자에서 따옴표·역슬래시·별표를 이스케이프해 질의를 깨지 않게 해요.
+  let escaped: String = query.chars().flat_map(|c| if matches!(c, '\\' | '\'' | '"' | '*') { vec!['\\', c] } else { vec![c] }).collect();
+  let filter = format!("kMDItemContentType == 'public.folder' && kMDItemFSName == '*{escaped}*'cd");
+  Command::new("mdfind")
+    .arg("-onlyin")
+    .arg(home)
+    .arg(filter)
+    .output()
+    .map(|out| String::from_utf8_lossy(&out.stdout).lines().take(2000).map(PathBuf::from).collect())
+    .unwrap_or_default()
+}
+
+// shortcut: Spotlight가 없는 곳은 자주 쓰는 자리 세 층까지만 이름으로 훑어요. Windows 정식 지원 때 Windows Search로 바꿔요.
+#[cfg(not(target_os = "macos"))]
+fn search_folders(home: &Path, query: &str) -> Vec<PathBuf> {
+  let lower = query.to_lowercase();
+  let mut out = Vec::new();
+  let mut stack: Vec<(PathBuf, u8)> = ["Desktop", "Documents", "Downloads", "Projects", "dev", "code"].iter().map(|root| (home.join(root), 0)).collect();
+  while let Some((dir, depth)) = stack.pop() {
+    let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+    for entry in entries.flatten() {
+      let path = entry.path();
+      if !entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) {
+        continue;
+      }
+      if entry.file_name().to_string_lossy().to_lowercase().contains(&lower) {
+        out.push(path.clone());
+      }
+      if depth < 2 {
+        stack.push((path, depth + 1));
+      }
+    }
+  }
+  out
+}
+
+// 방 만들기 목록에서 사용자가 고른 폴더를 방 폴더로 열어요(하위 전체). 폴더 고르기 창을 거치지 않으니 여기서 홈 폴더 아래 보통 폴더인지 다시 확인해요.
+// 여는 것은 읽기·감시 범위뿐이에요. 쓰기·지우기 권한은 더하지 않아요.
+#[tauri::command]
+fn allow_found_rooms<R: Runtime>(app: AppHandle<R>, folders: Vec<PathBuf>) -> Result<(), String> {
+  let home = app.path().home_dir().map_err(|e| e.to_string())?;
+  for folder in &folders {
+    if !room_candidate(&home, folder) {
+      return Err("방으로 열 수 없는 폴더예요.".into());
+    }
+  }
+  for folder in &folders {
+    app.fs_scope().allow_directory(folder, true).map_err(|e| e.to_string())?;
+  }
+  Ok(())
+}
+
 // 고른 방 폴더 안 보통 파일 하나를 다른 방 폴더로 복제해요(2026-11-18 요청). 원본은 그대로 두고, 대상 자리에 무엇이 있으면 거절해요(덮어쓰지 않음).
 // 숨김 파일·폴더·바로가기는 받지 않아요. 복사 중에 멈추면 만든 사본을 지우지 않고 오류만 알려요.
 #[tauri::command]
@@ -963,7 +1079,7 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, find_folders, allow_found_rooms, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -1139,6 +1255,22 @@ mod tests {
     assert!(invoke(&webview, "plugin:fs|write_text_file", json!({ "path": from })).is_err());
     assert!(from.exists());
     std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 방 만들기 목록은 홈 아래 보통 폴더만 방 후보로 받아요.
+  #[test]
+  fn room_candidates_are_plain_folders_under_home() {
+    let home = std::env::temp_dir().join(format!("folduct-home-{}", std::process::id()));
+    for dir in ["작업/포스터", ".숨김/안", "Library/Caches", "앱.app", "작업/node_modules", "밖"] {
+      std::fs::create_dir_all(home.join(dir)).unwrap();
+    }
+    std::fs::write(home.join("파일.txt"), "x").unwrap();
+    assert!(room_candidate(&home, &home.join("작업")));
+    assert!(room_candidate(&home, &home.join("작업/포스터")));
+    for bad in [home.clone(), home.join(".숨김/안"), home.join("Library/Caches"), home.join("앱.app"), home.join("작업/node_modules"), home.join("파일.txt"), home.join("없음"), home.join("작업/../밖"), std::env::temp_dir()] {
+      assert!(!room_candidate(&home, &bad), "{bad:?}");
+    }
+    std::fs::remove_dir_all(&home).unwrap();
   }
 
   // 복제는 고른 방 폴더 사이에서만, 원본은 그대로 두고 같은 이름은 덮어쓰지 않습니다.

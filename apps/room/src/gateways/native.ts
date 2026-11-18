@@ -146,6 +146,16 @@ export async function watchFolder(paths: string | string[], onChange: () => void
 // 방으로 고른 하위 폴더만 하위 전체를 읽고 옮길 수 있게 엽니다.
 export const allowRooms = (paths: string[]): Promise<void> => invoke("allow_rooms", { folders: paths });
 
+// 방 만들기 목록(2026-11-18 요청). 검색어가 없으면 자주 쓰는 자리 바로 아래 폴더를, 있으면 이름으로 찾은 폴더를 받아요. 이름·경로·고친 시각만이에요.
+export type FoundFolder = { path: string; name: string; modified: number | null };
+export async function findFolders(query: string): Promise<FoundFolder[]> {
+  const rows = await invoke<[string, string, number | null][]>("find_folders", { query });
+  // 경로는 디스크 이름 그대로 두고(스코프가 바이트로 비교), 보이는 이름만 NFC로 맞춰요.
+  return rows.map(([path, name, modified]) => ({ path, name: name.normalize("NFC"), modified }));
+}
+// 목록에서 고른 폴더를 방 폴더로 열어요. Tauri 쪽이 홈 아래 보통 폴더인지 다시 확인해요.
+export const allowFoundRooms = (paths: string[]): Promise<void> => invoke("allow_found_rooms", { folders: paths });
+
 export async function pickRoomFolder(defaultPath?: string): Promise<string | null> {
   const path = await open({ directory: true, recursive: true, defaultPath });
   return typeof path === "string" ? path : null;
