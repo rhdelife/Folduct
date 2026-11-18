@@ -82,6 +82,15 @@ describe("방치 판정", () => {
     expect(candidates.map((item) => item.id)).toEqual([fallen.id, onShelf.id]);
     expect(markWorkDay(["2026-10-01"], start)).toEqual(["2026-10-01", "2026-10-05"]);
   });
+
+  it("빌드·캐시 폴더와 보관 폴더 안 파일은 이미 정리된 것이라 후보가 아니에요", () => {
+    const loose = thing({ path: "시안.psd" });
+    const built = thing({ path: "src-tauri/target/debug/deps/libfoo.rlib" });
+    const kept = thing({ path: "_archive/옛시안.psd" });
+    const named = thing({ path: "target.psd" });
+    const ids = sweepCandidates(room([loose, built, kept, named], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs).map((item) => item.id);
+    expect(ids.sort()).toEqual([loose.id, named.id].sort());
+  });
 });
 
 describe("방 밖 작업", () => {

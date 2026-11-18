@@ -1,5 +1,6 @@
 import type { CareSettings, Room, ScannedFile, Thing } from "./model";
 import { newId } from "./model";
+import { isBackFolder } from "./pile";
 
 // 방 돌보기 규칙. 화면·저장소와 무관한 순수 함수만 둡니다.
 export const boxFolderName = "_Folduct 정리상자";
@@ -72,8 +73,10 @@ export function thingAge(thing: Thing, room: Pick<Room, "care" | "workDays" | "c
 }
 
 // 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
+// 도구가 만든 폴더(target·build·cache…)와 사람이 치워 둔 보관 폴더(_archive·old·backup…) 안 파일은 이미 정리된 것이라 묻지 않아요(2026-11-19 요청).
+const inBackFolder = (path: string) => path.split("/").slice(0, -1).some(isBackFolder);
 export function sweepCandidates(room: Room, now: number): Thing[] {
-  return room.things.filter((thing) => thingAge(thing, room, now).stale).sort((a, b) => b.size - a.size);
+  return room.things.filter((thing) => !inBackFolder(thing.path) && thingAge(thing, room, now).stale).sort((a, b) => b.size - a.size);
 }
 
 // 방 안 네 줄. 파일은 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자로 흘러갑니다.
