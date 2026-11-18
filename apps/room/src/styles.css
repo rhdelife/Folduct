@@ -218,7 +218,6 @@
   --trend-chart-h: 120px;
 
   /* 방 머리의 주름관 */
-  --room-head-duct: 56px;
   /* 메뉴와 대화창 곁의 도우미 프로도. */
 
   /* 주간 정리 */
@@ -992,9 +991,8 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .topnav > .row button:hover:not(:disabled), .viewer-head button:hover:not(:disabled) { border-color: transparent; background: none; color: var(--ink); }
 .home-link { justify-self: start; gap: var(--space-2); padding: 0; font-size: var(--text-sm); color: var(--ink-caption); }
 .home-link:hover:not(:disabled) { background: none; color: var(--ink); }
-.home-link .mark { margin-right: var(--space-1); }
+.home-link > span { font-size: var(--text-lg); line-height: 1; }
 .topnav-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.room-head-duct { flex: none; width: var(--room-head-duct); height: var(--room-head-duct); overflow: visible; }
 .topnav-title h1 { flex: 0 1 auto; min-width: 0; font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 500; letter-spacing: -0.01em; color: var(--ink-caption); }
 .topnav-title .eyebrow { flex: 0 1 auto; min-width: 0; font-size: var(--text-caption); line-height: var(--lh-caption); font-weight: 400; letter-spacing: -0.01em; text-transform: none; color: var(--ink-soft); }
 
@@ -1277,9 +1275,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 좁은 창: 머리글은 왼쪽으로, 두 줄로 접힙니다(집 화면과 같은 폭에서). */
 @media (max-width: 1100px) {
   .topnav { grid-template-columns: max-content minmax(0, 1fr) max-content; }
-  .topnav-title { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0 var(--space-2); align-items: center; }
-  .room-head-duct { grid-row: 1 / span 2; }
-  .topnav-title h1, .topnav-title .eyebrow { grid-column: 2; }
+  .topnav-title { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--space-2); align-items: center; }
   .topnav-title h1 { font-size: var(--text-md); line-height: var(--lh-md); }
   .topnav-title .eyebrow { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: 0; white-space: normal; overflow: visible; }
 }

@@ -245,7 +245,6 @@
 | `scene/cal-dot` | `5px` |  |
 | `scene/cal-gap` | `2px` |  |
 | `scene/trend-chart-h` | `120px` |  |
-| `scene/room-head-duct` | `56px` |  |
 | `scene/weekly-w` | `min(55vw, 760px)` |  |
 | `scene/weekly-shadow` | `0 1px 2px rgb(27 26 24 / 0.05), 0 16px 40px rgb(27 26 24 / 0.06)` |  |
 | `scene/hairline` | `0.5px` |  |

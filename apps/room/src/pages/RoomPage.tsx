@@ -1,11 +1,9 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ductLength, kindParts } from "../art/duct";
 import { ObjectShape } from "../art/ObjectShape";
 import { Capacity } from "../components/Capacity";
-import { RoomFaceArt } from "../components/RoomFace";
 import { FileViewer, previewLimit, previewMode, writeClipboard, type ViewerState } from "../components/FileViewer";
-import { BrandMark, Icon } from "../components/Icon";
+import { Icon } from "../components/Icon";
 import { cue } from "../components/useFrodo";
 import { RoomScene } from "../components/RoomScene";
 import { AiNotePanel } from "../components/AiNotePanel";
@@ -31,8 +29,6 @@ import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 // 데스크톱 보기 창은 파일을 통째로 메모리에 읽습니다. 이보다 크면 기본 앱으로 엽니다.
 // 서랍의 이미지 미리보기도 통째로 읽으므로 더 작게 잡습니다.
 const imageLimit = 30 * 1024 ** 2;
-// 머리의 주름관 선 굵기 기준. 크기는 styles.css의 --room-head-duct와 같아요.
-const headDuctPx = 56;
 const folderIssues = {
   denied: "폴더 접근 권한이 없어요. 목록은 그대로예요.",
   gone: "폴더를 찾지 못했어요. 옮겼거나 드라이브가 빠졌는지 확인해 주세요. 목록은 그대로예요.",
@@ -572,13 +568,11 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
   return (
     <main className="room-page">
       <header className="topnav">
-        <button type="button" className="quiet home-link" onClick={() => { flush(); onBack(); }}>
-          <BrandMark size={32} />
+        {/* 머리줄은 글 없이 화살표와 방 이름만 둬요. 로고·프로도는 뺐어요(2026-11-18 요청). */}
+        <button type="button" className="quiet home-link" aria-label="홈으로" title="홈으로" onClick={() => { flush(); onBack(); }}>
           <span aria-hidden="true">←</span>
-          돌아가기
         </button>
         <div className="topnav-title">
-          <RoomFaceArt face={room.face} parts={usage.exact ? kindParts(room.things) : []} length={ductLength(usage.totalBytes)} px={headDuctPx} className="room-head-duct" actor={room.id} mood={saveError || folderIssue ? "worried" : selected?.missing ? "wide" : room.care.done ? "shut" : "base"} />
           <h1 ref={heading} tabIndex={-1}>{room.name}</h1>
           <p className="eyebrow"><Meta items={[room.source === "sample" ? "샘플 방" : room.rootName === room.name ? null : room.source === "input" ? room.rootName : `${room.rootName} 폴더`, room.source === "input" && "보기 전용", room.care.done && "홈에서 뺌"]} /></p>
         </div>

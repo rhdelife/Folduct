@@ -1006,10 +1006,6 @@
       "$type": "other",
       "$value": "120px"
     },
-    "room-head-duct": {
-      "$type": "other",
-      "$value": "56px"
-    },
     "weekly-w": {
       "$type": "other",
       "$value": "min(55vw, 760px)"
