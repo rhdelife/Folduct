@@ -8,7 +8,7 @@ import { addDoorFolder, assignDoorItem, bringIntoRoom, refreshDoorstep, undoBrin
 import { seed, view, type MemoryDir } from "./fakeFolder";
 
 // 저장소와 Tauri 폴더 손만 메모리로 바꿉니다. 등록하지 않은 폴더는 읽기에 실패합니다.
-const disk = vi.hoisted(() => ({ state: null as unknown as Doorstep, folders: new Map<string, DirectorySource>(), dirs: new Map<string, MoveDirectory>(), rooms: [] as { origin?: string }[], patched: null as Room | null, scanned: null as MemoryDir | null, scanFails: false }));
+const disk = vi.hoisted(() => ({ state: null as unknown as Doorstep, folders: new Map<string, DirectorySource>(), dirs: new Map<string, MoveDirectory>(), rooms: [] as { origin?: string; care?: { done: boolean; staleAfterDays: number } }[], patched: null as Room | null, scanned: null as MemoryDir | null, scanFails: false }));
 
 vi.mock("../storage/db", () => ({
   getDoorstep: async () => disk.state,
@@ -229,6 +229,14 @@ describe("현관 새로 읽기", () => {
     const { state, error } = await addDoorFolder(dl);
     expect(error).toBe("이미 방으로 연결한 폴더예요.");
     expect(state.folders).toEqual([]);
+  });
+
+  it("홈에서 뺀 방의 폴더는 현관으로 받아요", async () => {
+    disk.rooms.push({ origin: dl, care: { done: true, staleAfterDays: 30 } });
+    disk.folders.set(dl, source([{ name: "옛날.pdf" }]));
+    const { state, error } = await addDoorFolder(dl);
+    expect(error).toBeNull();
+    expect(state.folders).toEqual([dl]);
   });
 });
 

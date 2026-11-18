@@ -32,8 +32,9 @@ export async function refreshDoorstep(now = Date.now()): Promise<{ state: Doorst
 }
 
 // 더하는 때에 기준을 잡아, 지금부터 생기는 문서만 새 문서가 됩니다. 방 폴더의 새 파일은 이미 그 방 ‘새로 왔어요’ 줄에 서니 받지 않아요.
+// 홈에서 뺀 방은 감시도 Review도 쉬니 막지 않아요. 예전에 다운로드 폴더로 방을 만들었다 뺀 사용자는 현관이 영영 비어 자동 이동이 안 됐어요(2026-11-18).
 export async function addDoorFolder(folder: string): Promise<{ state: Doorstep; error: string | null }> {
-  if ((await listRooms()).some((room) => sameFolder(room.origin, folder))) return { state: await getDoorstep(), error: "이미 방으로 연결한 폴더예요." };
+  if ((await listRooms()).some((room) => !room.care?.done && sameFolder(room.origin, folder))) return { state: await getDoorstep(), error: "이미 방으로 연결한 폴더예요." };
   const read = await readDoorFolder(pathSource(folder), undefined);
   return { state: await patchDoorstep((latest) => addFolder(latest, folder, read)), error: null };
 }
