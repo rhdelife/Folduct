@@ -85,7 +85,6 @@ export function Intro({ leaving, onLeave, onDone }: { leaving: boolean; onLeave:
           </div>
           <div className="intro-center">
             <div className="intro-vase-lift">
-              <span className="intro-floor" aria-hidden="true" />
               <div className="intro-vase">
                 {/* 먹는 동안만 시트를 보여 줍니다. 미리 올려 풀어 두어 시작할 때 멈칫하지 않아요. */}
                 <div className="intro-sprite" aria-hidden="true">

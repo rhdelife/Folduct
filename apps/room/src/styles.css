@@ -797,8 +797,10 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .scene-hero .sky-tip { z-index: var(--hero-tip-z); }
 .scene-hero .sky-rooms { z-index: 2; }
 
-/* 파일 종이. 첫 스크롤에 한 줄로 모여요(heroMotion). */
-.papers { position: absolute; inset: 0; pointer-events: none; isolation: isolate; }
+/* 먹인 방 파일 칸만 내려가고 찾기 줄은 위에 남아요. */
+.papers { position: absolute; overflow: hidden auto; overscroll-behavior-y: contain; scrollbar-width: thin; pointer-events: auto; isolation: isolate; }
+.papers-content { position: relative; }
+.papers-end { position: absolute; bottom: 0; width: 100%; height: var(--space-1); pointer-events: none; }
 .paper { position: absolute; visibility: visible; transform-origin: center; }
 .paper-art { display: block; width: 100%; height: 100%; pointer-events: auto; cursor: pointer; transition: scale var(--dur-2) var(--ease-standard), translate var(--dur-2) var(--ease-standard), opacity var(--dur-3) var(--ease-standard); }
 .paper-art .object { display: block; overflow: visible; }
@@ -809,7 +811,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   .paper-art:hover { scale: 1.06; }
 }
 
-/* 칸에 다 못 놓은 파일 수. 누르면 그 방으로 들어가요. */
 /* 먹은 방 파일 칸 맨 위 찾기 줄 두 단: 찾기 칸과 맞는 수, 그 아래 형식 고르기. 높이는 heroLayout findHeight(32 + 8 + 28)와 맞춰요. */
 .fed-find { position: absolute; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: var(--control-md) var(--control-sm); align-items: center; column-gap: var(--space-3); row-gap: var(--space-2); pointer-events: auto; animation: fade-in var(--dur-3) var(--ease-standard); }
 .fed-search { min-width: 0; min-height: 0; height: var(--control-md); border-radius: var(--radius-pill); font-size: var(--text-sm); }
@@ -1572,8 +1573,6 @@ svg.frodo-rise { transform-origin: 50% 90%; animation: frodo-rise 760ms var(--ea
 .intro-center { position: relative; display: grid; justify-items: center; }
 .intro-vase-lift { position: relative; }
 /* 무대 카드: 프로도 뒤 흰 면. 올라갈 때는 프로도만 떠나고 카드는 사라져요. */
-/* 받침 아래 그림자. 받침은 그림 왼쪽(판 폭의 0.32)에 서 있고 바닥은 판 높이의 0.92예요(art/duct.ts의 stand). */
-.intro-floor { position: absolute; left: calc(var(--intro-vase) * 0.316); top: calc(var(--intro-vase) * 0.92); width: calc(var(--intro-vase) * 0.45); height: var(--space-3); translate: -50% -50%; border-radius: 50%; background: var(--glass-wash-strong); }
 /* 다 끝난 자세(done)는 받침이 가운데 쪽(0.43)에 있어요. */
 .intro-vase { position: relative; width: var(--intro-vase); height: var(--intro-vase); transform-origin: 50% 90%; animation: duct-breathe 5s ease-in-out infinite alternate; }
 /* 주름은 받침부터 차례로 물듭니다. */
@@ -1935,10 +1934,10 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-drawer[data-open="true"] { z-index: 2; }
 .kind-stage[data-open="true"] .kind-drawer:not([data-open="true"]) { opacity: 0.55; }
 /* 몸: 앞판과 속을 한 덩어리로 옮겨요. 당긴 거리(40%)와 커진 비율(1.04), 속 높이(33%)가 맞물려서 속의 뒷변이 여닫는 내내 구멍 윗변 바로 아래에 머물러요. */
-.kind-drawer-body { position: absolute; inset: 0; }
+.kind-drawer-body { --drawer-pad-x: var(--space-4); --drawer-pad-y: var(--space-3); --drawer-name-size: var(--text-md); --drawer-name-line: var(--lh-md); position: absolute; inset: 0; }
 .kind-drawer:not([data-open="true"]):hover .kind-drawer-body { transform: translateY(var(--space-1)); }
 .kind-drawer[data-open="true"] .kind-drawer-body { transform: translateY(40%) scale(1.04); }
-.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); min-height: 0; padding: var(--space-3) var(--space-4); border: var(--pen) solid transparent; border-radius: var(--radius-md) var(--radius-sm) var(--radius-md) var(--radius-xs) / var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md); background: color-mix(in srgb, var(--kind) 16%, var(--surface)); color: var(--ink); text-align: left; white-space: nowrap; }
+.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); min-height: 0; padding: var(--drawer-pad-y) var(--drawer-pad-x); border: var(--pen) solid transparent; border-radius: var(--radius-md) var(--radius-sm) var(--radius-md) var(--radius-xs) / var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md); background: color-mix(in srgb, var(--kind) 16%, var(--surface)); color: var(--ink); text-align: left; white-space: nowrap; }
 .kind-drawer:nth-child(even) .kind-drawer-front { border-radius: var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md) / var(--radius-md) var(--radius-xs) var(--radius-md) var(--radius-sm); }
 .kind-drawer:hover .kind-drawer-front:not(:disabled) { background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
 .kind-drawer-front:active:not(:disabled) { transform: none; background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
@@ -1947,8 +1946,12 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 열렸을 때의 잉크 테와 그림자는 따로 그려 opacity만 바꿔요. 테두리와 그림자를 바로 옮기면 매 프레임 다시 그려요. */
 .kind-drawer-front::before { content: ""; position: absolute; inset: calc(var(--pen) * -1); border-radius: inherit; box-shadow: var(--shadow-2); opacity: 0; }
 .kind-drawer[data-open="true"] .kind-drawer-front::before { opacity: 1; }
-.kind-drawer-plate { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; font-size: var(--text-md); line-height: var(--lh-md); }
+.kind-drawer-plate { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); }
 .kind-drawer-plate b { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.kind-drawer-name-space { height: var(--drawer-name-line); }
+.kind-drawer-body .kind-drawer-name { position: absolute; z-index: 2; top: calc(var(--pen) + var(--drawer-pad-y)); left: calc(var(--pen) + var(--drawer-pad-x) + var(--space-3) + var(--space-2)); max-width: calc(100% - (var(--pen) + var(--drawer-pad-x)) * 2 - var(--space-3) - var(--space-2)); min-height: 0; padding: 0; border: 0; border-radius: var(--radius-xs); color: var(--ink); font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); font-weight: 700; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kind-drawer-body button.kind-drawer-name:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.kind-drawer-body input.kind-drawer-name { width: 100%; background: var(--surface); }
 .kind-drawer-count { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
 /* 손잡이: 앞판 아래 가운데 가로 막대 하나. */
 .kind-drawer-handle { position: absolute; left: 50%; bottom: 16%; width: 28%; height: var(--space-2); translate: -50% 0; border: var(--pen) solid var(--ink); border-radius: var(--radius-pill); background: var(--surface); filter: url(#kind-pen); }
@@ -2029,9 +2032,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
   .kind-stage { --kind-slip-from: 0 calc(100% + var(--space-8)); --kind-slip-alpha: 0; }
   .kind-stage[data-open="true"] { padding-right: 0; }
   .kind-cabinet-wrap { place-items: start center; }
-  .kind-drawer-front { padding: var(--space-2) var(--space-3); }
+  .kind-drawer-body { --drawer-pad-x: var(--space-3); --drawer-pad-y: var(--space-2); --drawer-name-size: var(--text-base); --drawer-name-line: var(--lh-base); }
   .kind-drawer-handle { bottom: 10%; }
-  .kind-drawer-plate { font-size: var(--text-base); line-height: var(--lh-base); }
   .kind-slip { inset: auto 0 0; z-index: 3; width: auto; height: 60%; justify-items: stretch; }
   .kind-slip-paper { width: auto; padding: var(--space-4); }
   /* 새 종이가 아래에서 멀리 올라오는 동안 옛 종이 윗부분이 비치지 않게, 옛 종이는 다 덮인 뒤 빠질 때까지 옅어지지 않아요. */

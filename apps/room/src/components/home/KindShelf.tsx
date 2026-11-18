@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
@@ -13,7 +13,7 @@ import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 import { cssToken, tokenMs } from "../tokens";
 import { Icon } from "../Icon";
-import { builtInShelfViews, emptyShelfViews, reservedViewNames, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
+import { builtInShelfViews, emptyShelfViews, reservedViewNames, shelfNameMax, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
 import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
 import { ShelfEditor } from "./ShelfEditor";
 import { isNotFound, restoreTrashed, trashFile } from "../../gateways/mover";
@@ -27,6 +27,8 @@ const shownStep = 24;
 const peekCount = 5;
 const cardArtPx = 40;
 const slipId = "kind-slip";
+const defaultDrawers: DrawerSpec[] = colorGroups.map((group) => ({ id: group.label, name: group.label, kinds: group.kinds }));
+const drawerKey = (shelf: Shelf) => shelf.id ?? shelf.label;
 
 // 형식 서랍은 형식 색, 컬러별 서랍은 그 색 네모(HueSwatches와 같은 --hue-*)예요.
 // 사용자가 만든 서랍은 고른 형식 중 첫 형식의 색이에요.
@@ -50,6 +52,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   // 서랍장 고치기 창: 지금 서랍장을 고치거나(edit) 새 서랍장을 만들어요(new).
   const [editing, setEditing] = useState<"edit" | "new" | null>(null);
   const customView = views.custom.find((view) => view.id === mode);
+  const [renameError, setRenameError] = useState(false);
   const drawers = mode === "kind" ? views.kind : customView?.drawers;
   const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
@@ -188,12 +191,12 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open]);
   if (!shown) return null;
-  const listed = shelves.find((shelf) => shelf.label === last) ?? null;
+  const listed = shelves.find((shelf) => drawerKey(shelf) === last) ?? null;
   // 다른 서랍이 닫히는 중에 연 서랍은 그 서랍이 들어가기 시작한 뒤에 따라 나와요(CSS data-handoff). 들어가던 서랍을 다시 열면 멈칫하지 않고 바로 돌아 나와요.
   const handoff = open !== null && gone.length > 0 && !gone.some((item) => item.label === open);
   // 바꿔 열면 옛 목록 종이가 새 종이 밑에 잠깐 남아요. 서랍 순서대로 놓아 React가 종이를 옮기지 않으니 옛 종이는 다시 그려지지 않고 그 자리에서 사라져요. 새 종이는 CSS z-index로 위에 와요.
   const leaving = new Set(gone.filter((item) => item.swap && item.label !== last).map((item) => item.label));
-  const papers = shelves.filter((shelf) => shelf === listed || leaving.has(shelf.label));
+  const papers = shelves.filter((shelf) => shelf === listed || leaving.has(drawerKey(shelf)));
   // 넓은 창에서 목록 종이는 서랍이 빠져나오고 속 종이가 튀어 오른 뒤, 그 종이들 자리에서 작은 종이로 떠올라 오른쪽 칸까지 커지며 펼쳐져요(growFrom).
   // 닫을 때는 처음 누른 서랍 자리로 작아지며 들어가요(아래 CSS 변수와 styles.css transition). 좁은 창은 지금처럼 아래에서 올라와요.
   const wide = () => matchMedia("(min-width: 721px)").matches;
@@ -254,7 +257,8 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   };
   const toggle = (shelf: Shelf, pressed: HTMLButtonElement) => {
     front.current = pressed;
-    const next = open === shelf.label ? null : shelf.label;
+    const key = drawerKey(shelf);
+    const next = open === key ? null : key;
     // 앞판을 다시 눌러 닫을 때도 Esc·닫기처럼 앞판에 포커스를 둬요. WebKit은 눌러도 버튼에 포커스를 주지 않아요.
     if (next === null) return close();
     stopGrow();
@@ -281,6 +285,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   // 나누기를 바꾸면 열린 서랍과 붙들던 서랍을 모두 내려놓아요. 서랍 이름이 서로 달라 옛 서랍이 남아 있을 자리가 없어요.
   const switchMode = (next: string) => {
     stopGrow();
+    setRenameError(false);
     goneTimers.current.forEach((timer) => clearTimeout(timer));
     goneTimers.current.clear();
     setGone([]);
@@ -296,8 +301,25 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     setEditing(null);
   };
   const viewNames = [...reservedViewNames, ...views.custom.map((view) => view.name)];
-  const defaultDrawers: DrawerSpec[] = colorGroups.map((group) => ({ id: group.label, name: group.label, kinds: group.kinds }));
   const editable = mode === "kind" || Boolean(customView);
+  const renameDrawer = (shelf: Shelf, value: string) => {
+    const name = value.trim();
+    if (!name || name === shelf.label) return;
+    const current = drawers ?? defaultDrawers;
+    const key = drawerKey(shelf);
+    const nextName = uniqueName(name, current.filter((drawer) => drawer.id !== key).map((drawer) => drawer.name));
+    const nextDrawers = current.map((drawer) => drawer.id === key ? { ...drawer, name: nextName } : drawer);
+    const next = customView
+      ? { ...views, custom: views.custom.map((view) => view.id === customView.id ? { ...view, drawers: nextDrawers } : view) }
+      : { ...views, kind: nextDrawers };
+    setRenameError(false);
+    setViews(next);
+    saveShelfViews(next).catch((error: unknown) => {
+      console.error(error);
+      setViews((saved) => saved === next ? views : saved);
+      setRenameError(true);
+    });
+  };
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       {/* 펜 떨림: 서랍장 선을 프로도처럼 손으로 그린 선으로 흔들어요. 글자에는 쓰지 않아요. */}
@@ -326,6 +348,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
           <button type="button" className={`quiet${editable ? "" : " kind-shelves-keep"}`} title="서랍장 고치기" disabled={!editable} onClick={() => setEditing("edit")}>편집</button>
         </div>
         {note && <p className="kind-shelves-note" aria-live="polite">{note}</p>}
+        {renameError && <p className="kind-shelves-note" role="alert">서랍 이름을 저장하지 못했어요. 다시 해 주세요.</p>}
       </header>
       {shelves.length > 0 && (
         <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
@@ -334,16 +357,17 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
             <div className="kind-cabinet-sink">
               <div ref={cabinet} className="kind-cabinet" style={{ "--rows3": Math.ceil(shelves.length / 3), "--rows2": Math.ceil(shelves.length / 2) } as CSSProperties}>
                 <span className="kind-cabinet-line" aria-hidden="true" />
-                {shelves.map((shelf) => (
-                  <Drawer key={shelf.label} shelf={shelf} on={open === shelf.label} closing={open !== shelf.label && gone.some((item) => item.label === shelf.label)} onToggle={(pressed) => toggle(shelf, pressed)} />
-                ))}
+                {shelves.map((shelf) => {
+                  const key = drawerKey(shelf);
+                  return <Drawer key={key} shelf={shelf} on={open === key} closing={open !== key && gone.some((item) => item.label === key)} onToggle={(pressed) => toggle(shelf, pressed)} onRename={editable ? (name) => renameDrawer(shelf, name) : undefined} />;
+                })}
               </div>
             </div>
           </div>
           <div ref={slip} id={slipId} className="kind-slip" role="region" aria-labelledby="kind-slip-title" data-open={open !== null} inert={open === null}>
             {papers.map((shelf) => (
               // key 로 종이를 바꿔 끼워서, 다른 서랍을 열 때마다 새 종이가 다시 내려앉아요.
-              <SlipPaper key={shelf.label} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} onTrashed={onTrashed} />
+              <SlipPaper key={drawerKey(shelf)} shelf={shelf} leaving={shelf !== listed} folders={folders} onOpenFile={onOpenFile} onClose={close} onTrashed={onTrashed} />
             ))}
           </div>
         </div>
@@ -468,8 +492,25 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
 }
 
 // 서랍 한 칸: 구멍(.kind-drawer) 안에서 앞판(누르는 곳)과 그 뒤의 속이 한 몸으로 빠져나와요.
-function Drawer({ shelf, on, closing, onToggle }: { shelf: Shelf; on: boolean; closing: boolean; onToggle: (pressed: HTMLButtonElement) => void }) {
+function Drawer({ shelf, on, closing, onToggle, onRename }: { shelf: Shelf; on: boolean; closing: boolean; onToggle: (pressed: HTMLButtonElement) => void; onRename?: (name: string) => void }) {
   const count = countText(shelf.items.length);
+  const [renaming, setRenaming] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const nameButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (!renaming) return;
+    nameInput.current?.focus();
+    nameInput.current?.select();
+  }, [renaming]);
+  const finishName = (name: string | null, restoreFocus = false) => {
+    if (name !== null) onRename?.(name);
+    if (restoreFocus) {
+      flushSync(() => setRenaming(false));
+      nameButton.current?.focus({ preventScroll: true });
+    } else {
+      setRenaming(false);
+    }
+  };
   return (
     <div className="kind-drawer" data-open={on} data-closing={closing || undefined} style={{ "--kind": colorOf(shelf) } as CSSProperties}>
       <div className="kind-drawer-body">
@@ -488,15 +529,38 @@ function Drawer({ shelf, on, closing, onToggle }: { shelf: Shelf; on: boolean; c
           aria-label={`${shelf.label} 서랍, ${count}개, ${formatBytes(shelf.size)}`}
           onClick={(event) => onToggle(event.currentTarget)}
         >
-          <span className="kind-drawer-plate">
+          <span className="kind-drawer-plate" aria-hidden="true">
             <span className="kind-dot" aria-hidden="true" />
-            <b>{shelf.label}</b>
+            {onRename ? <span className="kind-drawer-name-space" /> : <b>{shelf.label}</b>}
           </span>
           <span className="kind-drawer-count">
             {count}개 · {formatBytes(shelf.size)}
           </span>
           <span className="kind-drawer-handle" aria-hidden="true" />
         </button>
+        {onRename && (
+          renaming ? (
+            <input
+              ref={nameInput}
+              type="text"
+              className="kind-drawer-name"
+              aria-label={`${shelf.label} 서랍 이름`}
+              defaultValue={shelf.label}
+              maxLength={shelfNameMax}
+              onBlur={(event) => finishName(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || (event.key !== "Enter" && event.key !== "Escape")) return;
+                event.preventDefault();
+                event.stopPropagation();
+                finishName(event.key === "Enter" ? event.currentTarget.value : null, true);
+              }}
+            />
+          ) : (
+            <button ref={nameButton} type="button" className="quiet kind-drawer-name" aria-label={`${shelf.label} 서랍 이름 바꾸기`} onClick={() => setRenaming(true)}>
+              {shelf.label}
+            </button>
+          )
+        )}
       </div>
     </div>
   );

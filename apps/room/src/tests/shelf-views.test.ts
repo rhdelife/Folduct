@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyShelfViews, normalizeShelfViews, parseExts, uniqueName } from "../domain/shelfViews";
+import { emptyShelfViews, normalizeShelfViews, parseExts, shelfNameMax, uniqueName } from "../domain/shelfViews";
 
 describe("서랍장 구성", () => {
   it("없거나 깨진 값은 기본 형식별 서랍으로 돌아가요", () => {
@@ -29,6 +29,10 @@ describe("서랍장 구성", () => {
   it("이름이 비어 있지 않으면 그대로, 겹치면 다음 숫자예요", () => {
     expect(uniqueName("서랍", [])).toBe("서랍");
     expect(uniqueName("서랍", ["서랍", "서랍 2"])).toBe("서랍 3");
+    const fullName = "가".repeat(shelfNameMax);
+    const name = uniqueName(fullName, [fullName]);
+    expect(name).toBe(fullName.slice(0, -2) + " 2");
+    expect(normalizeShelfViews({ kind: [{ name: fullName }, { name }] }).kind?.map((drawer) => drawer.name)).toEqual([fullName, name]);
   });
 });
 

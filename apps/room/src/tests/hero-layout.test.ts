@@ -82,13 +82,13 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     }
   });
 
-  it("고른 방 파일만 놓이고, 기울지 않으며 서로·창 밖·아래 탭 알약과 겹치지 않고, 프로도와도 겹치지 않는다", () => {
+  it("고른 방 파일만 놓이고, 서로·프로도와 겹치지 않으며, 첫 화면은 아래 탭 알약 자리를 비운다", () => {
     for (const view of views) {
       for (const count of [1, 3, homeLimit]) {
         for (const doorOpen of [false, true]) {
           const rooms = many(count, 30);
           const picked = rooms[count - 1].id;
-          const { frodo, cards } = heroLayout(rooms, start, view, aspect, doorOpen, picked);
+          const { frodo, cards, find } = heroLayout(rooms, start, view, aspect, doorOpen, picked);
           const body = { x: frodo!.left + frodo!.width / 2, y: frodo!.top + frodo!.height / 2, hw: frodo!.width / 2, hh: frodo!.height / 2 };
           const boxes = cards.map((card) => boxOf(card, view));
           cards.forEach((card, i) => {
@@ -98,8 +98,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
             expect(card.rot, label).toBe(0);
             expect(box.x - box.hw, label).toBeGreaterThanOrEqual(0);
             expect(box.x + box.hw, label).toBeLessThanOrEqual(view.w + 0.5);
-            // 좁은 창(720 이하)은 아래 가운데에 홈 | Drawer 알약(56px)이 떠 있어 그 자리를 비워요.
-            expect(box.y + box.hh, label).toBeLessThanOrEqual(view.h - (view.w <= 720 ? 56 : 0));
+            if (i < find!.visible) expect(box.y + box.hh, label).toBeLessThanOrEqual(find!.bottom + 0.5);
             expect(overlap(box, body), label).toBe(false);
             boxes.slice(i + 1).forEach((other) => expect(overlap(box, other), label).toBe(false));
           });
@@ -109,18 +108,16 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     expect(heroLayout(many(3, 4), start, baseView, aspect).cards).toEqual([]);
   });
 
-  it("칸 안에서는 최근에 작업한 파일이 먼저 놓이고, 맨 위 찾기 줄에 맞는 파일 수가 있으며 칸을 넘지 않는다", () => {
+  it("최근에 작업한 파일부터 찾기 줄 아래에 놓고, 다음 줄은 첫 화면 아래로 이어진다", () => {
     for (const view of views) {
       const rooms = many(3, 40);
       for (const r of rooms) {
         const { cards, find } = heroLayout(rooms, start, view, aspect, false, r.id);
         const times = cards.map((card) => lastActivity(card.thing));
         expect(times, `${view.w}x${view.h}`).toEqual([...times].sort((a, b) => b - a));
-        expect(find!.found).toBe(r.things.length);
-        expect(cards.length).toBeLessThanOrEqual(find!.found);
+        expect(cards).toHaveLength(r.things.length);
         for (const card of cards) {
           expect(toPx(card, view).y - card.height / 2, `${view.w}x${view.h}`).toBeGreaterThanOrEqual(find!.top + findHeight);
-          expect(toPx(card, view).y + card.height / 2).toBeLessThanOrEqual(view.h);
         }
       }
     }
@@ -129,7 +126,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
   it("몇 장 없는 방은 다 놓이고, 아무것도 안 먹었으면 찾기 줄이 없다", () => {
     const { cards, find } = heroLayout(many(3, 4), start, baseView, aspect, false, "room-0");
     expect(cards.length).toBe(4);
-    expect(find!.found).toBe(4);
+    expect(find!.visible).toBe(4);
     expect(heroLayout(many(3, 4), start, baseView, aspect).find).toBeNull();
   });
 
@@ -141,10 +138,22 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     ]);
     expect(fedThings(r, { query: "report", kinds: null }).map((t) => t.id)).toEqual(["a2", "a1"]);
     expect(fedThings(r, { query: "", kinds: ["text"] }).map((t) => t.id)).toEqual(["a3"]);
-    const { cards, find } = heroLayout([r], start, baseView, aspect, false, "a", { query: "report", kinds: ["image"] });
+    const { cards } = heroLayout([r], start, baseView, aspect, false, "a", { query: "report", kinds: ["image"] });
     expect(cards.map((card) => card.thing.id)).toEqual(["a1"]);
-    expect(find!.found).toBe(1);
-    expect(heroLayout([r], start, baseView, aspect, false, "a", { query: "zzz", kinds: null }).find!.found).toBe(0);
+    expect(heroLayout([r], start, baseView, aspect, false, "a", { query: "zzz", kinds: null }).cards).toEqual([]);
+  });
+
+  it("파일 1,000개가 첫 화면 뒤로 이어지고 검색은 마지막 줄까지 찾는다", () => {
+    const [r] = many(1, 1000);
+    for (const view of views) {
+      const { find, cards } = heroLayout([r], start, view, aspect, false, r.id);
+      expect(cards).toHaveLength(1000);
+      expect(new Set(cards.map(({ thing }) => thing.id)).size).toBe(1000);
+      const last = cards[cards.length - 1];
+      expect(boxOf(last, view).y - last.height / 2).toBeGreaterThan(find!.bottom);
+      const filtered = heroLayout([r], start, view, aspect, false, r.id, { query: last.thing.name, kinds: ["image"] });
+      expect(filtered.cards.map(({ thing }) => thing.id)).toEqual([last.thing.id]);
+    }
   });
 
   it("찾지 않을 때는 자동 생성 폴더 더미와 옛 버전이 사람이 찾는 파일 뒤로 간다", () => {

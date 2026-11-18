@@ -8,7 +8,7 @@ import { formatMB, formatMinutes, rangeText } from "./stepRange";
 // 상자에 든 파일과 사라진 파일은 빼고, 버전 계열은 최신본만 둬요(versions는 그 계열의 버전 수, 혼자면 1).
 export type ShelfItem = { room: Room; thing: Thing; versions: number; durationSeconds?: number };
 // hue는 컬러별 칸만 가져요(서랍 색이 형식 색 대신 그 색 네모예요).
-export type Shelf = { label: string; kinds: Kind[]; items: ShelfItem[]; size: number; hue?: Hue };
+export type Shelf = { id?: string; label: string; kinds: Kind[]; items: ShelfItem[]; size: number; hue?: Hue };
 
 // 홈에 둔 방들의 파일 중 칸에 놓을 것(상자·사라진 파일·옛 버전 빼고).
 export function shelfItems(rooms: Room[]): ShelfItem[] {
@@ -59,7 +59,7 @@ export function drawerShelves(rooms: Room[], drawers: Drawer[], seconds: Map<str
   const items = shelfItems(rooms);
   return drawers
     .map((drawer) => {
-      const shelf = pack(drawer.name, drawer.kinds, items.filter((item) => fitsDrawer(drawer, item, seconds)));
+      const shelf = { ...pack(drawer.name, drawer.kinds, items.filter((item) => fitsDrawer(drawer, item, seconds))), id: drawer.id };
       return shelf.kinds.length > 0 || shelf.items.length === 0 ? shelf : { ...shelf, kinds: [shelf.items[0].thing.kind] };
     })
     .filter((shelf) => shelf.items.length > 0);

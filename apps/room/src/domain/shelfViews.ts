@@ -39,7 +39,11 @@ const text = (value: unknown, fallback: string) => (typeof value === "string" &&
 export function uniqueName(name: string, taken: Iterable<string>): string {
   const used = new Set(taken);
   if (!used.has(name)) return name;
-  for (let n = 2; ; n++) if (!used.has(`${name} ${n}`)) return `${name} ${n}`;
+  for (let n = 2; ; n++) {
+    const suffix = ` ${n}`;
+    const candidate = name.slice(0, shelfNameMax - suffix.length).trimEnd() + suffix;
+    if (!used.has(candidate)) return candidate;
+  }
 }
 
 export function cleanDrawers(value: unknown): Drawer[] {

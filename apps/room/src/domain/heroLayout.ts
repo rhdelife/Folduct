@@ -16,11 +16,11 @@ const smallUnit = namedPaper / 56;
 const edge = 16;
 // 파일 칸 맨 위 찾기 줄 두 단의 높이(styles.css .fed-find: 찾기 칸 32 + 8 + 형식 28)
 export const findHeight = 68;
-const findWidth = 200;
 // 위 방 카드 줄의 높이. styles.css .room-shelf(--shelf-cover)와 맞춰요.
 export const shelfHeight = (view: View) => (view.w < 720 ? 92 : 124);
 // 화면 아래 가운데에 비워 둘 자리. 좁은 창(720 이하)은 홈 | Drawer 알약이 거기 떠 있어요. 넓은 창은 아래가 비어 있어 0이에요.
 const bottomSpace = (view: View) => (view.w <= 720 ? 56 : 0);
+const minFilesHeight = 48;
 // 그림 판 1칸이 차지하는 가장 큰 px. 큰 창에서도 프로도가 화면을 다 덮지 않아요.
 const maxScale = 2.4;
 // 가장 길게 자라도 빈자리를 다 채우지 않게 조금 작게 그려요.
@@ -44,8 +44,8 @@ export type Card = Star & {
 // 프로도 그림 상자(px). scale은 그림 판 1칸의 px, mouth는 파일이 나오는 입, floor는 받침 아래 선이에요.
 // 먹은 방이 바뀌어도 scale·left는 그대로예요. 프로도를 빈자리 가운데에 두니 몸이 늘면 받침이 그 절반만큼 내려가요.
 export type HeroFrodo = { left: number; top: number; width: number; height: number; scale: number; mouth: Point; floor: number };
-// 파일 칸 맨 위 찾기 줄 자리(px). found는 찾는 말·형식에 맞는 파일 수, 그중 칸에 놓은 수는 cards.length예요.
-export type FindSpot = { room: Room; left: number; top: number; width: number; found: number };
+// 찾기 줄과 스크롤되는 파일 칸의 자리(px). visible은 처음 화면에 온전히 들어가는 파일 수예요.
+export type FindSpot = { room: Room; left: number; top: number; width: number; filesTop: number; bottom: number; visible: number };
 // 먹은 방에서 고를 것: 찾는 말(이름·폴더)과 형식 묶음(색 띠 하나의 형식들).
 export type FedFilter = { query: string; kinds: readonly Kind[] | null };
 // shelf: 위 방 카드 줄(px). rooms: 그 줄에 놓는 방, 순서대로예요.
@@ -82,20 +82,25 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const unit = stageUnit(view);
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
+  const room = active.find((item) => item.id === selectedId);
+  const below = view.w < sideBySide;
+  const bottom = view.h - edge - bottomSpace(view);
   // 현관 줄은 왼쪽 아래 탭이 없는 좁은 창에서만 머리 아래에 펼쳐져요. 넓은 창에서는 '진행 중' 탭 안에 있어요.
   // lead: 방 카드 줄 위에 비워 둘 높이(분류 칩 줄).
-  const shelf = { top: (doorOpen && calendarSpot(view).length === 0 ? doorBottom(view) : headerBottom(view)) + edge + lead, height: shelfHeight(view) };
+  const shelfH = shelfHeight(view);
+  // 낮은 창에서 방을 먹이면 숨은 현관 줄의 높이를 파일 칸에 돌려줘요.
+  const doorFits = !room || !below || doorBottom(view) + edge + lead + shelfH + findHeight + minFilesHeight + 2 * gap < bottom;
+  const shelf = { top: (doorOpen && doorFits && calendarSpot(view).length === 0 ? doorBottom(view) : headerBottom(view)) + edge + lead, height: shelfH };
   const top = shelf.top + shelf.height + gap;
-  const room = active.find((item) => item.id === selectedId);
 
   // 크기는 가장 길게 자란 몸에 맞춰 정해 두고, 먹은 만큼의 몸을 같은 크기로 받침 위에 세워요. 그래야 먹을 때 프로도가 줄었다 커졌다 하지 않아요.
   const full = stackGeometry([1]).box;
   const [bx, by, bw, bh] = stackGeometry(fedLengths(room)).box;
   // 파일 칸을 프로도 옆에 둘 만큼 넓지 않으면(below) 프로도 아래에 둬요. 그때 일력이 있으면 받침이 일력보다 위에 서요.
-  const below = view.w < sideBySide;
   const [calendar] = calendarSpot(view);
   const above = calendar && below ? calendar.y - calendar.hh - edge : view.h - bottomSpace(view);
-  const tall = Math.max(1, (below ? Math.min((view.h - bottomSpace(view) - top) * narrowShare, above - top) : above - top));
+  const forFiles = bottom - top - findHeight - minFilesHeight - 2 * gap;
+  const tall = Math.max(1, below ? Math.min((view.h - bottomSpace(view) - top) * narrowShare, above - top, forFiles) : above - top);
   // 프로도를 빈자리(방 카드 줄 아래) 가운데에 둬요. 좁은 창에서 방을 먹으면 아래에 파일 칸이 오니 위쪽 몫(tall) 가운데로 올라가요.
   const area = room || !below ? tall : Math.max(1, above - top);
   // 프로도는 늘 창 가운데에 서요. 넓은 창은 파일 칸이 프로도 오른쪽에 들어가도록 프로도 크기를 맞춰요.
@@ -105,7 +110,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const scale = shrink * Math.min(maxScale, tall / full[3], across / full[2]);
   const width = bw * scale;
   const left = Math.max(below ? edge : leftMin, (view.w - width) / 2);
-  const filesWidth = below ? 0 : Math.max(findWidth, Math.min(filesMax, view.w - edge - (left + width + 2 * edge)));
+  const filesWidth = Math.min(filesMax, view.w - edge - (left + width + 2 * edge));
   const height = bh * scale;
   const floor = top + (area + height) / 2;
   const frodoTop = floor - height;
@@ -118,14 +123,17 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
 
   // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요. 좁은 창은 아래 홈 | Drawer 알약 자리까지 내려가지 않아요.
   const span = below
-    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + gap, bottom: view.h - edge - bottomSpace(view) }
-    : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom: view.h - edge };
+    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + gap, bottom }
+    : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom };
+  // 아주 낮은 창에서도 찾기 줄과 스크롤 칸을 열 수 있게 위로 당겨요.
+  span.top = Math.min(span.top, bottom - findHeight - gap - minFilesHeight);
   const byId = new Map(roomStars(room, frodo.mouth, 0, now, room.things.length).map((star) => [star.thing.id, star]));
   const stars = fedThings(room, filter).flatMap((thing) => byId.get(thing.id) ?? []);
-  const find: FindSpot = { room, left: span.left, top: span.top, width: span.right - span.left, found: stars.length };
-  const filesTop = span.top + findHeight + gap;
+  const filesTop = span.top + findHeight + gap / 2;
+  const firstRow = filesTop + gap / 2;
+  const find: FindSpot = { room, left: span.left, top: span.top, width: span.right - span.left, filesTop, bottom: span.bottom, visible: 0 };
   // 칸이 낮은 폰에서는 한 줄이 들어가도록 종이를 줄입니다. 반올림으로 1px 넘치지 않게 조금 덜어 둡니다.
-  const tallestPaper = Math.max(24, span.bottom - filesTop - 1);
+  const tallestPaper = Math.max(24, span.bottom - firstRow - 1);
   const sized = stars.map((star) => {
     let size = Math.min(paperWidth(star.thing.size, paperUnit), span.right - span.left);
     const ratio = size >= 40 ? aspect(star.thing) : 1;
@@ -137,7 +145,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const space = span.right - span.left;
   const build = (from: number) => {
     const row = { items: [] as typeof sized, width: 0, height: 0 };
-    for (const item of sized.slice(from)) {
+    for (let index = from; index < sized.length; index += 1) {
+      const item = sized[index];
       const next = row.items.length ? row.width + gap + item.size : item.size;
       if (next > space) break;
       row.items.push(item);
@@ -146,11 +155,11 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     }
     return row;
   };
-  let y = filesTop;
+  let y = firstRow;
   let shown = 0;
   while (shown < sized.length) {
     const row = build(shown);
-    if (row.items.length === 0 || y + row.height > span.bottom) break;
+    if (row.items.length === 0) break;
     let cursor = (span.left + span.right) / 2 - row.width / 2;
     for (const { star, size, height } of row.items) {
       const id = star.thing.id;
@@ -159,6 +168,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
       cursor += size + gap;
     }
     shown += row.items.length;
+    if (y + row.height <= span.bottom) find.visible = shown;
     y += row.height + gap;
   }
   return { ...base, cards, find };
