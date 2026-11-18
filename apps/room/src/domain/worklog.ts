@@ -79,9 +79,9 @@ export function yearMonths(year: number): string[][] {
 // rows의 빈 칸("")은 달력 앞뒤를 맞추는 자리예요.
 export type WorkPeriod = "week" | "month" | "year";
 export const workPeriods: { id: WorkPeriod; label: string; title: string }[] = [
-  { id: "week", label: "주", title: "주간" },
-  { id: "month", label: "달", title: "월간" },
-  { id: "year", label: "해", title: "연간" },
+  { id: "week", label: "Week", title: "주간" },
+  { id: "month", label: "Month", title: "월간" },
+  { id: "year", label: "Year", title: "연간" },
 ];
 
 // 카드에 보이는 기간 이름. '올해·이번 달' 대신 날짜로 써요(2026-11-18 요청): 2026, November, Nov 16–22.
