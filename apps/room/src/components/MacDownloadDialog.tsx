@@ -1,9 +1,12 @@
 import { useRef } from "react";
 import { useModal } from "./useModal";
 
-// 웹에서 맥 앱 베타를 내려받는 창(2026-11-18 요청). DMG는 웹과 같이 Vercel에 올려요(public/downloads, git에는 넣지 않아요).
+// 웹에서 맥 앱 베타를 내려받는 창(2026-11-18 요청).
 // 아직 Apple 공증 전이라 처음 열 때 한 번 허락하는 방법을 같이 적어요.
-export const macDmg = { href: "/downloads/Folduct_0.1.0_aarch64.dmg", size: "7.9MB" };
+// 큰 파일(DMG·기능 GIF)은 git과 사이트 묶음에 넣지 않고 Vercel Blob 저장소(folduct-files)에 둬요(2026-11-18 요청).
+// 새 DMG는 `vercel blob put <파일> --pathname downloads/<이름> --force`로 올리고 아래 이름을 바꿔요.
+export const assetBase = "https://x1ohqilcmrwtpwlp.public.blob.vercel-storage.com";
+export const macDmg = { href: `${assetBase}/downloads/Folduct_0.1.0_aarch64.dmg`, size: "7.9MB" };
 
 export function MacDownloadDialog({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);

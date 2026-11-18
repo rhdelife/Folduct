@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { BrandMark } from "../components/Icon";
-import { macDmg } from "../components/MacDownloadDialog";
+import { assetBase, macDmg } from "../components/MacDownloadDialog";
 
 // 소개·내려받기 페이지. 맨 위에 내려받기, 그 아래 기능·안전·처음 여는 법·자주 묻는 질문, 맨 아래 GitHub.
 const github = "https://github.com/rhdelife/Folduct";
@@ -76,7 +76,7 @@ export function DownloadPage() {
           <div className="dl-features">
             {features.map((item) => (
               <article key={item.img} className="dl-feature">
-                <HoverGif still={`/download/${item.still}.jpg`} gif={`/download/${item.img}.gif`} label={item.title} />
+                <HoverGif still={`${assetBase}/download/${item.still}.jpg`} gif={`${assetBase}/download/${item.img}.gif`} label={item.title} />
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
               </article>

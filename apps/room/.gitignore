@@ -2,5 +2,3 @@ node_modules
 dist
 .vercel
 
-# 맥 앱 베타 DMG: Vercel에는 올리고 git에는 넣지 않아요.
-public/downloads/
