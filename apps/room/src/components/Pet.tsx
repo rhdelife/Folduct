@@ -15,7 +15,7 @@ import { addWork } from "../domain/worklog";
 import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo } from "../gateways/native";
 import { getDoorstep, getLastSweepAt, getPetSettings, getReviewDays, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
-import { PoseArt, RoomFaceArt } from "./RoomFace";
+import { PoseArt, RoomMark } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { Meta } from "./Meta";
 
@@ -646,7 +646,7 @@ export function Pet() {
       {choices.map((item) => (
         <li key={item.id}>
           <button type="button" className="pet-room" style={{ "--room-color": faceColorVar(item.face.color) } as CSSProperties} onClick={() => start(item.id)}>
-            <RoomFaceArt face={item.face} px={22} className="pet-room-art" />
+            <RoomMark color={faceColorVar(item.face.color)} className="pet-room-art" />
             <span>{item.name}</span>
           </button>
         </li>

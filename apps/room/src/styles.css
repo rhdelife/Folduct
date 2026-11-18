@@ -1390,9 +1390,8 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .work-control.picking { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: var(--space-4); padding: var(--space-4); }
 .work-control.picking .work-pick-title { color: var(--ink-soft); font-weight: 600; }
 .work-control.picking .pet-rooms { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-12) * 4)), 1fr)); justify-self: stretch; gap: var(--space-2); }
-.work-control.picking .pet-rooms .pet-room { width: 100%; justify-content: flex-start; gap: var(--space-2); padding: 0 var(--space-4) 0 var(--space-3); border-color: color-mix(in srgb, var(--room-color) 18%, transparent); background: color-mix(in srgb, var(--room-color) 7%, var(--surface)); color: var(--ink-caption); font-weight: 500; }
-.work-control.picking .pet-rooms .pet-room:hover:not(:disabled), .work-control.picking .pet-rooms .pet-room:focus-visible { border-color: color-mix(in srgb, var(--room-color) 45%, transparent); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--ink); }
-.work-control.picking .pet-room-art { filter: saturate(0.7); opacity: 0.85; }
+.work-control.picking .pet-rooms .pet-room { width: 100%; justify-content: flex-start; gap: var(--space-2); padding: 0 var(--space-4) 0 var(--space-3); border-color: color-mix(in srgb, var(--room-color) 18%, transparent); background: color-mix(in srgb, var(--room-color) 7%, var(--surface)); color: var(--room-color); font-weight: 600; }
+.work-control.picking .pet-rooms .pet-room:hover:not(:disabled), .work-control.picking .pet-rooms .pet-room:focus-visible { border-color: color-mix(in srgb, var(--room-color) 45%, transparent); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--room-color); }
 /* 끝내기만 붉은 글자로 표시해요(사용자가 정한 예외). 멈춤은 붉은색이 겹쳐 보여 잉크(검정)로 바꿨어요(2026-11-17 요청). */
 /* 멈춤은 테두리 단추, 다시 시작은 검은 단추. 아이콘(❚❚·▶)도 달라서 모양만 봐도 구분돼요. */
 .work-control button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
@@ -1402,7 +1401,7 @@ main.page-status { min-height: 100dvh; align-content: center; }
 /* 어느 방인지: 실루엣 + 굵은 이름 + 상태(작업 중은 깜빡이는 점, 멈춤은 흐린 글자와 흐린 시간). */
 .work-room { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .work-room > span { display: grid; min-width: 0; text-align: left; }
-.work-room-art { flex: none; display: block; height: var(--control-md); width: auto; }
+.work-room-art { flex: none; display: block; width: var(--control-md); height: var(--control-md); }
 .work-room-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 800; color: var(--ink); }
 .work-clock small.work-state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--ink-caption); font-weight: 600; }
 .work-control.on:not(.paused) .work-state::before { content: ""; width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--ink); animation: work-blink 1.6s ease-in-out infinite; }
@@ -2083,10 +2082,10 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 
 /* 작업 시작 때 고르는 방. 방 얼굴 색(--face-*)을 옅게 깐 알약과 작은 주름관이에요. 사용자가 고르기 쉽게 색을 써 달라고 한 예외예요. */
 :is(.pet, .work-control) .pet-rooms { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-:is(.pet, .work-control) .pet-rooms .pet-room { display: inline-flex; align-items: center; gap: var(--space-1); width: auto; max-width: 100%; min-height: var(--control-md); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--room-color) 30%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--ink); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
+:is(.pet, .work-control) .pet-rooms .pet-room { display: inline-flex; align-items: center; gap: var(--space-1); width: auto; max-width: 100%; min-height: var(--control-md); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid color-mix(in srgb, var(--room-color) 30%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--room-color) 12%, var(--surface)); color: var(--room-color); font-size: var(--text-sm); font-weight: 600; box-shadow: none; }
 :is(.pet, .work-control) .pet-rooms .pet-room:hover:not(:disabled), :is(.pet, .work-control) .pet-rooms .pet-room:focus-visible { border-color: var(--room-color); background: color-mix(in srgb, var(--room-color) 20%, var(--surface)); }
 :is(.pet, .work-control) .pet-rooms .pet-room span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pet-room-art { flex: none; display: block; height: var(--control-sm); width: auto; }
+.pet-room-art { flex: none; display: block; width: var(--control-sm); height: var(--control-sm); }
 
 /* 작업 보고 창 */
 .report-period { display: flex; align-items: center; gap: var(--space-2); }

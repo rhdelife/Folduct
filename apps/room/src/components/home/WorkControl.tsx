@@ -5,7 +5,7 @@ import type { Room } from "../../domain/model";
 import { formatWorked, normalizeSession, workedTime, type Session } from "../../domain/session";
 import { isNative, sessionChanged, workEndAsked, workPauseAsked, workStartRoom } from "../../gateways/native";
 import { getSession } from "../../storage/db";
-import { RoomFaceArt } from "../RoomFace";
+import { RoomMark } from "../RoomFace";
 import { Icon } from "../Icon";
 
 const ask = (event: string, payload?: string) => void emit(event, payload).catch((error: unknown) => console.error(error));
@@ -70,7 +70,7 @@ export function WorkControl({ rooms, session, pick = false, onDone }: { rooms: R
                     ask(workStartRoom, room.id);
                   }}
                 >
-                  <RoomFaceArt face={room.face} px={22} className="pet-room-art" />
+                  <RoomMark color={faceColorVar(room.face.color)} className="pet-room-art" />
                   <span>{room.name}</span>
                 </button>
               </li>
@@ -92,7 +92,7 @@ export function WorkControl({ rooms, session, pick = false, onDone }: { rooms: R
     <div className={`work-control on${working ? "" : " paused"}`} key="on" role="group" aria-label={`${room?.name ?? "방"} ${working ? "작업 중" : "멈춤"}`}>
       <span className="work-clock" aria-live="off">
         <span className="work-room">
-          {room && <RoomFaceArt face={room.face} px={28} className="work-room-art" />}
+          {room && <RoomMark color={faceColorVar(room.face.color)} className="work-room-art" />}
           <span>
             <b className="work-room-name">{room?.name ?? "방"}</b>
             <small className="work-state">{working ? "작업 중" : "멈춤"}</small>
