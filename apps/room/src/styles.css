@@ -2213,6 +2213,10 @@ dialog.sheet.quit-sheet { max-width: min(calc(var(--space-12) * 8), calc(100vw -
 .dl-sub { max-width: 40em; margin: var(--space-3) 0 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--ink-soft); }
 .dl-features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); margin-top: var(--space-8); }
 .dl-feature .dl-window { margin: 0 0 var(--space-4); box-shadow: var(--shadow-1); }
+.dl-gif { position: relative; cursor: pointer; }
+.dl-gif:focus-visible { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
+.dl-gif-badge { position: absolute; right: var(--space-3); bottom: var(--space-3); display: grid; place-items: center; width: var(--space-8); height: var(--space-8); border-radius: 50%; background: color-mix(in srgb, var(--ink) 72%, transparent); color: var(--on-ink); font-size: var(--text-xs); transition: opacity var(--dur-1) var(--ease-standard); }
+.dl-gif.playing .dl-gif-badge { opacity: 0; }
 .dl-feature h3, .dl-card h3, .dl-steps h3 { margin: 0 0 var(--space-1); font-size: var(--text-md); line-height: var(--lh-md); font-weight: 700; }
 .dl-feature p, .dl-card p, .dl-steps p { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--ink-soft); }
 .dl-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin: var(--space-10) 0 0; padding: 0; list-style: none; }

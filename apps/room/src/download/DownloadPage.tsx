@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { BrandMark } from "../components/Icon";
 import { macDmg } from "../components/MacDownloadDialog";
 
@@ -6,9 +7,9 @@ const github = "https://github.com/rhdelife/Folduct";
 const system = "macOS 13 이상 · Apple 실리콘 · 베타";
 
 const features = [
-  { img: "home", title: "방 하나 = 프로도 하나", text: "방을 프로도에게 먹이면 몸이 늘고, 그 방 파일을 보여 줘요." },
-  { img: "sweep", title: "한 주에 한 번 정리", text: "안 쓴 파일을 정리 상자로 옮겨요. 언제든 되돌릴 수 있어요." },
-  { img: "drawer", title: "형식별 서랍장", text: "모든 방의 파일을 형식별로 모아 봐요." },
+  { img: "feed", still: "feed", title: "방 하나 = 프로도 하나", text: "방을 프로도에게 먹이면 몸이 늘고, 그 방 파일을 보여 줘요." },
+  { img: "review", still: "review", title: "Review로 정리", text: "안 쓴 파일을 골라 정리 상자로 옮겨요. 언제든 되돌릴 수 있어요." },
+  { img: "drawer", still: "drawer-still", title: "형식별 서랍장", text: "모든 방의 파일을 형식별로 모아 봐요." },
 ];
 
 const steps = [
@@ -75,10 +76,7 @@ export function DownloadPage() {
           <div className="dl-features">
             {features.map((item) => (
               <article key={item.img} className="dl-feature">
-                <figure className="dl-window">
-                  <span className="dl-window-bar" aria-hidden="true"><i /><i /><i /></span>
-                  <img src={`/download/${item.img}.jpg`} alt="" width={1600} height={1000} loading="lazy" />
-                </figure>
+                <HoverGif still={`/download/${item.still}.jpg`} gif={`/download/${item.img}.gif`} label={item.title} />
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
               </article>
@@ -133,5 +131,42 @@ export function DownloadPage() {
         <a href={github} target="_blank" rel="noreferrer">GitHub</a>
       </footer>
     </div>
+  );
+}
+
+// 기능 화면: 평소엔 멈춘 장면, 마우스를 올리거나(키보드 포커스·누르기도) 하면 녹화한 GIF가 처음부터 재생돼요(2026-11-18 요청).
+// GIF는 한 번만 받아 두고, 재생할 때마다 새 주소(blob URL)를 만들어 처음부터 다시 돌게 해요.
+function HoverGif({ still, gif, label }: { still: string; gif: string; label: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const blob = useRef<Promise<Blob> | null>(null);
+  const shown = useRef<string | null>(null);
+  const play = () => {
+    blob.current ??= fetch(gif).then((res) => res.blob());
+    void blob.current.then((data) => {
+      if (shown.current) URL.revokeObjectURL(shown.current);
+      shown.current = URL.createObjectURL(data);
+      setSrc(shown.current);
+    }, () => setSrc(gif));
+  };
+  const stop = () => {
+    if (shown.current) URL.revokeObjectURL(shown.current);
+    shown.current = null;
+    setSrc(null);
+  };
+  return (
+    <figure
+      className={`dl-window dl-gif${src ? " playing" : ""}`}
+      tabIndex={0}
+      aria-label={`${label} 화면. 올리거나 누르면 움직여요`}
+      onMouseEnter={play}
+      onMouseLeave={stop}
+      onFocus={play}
+      onBlur={stop}
+      onClick={() => (src ? stop() : play())}
+    >
+      <span className="dl-window-bar" aria-hidden="true"><i /><i /><i /></span>
+      <img src={src ?? still} alt="" width={1600} height={1000} loading="lazy" />
+      <span className="dl-gif-badge" aria-hidden="true">▶</span>
+    </figure>
   );
 }
