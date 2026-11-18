@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
 import { localDay } from "../../domain/care";
-import { periodWork, workAmount, workPeriods, yearWork, type WorkLog, type WorkPeriod } from "../../domain/worklog";
+import { periodName, periodWork, workAmount, workPeriods, yearWork, type WorkLog, type WorkPeriod } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
@@ -42,7 +42,7 @@ function readPeriod(): WorkPeriod {
   }
 }
 
-// 홈 왼쪽 아래: 올해 일력 한 장(한 줄이 한 달, 점 하나가 하루). 누르면 그 자리에서 판이 자라나 진행 중(새 파일·안 쓴 파일)과 작업 추세를 보여 주고, 닫으면 다시 일력으로 접혀요.
+// 홈 왼쪽 아래: 일력 한 장(한 줄이 한 달, 점 하나가 하루). 누르면 그 자리에서 판이 자라나 진행 중(새 파일·안 쓴 파일)과 작업 추세를 보여 주고, 닫으면 다시 일력으로 접혀요.
 // workRow: 작업 시작·시간·멈춤·끝내기 줄. 작업은 이 왼쪽 아래 자리에서만 다뤄요(작업 기록 카드 바로 위).
 export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, onSweep, workRow }: { rooms: Room[]; log: WorkLog; now: number; doorItems: DoorItem[]; onDoorMenu: OpenRoomMenu; staleFiles: number; onSweep: () => void; workRow?: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -62,7 +62,7 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
     }
   };
   const shown = useMemo(() => periodWork(log, period, now), [log, period, now]);
-  const periodTitle = workPeriods.find((item) => item.id === period)!.title;
+  const periodTitle = periodName(period, now);
   const amount = workAmount(shown.totalMs);
   const names = new Map(rooms.map((room) => [room.id, room.name]));
   const lines = work.rooms.filter(([id]) => names.has(id)).slice(0, roomsShown);

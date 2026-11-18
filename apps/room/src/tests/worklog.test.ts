@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWork, formatWork, formatWorkShort, normalizeWorkLog, periodRows, periodWork, workAmount, yearMonths, yearWork } from "../domain/worklog";
+import { addWork, formatWork, formatWorkShort, normalizeWorkLog, periodName, periodRows, periodWork, workAmount, yearMonths, yearWork } from "../domain/worklog";
 
 const min = 60_000;
 const hour = 60 * min;
@@ -100,5 +100,15 @@ describe("작업 기록 카드 보기 기준", () => {
     expect(periodWork(log, "month", now).totalMs).toBe(100_000);
     expect(periodWork(log, "year", now)).toMatchObject({ totalMs: 105_000 });
     expect(periodWork(log, "week", now).days.size).toBe(1);
+  });
+});
+
+describe("기간 이름", () => {
+  it("'올해·이번 달' 대신 연도·영문 달 이름·주 날짜 범위로 써요", () => {
+    const now = new Date(2026, 10, 18, 15).getTime();
+    expect(periodName("year", now)).toBe("2026");
+    expect(periodName("month", now)).toBe("November");
+    expect(periodName("week", now)).toBe("Nov 16–22");
+    expect(periodName("week", new Date(2026, 8, 30, 9).getTime())).toBe("Sep 28 – Oct 4");
   });
 });

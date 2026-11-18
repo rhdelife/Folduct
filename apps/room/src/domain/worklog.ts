@@ -75,14 +75,25 @@ export function yearMonths(year: number): string[][] {
   );
 }
 
-// 작업 기록 카드의 보기 기준(2026-11-18 요청): 이번 주(월~일 한 줄), 이번 달(요일 7칸 달력), 올해(한 줄이 한 달).
+// 작업 기록 카드의 보기 기준(2026-11-18 요청): 한 주(월~일 한 줄), 한 달(요일 7칸 달력), 한 해(한 줄이 한 달).
 // rows의 빈 칸("")은 달력 앞뒤를 맞추는 자리예요.
 export type WorkPeriod = "week" | "month" | "year";
 export const workPeriods: { id: WorkPeriod; label: string; title: string }[] = [
-  { id: "week", label: "주", title: "이번 주" },
-  { id: "month", label: "달", title: "이번 달" },
-  { id: "year", label: "해", title: "올해" },
+  { id: "week", label: "주", title: "주간" },
+  { id: "month", label: "달", title: "월간" },
+  { id: "year", label: "해", title: "연간" },
 ];
+
+// 카드에 보이는 기간 이름. '올해·이번 달' 대신 날짜로 써요(2026-11-18 요청): 2026, November, Nov 16–22.
+export function periodName(period: WorkPeriod, now: number): string {
+  const today = new Date(now);
+  if (period === "year") return String(today.getFullYear());
+  if (period === "month") return today.toLocaleString("en-US", { month: "long" });
+  const days = periodRows("week", now)[0];
+  const [first, last] = [days[0], days[6]].map((key) => new Date(`${key}T00:00`));
+  const month = (date: Date) => date.toLocaleString("en-US", { month: "short" });
+  return first.getMonth() === last.getMonth() ? `${month(first)} ${first.getDate()}–${last.getDate()}` : `${month(first)} ${first.getDate()} – ${month(last)} ${last.getDate()}`;
+}
 export type PeriodWork = { totalMs: number; days: Map<string, number>; rows: string[][] };
 
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
