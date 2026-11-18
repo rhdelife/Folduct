@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { ObjectShape } from "../art/ObjectShape";
-import { baseOf, blankPaper, clampPoint, iconArt, kindIconLimit, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTool, type KindIcon } from "../domain/kindIcon";
+import { kindTones } from "../art/palette";
+import { baseOf, blankPaper, clampPoint, iconArt, kindIconLimit, iconTones, kindIconNameMax, kinds, pointLimit, strokeLimit, type IconStroke, type IconTone, type IconTool, type KindIcon } from "../domain/kindIcon";
 import { kindLabels, type Kind } from "../domain/model";
 import { currentOs } from "../domain/platform";
 import { saveKindIcons, useKindIcons } from "../storage/kindIcons";
@@ -11,7 +12,10 @@ const toolNames: { tool: IconTool; label: string }[] = [
   { tool: "ring", label: "원" },
   { tool: "box", label: "네모" },
   { tool: "wave", label: "물결줄" },
+  { tool: "dot", label: "점" },
 ];
+// 형식 색 다섯 단의 이름. 색은 그 형식 색 안에서만 골라요.
+const toneNames: Record<IconTone, string> = { pale: "아주 옅게", soft: "옅게", color: "형식 색", edge: "진하게", ink: "아주 진하게" };
 // 펜은 판 단위로 이만큼 움직였을 때만 점을 더해요. 점이 너무 많으면 프로도 펜이 무거워져요.
 const penStep = 1.5;
 // 단축키 글은 Mac은 ⌘, 다른 OS는 Ctrl+로 보여 줘요.
@@ -23,12 +27,14 @@ const same = (a: KindIcon | undefined, b: KindIcon) => Boolean(a) && JSON.string
 // 홈·방·Drawer·미리보기에서 그 형식 파일이 이 그림으로 바뀌어요. 선은 프로도와 같은 펜으로 다시 그어져요.
 // mode: 그리기(make)와 보관함(archive). 메뉴의 '아이콘 만들기'·'아이콘 보관함'이 각 화면으로 바로 와요. 보관함에서 아이콘을 누르면 그리기로 넘어가 고쳐요.
 // active: 지금 이 탭을 보고 있는지. 단축키는 이때만 들어요. 탭을 떠나도 지우지 않고 숨겨서 그리던 그림이 남아요.
-// 단축키: ⌘/Ctrl+Z 되돌리기, ⌘/Ctrl+Shift+Z·Ctrl+Y 다시 하기, ⌘/Ctrl+S 등록, Shift+끌기 곧은 선·정원·정사각형, Esc 긋던 선 취소, 1~4 도구.
+// 단축키: ⌘/Ctrl+Z 되돌리기, ⌘/Ctrl+Shift+Z·Ctrl+Y 다시 하기, ⌘/Ctrl+S 등록, Shift+끌기 곧은 선·정원·정사각형, Esc 긋던 선 취소, 1~5 도구.
 export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" | "archive"; onMode: (mode: "make" | "archive") => void; active: boolean }) {
   const store = useKindIcons();
   const [draft, setDraft] = useState<KindIcon>(() => fresh("image"));
   const [tool, setTool] = useState<IconTool>("pen");
   const [fill, setFill] = useState(false);
+  // null이면 기본(선은 펜 잉크, 채움은 형식 색, 점은 가장 진한 단).
+  const [tone, setTone] = useState<IconTone | null>(null);
   const [live, setLive] = useState<IconStroke | null>(null);
   // 선 기록: 되돌리기(past)와 다시 하기(future). 선을 긋고, 되돌리고, 모두 지우는 것까지 기록해요. 다른 아이콘을 열면 비워요.
   const [past, setPast] = useState<IconStroke[][]>([]);
@@ -54,7 +60,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
     if (draft.strokes.length >= strokeLimit) return setError(`선은 ${strokeLimit}개까지 그릴 수 있어요.`);
     event.currentTarget.setPointerCapture(event.pointerId);
     const [x, y] = point(event);
-    setLive({ tool, pts: tool === "pen" ? [x, y] : [x, y, x, y], fill: fill && (tool === "ring" || tool === "box") });
+    setLive({ tool, pts: tool === "pen" ? [x, y] : [x, y, x, y], fill: fill && (tool === "ring" || tool === "box"), ...(tone ? { tone } : {}) });
   }
 
   function move(event: PointerEvent<SVGSVGElement>) {
@@ -183,7 +189,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
       event.preventDefault();
       event.stopPropagation();
       setLive(null);
-    } else if (!mod && !event.altKey && /^[1-4]$/.test(event.key)) {
+    } else if (!mod && !event.altKey && /^[1-5]$/.test(event.key)) {
       setTool(toolNames[Number(event.key) - 1].tool);
     }
   };
@@ -243,7 +249,18 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
               <label key={name}><input type="radio" name="icon-tool" checked={tool === name} onChange={() => setTool(name)} />{label}</label>
             ))}
           </div>
-          <label className="icon-fill"><input type="checkbox" checked={fill} disabled={tool === "pen" || tool === "wave"} onChange={(event) => setFill(event.target.checked)} />색 채우기</label>
+          <label className="icon-fill"><input type="checkbox" checked={fill} disabled={tool !== "ring" && tool !== "box"} onChange={(event) => setFill(event.target.checked)} />색 채우기</label>
+        </div>
+        <div className="icon-tones" role="radiogroup" aria-label="색 고르기(이 형식 색 안에서)">
+          <label className="icon-tone icon-tone-base">
+            <input type="radio" name="icon-tone" checked={tone === null} onChange={() => setTone(null)} />
+            기본
+          </label>
+          {iconTones.map((name) => (
+            <label key={name} className="icon-tone" title={toneNames[name]} style={{ "--swatch": kindTones[draft.kind][name] } as CSSProperties}>
+              <input type="radio" name="icon-tone" checked={tone === name} onChange={() => setTone(name)} aria-label={toneNames[name]} />
+            </label>
+          ))}
         </div>
         <div className="row">
           <button type="button" disabled={!past.length} title={`${cmd()}Z`} onClick={undo}>되돌리기</button>

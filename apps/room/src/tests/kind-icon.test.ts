@@ -34,4 +34,17 @@ describe("파일 형식 아이콘", () => {
     expect(store.use).toEqual({ video: "a" });
     expect(normalizeKindIcons(undefined)).toEqual({ icons: [], use: {} });
   });
+  it("점은 누르기만 해도 찍히고, 고른 색 단은 그 형식 색 안에서만 남아요", () => {
+    const icon: KindIcon = { id: "d", name: "점", kind: "image", base: blankPaper.id, at: 1, strokes: [
+      { tool: "dot", pts: [50, 50, 50, 50], fill: false },
+      { tool: "pen", pts: [10, 10, 40, 40], fill: false, tone: "soft" },
+      { tool: "box", pts: [20, 20, 60, 60], fill: true, tone: "edge" },
+    ] };
+    const parts = iconArt(icon).parts;
+    expect(parts[0]).toMatchObject({ fill: "ink" });
+    expect(parts[2]).toMatchObject({ pen: 0.7, tone: "soft" });
+    expect(parts[3]).toMatchObject({ fill: "edge" });
+    const read = normalizeKindIcons({ icons: [{ ...icon, strokes: [{ tool: "dot", pts: [50, 50, 90, 90], fill: false, tone: "#ff0000" }] }] });
+    expect(read.icons[0].strokes[0]).toEqual({ tool: "dot", pts: [50, 50, 90, 90], fill: false });
+  });
 });
