@@ -155,7 +155,9 @@ export async function restoreTrashed(root: string, path: string, place: string):
 
 // 파일·폴더가 없을 때 브라우저와 Tauri가 주는 오류. 판정만 해서 폴더에 할 수 있는 일은 늘지 않아요.
 export function isNotFound(error: unknown): boolean {
-  return error instanceof DOMException && (error.name === "NotFoundError" || error.name === "TypeMismatchError");
+  if (error instanceof DOMException) return error.name === "NotFoundError" || error.name === "TypeMismatchError";
+  // Tauri 명령은 오류를 글로 줘요(예: 기록엔 있지만 이미 지워진 임시 파일을 휴지통으로 보낼 때 "os error 2").
+  return osErrorKind(String(error)) === "gone";
 }
 
 function moveMessage(error: unknown): string {

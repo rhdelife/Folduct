@@ -116,9 +116,9 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const base = { shelf, rooms: active, frodo };
   if (!room) return { ...base, cards, find: null };
 
-  // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요.
+  // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요. 좁은 창은 아래 홈 | Drawer 알약 자리까지 내려가지 않아요.
   const span = below
-    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + gap, bottom: view.h - edge }
+    ? { left: calendar ? calendar.x + calendar.hw + edge : edge, right: view.w - edge, top: floor + gap, bottom: view.h - edge - bottomSpace(view) }
     : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom: view.h - edge };
   const byId = new Map(roomStars(room, frodo.mouth, 0, now, room.things.length).map((star) => [star.thing.id, star]));
   const stars = fedThings(room, filter).flatMap((thing) => byId.get(thing.id) ?? []);

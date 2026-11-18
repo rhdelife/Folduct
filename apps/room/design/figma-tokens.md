@@ -199,6 +199,7 @@
 | --- | --- | --- |
 | `scene/sheet-backdrop` | `rgb(27 26 24 / 0.35)` |  |
 | `scene/sheet-backdrop-soft` | `rgb(27 26 24 / 0.18)` |  |
+| `scene/icon-stage` | `520px` |  |
 | `scene/topbar-stacked-h` | `100px` |  |
 | `scene/topbar-phone-h` | `112px` |  |
 | `scene/glass-blur` | `blur(24px) saturate(160%)` |  |

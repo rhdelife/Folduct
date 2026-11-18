@@ -16,7 +16,7 @@ import { Icon } from "../Icon";
 import { emptyShelfViews, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
 import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
 import { ShelfEditor } from "./ShelfEditor";
-import { restoreTrashed, trashFile } from "../../gateways/mover";
+import { isNotFound, restoreTrashed, trashFile } from "../../gateways/mover";
 import type { ToastAction } from "../Toast";
 import { isNative } from "../../gateways/native";
 import { patchRoom } from "../../storage/db";
@@ -369,8 +369,12 @@ export function SlipPaper({ shelf, leaving, folders, onOpenFile, onClose, onTras
         if (place) placed.push({ roomId: room.id, folder, thing, place });
         done.set(room.id, (done.get(room.id) ?? new Set()).add(thing.id));
       } catch (error) {
-        console.error(error);
-        failed++;
+        // 이미 없는 파일은 기록에서만 빼요.
+        if (isNotFound(error)) done.set(room.id, (done.get(room.id) ?? new Set()).add(thing.id));
+        else {
+          console.error(error);
+          failed++;
+        }
       }
     }
     await Promise.all([...done].map(([roomId, ids]) => patchRoom(roomId, (current) => ({ ...current, things: current.things.filter((thing) => !ids.has(thing.id)) })).catch((error: unknown) => console.error(error))));

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Folduct 포스터</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+@font-face { font-family: Pretendard; src: url("assets/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; }
+@page { size: 594mm 841mm; margin: 0; }
+:root {
+  --bg: #f6f6f3; --paper: #ffffff; --ink: #171717; --ink-2: #4a4a47; --ink-3: #7a776f; --line: #dcd7ce;
+  --img: #e5bb4d; --txt: #5f9b6d; --vid: #2a64ad; --pdf: #c9553f; --sld: #2b9a95; --tbl: #dd8b47; --aud: #8371c0; --dsn: #c95b93; --zip: #98743f; --etc: #a5a5a1;
+  --m: 34mm;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #8a8780; }
+body { font-family: Pretendard, "Apple SD Gothic Neo", sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; word-break: keep-all; }
+.poster { width: 594mm; height: 841mm; margin: 0 auto; background: var(--bg); position: relative; overflow: hidden; padding: 26mm var(--m) 0; display: flex; flex-direction: column; }
+@media screen { body { padding: 16px 0; overflow-x: hidden; } .poster { box-shadow: 0 10px 60px rgb(0 0 0 / .35); } }
+
+/* 머리 */
+.top { display: flex; justify-content: space-between; align-items: center; font-size: 13pt; color: var(--ink-2); letter-spacing: .02em; }
+.top .logo { display: flex; align-items: center; gap: 5mm; font-weight: 750; color: var(--ink); font-size: 22pt; letter-spacing: -.01em; }
+.top .logo img { width: 40mm; height: 40mm; margin: -4mm -1mm -4mm -4.5mm; }
+.top .tags { display: flex; gap: 3mm; }
+.top .tags span { border: .35mm solid var(--ink); border-radius: 99px; padding: 1.4mm 4.5mm; font-weight: 600; font-size: 11.5pt; color: var(--ink); }
+
+.title { margin-top: 16mm; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10mm; }
+.title h1 { font-size: 168pt; font-weight: 820; letter-spacing: -.045em; line-height: .82; }
+.title .claim { font-size: 30pt; font-weight: 700; line-height: 1.32; letter-spacing: -.02em; text-align: right; padding-bottom: 3mm; }
+.title .claim em { font-style: normal; background: linear-gradient(transparent 62%, var(--img) 62%); }
+.lede { margin-top: 9mm; font-size: 17pt; line-height: 1.6; color: var(--ink-2); max-width: 400mm; }
+.lede b { color: var(--ink); }
+
+/* 히어로 */
+.hero { margin: 8mm calc(var(--m) * -1) 0; height: 172mm; padding: 0 var(--m); background: #ebe7df; display: grid; grid-template-columns: 1fr 252mm; gap: 16mm; align-items: center; }
+.onb small { display: block; font-size: 11.5pt; font-weight: 700; letter-spacing: .14em; color: var(--ink-3); }
+.onb h3 { font-size: 31pt; font-weight: 790; letter-spacing: -.03em; line-height: 1.22; margin: 4mm 0 8mm; }
+.onb ol { list-style: none; display: grid; gap: 5.5mm; }
+.onb li { display: grid; grid-template-columns: 11mm 1fr; gap: 4mm; align-items: start; }
+.onb li > b { width: 11mm; height: 11mm; border-radius: 50%; border: .5mm solid var(--ink); display: grid; place-items: center; font-size: 14pt; font-weight: 800; }
+.onb li:first-child > b { background: var(--ink); color: #fff; }
+.onb li h4 { font-size: 16pt; font-weight: 760; letter-spacing: -.01em; margin: 1.3mm 0 1mm; }
+.onb li p { font-size: 12.5pt; line-height: 1.5; }
+.onb .go { margin-top: 9mm; display: flex; align-items: center; gap: 6mm; }
+.onb .go span { background: var(--ink); color: #fff; border-radius: 99px; padding: 3mm 8mm; font-size: 13pt; font-weight: 700; }
+.dots { display: flex; gap: 2mm; align-items: center; }
+.dots i { width: 2.4mm; height: 2.4mm; border-radius: 99px; background: #c9c3b8; }
+.dots i.on { width: 7mm; background: var(--ink); }
+
+/* 앱 창 목업 */
+.win { background: var(--paper); border: .35mm solid #c9c3b8; border-radius: 4mm; overflow: hidden; box-shadow: 0 2.2mm 0 #d6d0c5; }
+.win .bar { height: 8mm; display: grid; grid-template-columns: auto 1fr auto; align-items: center; padding: 0 3.4mm; background: #f2efe9; border-bottom: .3mm solid var(--line); font-size: 10pt; font-weight: 600; color: var(--ink-3); }
+.win .bar span { text-align: center; }
+.win .bar em { display: flex; gap: 1.6mm; font-style: normal; }
+.win .bar em i { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: #ec6a5e; }
+.win .bar em i:nth-child(2) { background: #f4bf4f; } .win .bar em i:nth-child(3) { background: #61c554; }
+.win .bar > b { width: 9.4mm; }
+.win > img { width: 100%; display: block; aspect-ratio: 16 / 10; object-fit: cover; }
+.hero .win > img { object-position: 50% 30%; }
+.ribbon { display: flex; height: 4.5mm; margin: 0 calc(var(--m) * -1); }
+.ribbon i { flex: 1; }
+
+/* 섹션 공통 */
+.sec { margin-top: 11mm; }
+.label { display: flex; align-items: baseline; gap: 4mm; font-size: 12pt; font-weight: 700; letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; margin-bottom: 5mm; }
+.label b { font-size: 12pt; color: var(--ink); font-variant-numeric: tabular-nums; }
+h2 { font-size: 33pt; font-weight: 780; letter-spacing: -.03em; line-height: 1.18; }
+p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
+
+/* 문제 → 해결 + 그림 문법 */
+.row1 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 16mm; }
+.pain { margin-top: 7mm; display: grid; gap: 4mm; }
+.pain div { display: grid; grid-template-columns: 11mm 1fr; align-items: start; font-size: 13.5pt; line-height: 1.5; color: var(--ink-2); }
+.pain div span { font-weight: 800; color: var(--ink); font-size: 13pt; }
+.answer { margin-top: 8mm; background: var(--ink); color: #fff; border-radius: 6mm; padding: 8mm 9mm; }
+.answer h3 { font-size: 21pt; font-weight: 750; letter-spacing: -.02em; line-height: 1.35; }
+.answer p { color: #d9d6cf; margin-top: 3mm; font-size: 12.5pt; }
+
+.grammar { background: var(--paper); border-radius: 7mm; padding: 9mm 9mm 8mm; display: grid; grid-template-columns: 52mm 1fr; gap: 6mm; align-items: center; box-shadow: 0 .5mm 0 var(--line); }
+.grammar img { width: 52mm; border-radius: 4mm; background: var(--bg); }
+.grammar h3 { font-size: 19pt; font-weight: 760; letter-spacing: -.02em; margin-bottom: 5mm; }
+.rules { display: grid; gap: 4.2mm; }
+.rules div { display: grid; grid-template-columns: 27mm 1fr; font-size: 12.5pt; line-height: 1.45; border-top: .3mm solid var(--line); padding-top: 3.4mm; }
+.rules div b { font-weight: 750; }
+.rules div span { color: var(--ink-2); }
+.chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2.2mm; margin-top: 1mm; }
+.chips span { display: inline-flex; align-items: center; gap: 1.8mm; font-size: 10.5pt; font-weight: 600; background: var(--bg); border-radius: 99px; padding: 1.3mm 3.4mm 1.3mm 2.4mm; }
+.chips i { width: 3.4mm; height: 3.4mm; border-radius: 50%; }
+
+/* 기능 */
+.feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8mm; margin-top: 7mm; }
+.poster > * { flex-shrink: 0; }
+.shot { position: relative; }
+.feat > div { position: relative; }
+.feat > div:not(:last-child)::after { content: "→"; position: absolute; right: -6.6mm; top: 30mm; font-size: 16pt; font-weight: 800; color: var(--ink-3); }
+.step-n { position: absolute; left: -3mm; top: -3mm; z-index: 1; width: 11mm; height: 11mm; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 14pt; font-weight: 800; border: .8mm solid var(--bg); }
+.f-cap .dots { margin-bottom: 3mm; }
+.shot img { width: 100%; display: block; aspect-ratio: 16 / 10; object-fit: cover; }
+.shot.tall img { aspect-ratio: 16 / 10.2; object-fit: cover; object-position: 50% 0; }
+.stack { display: grid; gap: 8mm; align-content: start; }
+.f-cap { margin-top: 4mm; }
+.f-cap h4 { font-size: 15pt; font-weight: 760; margin-bottom: 1.2mm; }
+.f-cap p { font-size: 12pt; line-height: 1.5; }
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; margin-top: 9mm; }
+.flow div { background: var(--paper); border-radius: 5mm; padding: 6mm 6mm 6.5mm; box-shadow: 0 .5mm 0 var(--line); }
+.flow div small { display: block; font-size: 10.5pt; font-weight: 700; letter-spacing: .1em; color: var(--ink-3); }
+.flow div h4 { font-size: 16pt; font-weight: 760; margin: 2mm 0 2mm; letter-spacing: -.01em; }
+.flow div p { font-size: 11.6pt; line-height: 1.5; }
+
+/* 아래 줄 */
+.bottom { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12mm; }
+.safe li, .next li { list-style: none; font-size: 12.3pt; line-height: 1.5; color: var(--ink-2); padding: 2.6mm 0 2.6mm 7mm; border-top: .3mm solid var(--line); position: relative; }
+.safe li::before { content: ""; position: absolute; left: 0; top: 4.4mm; width: 3mm; height: 1.6mm; border-left: .6mm solid var(--ink); border-bottom: .6mm solid var(--ink); transform: rotate(-45deg); }
+.next li::before { content: "→"; position: absolute; left: 0; color: var(--ink); font-weight: 700; }
+.safe li b, .next li b { color: var(--ink); }
+.nums { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+.nums div { background: var(--paper); border-radius: 4mm; padding: 4.5mm 5mm; box-shadow: 0 .5mm 0 var(--line); }
+.nums strong { display: block; font-size: 25pt; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.nums span { font-size: 10.5pt; color: var(--ink-2); }
+.stackline { margin-top: 4mm; font-size: 11.2pt; line-height: 1.55; color: var(--ink-2); }
+.stackline b { color: var(--ink); }
+
+.foot { margin: auto calc(var(--m) * -1) 0; padding: 9mm var(--m); background: var(--ink); color: #fff; display: grid; grid-template-columns: auto 1fr; gap: 10mm; align-items: center; }
+.foot .qr { width: 30mm; height: 30mm; background: #fff; border-radius: 3mm; padding: 2mm; }
+.foot .qr svg { width: 100%; height: 100%; display: block; }
+.foot .msg { font-size: 19pt; font-weight: 700; line-height: 1.35; letter-spacing: -.02em; }
+.foot .msg small { display: block; font-size: 12pt; font-weight: 500; color: #bdb9b0; margin-top: 2mm; letter-spacing: 0; }
+.foot .who { text-align: right; font-size: 12pt; line-height: 1.7; color: #d9d6cf; }
+.foot .who b { color: #fff; font-size: 15pt; }
+</style>
+</head>
+<body>
+<main class="poster">
+
+  <header class="top">
+    <div class="logo"><img src="assets/app-icon.png" alt="">Folduct</div>
+    <div class="tags"><span>macOS 데스크톱 앱 · 웹 체험</span><span>2026 포트폴리오</span></div>
+  </header>
+
+  <section class="title">
+    <h1>Folduct</h1>
+    <div class="claim">새 파일은 <em>제자리로,</em><br>안 쓰는 파일은 <em>상자로.</em></div>
+  </section>
+  <p class="lede">작업 폴더마다 <b>방</b>이 하나 생겨요. 방은 받침 위에 선 주름관 캐릭터 <b>프로도</b>로 보이고, 파일은 이름이 적힌 종이 오브제가 돼요. <b>색은 파일 형식, 크기와 길이는 용량.</b> 그림만 봐도 어느 폴더에 무엇이 얼마나 쌓였는지 알 수 있어요.</p>
+
+  <figure class="hero">
+    <div class="onb">
+      <small>ONBOARDING · 처음 켜면</small>
+      <h3>세 걸음이면<br>정리가 시작돼요.</h3>
+      <ol>
+        <li><b>1</b><div><h4>흩어진 파일 보기</h4><p>첫 화면에서 다운로드 폴더처럼 흩어진 파일을 오브제로 보여 줘요.</p></div></li>
+        <li><b>2</b><div><h4>작업 폴더로 방 만들기</h4><p>폴더를 고르면 방이 생기고, 받침 위에 프로도가 서요.</p></div></li>
+        <li><b>3</b><div><h4>먹이고 작업 시작</h4><p>방 카드를 프로도에게 먹이고 시작하면, 새 파일은 알아서 그 방으로 가요.</p></div></li>
+      </ol>
+      <div class="go"><span>정리 시작</span><div class="dots"><i class="on"></i><i></i><i></i></div></div>
+    </div>
+    <div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct</span><b></b></div><img src="assets/intro.png" alt="첫 실행 화면: 흩어진 파일 오브제 가운데 선 프로도"></div>
+  </figure>
+  <div class="ribbon"><i style="background:var(--img)"></i><i style="background:var(--txt)"></i><i style="background:var(--vid)"></i><i style="background:var(--pdf)"></i><i style="background:var(--sld)"></i><i style="background:var(--tbl)"></i><i style="background:var(--aud)"></i><i style="background:var(--dsn)"></i><i style="background:var(--zip)"></i><i style="background:var(--etc)"></i></div>
+
+  <section class="sec row1">
+    <div>
+      <div class="label"><b>01</b>문제</div>
+      <h2>다운로드 폴더는 늘 넘치고,<br>정리는 늘 다음으로 밀려요.</h2>
+      <div class="pain">
+        <div><span>①</span>받은 파일은 다운로드 폴더에 쌓이고, 어느 작업의 파일인지 금방 잊혀요.</div>
+        <div><span>②</span>Finder는 파일을 보여 줄 뿐, 언제 무엇을 정리할지 알려 주지 않아요.</div>
+        <div><span>③</span>자동 정리 앱은 믿고 맡기기 어려워요. 지워질까 봐 손을 못 대요.</div>
+      </div>
+      <div class="answer">
+        <h3>Folduct는 파일을 지우지 않고, 옮기기만 해요.</h3>
+        <p>새 파일은 지금 작업 중인 방으로, 오래 안 쓴 파일은 방 안 정리 상자로. 모든 이동은 되돌릴 수 있어요.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="label"><b>02</b>컨셉 · 그림이 곧 정보</div>
+      <div class="grammar">
+        <img src="assets/frodo.png" alt="샘플 방을 먹고 몸이 길어진 프로도">
+        <div>
+          <h3>방 하나 = 프로도 한 명</h3>
+          <div class="rules">
+            <div><b>몸 길이</b><span>방의 전체 용량. 무거운 방일수록 길어져요.</span></div>
+            <div><b>주름 색</b><span>파일 형식별 몫. 받침부터 차올라요.</span></div>
+            <div><b>받침 색</b><span>방을 구분하는 얼굴 색 8가지.</span></div>
+            <div><b>표정</b><span>먹기·옮기기·끝남 등 동작마다 바뀌어요.</span></div>
+          </div>
+        </div>
+        <div class="chips">
+          <span><i style="background:var(--img)"></i>이미지</span><span><i style="background:var(--txt)"></i>글·코드</span><span><i style="background:var(--vid)"></i>영상</span><span><i style="background:var(--pdf)"></i>PDF·문서</span><span><i style="background:var(--sld)"></i>발표</span><span><i style="background:var(--tbl)"></i>표</span><span><i style="background:var(--aud)"></i>소리</span><span><i style="background:var(--dsn)"></i>디자인</span><span><i style="background:var(--zip)"></i>압축</span><span><i style="background:var(--etc)"></i>기타</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="label"><b>03</b>핵심 기능 · 쓰는 순서대로</div>
+    <h2>먹이고, 옮기고, 한 주에 한 번 치워요.</h2>
+    <div class="feat">
+      <div><div class="shot"><span class="step-n">1</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — 홈</span><b></b></div><img src="assets/home.png" alt="홈 화면"></div></div>
+        <div class="f-cap"><div class="dots"><i class="on"></i><i></i><i></i></div><h4>홈 · 프로도에게 먹이기</h4><p>방 카드를 끌어 놓으면 그 방 용량만큼 몸이 늘고, 형식 색이 받침부터 차오르며 파일을 입에서 꺼내 보여 줘요.</p></div></div>
+      <div><div class="shot"><span class="step-n">2</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — 주간 정리</span><b></b></div><img src="assets/sweep.png" alt="주간 정리 창" style="object-position:50% 30%"></div></div>
+        <div class="f-cap"><div class="dots"><i></i><i class="on"></i><i></i></div><h4>주간 정리</h4><p>오래 안 쓴 파일을 일주일에 한 번 보여 주고, 고른 것만 방 안 정리 상자로 옮겨요. 언제든 제자리로.</p></div></div>
+      <div><div class="shot"><span class="step-n">3</span><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct — Drawer</span><b></b></div><img src="assets/drawer.png" alt="형식별 서랍장"></div></div>
+        <div class="f-cap"><div class="dots"><i></i><i></i><i class="on"></i></div><h4>서랍장</h4><p>모든 방의 파일을 형식별·컬러별 서랍으로 모아 봐요. 방을 몰라도 형식으로 찾을 수 있어요.</p></div></div>
+    </div>
+    <div class="flow">
+      <div><small>STEP 1</small><h4>방 만들기</h4><p>작업 폴더를 고르면 방이 생기고, 프로도가 받침 위에 서요.</p></div>
+      <div><small>STEP 2</small><h4>작업 시작</h4><p>작업 기록 카드나 플로팅 창에서 시작·멈춤·끝을 정하고 시간을 재요.</p></div>
+      <div><small>STEP 3</small><h4>현관 자동 이동</h4><p>작업 중 다운로드 폴더에 들어온 파일을 묻지 않고 지금 방으로 옮겨요.</p></div>
+      <div><small>STEP 4</small><h4>방 캔버스</h4><p>필요한 파일만 판에 꺼내 놓고, 끌어서 옮기고 크기를 바꿔요.</p></div>
+    </div>
+  </section>
+
+  <section class="sec bottom">
+    <div class="safe">
+      <div class="label"><b>04</b>안전 설계</div>
+      <ul>
+        <li><b>영구 삭제·덮어쓰기 코드가 없어요.</b> 휴지통으로 보내기도 확인 창에서 허락한 파일 하나만.</li>
+        <li><b>모든 이동에 되돌리기</b>를 남겨요. 정리 상자에서 제자리로 돌릴 수 있어요.</li>
+        <li><b>앱 권한에 쓰기·지우기가 없어요.</b> 범위를 검사하는 앱 명령으로만 움직여요.</li>
+        <li><b>인터넷에 접속하지 않아요.</b> 파일 내용은 저장하지 않고 기록만 기기 안에.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="label"><b>05</b>만든 방법</div>
+      <div class="nums">
+        <div><strong>402</strong><span>자동 테스트 통과</span></div>
+        <div><strong>220</strong><span>커밋</span></div>
+        <div><strong>18.7k</strong><span>TypeScript 줄</span></div>
+        <div><strong>1.4k</strong><span>Rust 줄</span></div>
+      </div>
+      <p class="stackline"><b>React 19 · TypeScript · Vite · Tauri 2(Rust)</b><br>몸은 코드로, 표정은 스프라이트로 그려요.<br>밤하늘 → 화병 → 주름관으로 다듬었어요.</p>
+    </div>
+    <div class="next">
+      <div class="label"><b>06</b>다음 목표</div>
+      <ul>
+        <li><b>정식 출시</b> — 서명한 설치 파일로 누구나 쓰게.</li>
+        <li><b>팀 공유</b> — 구성원별 폴더를 공유 앨범처럼 함께 보기.</li>
+        <li><b>백업</b> — 끝난 작업은 클라우드에 올리고 기기에서 비우기.</li>
+        <li><b>AI 대화 정리</b> — 흩어진 AI 채팅도 방으로.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="qr" id="qr"></div>
+    <div class="msg">브라우저에서 바로 써 보세요.<small>folduct.vercel.app · 샘플 방은 메뉴 › 샘플 방 구경하기</small></div>
+  </footer>
+</main>
+<script>
+  try { const q = qrcode(0, "M"); q.addData("https://folduct.vercel.app"); q.make(); document.getElementById("qr").innerHTML = q.createSvgTag({ margin: 0, scalable: true }); } catch (e) {}
+  // 화면에서는 창 폭에 맞춰 줄이고, 인쇄할 때는 실제 A1 크기로 되돌려요.
+  const poster = document.querySelector(".poster");
+  const fit = () => { poster.style.zoom = Math.min(1, (innerWidth - 32) / poster.offsetWidth); };
+  addEventListener("resize", fit); addEventListener("beforeprint", () => { poster.style.zoom = ""; }); addEventListener("afterprint", fit); fit();
+</script>
+</body>
+</html>

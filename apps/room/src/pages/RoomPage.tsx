@@ -24,7 +24,7 @@ import { useHues } from "../storage/thumbs";
 import type { Hue } from "../domain/hue";
 import { HueSwatches } from "../components/HueSwatches";
 import { Meta } from "../components/Meta";
-import { restoreTrashed, trashFile } from "../gateways/mover";
+import { isNotFound, restoreTrashed, trashFile } from "../gateways/mover";
 import { RoomSettingsDialog } from "../components/RoomSettingsDialog";
 
 // 방 설정(RoomSettingsDialog)은 방 머리의 단추나 홈에서 방을 우클릭해 엽니다.
@@ -273,7 +273,9 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
       try {
         done.push({ thing, place: await trashFile(handle, thing.path) });
       } catch (error) {
-        console.error(error);
+        // 이미 없는 파일은 기록에서만 빼요.
+        if (isNotFound(error)) done.push({ thing, place: null });
+        else console.error(error);
       }
     }
     const sent = new Set(done.map(({ thing }) => thing.id));
@@ -317,8 +319,10 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
     try {
       place = await trashFile(handle, gone.path);
     } catch (error) {
-      toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
-      return;
+      if (!isNotFound(error)) return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
+      update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
+      setSelectedId(null);
+      return toast(`‘${gone.name}’ 파일이 이미 없어서 목록에서만 뺐어요.`);
     }
     update((room) => ({ ...room, things: room.things.filter((thing) => thing.id !== id) }));
     setSelectedId(null);

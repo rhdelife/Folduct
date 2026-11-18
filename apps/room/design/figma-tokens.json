@@ -822,6 +822,10 @@
       "$type": "other",
       "$value": "rgb(27 26 24 / 0.18)"
     },
+    "icon-stage": {
+      "$type": "other",
+      "$value": "520px"
+    },
     "topbar-stacked-h": {
       "$type": "other",
       "$value": "100px"

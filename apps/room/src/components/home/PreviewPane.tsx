@@ -187,7 +187,9 @@ export function PreviewPane({ room, thing, settled = false, onClose, onToRoom, o
     try {
       place = await trashFile(found, thing.path);
     } catch (error) {
-      return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
+      if (!isNotFound(error)) return toast(`휴지통으로 보내지 못했어요. (${String(error)})`);
+      await patchRoom(room.id, (current) => ({ ...current, things: current.things.filter((item) => item.id !== thing.id) })).catch((failure: unknown) => console.error(failure));
+      return toast(`‘${thing.name}’ 파일이 이미 없어서 목록에서만 뺐어요.`);
     }
     await patchRoom(room.id, (current) => ({ ...current, things: current.things.filter((item) => item.id !== thing.id) })).catch((error: unknown) => console.error(error));
     // macOS는 휴지통 안 자리를 알려 줘서, 알림의 '되돌리기'로 원래 자리와 방 기록에 되돌려요(창은 이미 닫혀 있어요).

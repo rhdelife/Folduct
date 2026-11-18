@@ -82,7 +82,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     }
   });
 
-  it("고른 방 파일만 놓이고, 기울지 않으며 서로·창 밖과 겹치지 않고, 프로도와도 겹치지 않는다", () => {
+  it("고른 방 파일만 놓이고, 기울지 않으며 서로·창 밖·아래 탭 알약과 겹치지 않고, 프로도와도 겹치지 않는다", () => {
     for (const view of views) {
       for (const count of [1, 3, homeLimit]) {
         for (const doorOpen of [false, true]) {
@@ -98,7 +98,8 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
             expect(card.rot, label).toBe(0);
             expect(box.x - box.hw, label).toBeGreaterThanOrEqual(0);
             expect(box.x + box.hw, label).toBeLessThanOrEqual(view.w + 0.5);
-            expect(box.y + box.hh, label).toBeLessThanOrEqual(view.h);
+            // 좁은 창(720 이하)은 아래 가운데에 홈 | Drawer 알약(56px)이 떠 있어 그 자리를 비워요.
+            expect(box.y + box.hh, label).toBeLessThanOrEqual(view.h - (view.w <= 720 ? 56 : 0));
             expect(overlap(box, body), label).toBe(false);
             boxes.slice(i + 1).forEach((other) => expect(overlap(box, other), label).toBe(false));
           });

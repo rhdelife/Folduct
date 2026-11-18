@@ -209,7 +209,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
         {mode === "make" && (
           <>
         {/* 이름은 창 맨 위에 둬요. 아래에 두면 붙어 있는 단추 줄에 가려졌어요. */}
-        <label className="field">이름 <input value={draft.name} required aria-describedby={named ? undefined : "kind-icon-need-name"} maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
+        <label className="field">이름 <input value={draft.name} required maxLength={kindIconNameMax} placeholder="예: 내 영상 종이" onChange={(event) => setDraft((now) => ({ ...now, name: event.target.value }))} /></label>
         <fieldset className="face-picker">
           <legend>파일 형식</legend>
           <div className="seg icon-kinds" role="radiogroup" aria-label="파일 형식 고르기">
@@ -219,7 +219,7 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           </div>
         </fieldset>
         <div className="icon-board">
-          <div className="icon-canvas" style={{ width: stagePx }}>
+          <div className="icon-canvas">
             {/* 판 위에는 글을 쓰지 않아요(2026-11-17 요청). 이름 칸 자리와 판 크기는 그대로 두려고 빈 이름(" ")을 넘겨요. */}
             <ObjectShape kind={draft.kind} size={stagePx} art={art} name=" " />
             <svg
@@ -250,8 +250,6 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
           <button type="button" disabled={!future.length} title={`${cmd()}Shift+Z`} onClick={redo}>다시 하기</button>
           <button type="button" disabled={!draft.strokes.length} onClick={() => setStrokes([])}>모두 지우기</button>
         </div>
-        {!named && <p id="kind-icon-need-name" className="soft">이름을 넣어야 등록할 수 있어요.</p>}
-        <p className="soft kind-icon-keys">{cmd()}Z 되돌리기 · {cmd()}Shift+Z 다시 하기 · {cmd()}S 등록 · Shift 곧은 선·정원·정사각형 · 1~4 도구 · Esc 긋던 선 취소</p>
           </>
         )}
         {mode === "archive" && (
