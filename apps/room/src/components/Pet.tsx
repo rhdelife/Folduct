@@ -164,13 +164,18 @@ export function Pet() {
 
   useEffect(() => {
     if (!working) return;
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    const refreshTime = () => setNow(Date.now());
+    const tick = window.setInterval(refreshTime, 1000);
+    window.addEventListener("focus", refreshTime);
+    document.addEventListener("visibilitychange", refreshTime);
     const save = window.setInterval(() => {
       if (latest.current) commit(checkpointSession(latest.current, Date.now()));
     }, saveEveryMs);
     return () => {
       window.clearInterval(tick);
       window.clearInterval(save);
+      window.removeEventListener("focus", refreshTime);
+      document.removeEventListener("visibilitychange", refreshTime);
     };
   }, [working, commit]);
 
@@ -306,6 +311,7 @@ export function Pet() {
   // 아이콘 아래 작은 창 열기·닫기. 여는 순간 방 목록을 새로 읽어요.
   function openPanel() {
     reloadRooms();
+    setNow(Date.now());
     setMotion(null);
     setPanelOpen(true);
     if (isNative()) invoke("set_panel_visible", { visible: true }).catch((error: unknown) => console.error(error));
@@ -392,12 +398,28 @@ export function Pet() {
     };
   }, [working]);
 
-  // 투명한 자리도 클릭을 막으니 창을 내용에 딱 맞춥니다. 줄었다 커지는 동안은 줄어든 크기를 재지 않아요.
+  // 내용 크기가 바뀔 때만 창 크기를 맞춰요. 매초 숫자가 바뀔 때 창을 다시 그리지 않아요.
+  // 줄었다 커지는 동안은 움직이는 크기를 재지 않아요.
   useLayoutEffect(() => {
-    if (!isNative() || !root.current || motion) return;
-    const { width, height } = root.current.getBoundingClientRect();
-    getCurrentWindow().setSize(new LogicalSize(Math.ceil(width), Math.ceil(height))).catch((error: unknown) => console.error(error));
-  });
+    const panel = root.current;
+    if (!isNative() || !panel || motion) return;
+    const win = getCurrentWindow();
+    let lastWidth = 0;
+    let lastHeight = 0;
+    const resize = () => {
+      const { width, height } = panel.getBoundingClientRect();
+      const w = Math.ceil(width);
+      const h = Math.ceil(height);
+      if (w === lastWidth && h === lastHeight) return;
+      lastWidth = w;
+      lastHeight = h;
+      win.setSize(new LogicalSize(w, h)).catch((error: unknown) => console.error(error));
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(panel, { box: "border-box" });
+    resize();
+    return () => observer.disconnect();
+  }, [motion]);
 
   function openMenu() {
     if (!menuOpen) reloadRooms();
@@ -559,8 +581,10 @@ export function Pet() {
   }
   const quit = () => invoke("quit_app").catch((error: unknown) => console.error(error));
   const art = (px: number) => (
-    <span key={pose} className="pet-pose">
-      <PoseArt pose={pose} actor="pet" mood={asking ? "tilt" : menuOpen ? "lookD" : poseFace[pose]} parts={room ? kindParts(room.things) : []} px={px} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
+    <span className="pet-breathe">
+      <span key={pose} className="pet-pose">
+        <PoseArt pose={pose} actor="pet" mood={asking ? "tilt" : menuOpen ? "lookD" : poseFace[pose]} parts={room ? kindParts(room.things) : []} px={px} foot={room ? faceColorVar(room.face.color) : undefined} paper={incoming[0] ? kindTones[incoming[0].kind].pale : undefined} />
+      </span>
     </span>
   );
   // 새 파일 넣기, 옮긴 결과와 되돌리기, 폴더 고르기, 상태 묻기. 두 모양이 함께 써요.
