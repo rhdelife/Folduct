@@ -78,3 +78,10 @@ export function listAt(things: Thing[], dir: string): { folders: FolderEntry[]; 
 
 // 판 위 폴더 하나의 안(그 아래 모든 파일). 상자 속 파일은 빼요.
 export const folderThings = (things: Thing[], path: string) => things.filter((thing) => !thing.box && thing.path.startsWith(`${path}/`));
+
+// 꺼내기 목록 Shift+클릭: 앞서 누른 카드부터 지금 카드까지(보이는 순서). 앞서 누른 카드가 목록에 없으면 지금 카드만이에요.
+export function rangeIds(order: string[], anchor: string | null, id: string): string[] {
+  const [a, b] = [anchor === null ? -1 : order.indexOf(anchor), order.indexOf(id)];
+  if (a < 0 || b < 0) return [id];
+  return order.slice(Math.min(a, b), Math.max(a, b) + 1);
+}

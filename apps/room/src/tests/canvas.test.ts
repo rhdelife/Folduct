@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canvasHeight, canvasMinHeight, canvasScale, canvasWidth, listAt, nextSpot, normalizeCanvas } from "../domain/canvas";
+import { canvasHeight, canvasMinHeight, canvasScale, canvasWidth, listAt, nextSpot, normalizeCanvas, rangeIds } from "../domain/canvas";
 import { normalizeRoom } from "../storage/db";
 import type { Thing } from "../domain/model";
 
@@ -42,5 +42,15 @@ describe("방 판(빈 캔버스)", () => {
     const src = listAt(things, "src");
     expect(src.files.map((t) => t.id)).toEqual(["2"]);
     expect(src.folders.map((f) => f.path)).toEqual(["src/y"]);
+  });
+});
+
+describe("꺼내기 범위 고르기", () => {
+  it("앞서 누른 카드부터 지금 카드까지, 거꾸로 눌러도 같은 범위예요", () => {
+    const order = ["a", "b", "c", "d"];
+    expect(rangeIds(order, "b", "d")).toEqual(["b", "c", "d"]);
+    expect(rangeIds(order, "d", "b")).toEqual(["b", "c", "d"]);
+    expect(rangeIds(order, null, "c")).toEqual(["c"]);
+    expect(rangeIds(order, "사라짐", "c")).toEqual(["c"]);
   });
 });

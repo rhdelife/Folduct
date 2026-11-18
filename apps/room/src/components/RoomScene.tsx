@@ -54,7 +54,7 @@ const shownMost = 200;
 // picked가 있으면 고르는 중이라, 종이를 누르면 서랍에 띄우지 않고 골라요(여러 개 휴지통으로).
 // 평소(찾지도 고르지도 않을 때)에는 줄 대신 빈 캔버스 판(RoomCanvas)에 꺼내 놓은 것만 보여 주고, 정리 상자 줄은 그 아래에 그대로 둬요.
 // 찾거나 색으로 보거나 여러 개를 고를 때는 방 전체를 훑어야 해서 예전처럼 줄로 보여 줘요.
-export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen, picked = null, onPick, onCanvas }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: Set<string> | null; onPick?: (id: string) => void; onCanvas: (items: CanvasItem[]) => void }) {
+export function RoomScene({ room, now, folder, query, only = null, selectedId, onSelect, onOpen, picked = null, onPick, onCanvas, onTrash }: { room: Room; now: number; folder: Folder | null; query: string; only?: Set<string> | null; selectedId: string | null; onSelect: (id: string) => void; onOpen: (id: string) => void; picked?: Set<string> | null; onPick?: (id: string) => void; onCanvas: (items: CanvasItem[]) => void; onTrash?: (ids: Set<string>) => Promise<void> }) {
   const [opened, setOpened] = useState<Lane[]>([]);
   // 펼친 더미 하나(줄:열쇠)와, 그 더미에서 나머지도 보기를 눌렀는지.
   const [openPile, setOpenPile] = useState<{ id: string; all: boolean } | null>(null);
@@ -89,7 +89,7 @@ export function RoomScene({ room, now, folder, query, only = null, selectedId, o
   return (
     <div className="lanes">
       <p id="lanes-hint" className="sr-only">누르면 고르고, 고른 파일에서 Enter를 한 번 더 누르면 열어요.</p>
-      {board && <RoomCanvas room={room} folder={folder} now={now} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} onChange={onCanvas} />}
+      {board && <RoomCanvas room={room} folder={folder} now={now} selectedId={selectedId} onSelect={onSelect} onOpen={onOpen} onChange={onCanvas} onTrash={onTrash} />}
       {groups.filter(({ lane }) => !board || lane === "box").map(({ lane, things, front, piles }) => {
         const index = lanes.indexOf(lane);
         const title = titles[lane];

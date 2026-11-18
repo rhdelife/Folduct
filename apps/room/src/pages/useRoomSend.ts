@@ -25,9 +25,9 @@ export function useRoomSend({ latest, handle, picked, setPicked, selectedId, set
   // 옮기기·복제할 방 고르는 중이면 그 방법과 받을 수 있는 방들.
   const [send, setSend] = useState<{ mode: TransferMode; rooms: Room[] } | null>(null);
 
-  // '고르기'로 고른 파일들을 한 번 묻고 차례로 휴지통으로 보내요. 하나가 실패해도 나머지는 계속해요.
-  async function trashPicked() {
-    const chosen = (latest.current?.things ?? []).filter((thing) => picked?.has(thing.id) && !thing.missing);
+  // 고른 파일들을 한 번 묻고 차례로 휴지통으로 보내요. 하나가 실패해도 나머지는 계속해요. 고르기 줄과 꺼내기 목록이 같이 써요.
+  async function trashPicked(ids: Set<string> | null = picked) {
+    const chosen = (latest.current?.things ?? []).filter((thing) => ids?.has(thing.id) && !thing.missing);
     if (chosen.length === 0 || typeof handle !== "string" || !(await window.confirm(`파일 ${chosen.length.toLocaleString("ko-KR")}개를 휴지통으로 보낼까요? 휴지통에서 되살릴 수 있어요.`))) return;
     setBusy("휴지통으로 보내는 중…");
     const done: { thing: Thing; place: string | null }[] = [];

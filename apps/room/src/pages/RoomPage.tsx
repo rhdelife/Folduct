@@ -646,6 +646,7 @@ export function RoomPage({ roomId, onBack }: { roomId: string; onBack: () => voi
               if (window.matchMedia(stacked).matches) side.current?.scrollIntoView({ block: "nearest" });
             }}
             onOpen={(id) => void openFile(id)}
+            onTrash={isNative() && typeof handle === "string" ? (ids) => trashPicked(ids) : undefined}
             picked={picked}
             onPick={(id) => setPicked((current) => {
               const next = new Set(current);
