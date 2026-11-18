@@ -44,3 +44,19 @@ describe("예전 기록 옮기기", () => {
     expect(state.items.map((door) => door.kind)).toEqual(["slides", "slides", "office"]);
   });
 });
+
+describe("확장자", () => {
+  it("디자인·사진 원본과 흔한 형식을 제 형식으로 읽고, 모르는 확장자는 기타로 둬요", () => {
+    const cases: [string, string][] = [["로고.ai", "design"], ["포스터.PSD", "design"], ["큰판.psb", "design"], ["도면.dwg", "design"], ["사진.tiff", "image"], ["원본.CR2", "image"], ["녹화.wmv", "video"], ["음성.opus", "audio"], ["책.epub", "office"], ["계산.xlsm", "table"], ["묶음.tgz", "archive"], ["설정.ini", "text"], ["처음보는.qqq", "unknown"]];
+    for (const [name, kind] of cases) expect(kindOf(name), name).toBe(kind);
+  });
+});
+
+describe("파일 아이콘 크기", () => {
+  it("예전 기록은 기본 크기로 열고, 정한 배율은 지키고, 범위 밖·망가진 값은 기본으로 돌려요", () => {
+    const thing = { id: "t", path: "a.png", name: "a.png", kind: "image", size: 1, lastModified: 1, lastUsedAt: null };
+    const scales = [undefined, 1.5, 0.6, 2, 1, 5, 0.1, "2", Number.NaN];
+    const room = normalizeRoom({ id: "r", name: "방", createdAt: 1, things: scales.map((scale, at) => ({ ...thing, id: `t${at}`, scale })) });
+    expect(room.things.map((item) => item.scale)).toEqual([undefined, 1.5, 0.6, 2, undefined, undefined, undefined, undefined, undefined]);
+  });
+});

@@ -29,7 +29,11 @@ export type Thing = {
   seenAt: number;
   pinned: boolean;
   box: BoxEntry | null;
+  // 방 안에서 이 파일 아이콘을 그리는 배율. 사용자가 파일마다 정해요. 없으면 1(기본 크기).
+  scale?: number;
 };
+
+export const thingScaleRange = { min: 0.6, max: 2 };
 
 // done: 홈에서 뺀 방. 주간 정리가 멈춥니다. 다 끝나지 않은 방도 있어 화면에는 '완료'라고 쓰지 않아요.
 export type CareSettings = { done: boolean; staleAfterDays: number };
@@ -79,16 +83,16 @@ export const ownCoverId = (roomId: string) => `cover:${roomId}`;
 export type ScannedFile = { path: string; name: string; kind: Kind; size: number; lastModified: number; lastUsedAt?: number | null };
 
 const extensions: [Kind, string[]][] = [
-  ["image", ["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "bmp", "heic", "ico"]],
-  ["video", ["mp4", "webm", "mov", "m4v", "avi", "mkv"]],
-  ["audio", ["mp3", "wav", "ogg", "m4a", "aac", "flac", "aiff"]],
+  ["image", ["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "bmp", "heic", "heif", "ico", "tif", "tiff", "jfif", "dng", "cr2", "cr3", "nef", "arw", "raw"]],
+  ["video", ["mp4", "webm", "mov", "m4v", "avi", "mkv", "wmv", "flv", "mpg", "mpeg", "3gp", "mts"]],
+  ["audio", ["mp3", "wav", "ogg", "m4a", "aac", "flac", "aiff", "aif", "opus", "wma", "mid", "midi"]],
   ["pdf", ["pdf"]],
-  ["table", ["csv", "tsv", "xls", "xlsx", "numbers"]],
-  ["office", ["doc", "docx", "hwp", "hwpx", "pages", "odt"]],
-  ["slides", ["ppt", "pptx", "key", "odp"]],
-  ["design", ["psd", "ai", "sketch", "fig", "xd", "indd", "eps", "blend", "procreate"]],
-  ["archive", ["zip", "rar", "7z", "tar", "gz", "dmg", "iso"]],
-  ["text", ["txt", "md", "json", "xml", "yaml", "yml", "html", "css", "scss", "js", "cjs", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "ipynb", "r", "kt", "php", "rb", "py", "java", "swift", "go", "rs", "c", "cpp", "sh", "sql", "log", "toml", "rtf"]],
+  ["table", ["csv", "tsv", "xls", "xlsx", "xlsm", "ods", "numbers"]],
+  ["office", ["doc", "docx", "hwp", "hwpx", "docm", "pages", "odt", "epub"]],
+  ["slides", ["ppt", "pptx", "pptm", "key", "odp"]],
+  ["design", ["psd", "ai", "sketch", "fig", "xd", "indd", "eps", "blend", "procreate", "afdesign", "afphoto", "xcf", "psb", "dwg", "dxf", "skp", "c4d", "obj", "fbx", "stl"]],
+  ["archive", ["zip", "rar", "7z", "tar", "gz", "dmg", "iso", "tgz", "bz2", "xz", "zst"]],
+  ["text", ["txt", "md", "json", "xml", "yaml", "yml", "html", "css", "scss", "js", "cjs", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "ipynb", "r", "kt", "php", "rb", "py", "java", "swift", "go", "rs", "c", "cpp", "sh", "sql", "log", "toml", "rtf", "h", "hpp", "cs", "lua", "dart", "scala", "ini", "conf"]],
 ];
 
 export function kindOf(name: string): Kind {

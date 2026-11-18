@@ -960,6 +960,70 @@ fn mp4_seconds(path: &Path) -> Option<f64> {
   (scale > 0).then(|| length as f64 / scale as f64)
 }
 
+// 사용자가 고른 파일 하나로 썸네일 그림을 만듭니다. macOS는 Quick Look으로 PSD·AI처럼 화면이 못 읽는 형식도 그림을 뽑고,
+// 다른 OS는 파일을 그대로 돌려줘 화면에서 이미지로 읽어요. 고른 파일은 읽기만 해요.
+#[tauri::command]
+async fn thumbnail<R: Runtime>(app: AppHandle<R>, path: PathBuf) -> Result<tauri::ipc::Response, String> {
+  in_scope(&app, &path)?;
+  if !path.is_file() {
+    return Err("파일이 아니에요.".into());
+  }
+  let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+  let bytes = tauri::async_runtime::spawn_blocking(move || picture_of(&path, &cache)).await.map_err(|e| e.to_string())??;
+  Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[cfg(target_os = "macos")]
+fn picture_of(path: &Path, cache: &Path) -> Result<Vec<u8>, String> {
+  static NEXT: AtomicU32 = AtomicU32::new(0);
+  // 앱 캐시 안에 이번 한 번만 쓰는 폴더를 만들고, 읽은 뒤 그 폴더만 지웁니다. 사용자 폴더에는 아무것도 쓰지 않아요.
+  let out = cache.join(format!("thumb-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::SeqCst)));
+  std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+  let made = quick_look(path, &out);
+  let _ = std::fs::remove_dir_all(&out);
+  made
+}
+
+// 깨진 파일에서는 Quick Look이 끝나지 않아서 15초 뒤 멈춰요.
+#[cfg(target_os = "macos")]
+fn quick_look(path: &Path, out: &Path) -> Result<Vec<u8>, String> {
+  use std::process::Stdio;
+  use std::time::Instant;
+  let mut child = Command::new("/usr/bin/qlmanage")
+    .args(["-t", "-s", "384", "-o"])
+    .arg(out)
+    .arg(path)
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .spawn()
+    .map_err(|e| e.to_string())?;
+  let started = Instant::now();
+  while child.try_wait().map_err(|e| e.to_string())?.is_none() {
+    if started.elapsed() > Duration::from_secs(15) {
+      let _ = child.kill();
+      let _ = child.wait();
+      return Err("미리보기를 만드는 데 너무 오래 걸려요. 다른 파일을 골라 주세요.".into());
+    }
+    std::thread::sleep(Duration::from_millis(100));
+  }
+  let png = std::fs::read_dir(out)
+    .map_err(|e| e.to_string())?
+    .flatten()
+    .map(|entry| entry.path())
+    .find(|made| made.extension().is_some_and(|ext| ext == "png"))
+    .ok_or("이 파일은 미리보기를 만들지 못했어요.")?;
+  std::fs::read(png).map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn picture_of(path: &Path, _: &Path) -> Result<Vec<u8>, String> {
+  // pictures.ts pictureSourceLimit과 같은 40MB. 읽기 전에 막아요.
+  if std::fs::metadata(path).map_err(|e| e.to_string())?.len() > 40 * 1024 * 1024 {
+    return Err("이미지가 너무 커요. 40MB까지 고를 수 있어요.".into());
+  }
+  std::fs::read(path).map_err(|e| e.to_string())
+}
+
 // 발표 파일(pptx·key 같은)을 macOS Quick Look 미리보기로 바꿔 돌려줍니다. 사용자 파일은 읽기만 하고,
 // 앱 캐시 안에 이번 한 번 쓰는 폴더만 만들었다 지워요. HTML로 나오면 그림을 data URL로 넣은 HTML 한 덩어리, PDF로 나오면 PDF 바이트 그대로예요.
 // HTML은 화면이 스크립트 없이 안전한 태그만 골라 다시 그려요(FileViewer SlideView).
@@ -1079,7 +1143,7 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, find_folders, allow_found_rooms, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {

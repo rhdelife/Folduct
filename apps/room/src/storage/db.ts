@@ -5,7 +5,7 @@ import { emptyDoorstep, normalizeDoorstep, type Doorstep } from "../domain/doors
 import { normalizeFace } from "../domain/face";
 import { normalizeCanvas } from "../domain/canvas";
 import { normalizeKindIcons, type KindIconStore } from "../domain/kindIcon";
-import { cleanGroup, storedKind, type Room, type Thing } from "../domain/model";
+import { cleanGroup, storedKind, thingScaleRange, type Room, type Thing } from "../domain/model";
 
 // 이 브라우저 안에만 저장합니다. 파일 내용은 저장하지 않고 이름·크기·자리·메모만 둡니다.
 const name = "folduct-room";
@@ -274,6 +274,10 @@ const isThingRecord = (value: unknown): boolean => {
 };
 
 // 예전 기록에 없는 칸은 기본값으로 채웁니다. scan은 네 칸만 다시 만들어, 예전에 같이 저장된 파일 목록 사본을 버립니다.
+// 파일 아이콘 배율은 2026-11-09에 생겼어요. 그 전 기록이나 범위를 벗어난 값은 기본 크기(없음)로 둬요.
+const thingScale = (value: unknown): number | undefined =>
+  typeof value === "number" && value >= thingScaleRange.min && value <= thingScaleRange.max && value !== 1 ? value : undefined;
+
 export function normalizeRoom(value: unknown): Room {
   const room = value as Room;
   const scan: Partial<Room["scan"]> = room.scan ?? {};
@@ -283,7 +287,7 @@ export function normalizeRoom(value: unknown): Room {
     createdAt: count(room.createdAt, 0),
     // 그릴 수 없는 물건은 빼고, 종류·크기·시각이 망가진 물건은 고쳐서 살립니다.
     things: Array.isArray(room.things)
-      ? room.things.filter(isThingRecord).map((thing) => ({ ...thing, kind: storedKind(thing.kind, thing.name), size: count(thing.size, 0), lastModified: count(thing.lastModified, 0), lastUsedAt: count(thing.lastUsedAt, null), seenAt: count(thing.seenAt, count(room.createdAt, 0)) }))
+      ? room.things.filter(isThingRecord).map((thing) => ({ ...thing, kind: storedKind(thing.kind, thing.name), size: count(thing.size, 0), lastModified: count(thing.lastModified, 0), lastUsedAt: count(thing.lastUsedAt, null), seenAt: count(thing.seenAt, count(room.createdAt, 0)), scale: thingScale(thing.scale) }))
       : [],
     workDays: Array.isArray(room.workDays) ? room.workDays.filter((day) => typeof day === "string") : [],
     care: normalizeCare(room.care),

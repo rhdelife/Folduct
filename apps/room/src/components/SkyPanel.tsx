@@ -1,19 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { shortPath } from "../domain/platform";
-import { ObjectShape } from "../art/ObjectShape";
 import { ductLength, kindParts } from "../art/duct";
 import { RoomFaceArt } from "./RoomFace";
-import { laneOf, lastActivity, relativeDay, thingAge } from "../domain/care";
+import { relativeDay } from "../domain/care";
 import { formatBytes, type Room } from "../domain/model";
 import { roomUsage } from "../domain/care";
-import { homeActivity, pickStarThings, progressText, roomActivity, type RoomStat } from "../domain/sky";
-import { Capacity } from "./Capacity";
+import { homeActivity, type RoomStat } from "../domain/sky";
 import { roomMenuTriggers, type OpenRoomMenu } from "./ContextMenu";
 import { KindMix } from "./KindLegend";
-import { MiniRoom } from "./MiniRoom";
-
-// 스크립트로 움직이는 스크롤도 '동작 줄이기'를 따릅니다.
-const scrollBehavior = (): ScrollBehavior => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
 export function HomeSummary({ rooms, stats, now }: { rooms: Room[]; stats: Map<string, RoomStat>; now: number }) {
   let total = 0;
@@ -64,98 +58,6 @@ export function RoomRanking({ rooms, stats, now, onOpenRoom, onRoomMenu }: { roo
           <RoomRows rows={doneRows} now={now} onSelectRoom={onOpenRoom} onRoomMenu={onRoomMenu} />
         </details>
       )}
-    </div>
-  );
-}
-
-export function SkyPanel({
-  room,
-  stats,
-  now,
-  focusId,
-  onSelectRoom,
-  onFocusThing,
-  onEnter,
-  onToggleDone,
-}: {
-  room: Room;
-  stats: Map<string, RoomStat>;
-  now: number;
-  focusId: string | null;
-  onSelectRoom: (id: string | null) => void;
-  onFocusThing: (roomId: string, thingId: string) => void;
-  onEnter: (id: string) => void;
-  onToggleDone: (id: string) => void;
-}) {
-  const [thingSort, setThingSort] = useState<"size" | "old">("size");
-  const body = useRef<HTMLDivElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const focusRow = useRef<HTMLLIElement>(null);
-
-  // 누른 버튼이 사라지면 포커스를 방 이름으로 이어 줍니다. 지도처럼 다른 곳에 포커스가 있으면 빼앗지 않습니다.
-  useEffect(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body || body.current?.contains(active)) heading.current?.focus();
-  }, [room.id]);
-
-  // 지도에서 파일을 누르면 목록 안에서만 그 줄로 스크롤합니다. 페이지 전체는 움직이지 않습니다.
-  useEffect(() => {
-    const row = focusRow.current;
-    const box = row?.closest<HTMLElement>(".sky-panel");
-    if (!row || !box || box.scrollHeight <= box.clientHeight) return;
-    const top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
-    box.scrollTo({ top: top - box.clientHeight / 2, behavior: scrollBehavior() });
-  }, [focusId]);
-
-  const things = room.things.filter((thing) => !thing.missing).map((thing) => ({ thing, ...thingAge(thing, room, now) }));
-  things.sort((a, b) => (thingSort === "size" ? b.thing.size - a.thing.size : (a.thing.touchedAt === null ? Infinity : lastActivity(a.thing)) - (b.thing.touchedAt === null ? Infinity : lastActivity(b.thing))));
-  // 고른 순서로 100개, 그리고 지도에 뜬 파일은 모두 넣어 지도의 별마다 줄이 있게 합니다. 뺀 방은 지도에 없어요.
-  const starIds = new Set(room.care.done ? [] : pickStarThings(room, 40).map((thing) => thing.id));
-  const listed = things.filter((item, index) => index < 100 || starIds.has(item.thing.id));
-  const { stale, progress: roomProgress } = stats.get(room.id)!;
-  const progress = progressText(roomProgress, now);
-  return (
-    <div className="sky-panel-body" ref={body}>
-      <header className="room-mode">
-        <button type="button" className="link back" onClick={() => onSelectRoom(null)}>← 닫기</button>
-        <h2 tabIndex={-1} ref={heading}>{room.name}</h2>
-        <p className="soft">{room.source === "sample" ? "샘플 방" : `${room.rootName} 폴더`} · 파일 {room.things.filter((thing) => !thing.box).length}개 · 오래됨 {stale}개</p>
-        {room.care.done && <p className="soft">홈에서 뺀 방이라 주간 정리가 쉬어요.</p>}
-        <button type="button" className="preview" onClick={() => onEnter(room.id)} aria-label={`${room.name} 방에 들어가기`}>
-          <MiniRoom room={room} now={now} />
-        </button>
-        <Capacity usage={stats.get(room.id)!.usage} />
-        {progress && <p className="soft">{progress}</p>}
-        <div className="row">
-          <button type="button" className="primary enter" onClick={() => onEnter(room.id)}>방에 들어가기</button>
-          <button type="button" onClick={() => onToggleDone(room.id)}>{room.care.done ? "홈에 올리기" : "홈에서 빼기"}</button>
-        </div>
-      </header>
-      <div className="rank-head">
-        <span>파일</span>
-        <div className="sort" role="group" aria-label="정렬">
-          <button type="button" aria-pressed={thingSort === "size"} onClick={() => setThingSort("size")}>큰 순</button>
-          <button type="button" aria-pressed={thingSort === "old"} onClick={() => setThingSort("old")}>오래 그대로인 순</button>
-        </div>
-      </div>
-      <ol className="rank files">
-        {listed.map(({ thing, stale: old, days }) => (
-          <li key={thing.id} ref={thing.id === focusId ? focusRow : undefined} className={thing.id === focusId ? "focused" : ""}>
-            <button type="button" onClick={() => onFocusThing(room.id, thing.id)}>
-              <ObjectShape kind={thing.kind} size={20} seed={thing.id} />
-              <span className="rank-name"><strong>{thing.name}</strong><small>{thing.path}</small></span>
-              <span className="rank-num">
-                <strong>{formatBytes(thing.size)}</strong>
-                <small className={old ? "warn" : ""}>
-                  {{ box: "정리 상자", new: "새로 왔어요", quiet: `${days}일째 그대로`, use: "요즘 써요" }[laneOf(thing, room, now)]}
-                </small>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-      {things.length > listed.length && <p className="soft">{thingSort === "size" ? "큰 순" : "오래 그대로인 순"}으로 100개{room.care.done ? "" : "와 지도에 뜬 파일"}만 보여요. 나머지는 방에 들어가서 볼 수 있어요.</p>}
-      <ActivityChart title="최근 14일 · 사용한 파일 수" bars={roomActivity(room, now)} unit="개" />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 /* Hallmark · sweep (not a Hallmark build) · shape: app screen · genre: playful · surface: absolute (panels pure white, floor off-white) · system: Folduct own, Pretendard, file-kind colours, the duct character · critique: labels untracked, backdrop and toast colours lifted to tokens */
 /* Hallmark · waive 7b · var(--surface) stays pure white on every panel, sheet and card over the off-white floor --bg · the owner chose white Folduct panels over a tinted grey */
-/* Hallmark · waive 80 · div.intro-vase and every room on home are the duct character drawn in code, one figure per room · the duct is Folduct's mascot and stands for the room itself, chosen by the owner, so it is the product and not decoration */
 /* Hallmark · waive 28b · the video sits inside the file viewer dialog, opened on demand below everything, never the first paint · it plays the user's own file and Folduct has no frame of it to use as a poster */
+/* Hallmark · waive 80 · div.intro-vase and every room on home are the duct character drawn in code, one figure per room · the duct is Folduct's mascot and stands for the room itself, chosen by the owner, so it is the product and not decoration */
 /* Hallmark · dismissed 3 · .banner.danger sets border-left: 0 further down, so the red stripe never paints */
 /* Hallmark · dismissed 29 · the owner asked for glass panels across the app on 2026-11-05 and the dialog backdrop blur belongs to that look */
 /* Hallmark · dismissed F7 · the pills are the sort and segment controls and the alert dot, and the repeated recipe is the one glass panel the owner chose */
@@ -406,7 +406,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 /* 짧은 정보 줄(components/Meta.tsx): 가운뎃점 대신 칸 사이를 띄워요. 좁으면 다음 줄로 접혀요. */
 .meta { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-3); }
 /* 한 줄로 끊어 보여야 하는 곳은 접지 않아요. */
-.caption-layer .meta { flex-wrap: nowrap; }
 .sweep-week { margin-left: var(--space-2); font-size: var(--text-md); font-weight: 500; color: var(--ink-soft); }
 .error { color: var(--status-danger); font-weight: 600; }
 .eyebrow { font-size: var(--text-xs); font-weight: 500; color: var(--ink-soft); }
@@ -468,18 +467,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .home-actions button:hover:not(:disabled) { background: none; color: var(--ink); }
 .home-actions b { font-weight: 700; color: var(--ink); }
 .home-actions b::before { content: "· "; }
-/* 나타날 때는 장면이 자리 잡은 뒤 늦게, 사라질 때는 바로. */
-.home-caption { position: absolute; top: var(--chrome-y); left: 0; right: 0; height: 0; opacity: 0; pointer-events: none; transition: opacity 400ms ease-out; }
-.home-caption.visible { opacity: 1; }
-/* 요약 두 줄: 방 수와 용량을 굵게, 그 아래 할 일을 한 줄로. */
-.caption-layer { position: absolute; left: calc(var(--chrome-x) + var(--space-8) + var(--space-3)); top: 0; translate: 0 -50%; display: grid; white-space: nowrap; color: var(--ink-caption-soft); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.caption-layer strong { font-size: var(--text-hero); line-height: var(--lh-hero); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
-@media (max-width: 1199.98px) {
-  :root { --topbar-h: var(--topbar-stacked-h); }
-}
-@media (max-width: 719.98px) {
-  :root { --topbar-h: var(--topbar-phone-h); }
-}
 
 /* 집 화면에는 그림자가 없습니다. 창은 바탕 어둡기와 선으로 뜹니다. */
 .home .sheet-body { box-shadow: none; }
@@ -604,10 +591,9 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 /* 목록 줄: 방 순위, 파일 순위, 선반·상자 목록이 한 모양입니다. */
 .rank, .list { list-style: none; margin: 0; padding: 0; display: grid; }
 .rank button { width: 100%; min-height: 0; display: grid; grid-template-columns: 24px 44px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-1); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; text-align: left; font-size: var(--text-sm); font-weight: 500; transform: none; }
-.rank.files button, .list li { grid-template-columns: 28px minmax(0, 1fr) auto; }
+.list li { grid-template-columns: 28px minmax(0, 1fr) auto; }
 .rank button:hover:not(:disabled) { background: var(--surface-hover); }
 .rank button:active:not(:disabled) { background: var(--surface-selected); }
-.rank li.focused button { background: var(--surface-selected); box-shadow: inset 3px 0 0 var(--ink); }
 .rank li.done button { color: var(--ink-soft); }
 .rank-no { color: var(--ink-soft); font-weight: 700; font-size: var(--text-xs); text-align: center; }
 /* 프로젝트 안 파일 형식 비율(용량 기준) */
@@ -622,9 +608,6 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .rank-num small.warn { color: var(--status-danger); font-weight: 700; }
 .empty-row { padding: var(--space-2) var(--space-1); }
 .done-group summary { cursor: pointer; padding: var(--space-2) var(--space-1); font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); }
-.room-mode { display: grid; gap: var(--space-3); }
-.room-mode .back { justify-self: start; }
-.room-mode .preview { display: block; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: var(--radius-lg); background: none; overflow: hidden; transform: none; }
 .activity { max-width: 440px; margin: var(--space-1) 0 0; display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4) var(--space-2); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--ink); }
 .activity figcaption { font-size: var(--text-xs); color: var(--ink-soft); font-weight: 600; }
 .activity svg { width: 100%; height: auto; display: block; }
@@ -697,9 +680,6 @@ dialog.sheet::backdrop { background: var(--sheet-backdrop); -webkit-backdrop-fil
 .sheet-body { display: grid; gap: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-6); box-shadow: var(--shadow-3); max-height: calc(100dvh - 48px); overflow: auto; color: var(--ink); animation: sheet-in var(--dur-3) var(--ease-standard); }
 .sheet-body h2 { font-size: var(--text-xl); line-height: var(--lh-xl); }
 .sheet-body > .big { justify-self: start; }
-.sheet-more { display: grid; gap: var(--space-2); }
-.sheet-more summary { cursor: pointer; width: fit-content; font-size: var(--text-sm); color: var(--ink-soft); }
-.hints { margin: 0; padding-left: var(--space-5); color: var(--ink-soft); font-size: var(--text-sm); display: grid; gap: var(--space-1); }
 .sweep-room { background: var(--surface-sunken); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-2); }
 .sweep-room h3 { font-size: var(--text-md); }
 /* 새 방 만들기(데스크톱): 위에 폴더 이름 검색, 아래에 고를 수 있는 폴더 줄. 줄은 이름·상위 경로·고친 날(2026-11-18 요청). */
@@ -767,11 +747,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes spin { to { rotate: 360deg; } }
 
-/* 창이 좁으면 글자를 줄이고, 메뉴 자리를 비켜 둡니다. */
-@media (max-width: 1100px) {
-  .caption-layer { right: var(--chrome-reserve); }
-  .caption-layer strong { font-size: var(--text-lg); line-height: var(--lh-lg); }
-}
 /* 창이 좁으면 한 줄로 쌓습니다. 데스크톱 앱 최소 폭(720)에서는 두 칸을 지킵니다. */
 @media (max-width: 719.98px) {
   /* 폰에서는 문장이 메뉴 앞에서 접힙니다. 오른쪽 여백은 메뉴와 새 방 버튼 자리예요. */
@@ -781,11 +756,6 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
   /* 좁아서 알림은 글자 대신 잉크 점으로 줄입니다. 글자는 읽는 프로그램과 메뉴 안의 주간 정리에 남아요. */
   .home-actions b { display: inline-block; width: var(--space-2); height: var(--space-2); margin-left: var(--space-1); overflow: hidden; border-radius: var(--radius-pill); background: var(--ink); font-size: 0; }
   .home-actions b::before { content: none; }
-  /* 버튼 넷이 폭을 거의 다 써서, 요약은 로고·버튼 줄 아래 둘째 줄로 내려요(머리 높이 --topbar-phone-h 안). */
-  .caption-layer { left: var(--gutter); right: var(--gutter); top: var(--space-10); translate: 0 -25%; grid-template-columns: minmax(0, 1fr); font-size: var(--text-xs); line-height: var(--lh-xs); }
-  .caption-layer strong { font-size: var(--text-md); line-height: var(--lh-md); }
-  /* 길어져도 한 줄로 끊습니다. 접히면 아래 쪽 이동에 닿아요. */
-  .caption-layer :is(strong, span) { overflow: hidden; text-overflow: ellipsis; }
   .room-body { grid-template-columns: 1fr; }
   .side { position: static; max-height: none; }
   /* 폰에서는 패널이 아래에서 올라오고, 지도는 남은 위쪽 가운데로 비켜 납니다. */
@@ -865,16 +835,22 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 /* ── 빈 화면: 로고, 한 문장, 검은 버튼 하나 ── */
 .home .home-empty { gap: var(--space-6); padding-bottom: var(--topbar-h); }
 .home .home-empty p { color: var(--ink-hover); font-size: var(--empty-text); line-height: var(--lh-caption); letter-spacing: -0.01em; }
-/* 빈 홈: 프로도 위에 테두리 없는 흰 말풍선. 꼬리는 아래 가운데에서 프로도 머리를 가리켜요. */
-.home .home-empty .home-bubble { position: relative; max-width: min(100%, calc(var(--space-12) * 12)); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); word-break: keep-all; text-wrap: balance; }
-.home-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; width: var(--space-4); height: var(--space-4); background: var(--surface); translate: -50% -50%; rotate: 45deg; }
+/* 프로도 말풍선(빈 홈의 첫 방 권하기, 홈과 플로팅 창의 이번 주 정리): 테두리 없는 흰 판. 꼬리는 아래 가운데, tail-up 이면 위 가운데에서 프로도를 가리켜요. */
+.frodo-bubble { position: relative; max-width: min(100%, calc(var(--space-12) * 12)); padding: var(--space-4) var(--space-5); border: 0; border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); word-break: keep-all; text-wrap: balance; }
+.frodo-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; width: var(--space-4); height: var(--space-4); background: var(--surface); translate: -50% -50%; rotate: 45deg; }
+.frodo-bubble.tail-up::after { top: 0; }
+/* 홈 프로도 머리 위: 프로도 가운데 위에 붙고, 넓은 창에서는 한 줄 말에 단추 두 개. */
+.over-frodo { position: absolute; z-index: 3; translate: -50% calc(-100% - var(--space-3)); width: max-content; max-width: min(calc(100vw - 2 * var(--gutter)), calc(var(--space-12) * 9)); transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }
+.sweep-bubble { display: grid; justify-items: center; gap: var(--space-3); text-align: center; }
+.sweep-bubble p { font-size: var(--text-md); line-height: var(--lh-md); }
+.sweep-bubble-actions { display: flex; gap: var(--space-2); }
 .home-frodo { display: block; width: calc(var(--space-12) * 5); margin-top: calc(var(--space-6) * -1); }
 .home-frodo svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* ── 메뉴와 패널에 함께 쓰는 종이말 ── */
 .home .menu .sheet-body, .home .sky-panel { background-color: var(--bg); }
 /* 이름표: 작게, 굵게 쓰지 않습니다. 자간은 벌리지 않아요. */
-.home .menu-label, .home .menu-head h2, .home .sky-panel-body header:not(.room-mode) h2, .home .rank-head, .home .activity figcaption, .home .done-group summary, .home .sky-summary dt {
+.home .menu-label, .home .menu-head h2, .home .sky-panel-body header h2, .home .activity figcaption, .home .done-group summary, .home .sky-summary dt {
   color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500;
 }
 /* 정렬: 베이지 알약 대신 빗금으로 나눈 글자. 고른 쪽만 진하게. */
@@ -890,11 +866,9 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .home .rank { border-top: 1px solid var(--line-ground); }
 .home .done-group .rank { border-top: 0; }
 .home .rank button { grid-template-columns: var(--space-5) var(--space-5) minmax(0, 1fr) var(--rank-num-room); align-items: stretch; gap: var(--space-2); padding: 0 var(--space-1); }
-.home .rank.files button { grid-template-columns: var(--space-5) minmax(0, 1fr) var(--rank-num-file); }
 .home .rank .object { align-self: center; }
 .rank-vase { align-self: center; width: var(--space-6); height: var(--space-6); overflow: visible; }
 .home .rank button:hover:not(:disabled), .home .rank button:active:not(:disabled) { background: var(--ground); }
-.home .rank li.focused button { background: var(--ground); box-shadow: inset 2px 0 0 var(--ink); }
 .home .rank-no { align-self: center; white-space: nowrap; font-size: var(--text-xs); font-weight: 500; text-align: left; font-variant-numeric: tabular-nums; }
 .home .rank-name { align-content: center; gap: 1px; padding-block: var(--space-2); }
 .home .rank-name strong { color: var(--ink); font-size: var(--text-sm); font-weight: 500; }
@@ -954,16 +928,7 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 }
 .home .sky-panel .sky-panel-body { gap: var(--space-3); padding: var(--space-5) var(--space-4) var(--space-6) calc(var(--punch-col) + var(--space-3)); }
 .home .sky-panel h2 { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: 500; letter-spacing: -0.01em; }
-.home .room-mode { gap: var(--space-2); padding-bottom: var(--space-3); }
-.home .room-mode .back { min-height: var(--control-sm); color: var(--ink-soft); font-size: var(--text-xs); font-weight: 500; text-decoration: none; letter-spacing: 0.02em; }
-.home .room-mode .back:hover:not(:disabled) { color: var(--ink); }
-.home .room-mode .soft { font-size: var(--text-xs); line-height: var(--lh-xs); }
-.home .room-mode .preview { margin-block: var(--space-2); border: 1px solid var(--line); }
-.home .room-mode .row { margin-top: var(--space-2); }
-.home .room-mode .row button { flex: 1 1 auto; min-height: var(--control-md); font-size: var(--text-xs); font-weight: 500; }
 /* 표 머리: 왼쪽 이름표, 오른쪽 정렬. */
-.home .rank-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); }
-.home .rank-head .sort { letter-spacing: 0; }
 @media (max-width: 719.98px) {
   .home .sky-panel { border-left: 0; }
 }
@@ -1031,6 +996,9 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .room-stage-wrap { position: absolute; inset: 0 calc(var(--rail-w) + var(--space-6)) 0 0; display: flex; flex-direction: column; }
 .room-capacity { display: flex; flex-wrap: wrap; align-items: center; row-gap: var(--space-2); min-height: var(--room-tab-h); max-width: none; margin: 0; }
 .room-capacity .capacity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+/* 파일마다 아이콘 크기 슬라이더. 고른 배율은 그 종이의 --paper-scale로 줄 안 종이 폭에 곱해요. */
+.paper-size { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--ink-caption); white-space: nowrap; }
+.paper-size input { width: calc(var(--space-12) * 2); accent-color: var(--ink); }
 .room-capacity .capacity p { font-weight: 500; color: var(--ink-soft); }
 /* 방 안 이름 찾기. 용량 줄 왼쪽에 두고, 좁은 창에서는 줄 폭만큼 줄어요. */
 .room-search { flex: 0 1 calc(var(--space-12) * 5); min-width: 0; min-height: var(--control-md); margin-right: var(--space-4); border-radius: var(--radius-pill); font-size: var(--text-sm); }
@@ -1179,7 +1147,7 @@ dialog.sheet:not(.menu) .scanning { font-weight: 500; }
 .lane-things { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-5) var(--space-4); overflow-x: auto; margin: calc(var(--space-5) * -1) calc(var(--space-3) * -1) 0; padding: var(--space-5) var(--space-3) var(--space-3); list-style: none; scrollbar-width: thin; }
 .lane-things > li { flex: none; }
 .lane-box .lane-things { --lane-paper: var(--lane-small); }
-.lane-paper { display: grid; justify-items: center; gap: var(--space-2); width: var(--lane-paper); min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; cursor: pointer; }
+.lane-paper { display: grid; justify-items: center; gap: var(--space-2); width: calc(var(--lane-paper) * var(--paper-scale, 1)); min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; cursor: pointer; }
 .lane-paper:hover:not(:disabled), .lane-paper:active:not(:disabled) { background: none; transform: none; }
 .lane-paper:focus-visible { outline-offset: var(--space-1); }
 .lane-art { position: relative; display: block; width: 100%; transition: translate var(--dur-1) var(--ease-standard); }
@@ -1217,14 +1185,6 @@ button.lane-more { min-height: var(--control-sm); padding: 0 var(--space-3); }
   .lane-new .lane-art { animation: none; }
 }
 /* 집 화면 서랍의 작은 방: 방 안 네 줄을 줄인 그림이에요(누르면 방에 들어가요). */
-.mini-lanes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-3); text-align: left; }
-.mini-lane { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
-.mini-lane + .mini-lane { padding-left: var(--space-2); border-left: var(--room-hair) solid var(--room-line); }
-.mini-lane-box { padding: var(--space-1) var(--space-2); border-left: 0; border-radius: var(--room-radius); background: var(--ground); }
-.mini-lane-title { overflow: hidden; font-size: var(--text-2xs); line-height: var(--lh-2xs); font-weight: 500; color: var(--ink-caption); white-space: nowrap; text-overflow: ellipsis; }
-.mini-lane-title b { font-weight: 700; color: var(--ink); }
-.mini-lane-things { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.mini-lane-things .object { flex: none; }
 /* 좁으면 번호·제목을 파일 위로 올려요. */
 @container (max-width: 759.98px) {
   .lanes { --lane-paper: calc(var(--space-12) * 2); --lane-small: var(--lane-paper); display: block; }
@@ -1341,8 +1301,6 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .home-stack[inert] { opacity: 0; }
 /* 판이 접혀 들어가는 동안 일력이 다시 떠올라, 다 접히면 그 자리에 일력이 그대로 있어요. 판은 일력 뒤로 들어가요. */
 .home-stack.returning[inert] { opacity: 1; z-index: calc(var(--hero-tip-z) + 2); }
-.home:has(.home-panel) .caption-layer { opacity: 0.35; }
-.caption-layer { transition: opacity var(--dur-3) var(--ease-standard); }
 /* 예전 일력 한 장: 올해 합계, 한 줄이 한 달·점 하나가 하루, 오래 한 방 셋. 누르면 그 자리에서 작업 기록 판이 자라요. 가리키면 살짝 올라와요. */
 .work-cal { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); text-align: left; font-weight: 400; transform: none; transition: translate var(--dur-2) var(--ease-standard); }
 .work-cal:hover:not(:disabled) { translate: 0 calc(-1 * var(--space-1)); background: var(--surface); }
@@ -1721,7 +1679,7 @@ input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select, :
 .topnav > .row button:hover:not(:disabled), .viewer-head button:hover:not(:disabled), .home-link, .home-link:hover:not(:disabled), .pet-vase { box-shadow: none; }
 
 /* 선으로 나누던 줄은 여백과 호버 면으로 나눕니다. */
-.rank button, .home .rank, .home .rank-num, .home .done-group summary, .home .empty-row, .home .menu-actions, .home .menu-actions button, .home .menu-actions button:hover:not(:disabled), .home .sky-summary dl, .home .sky-summary dl > div, .home .room-mode .preview, .sweep-results li, .sweep-room li, .setting-row, .setting-door, .legend-strip, .banner, .banner.danger, fieldset, .thing-icon, .viewer-note, .viewer-stage, .thing-image { border: 0; }
+.rank button, .home .rank, .home .rank-num, .home .done-group summary, .home .empty-row, .home .menu-actions, .home .menu-actions button, .home .menu-actions button:hover:not(:disabled), .home .sky-summary dl, .home .sky-summary dl > div, .sweep-results li, .sweep-room li, .setting-row, .setting-door, .legend-strip, .banner, .banner.danger, fieldset, .thing-icon, .viewer-note, .viewer-stage, .thing-image { border: 0; }
 .rank button, .home .menu-actions button, .topnav > .row button, .home-link, .pet-menu button, .context-menu button, .room-node, .door-item.quiet { box-shadow: none; }
 .rank button, .home .menu-actions button, .context-menu button, .pet-menu button { border-radius: var(--radius-sm); background: transparent; }
 .rank button:hover:not(:disabled), .home .menu-actions button:hover:not(:disabled), .context-menu button:hover:not(:disabled), .pet-menu button:hover:not(:disabled) { background: var(--glass-wash); }
@@ -1793,6 +1751,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .pet-panel-rooms button { width: 100%; min-height: var(--control-md); justify-content: flex-start; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); font-size: var(--text-sm); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pet-panel-rooms button:hover:not(:disabled) { background: var(--surface-sunken); }
 .pet-panel .pet-ask { background: var(--surface-sunken); box-shadow: none; }
+/* 이번 주 정리 말풍선은 유리 대신 흰 말풍선이에요(꼬리와 같은 색). 꼬리 자리만큼 위를 띄워요. */
+.pet-ask.frodo-bubble { margin-top: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); text-align: center; }
 .pet-panel-foot { padding-top: var(--space-2); border-top: 1px solid var(--line); }
 .pet-panel-foot button { flex: 1 1 0; min-width: 0; min-height: var(--control-sm); padding: 0 var(--space-1); border: 0; background: none; color: var(--ink-soft); font-size: var(--text-xs); white-space: nowrap; }
 .pet-panel-foot button:hover:not(:disabled) { color: var(--ink); background: var(--surface-sunken); }
@@ -1818,15 +1778,13 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
   .drawer-view .kind-shelves { padding-bottom: calc(var(--space-12) + var(--space-8)); }
 }
 .kind-shelves { --pen: calc(var(--room-hair) * 4); container-type: inline-size; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-6); height: 100dvh; max-width: var(--content-max); margin: 0 auto; padding: var(--space-10) var(--gutter) var(--space-8); overflow: clip; background: var(--bg); }
-/* 제목은 머리줄 탭과 겹쳐 숨겼어요(sr-only). 남은 형식별·컬러별·+·Edit 줄은 오른쪽에 붙여요. */
+/* 분류 기준과 서랍장 관리 버튼을 머리줄 오른쪽에 붙여요. */
 .kind-shelves-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-4); }
-/* 숨긴 라디오가 문서 기준으로 놓이면 누를 때 문서가 밀려 올라가요. 단추 안에 붙들어 둬요. */
-.kind-shelves-head .seg label { position: relative; }
-/* 컬러별로 볼 때 색을 읽는 동안·읽을 이미지가 없을 때 한 줄. */
-/* 서랍장 고르기 옆의 + (새 서랍장)와 서랍장 고치기. 좁은 창에서는 다음 줄로 내려가요. */
-.kind-shelves-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.kind-shelves-tools > button { min-height: var(--control-sm); padding: 0 var(--space-3); font-size: var(--text-xs); }
-.kind-shelves-tools > .kind-shelves-add { min-width: var(--control-sm); padding: 0; border-radius: var(--radius-pill); font-size: var(--text-md); }
+.kind-shelves-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; max-width: 100%; }
+.kind-shelves-criterion { display: flex; min-width: 0; align-items: center; gap: var(--space-2); color: var(--ink-caption); font-size: var(--text-sm); white-space: nowrap; }
+.kind-shelves-criterion select { min-width: 0; max-width: calc(var(--space-12) * 3); min-height: var(--control-md); padding-inline: var(--space-2); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; }
+.kind-shelves-tools > button { min-height: var(--control-md); padding: 0 var(--space-4); font-size: var(--text-base); }
+.kind-shelves-tools > .kind-shelves-add { min-width: var(--control-md); padding: 0; border-radius: var(--radius-pill); font-size: var(--text-lg); }
 .kind-shelves-tools > .kind-shelves-keep { visibility: hidden; }
 /* 서랍장 편집: 머리(이름)·아래 줄(저장)은 붙어 있고 가운데 서랍 목록만 스크롤해요. 서랍은 한 줄씩, 하나만 펼쳐요. */
 .shelf-editor .sheet-body { grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; padding: 0; overflow: hidden; }
@@ -2019,6 +1977,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 }
 @media (max-width: 560px) {
   .kind-cabinet { --cols: 2; --rows: var(--rows2); }
+  .kind-drawer-handle { left: auto; right: var(--space-2); width: var(--space-5); translate: none; }
 }
 /* 서랍은 빨리 나와 부드럽게 멈추고(--ease-settle), 속 종이는 뒤따라 통통 튀어 올라요. 목록 종이는 그보다 길고 무겁게(--ease-drawer) 들어와요.
    여닫을 때는 transform과 opacity만 움직여요. 몸과 벽·바닥은 같은 시간과 곡선이라 중간 프레임에서도 어긋나지 않아요.

@@ -1,9 +1,11 @@
 import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
 import { mainHue, type Hue } from "../domain/hue";
 import type { Room, Thing } from "../domain/model";
-import { folderAccess, readFolderFile, type Folder } from "../gateways/native";
+import { currentOs } from "../domain/platform";
+import { firstPage, folderAccess, readFolderFile, type Folder } from "../gateways/native";
 import { roomFolder } from "./box";
 import { pictureSourceLimit, shrink } from "./pictures";
+import { readVideo } from "./videoFiles";
 
 // 방 안 이미지 종이에 끼울 진짜 미리보기. 화면에 들어온 종이만 읽고, 앱을 켠 동안 메모리에만 둬요.
 // 읽기만 해요. 사용자 폴더에 쓰지 않고, 권한을 묻지 않고, 손댄 것으로 세지 않아요.
@@ -20,6 +22,7 @@ const rawEnds = ["dng", "cr2", "cr3", "nef", "arw", "raw"];
 const made = new Map<string, string | null>();
 // 미리보기에서 뽑은 가장 넓은 색. 글자 몇 개라 버리지 않아요. null은 색을 못 읽은 이미지예요.
 const huesMade = new Map<string, Hue | null>();
+let hueRevision = 0;
 const pending = new Set<string>();
 const queue: (() => Promise<void>)[] = [];
 let running = 0;
@@ -44,17 +47,22 @@ export function coverOf(room: Pick<Room, "things" | "cover">): Thing | null {
 }
 
 // 파일을 고치면 수정 시각이 바뀌어 새로 읽어요.
-const keyOf = (thing: Thing) => `${thing.id}:${thing.lastModified}`;
+const keyOf = (thing: Thing) => `${thing.id}:${thing.kind}:${thing.lastModified}`;
+
+function rememberHue(key: string, hue: Hue | null) {
+  huesMade.set(key, hue);
+  hueRevision++;
+  listeners.forEach((listener) => listener());
+}
 
 function remember(key: string, url: string | null, hue: Hue | null) {
   made.set(key, url);
-  huesMade.set(key, hue);
   for (const [old, oldUrl] of made) {
     if (made.size <= keep) break;
     made.delete(old);
     if (oldUrl) URL.revokeObjectURL(oldUrl);
   }
-  listeners.forEach((listener) => listener());
+  rememberHue(key, hue);
 }
 
 function pump() {
@@ -68,15 +76,18 @@ function pump() {
   }
 }
 
-// 24×24로 한 번 더 줄여 화소를 세요.
-async function hueFrom(blob: Blob): Promise<Hue | null> {
-  const bitmap = await createImageBitmap(blob, { resizeWidth: 24, resizeHeight: 24 });
+function hueFromFrame(frame: CanvasImageSource): Hue | null {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 24;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  context?.drawImage(bitmap, 0, 0);
-  bitmap.close();
+  context?.drawImage(frame, 0, 0, 24, 24);
   return context ? mainHue(context.getImageData(0, 0, 24, 24).data) : null;
+}
+
+// 24×24로 한 번 더 줄여 화소를 세요.
+async function hueFrom(blob: Blob): Promise<Hue | null> {
+  const bitmap = await createImageBitmap(blob, { resizeWidth: 24, resizeHeight: 24 });
+  try { return hueFromFrame(bitmap); } finally { bitmap.close(); }
 }
 
 function request(key: string, read: () => Promise<File>, force = false) {
@@ -96,6 +107,34 @@ function request(key: string, read: () => Promise<File>, force = false) {
     }
     pending.delete(key);
     remember(key, url, hue);
+  });
+  pump();
+}
+
+const isQuickLook = (folder: Folder): folder is string => typeof folder === "string" && currentOs() === "mac";
+type HueSource = { folder: Folder; thing: Thing };
+
+function canReadHue({ folder, thing }: HueSource, kind: "image" | "video"): boolean {
+  if (kind === "image") return canThumb(thing);
+  return thing.kind === "video" && !thing.missing && thing.size > 0
+    && (typeof folder !== "string" || isQuickLook(folder) || thing.size <= pictureSourceLimit);
+}
+
+function requestVideoHue({ folder, thing }: HueSource) {
+  const key = keyOf(thing);
+  if (huesMade.has(key) || pending.has(key)) return;
+  pending.add(key);
+  queue.push(async () => {
+    const read = async () => {
+      if (isQuickLook(folder)) {
+        const hue = await firstPage(folder, thing.path).then(hueFrom).catch(() => null);
+        if (hue || thing.size > pictureSourceLimit) return hue;
+      }
+      return readVideo(await readFolderFile(folder, thing.path), "loadeddata", hueFromFrame);
+    };
+    const hue = await read().catch(() => null);
+    pending.delete(key);
+    rememberHue(key, hue);
   });
   pump();
 }
@@ -130,21 +169,31 @@ export function useThumb(ref: RefObject<Element | null>, folder: Folder | null, 
 
 // 색으로 볼 때만 켜요(on). 화면 밖 이미지도 3장씩 읽어 색을 세요. hues는 이미지 id → 색이고, 아직 못 읽은 이미지는 빠져요. total은 색을 읽을 수 있는 이미지 수예요.
 export function useHues(folder: Folder | null, things: Thing[], on: boolean): { hues: Map<string, Hue | null>; total: number } {
-  return useHuesOf(folder ? things.filter((thing) => !thing.box).map((thing) => ({ folder, thing })) : [], on);
+  return useHuesOf(folder ? things.filter((thing) => !thing.box && canThumb(thing)).map((thing) => ({ folder, thing })) : [], on);
 }
 
-// 여러 방에 걸친 이미지의 색(홈 컬러별 칸). 이미지마다 그 방 폴더에서 읽어요. 이미지가 아닌 파일은 걸러요.
-export function useHuesOf(list: { folder: Folder; thing: Thing }[], on: boolean): { hues: Map<string, Hue | null>; total: number } {
-  const all = list.filter(({ thing }) => canThumb(thing));
-  const images = on ? all : [];
-  const version = useSyncExternalStore(subscribe, () => huesMade.size, () => 0);
+// 여러 방에 걸친 이미지나 영상의 대표색. 영상은 Quick Look 썸네일이나 로컬 디코더의 첫 장면을 읽어요.
+export function useHuesOf(list: HueSource[], on: boolean, kind: "image" | "video" = "image"): { hues: Map<string, Hue | null>; total: number } {
+  const media = list.filter(({ thing }) => thing.kind === kind);
+  const readable = media.filter((source) => canReadHue(source, kind));
+  const wanted = on ? readable : [];
+  useSyncExternalStore(subscribe, () => hueRevision, () => 0);
   useEffect(() => {
-    for (const { folder, thing } of images) request(keyOf(thing), () => readFolderFile(folder, thing.path));
-  }, [images.map(({ thing }) => keyOf(thing)).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+    for (const source of wanted) {
+      const { folder, thing } = source;
+      if (kind === "video") requestVideoHue(source);
+      else request(keyOf(thing), () => readFolderFile(folder, thing.path));
+    }
+  }, [wanted.map(({ thing }) => keyOf(thing)).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const found = new Map<string, Hue | null>();
-  for (const { thing } of images) if (huesMade.has(keyOf(thing))) found.set(thing.id, huesMade.get(keyOf(thing))!);
-  void version;
-  return { hues: found, total: all.length };
+  if (on) {
+    for (const source of media) {
+      const { thing } = source;
+      if (!canReadHue(source, kind)) found.set(thing.id, null);
+      else if (huesMade.has(keyOf(thing))) found.set(thing.id, huesMade.get(keyOf(thing))!);
+    }
+  }
+  return { hues: found, total: media.length };
 }
 
 // 권한을 묻지 않고 지금 읽을 수 있는 방 폴더들(방 id → 폴더). 샘플 방이나 브라우저에서 권한이 없는 방은 빠져요.

@@ -2,7 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readDir, readFile, stat, watch } from "@tauri-apps/plugin-fs";
 import { isSafeRelativePath } from "../domain/model";
-import { baseName, childPath, joinPath, samePath } from "../domain/platform";
+import { baseName, childPath, currentOs, joinPath, samePath } from "../domain/platform";
 import { askAccess, handleSource, isExcludedName, readAccess, readFileAt, scanFolder, type Access, type AccessMode, type DirectorySource, type ScanResult } from "./folder";
 import { asMoveDirectory, canMoveFiles, type MoveDirectory } from "./mover";
 
@@ -161,7 +161,15 @@ export async function pickRoomFolder(defaultPath?: string): Promise<string | nul
   return typeof path === "string" ? path : null;
 }
 
-export const sameFolder = (a: string | undefined, b: string): boolean => a !== undefined && samePath(a, b);
+// 썸네일로 쓸 파일 하나를 고릅니다. 형식은 가리지 않아요(macOS는 Quick Look이 그림을 뽑고, 다른 OS는 이미지 파일만 읽혀요).
+export async function pickThumbnail(): Promise<File | null> {
+  const path = await open({ multiple: false, directory: false });
+  if (typeof path !== "string") return null;
+  const bytes = await invoke<ArrayBuffer>("thumbnail", { path });
+  return new File([bytes], baseName(path), { type: currentOs() === "mac" ? "image/png" : "" });
+}
+
+export const sameFolder =(a: string | undefined, b: string): boolean => a !== undefined && samePath(a, b);
 
 // 핸들(브라우저)과 경로(데스크톱)를 같은 자리에서 다루기 위한 갈림길입니다. 경로는 고를 때 이미 권한을 받았습니다.
 export const folderAccess = (folder: Folder, mode?: AccessMode): Promise<Access> => (typeof folder === "string" ? Promise.resolve("granted") : readAccess(folder, mode));

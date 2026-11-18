@@ -2,10 +2,11 @@ import type { Kind, Room, Thing } from "./model";
 import { hues, type Hue } from "./hue";
 import { stacksOf } from "./versions";
 import type { Drawer } from "./shelfViews";
+import { formatMB, formatMinutes, rangeText } from "./stepRange";
 
 // 홈 아래 형식별 칸: 홈에 둔 모든 방의 파일을 형식 묶음(이미지·글·영상…)으로 나눠요. 새로 고친 것부터예요.
 // 상자에 든 파일과 사라진 파일은 빼고, 버전 계열은 최신본만 둬요(versions는 그 계열의 버전 수, 혼자면 1).
-export type ShelfItem = { room: Room; thing: Thing; versions: number };
+export type ShelfItem = { room: Room; thing: Thing; versions: number; durationSeconds?: number };
 // hue는 컬러별 칸만 가져요(서랍 색이 형식 색 대신 그 색 네모예요).
 export type Shelf = { label: string; kinds: Kind[]; items: ShelfItem[]; size: number; hue?: Hue };
 
@@ -67,9 +68,43 @@ export function drawerShelves(rooms: Room[], drawers: Drawer[], seconds: Map<str
 // 길이 조건이 있는 서랍이 하나라도 있으면 영상 길이를 읽어야 해요.
 export const needsSeconds = (drawers: Drawer[]) => drawers.some((drawer) => drawer.minMin !== undefined || drawer.maxMin !== undefined);
 
-// 컬러별 칸: 이미지를 가장 넓은 색(found: 파일 id → 색)마다 모아요. 아직 못 읽었거나 색을 못 읽은 이미지는 빠져요.
-export function hueShelves(items: ShelfItem[], found: Map<string, Hue | null>): Shelf[] {
-  return hues.map((hue) => ({ ...pack(hue, ["image"], items.filter((item) => found.get(item.thing.id) === hue)), hue })).filter((shelf) => shelf.items.length > 0);
+// null은 읽을 수 없는 파일, undefined는 아직 읽는 중인 파일이에요.
+export function hueShelves(items: ShelfItem[], found: Map<string, Hue | null>, kind: "image" | "video" = "image"): Shelf[] {
+  const media = items.filter(({ thing }) => thing.kind === kind);
+  return hues.map((hue) => ({ ...pack(hue, [kind], media.filter((item) => found.get(item.thing.id) === hue)), hue })).filter((shelf) => shelf.items.length > 0);
+}
+
+export function unreadHueShelf(items: ShelfItem[], found: Map<string, Hue | null>, kind: "image" | "video"): Shelf[] {
+  const unread = items.filter(({ thing }) => thing.kind === kind && found.get(thing.id) === null);
+  return unread.length ? [pack("색 미확인", [], unread)] : [];
+}
+
+function rangeShelves(items: ShelfItem[], kinds: Kind[], cuts: number[], measure: (item: ShelfItem) => number | null | undefined, format: (value: number) => string): Shelf[] {
+  const groups: ShelfItem[][] = Array.from({ length: cuts.length + 1 }, () => []);
+  const unknown: ShelfItem[] = [];
+  for (const item of items) {
+    const value = measure(item);
+    if (value === undefined) continue;
+    if (value === null) unknown.push(item);
+    else {
+      const at = cuts.findIndex((cut) => value < cut);
+      groups[at === -1 ? cuts.length : at].push(item);
+    }
+  }
+  const shelves = groups.flatMap((group, index) => group.length ? [pack(rangeText(cuts[index - 1], cuts[index], format), kinds, group)] : []);
+  return unknown.length ? [...shelves, pack("길이 미확인", kinds, unknown)] : shelves;
+}
+
+export function videoLengthShelves(items: ShelfItem[], seconds: Map<string, number | null>): Shelf[] {
+  const videos = items.filter(({ thing }) => thing.kind === "video").map((item) => {
+    const length = seconds.get(secondsKey(item));
+    return typeof length === "number" ? { ...item, durationSeconds: length } : item;
+  });
+  return rangeShelves(videos, ["video"], [1, 5, 30], (item) => item.durationSeconds === undefined ? seconds.get(secondsKey(item)) : item.durationSeconds / 60, formatMinutes);
+}
+
+export function sizeShelves(items: ShelfItem[]): Shelf[] {
+  return rangeShelves(items, [], [1, 100, 1024], ({ thing }) => thing.size / MB, formatMB);
 }
 
 // 서랍장 편집 창이 고르는 대로 바로 보여 주는 셈들이에요.

@@ -229,7 +229,7 @@ function LanePaper({ room, folder, stack, thing, lane, now, order, selected, onS
       type="button"
       title={thing.name}
       className={`lane-paper${stack ? " lane-stack" : ""}${selected && !picking ? " selected" : ""}${thing.missing ? " missing" : ""}${picking ? " picking" : ""}`}
-      style={{ "--i": Math.min(order, 16) } as CSSProperties}
+      style={{ "--i": Math.min(order, 16), "--paper-scale": thing.scale ?? 1 } as CSSProperties}
       data-thing-id={thing.id}
       aria-pressed={picking ? picked : selected}
       disabled={picking && thing.missing}

@@ -11,11 +11,11 @@ import { useToast, type ToastAction } from "../components/Toast";
 import { VersionLog } from "../components/VersionLog";
 import { boxFolderName, firstLine, handTouchedAt, markWorkDay, mergeScan, newFileCount, relativeDay, roomUsage, scanOverlap, shownActivity, thingAge } from "../domain/care";
 import { freeSpot } from "../domain/plane";
-import { formatBytes, kindLabels, type Kind, type Room, type ScannedFile, type Thing } from "../domain/model";
+import { formatBytes, kindLabels, thingScaleRange, type Kind, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { kinds } from "../domain/kindIcon";
 import { fileManagerName, permissionHint, shortPath } from "../domain/platform";
 import { canPickFolder, folderProblem, pickFolder, type Access, type ScanResult } from "../gateways/folder";
-import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
+import { askFolder, doorChanged, folderAccess, isNative, openInApp, pickRoomFolder, pickThumbnail, readFolderFile, scanRoomFolder, watchFolder, type Folder } from "../gateways/native";
 import { boxThing, reconcileBox, restoreFromBox, roomFolder } from "../storage/box";
 import { getRoom, listRooms, saveHandle, saveRoom } from "../storage/db";
 import { canReceive, transferThings, undoMove, type TransferMode } from "../storage/transfer";
@@ -855,18 +855,28 @@ function PictureButtons({ room, thing, onToast }: { room: Room; thing: Thing; on
   const input = useRef<HTMLInputElement>(null);
   const pick = useRef<HTMLButtonElement>(null);
   const [busy, setBusy] = useState(false);
-  const run = (job: () => Promise<void>, done: string) => {
+  // job이 false를 주면(고르기 취소) 알리지 않아요. 앱(Rust)이 주는 오류 글은 그대로 보여 줘요.
+  const run = (job: () => Promise<unknown>, done: string) => {
     if (busy) return;
     setBusy(true);
     job().then(
-      () => onToast(done),
-      (error: unknown) => onToast(error instanceof PictureError ? error.message : "이미지를 저장하지 못했어요."),
+      (result) => result !== false && onToast(done),
+      (error: unknown) => onToast(error instanceof PictureError ? error.message : typeof error === "string" ? error : "이미지를 저장하지 못했어요."),
     ).finally(() => setBusy(false));
+  };
+  // 데스크톱 앱은 PSD·AI 등 어떤 파일이든 골라 그 미리보기를 써요. 브라우저는 이미지 파일만 읽을 수 있어요.
+  const choose = () => {
+    if (!isNative()) return input.current?.click();
+    run(async () => {
+      const file = await pickThumbnail();
+      if (!file) return false;
+      await setPicture(room.id, thing.id, file);
+    }, "이 파일을 내 이미지로 꾸몄어요.");
   };
   // disabled는 누른 단추의 포커스를 날려서, 일하는 동안은 aria-disabled로만 막아요.
   return (
     <>
-      <button ref={pick} type="button" aria-disabled={busy} onClick={() => !busy && input.current?.click()}>{picture ? "다른 이미지로" : "내 이미지로 꾸미기"}</button>
+      <button ref={pick} type="button" aria-disabled={busy} onClick={() => !busy && choose()}>{picture ? "다른 이미지로" : "내 이미지로 꾸미기"}</button>
       {/* 누른 단추가 사라지니 포커스를 고르기 단추로 옮겨요. */}
       {picture && <button type="button" aria-disabled={busy} onClick={() => run(() => clearPicture(room.id, thing.id).then(() => pick.current?.focus()), "원래 그림으로 돌렸어요.")}>원래 그림으로</button>}
       <input
@@ -921,6 +931,22 @@ function ThingPanel({ room, thing, now, folder, onPatch, onOpen, onToast, onForg
       <div className="row wrap">
         <PictureButtons key={thing.id} room={room} thing={thing} onToast={onToast} />
       </div>
+      {/* 이 파일 아이콘만 크거나 작게. 손댄 날로 치지 않아 정리 판정은 그대로예요. */}
+      <label className="paper-size">
+        <span>아이콘 크기</span>
+        <input
+          type="range"
+          min={thingScaleRange.min}
+          max={thingScaleRange.max}
+          step={0.1}
+          value={thing.scale ?? 1}
+          aria-valuetext={`${Math.round((thing.scale ?? 1) * 100)}%`}
+          onChange={(event) => {
+            const next = Number(event.currentTarget.value);
+            onPatch(thing.id, { scale: next === 1 ? undefined : next }, false);
+          }}
+        />
+      </label>
     </div>
   );
 }

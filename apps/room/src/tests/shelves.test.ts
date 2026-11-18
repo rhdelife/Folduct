@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Room, Thing } from "../domain/model";
-import { drawerShelves, drawerStats, extCounts, hueShelves, kindCounts, kindShelves, leftoverItems, secondsKey, shelfItems } from "../domain/shelves";
+import { drawerShelves, drawerStats, extCounts, hueShelves, kindCounts, kindShelves, leftoverItems, secondsKey, shelfItems, sizeShelves, unreadHueShelf, videoLengthShelves } from "../domain/shelves";
 
 const thing = (path: string, lastModified: number, over: Partial<Thing> = {}): Thing => ({ id: path, path, name: path.split("/").pop()!, kind: "image", size: 10, lastModified, lastUsedAt: null, missing: false, spot: null, note: "", touchedAt: null, seenAt: 0, pinned: false, box: null, ...over });
 const room = (id: string, things: Thing[], done = false) => ({ id, name: id, things, care: { done, staleAfterDays: 14 } }) as unknown as Room;
@@ -29,6 +29,40 @@ describe("컬러별 칸", () => {
       ["빨강", ["a/2.png"]],
       ["파랑", ["a/3.png", "a/1.png"]],
     ]);
+  });
+
+  it("영상 썸네일 색은 이미지와 섞지 않고 읽지 못한 영상은 따로 보여 줘요", () => {
+    const items = shelfItems([room("a", [
+      thing("사진.png", 1), thing("영상.mp4", 2, { kind: "video" }),
+      thing("실패.mov", 3, { kind: "video" }), thing("읽는중.mov", 4, { kind: "video" }),
+    ])]);
+    const found = new Map([["사진.png", "빨강"], ["영상.mp4", "빨강"], ["실패.mov", null]] as const);
+    const shelves = [...hueShelves(items, found, "video"), ...unreadHueShelf(items, found, "video")];
+    expect(shelves.map(({ label, items }) => [label, items.map(({ thing }) => thing.name)])).toEqual([
+      ["빨강", ["영상.mp4"]], ["색 미확인", ["실패.mov"]],
+    ]);
+  });
+});
+
+describe("기본 범위 분류", () => {
+  it("영상 길이의 경계를 다음 서랍에 넣고, 읽는 중과 읽을 수 없는 영상을 구분해요", () => {
+    const items = shelfItems([room("a", [
+      thing("짧음.mp4", 1, { kind: "video" }), thing("1분.mp4", 2, { kind: "video" }),
+      thing("실패.mov", 3, { kind: "video" }), thing("읽는중.mov", 4, { kind: "video" }), thing("이미지.png", 5),
+    ])]);
+    const seconds = new Map([[secondsKey(items[0]), 59.9], [secondsKey(items[1]), 60], [secondsKey(items[2]), null], [secondsKey(items[4]), 60]]);
+    expect(videoLengthShelves(items, seconds).map(({ label, items }) => [label, items.map(({ thing, durationSeconds }) => [thing.name, durationSeconds])])).toEqual([
+      ["1분 미만", [["짧음.mp4", 59.9]]], ["1분 ~ 5분", [["1분.mp4", 60]]], ["길이 미확인", [["실패.mov", undefined]]],
+    ]);
+  });
+
+  it("용량은 형식이나 연결 권한과 관계없이 파일을 한 구간에만 넣어요", () => {
+    const mb = 1024 ** 2;
+    const items = shelfItems([room("a", [
+      thing("소형.png", 1, { size: mb - 1 }), thing("1MB.pdf", 2, { kind: "pdf", size: mb }),
+      thing("100MB.mp4", 3, { kind: "video", size: 100 * mb }), thing("1GB.zip", 4, { kind: "archive", size: 1024 * mb }),
+    ])]);
+    expect(sizeShelves(items).map(({ items }) => items.map(({ thing }) => thing.name))).toEqual([["소형.png"], ["1MB.pdf"], ["100MB.mp4"], ["1GB.zip"]]);
   });
 });
 

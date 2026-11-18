@@ -1,15 +1,14 @@
 import type { Room } from "../../domain/model";
-import { formatWork } from "../../domain/worklog";
 import { isNative } from "../../gateways/native";
 import { Icon } from "../Icon";
 import { useWorkSession } from "./WorkControl";
 
-// 머리 왼쪽은 오늘 작업 시간을 크게. 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
+// 새 파일·안 쓴 파일은 왼쪽 아래 '진행 중' 탭에 있어요.
 export type HomeView = "home" | "drawer" | "icons";
 
 // 홈과 Drawer는 머리줄 탭으로 오가요. 지금 화면은 색이 아니라 굵은 글자와 밑줄로 알려요. 좁은 창에서는 탭이 아래 가운데로 내려가요.
 // 작업 아이콘(.work-tab)은 왼쪽 아래 작업 기록 카드가 숨는 좁은·낮은 창에서만 보여요. 누르면 작업 판이 열리고, 작업 중이면 아이콘이 검은 알약이 돼요.
-export function HomeHeader({ rooms, ready, today, view, onView, workOpen, onWork, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; today: number; view: HomeView; onView: (view: HomeView) => void; workOpen: boolean; onWork: () => void; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
+export function HomeHeader({ rooms, ready, view, onView, workOpen, onWork, onWeekly, onMenu, onNew, onSettings }: { rooms: Room[]; ready: boolean; view: HomeView; onView: (view: HomeView) => void; workOpen: boolean; onWork: () => void; onWeekly: () => void; onMenu: () => void; onNew: () => void; onSettings: () => void }) {
   const awake = rooms.length > 0;
   const session = useWorkSession();
   return (
@@ -29,11 +28,6 @@ export function HomeHeader({ rooms, ready, today, view, onView, workOpen, onWork
           )}
         </nav>
       )}
-      <div className={`home-caption${awake ? " visible" : ""}`}>
-        <div className="caption-layer">
-          <strong>{today > 0 ? `오늘 ${formatWork(today)}` : "오늘은 아직 시작 전이에요"}</strong>
-        </div>
-      </div>
       <div className="home-actions">
         {ready && awake && (
           <button type="button" className="quiet" aria-haspopup="dialog" onClick={onWeekly}>

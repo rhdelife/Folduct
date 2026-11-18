@@ -4,16 +4,16 @@ import { ObjectShape } from "../../art/ObjectShape";
 import { colorGroups } from "../../art/palette";
 import { formatBytes, type Room } from "../../domain/model";
 import { hueColors } from "../../domain/hue";
-import { drawerShelves, hueShelves, kindShelves, needsSeconds, shelfItems, type Shelf, type ShelfItem } from "../../domain/shelves";
+import { drawerShelves, hueShelves, kindShelves, needsSeconds, secondsKey, shelfItems, sizeShelves, unreadHueShelf, videoLengthShelves, type Shelf, type ShelfItem } from "../../domain/shelves";
 import { useVideoSeconds } from "../../storage/durations";
 import type { Folder } from "../../gateways/native";
 import { usePicture } from "../../storage/pictures";
-import { canThumb, useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
+import { useHuesOf, useReadableFolders, useThumb } from "../../storage/thumbs";
 import { Meta } from "../Meta";
 import { awayFromHome } from "./engine";
 import { cssToken, tokenMs } from "../tokens";
 import { Icon } from "../Icon";
-import { emptyShelfViews, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
+import { builtInShelfViews, emptyShelfViews, reservedViewNames, uniqueName, type Drawer as DrawerSpec, type ShelfViews } from "../../domain/shelfViews";
 import { getShelfViews, saveShelfViews } from "../../storage/shelfViews";
 import { ShelfEditor } from "./ShelfEditor";
 import { isNotFound, restoreTrashed, trashFile } from "../../gateways/mover";
@@ -30,7 +30,9 @@ const slipId = "kind-slip";
 
 // 형식 서랍은 형식 색, 컬러별 서랍은 그 색 네모(HueSwatches와 같은 --hue-*)예요.
 // 사용자가 만든 서랍은 고른 형식 중 첫 형식의 색이에요.
-const colorOf = (shelf: Shelf) => (shelf.hue ? hueColors[shelf.hue] : colorGroups.find((group) => group.kinds.includes(shelf.kinds[0]))?.color);
+const colorOf = (shelf: Shelf) => shelf.hue
+  ? hueColors[shelf.hue]
+  : colorGroups.find((group) => group.kinds.includes(shelf.kinds[0]))?.color ?? "var(--surface-sunken)";
 const countText = (count: number) => count.toLocaleString("ko-KR");
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -39,8 +41,7 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 // 주름관은 방 하나만 뜻해서 여기에는 쓰지 않아요. 색은 형식 색만 써요.
 // onListGone: 열려 있던 목록 종이가 닫히거나 다른 서랍 목록으로 바뀌면 불러요. 그 목록에서 연 미리보기 창도 같이 닫으려고요.
 export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (roomId: string, thingId: string) => void; onListGone?: () => void; onTrashed?: (message: string, undo?: ToastAction) => void }>(function KindShelf({ rooms, onOpenFile, onListGone, onTrashed }, ref) {
-  // 형식별(kind) 또는 컬러별(hue). 컬러별은 이미지 색을 읽어야 해서 고른 뒤에만 읽기 시작해요.
-  // 사용자가 만든 서랍장이면 그 id예요.
+  // 기본 분류 또는 저장한 서랍장의 id예요.
   const [mode, setMode] = useState<string>("kind");
   const [views, setViews] = useState<ShelfViews>(emptyShelfViews);
   useEffect(() => {
@@ -53,13 +54,49 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   const items = useMemo(() => shelfItems(rooms), [rooms]);
   const folders = useReadableFolders(rooms.filter((room) => !room.care.done));
   // 영상 길이 조건이 있는 서랍장을 볼 때만 길이를 읽어요.
-  const { seconds, version } = useVideoSeconds(items, folders, (drawers !== undefined && drawers !== null && needsSeconds(drawers)) || editing !== null);
+  const byLength = mode === "video-length";
+  const colorKind = mode === "hue" ? "image" : mode === "video-hue" ? "video" : null;
+  const { seconds, version } = useVideoSeconds(items, folders, byLength || Boolean(drawers && needsSeconds(drawers)) || editing !== null);
   const kinds = useMemo(() => (drawers ? drawerShelves(rooms, drawers, seconds) : kindShelves(rooms, colorGroups)), [rooms, drawers, seconds, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const readable = useMemo(() => items.flatMap(({ room, thing }) => (folders.has(room.id) ? [{ folder: folders.get(room.id)!, thing }] : [])), [items, folders]);
-  const { hues, total: imageCount } = useHuesOf(readable, mode === "hue");
-  // 이미지는 있는데 읽을 폴더가 없으면(샘플·폴더 연결 전 방) 빈 화면 대신 이유를 적어요.
-  const unreadImages = useMemo(() => items.some(({ thing }) => canThumb(thing)), [items]);
-  const shelves = useMemo(() => (mode === "hue" ? hueShelves(items, hues) : kinds), [mode, kinds, items, hues]);
+  const { hues, total: colorTotal } = useHuesOf(readable, colorKind !== null, colorKind ?? "image");
+  let shelves = kinds;
+  let note = "";
+  if (colorKind) {
+    const found = new Map(hues);
+    for (const { room, thing } of items) {
+      if (thing.kind === colorKind && !folders.has(room.id)) found.set(thing.id, null);
+    }
+    shelves = [...hueShelves(items, found, colorKind), ...unreadHueShelf(items, found, colorKind)];
+    if (hues.size < colorTotal) note = `색을 읽는 중 ${countText(hues.size)}/${countText(colorTotal)}`;
+    else if (!shelves.length) note = colorKind === "image" ? "분류할 이미지가 없어요." : "분류할 영상이 없어요.";
+    else if (colorTotal === 0) note = "색을 읽으려면 실제 파일이 있는 폴더를 연결해 주세요.";
+  } else if (byLength) {
+    const lengths = new Map<string, number | null>();
+    let total = 0;
+    let finished = 0;
+    for (const item of items) {
+      if (item.thing.kind !== "video") continue;
+      const key = secondsKey(item);
+      if (!folders.has(item.room.id)) lengths.set(key, null);
+      else {
+        total++;
+        if (seconds.has(key)) {
+          finished++;
+          lengths.set(key, seconds.get(key) ?? null);
+        }
+      }
+    }
+    shelves = videoLengthShelves(items, lengths);
+    if (finished < total) note = `영상 길이를 읽는 중 ${countText(finished)}/${countText(total)}`;
+    else if (!shelves.length) note = "분류할 영상이 없어요.";
+    else if (total === 0) note = "재생 시간을 읽으려면 실제 파일이 있는 폴더를 연결해 주세요.";
+  } else if (mode === "size") {
+    shelves = sizeShelves(items);
+    if (!shelves.length) note = "분류할 파일이 없어요.";
+  } else if (!shelves.length) {
+    note = "이 서랍장에 보일 파일이 없어요. 편집에서 서랍 조건을 골라 주세요.";
+  }
   const [open, setOpen] = useState<string | null>(null);
   // 닫히는 동안에도 목록 종이가 빈 채로 빠지지 않게 마지막으로 연 서랍을 붙들어 둬요.
   const [last, setLast] = useState<string | null>(null);
@@ -243,6 +280,7 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
   };
   // 나누기를 바꾸면 열린 서랍과 붙들던 서랍을 모두 내려놓아요. 서랍 이름이 서로 달라 옛 서랍이 남아 있을 자리가 없어요.
   const switchMode = (next: string) => {
+    stopGrow();
     goneTimers.current.forEach((timer) => clearTimeout(timer));
     goneTimers.current.clear();
     setGone([]);
@@ -257,9 +295,9 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
     switchMode(nextMode);
     setEditing(null);
   };
-  const viewNames = ["형식별", "컬러별", ...views.custom.map((view) => view.name)];
+  const viewNames = [...reservedViewNames, ...views.custom.map((view) => view.name)];
   const defaultDrawers: DrawerSpec[] = colorGroups.map((group) => ({ id: group.label, name: group.label, kinds: group.kinds }));
-  const tabs = [{ id: "kind", name: "형식별" }, { id: "hue", name: "컬러별" }, ...views.custom];
+  const editable = mode === "kind" || Boolean(customView);
   return (
     <section ref={self} className="kind-shelves" aria-labelledby="kind-shelves-title">
       {/* 펜 떨림: 서랍장 선을 프로도처럼 손으로 그린 선으로 흔들어요. 글자에는 쓰지 않아요. */}
@@ -273,21 +311,21 @@ export const KindShelf = forwardRef<HTMLElement, { rooms: Room[]; onOpenFile: (r
         {/* 제목은 머리줄 탭(Drawer)과 겹쳐 화면에서는 숨기고, 화면 읽기 프로그램에만 이 영역 이름으로 남겨요. */}
         <h2 id="kind-shelves-title" className="sr-only">Drawer</h2>
         <div className="kind-shelves-tools">
-          <div className="seg" role="radiogroup" aria-label="서랍 나누기">
-            {tabs.map((tab) => (
-              <label key={tab.id}>
-                <input type="radio" name="kind-shelves-mode" checked={mode === tab.id} onChange={() => switchMode(tab.id)} />
-                {tab.name}
-              </label>
-            ))}
-          </div>
+          <label className="kind-shelves-criterion">
+            분류 기준
+            <select value={mode} onChange={(event) => switchMode(event.target.value)}>
+              <optgroup label="기본 분류">
+                {builtInShelfViews.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+              </optgroup>
+              {views.custom.length > 0 && <optgroup label="내 서랍장">
+                {views.custom.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+              </optgroup>}
+            </select>
+          </label>
           <button type="button" className="quiet kind-shelves-add" aria-label="새 서랍장 만들기" title="새 서랍장 만들기" onClick={() => setEditing("new")}>+</button>
-          {/* 컬러별엔 고칠 게 없지만 자리는 남겨, 보기를 바꿔도 이 줄이 옆으로 밀리지 않게 해요. */}
-          <button type="button" className={`quiet${mode === "hue" ? " kind-shelves-keep" : ""}`} title="서랍장 고치기" disabled={mode === "hue"} aria-hidden={mode === "hue" || undefined} onClick={() => setEditing("edit")}>Edit</button>
+          <button type="button" className={`quiet${editable ? "" : " kind-shelves-keep"}`} title="서랍장 고치기" disabled={!editable} onClick={() => setEditing("edit")}>편집</button>
         </div>
-        {mode !== "hue" && shelves.length === 0 && <p className="kind-shelves-note">이 서랍장에 보일 파일이 없어요. ‘Edit’에서 서랍에 형식을 골라 주세요.</p>}
-        {mode === "hue" && hues.size < imageCount && <p className="kind-shelves-note" aria-live="polite">색을 읽는 중 {countText(hues.size)}/{countText(imageCount)}</p>}
-        {mode === "hue" && imageCount === 0 && <p className="kind-shelves-note">{unreadImages ? "이미지가 있는 방의 폴더를 연결하면 색으로 볼 수 있어요. 샘플 방은 실제 파일이 없어 색을 읽지 못해요." : "색을 읽을 수 있는 이미지가 없어요."}</p>}
+        {note && <p className="kind-shelves-note" aria-live="polite">{note}</p>}
       </header>
       {shelves.length > 0 && (
         <div className="kind-stage" data-open={open !== null} data-handoff={handoff}>
@@ -496,6 +534,9 @@ export function KindFolder({ shelf, folders, onOpenFile, picked = null, canPick,
 // picked가 undefined면 고르는 중이 아니에요. 고르는 중엔 눌림(aria-pressed)과 체크 표시로 고른 것을 보여요.
 function ShelfPaper({ item, order, folder, picked, pickDisabled = false, onOpen }: { item: ShelfItem; order: number; folder: Folder | null; picked?: boolean; pickDisabled?: boolean; onOpen: () => void }) {
   const { room, thing, versions } = item;
+  const seconds = item.durationSeconds === undefined ? undefined : Math.floor(item.durationSeconds);
+  const duration = seconds === undefined ? "" : `${Math.floor(seconds / 60)}분 ${seconds % 60}초`;
+  const details = [room.name, formatBytes(thing.size), duration].filter(Boolean);
   const self = useRef<HTMLButtonElement>(null);
   const own = usePicture(thing.id);
   const thumb = useThumb(self, own ? null : folder, thing);
@@ -506,7 +547,7 @@ function ShelfPaper({ item, order, folder, picked, pickDisabled = false, onOpen 
       className="shelf-paper"
       style={{ "--i": order } as CSSProperties}
       title={`${thing.name} (${room.name} 방)`}
-      aria-label={`${thing.name}, ${room.name} 방, ${formatBytes(thing.size)}${versions > 1 ? `, 버전 ${versions}개 중 최신` : ""}`}
+      aria-label={`${thing.name}, ${room.name} 방, ${formatBytes(thing.size)}${duration ? `, ${duration}` : ""}${versions > 1 ? `, 버전 ${versions}개 중 최신` : ""}`}
       aria-pressed={picked}
       disabled={pickDisabled}
       onClick={onOpen}
@@ -522,7 +563,7 @@ function ShelfPaper({ item, order, folder, picked, pickDisabled = false, onOpen 
           <span className="shelf-name">{thing.name}</span>
           {versions > 1 && <b>버전 {versions}</b>}
         </span>
-        <span className="shelf-room">{room.name} · {formatBytes(thing.size)}</span>
+        <span className="shelf-room">{details.join(" · ")}</span>
       </span>
     </button>
   );

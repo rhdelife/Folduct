@@ -10,6 +10,16 @@ export type ShelfView = { id: string; name: string; drawers: Drawer[] };
 // kind가 null이면 기본 형식별 서랍(palette colorGroups)을 써요.
 export type ShelfViews = { kind: Drawer[] | null; custom: ShelfView[] };
 
+export const builtInShelfViews = [
+  { id: "kind", name: "형식별" },
+  { id: "hue", name: "이미지 색" },
+  { id: "video-length", name: "영상 길이" },
+  { id: "video-hue", name: "영상 썸네일 색" },
+  { id: "size", name: "파일 용량" },
+] as const;
+const reservedViewIds = new Set<string>(builtInShelfViews.map(({ id }) => id));
+export const reservedViewNames: readonly string[] = [...builtInShelfViews.map(({ name }) => name), "컬러별"];
+
 export const allKinds = Object.keys(kindLabels) as Kind[];
 const extMax = 30;
 
@@ -56,14 +66,14 @@ export function cleanDrawers(value: unknown): Drawer[] {
 export function normalizeShelfViews(value: unknown): ShelfViews {
   if (!value || typeof value !== "object") return emptyShelfViews;
   const raw = value as Record<string, unknown>;
-  const names: string[] = ["형식별", "컬러별"];
+  const names = [...reservedViewNames];
   const custom = Array.isArray(raw.custom)
     ? raw.custom.flatMap((view, index) => {
         if (!view || typeof view !== "object") return [];
         const item = view as Record<string, unknown>;
         const name = uniqueName(text(item.name, "새 서랍장"), names);
         names.push(name);
-        return [{ id: typeof item.id === "string" && item.id && item.id !== "kind" && item.id !== "hue" ? item.id : `view-${index}`, name, drawers: cleanDrawers(item.drawers) }];
+        return [{ id: typeof item.id === "string" && item.id && !reservedViewIds.has(item.id) ? item.id : `view-${index}`, name, drawers: cleanDrawers(item.drawers) }];
       })
     : [];
   return { kind: Array.isArray(raw.kind) ? cleanDrawers(raw.kind) : null, custom };
