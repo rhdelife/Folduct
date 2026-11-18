@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import type { DoorItem } from "../../domain/doorstep";
 import type { Room } from "../../domain/model";
 import { localDay } from "../../domain/care";
-import { formatWork, workAmount, yearMonths, yearWork, type WorkLog } from "../../domain/worklog";
+import { workAmount, yearMonths, yearWork, type WorkLog } from "../../domain/worklog";
 import type { OpenRoomMenu } from "../ContextMenu";
 import { DoorstepRow } from "../Doorstep";
 import { cssToken, tokenMs } from "../tokens";
@@ -144,7 +144,8 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
               </span>
             ))}
           </span>
-          <span className="work-cal-rooms">{lines.length > 0 ? lines.map(([id, ms]) => `${names.get(id)} ${formatWork(ms)}`).join(", ") : isNative() ? "플로팅 창에서 작업을 시작하면 쌓여요." : "작업 시간은 데스크톱 앱에서 재요."}</span>
+          {/* 방별 시간 글줄은 뺐어요(2026-11-18 요청). 방별 시간은 카드를 펼친 판에서 봐요. 기록이 없을 때 안내만 남겨요. */}
+          {lines.length === 0 && <span className="work-cal-rooms">{isNative() ? "플로팅 창에서 작업을 시작하면 쌓여요." : "작업 시간은 데스크톱 앱에서 재요."}</span>}
         </button>
       </div>
       {open && (
