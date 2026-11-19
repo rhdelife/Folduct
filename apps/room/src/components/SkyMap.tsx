@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { pickArt } from "../art/ObjectShape";
 import { colorGroups } from "../art/palette";
 import { kindParts, kindSummary } from "../art/duct";
-import { StackArt } from "./RoomFace";
+import { preloadStack, StackArt } from "./RoomFace";
 import { centerOf, cue, homeActor } from "./useFrodo";
 import { laneOf, relativeDay, shownActivity } from "../domain/care";
 import { fedLengths, heroLayout, homeRooms, type Card, type FedFilter, type FindSpot, type HeroFrodo } from "../domain/heroLayout";
@@ -159,13 +159,13 @@ export function SkyMap({
   const layoutView = useMemo(() => (narrowed ? { ...view, pane: true } : view), [view, narrowed]);
   const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, layoutView, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, layoutView, doorOpen, filter, chipRow]);
   // 비울 때 늘어난 몸이 받침 속으로 가라앉은 뒤 기본 모습이 돼요(2026-11-19 요청). 가라앉는 동안은 먹었던 방의 몸과 자리를 그대로 그려요.
+  // 그리는 중에 바로 정해요. 효과에서 정하면 기본 몸이 한 번 그려졌다가 먹었던 몸으로 되돌아가며 그림을 두 번 갈아 끼워 깜빡였어요.
   const [leaving, setLeaving] = useState<string | null>(null);
-  const lastSelected = useRef(selectedId);
-  useLayoutEffect(() => {
-    const before = lastSelected.current;
-    lastSelected.current = selectedId;
-    setLeaving(before && !selectedId && !matchMedia("(prefers-reduced-motion: reduce)").matches ? before : null);
-  }, [selectedId]);
+  const [lastSelected, setLastSelected] = useState(selectedId);
+  if (lastSelected !== selectedId) {
+    setLastSelected(selectedId);
+    setLeaving(lastSelected && !selectedId && !matchMedia("(prefers-reduced-motion: reduce)").matches ? lastSelected : null);
+  }
   const body = useMemo(() => (leaving && !selectedId ? heroLayout(shown, now, layoutView, paperAspect, doorOpen, leaving, filter, chipRow).frodo : null), [leaving, selectedId, shown, now, layoutView, doorOpen, filter, chipRow]);
   const bodyRef = useRef(body);
   bodyRef.current = body;
@@ -175,14 +175,20 @@ export function SkyMap({
     if (!leaving || !from || !frodo || !root) return;
     // 늘어난 만큼 받침 아래로 내리고(받침 선 아래는 .frodo-clip이 가려요), 받침도 기본 자리로 옮겨요. 끝나면 기본 몸으로 바꿔요.
     const options: KeyframeAnimationOptions = { duration: shrinkMs, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" };
+    // 형식 색은 가라앉는 동안 서서히 빠져, 바꾸는 순간 흰 몸으로 툭 바뀌지 않아요.
     const anims = [
       root.querySelector(".frodo-lift")?.animate([{ translate: "0px 0px" }, { translate: `0px ${Math.max(0, from.height - frodo.height)}px` }], options),
       root.querySelector(".frodo-home")?.animate([{ translate: "0px 0px" }, { translate: `0px ${frodo.floor - from.floor}px` }], options),
-    ];
-    const done = window.setTimeout(() => setLeaving(null), shrinkMs);
+      root.querySelector(".frodo-home .frodo-fill")?.animate([{ opacity: 1 }, { opacity: 0 }], options),
+    ].filter((anim): anim is Animation => Boolean(anim));
+    // 타이머 대신 움직임이 정말 끝난 뒤, 기본 몸 그림을 미리 풀어 둔 다음 바꿔요. 앱(WebKit)은 새 그림을 처음 그릴 때 한 프레임 비울 수 있어요.
+    let left = false;
+    void Promise.all([...anims.map((anim) => anim.finished), preloadStack(Math.round(frodo.width / 8) * 8)])
+      .catch(() => undefined)
+      .then(() => !left && setLeaving(null));
     return () => {
-      window.clearTimeout(done);
-      anims.forEach((anim) => anim?.cancel());
+      left = true;
+      anims.forEach((anim) => anim.cancel());
     };
   }, [leaving]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(closeTip, [closeTip, selectedId, query, label, view]);

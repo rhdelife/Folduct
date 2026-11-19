@@ -104,6 +104,13 @@ function ductImage(drawing: DuctDrawing, foot: string | undefined, withLayers: b
 // 앱(WebKit)에서는 손그림 SVG를 다시 그릴 때마다(표정, 몸짓, 색 차오름) 프로도가 깜빡이거나 사라졌어요.
 // 그래서 몸은 한 번 그린 <img>로 두고 움직임은 레이어 이동으로만 해요. 표정(눈)만 그 위의 작은 칸에서 바뀌어요.
 // 색은 같은 몸에 색을 칠한 두 번째 <img>를 겹치고, 그 칸을 받침에서 위로 걷어 올려 보여 줘요(heroMotion .frodo-fill).
+// 비운 기본 몸(먹은 방 없음) 그림을 미리 풀어 둬요. StackArt와 같은 값으로 그려 같은 data URL이 나와요.
+export function preloadStack(px: number): Promise<void> {
+  const image = new Image();
+  image.src = ductImage(drawStack([], { px, live: true, layers: ductLayers([]) }), undefined, false);
+  return image.decode().catch(() => undefined);
+}
+
 export function StackArt({ lengths, parts = [], px, foot, className, actor, mood = "base" }: { lengths: number[]; parts?: Parts; px: number; foot?: string; className?: string; actor: string; mood?: FaceExpr }) {
   const key = `${lengths.map((length) => Math.round(length * 50)).join("|")}/${partsKey(parts)}`;
   const drawing = useMemo(() => drawStack(lengths, { px, live: true, layers: ductLayers(parts) }), [key, px]); // eslint-disable-line react-hooks/exhaustive-deps
