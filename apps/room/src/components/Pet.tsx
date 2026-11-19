@@ -8,11 +8,12 @@ import { kindParts, poseFace, type DuctPose } from "../art/duct";
 import { kindTones } from "../art/palette";
 import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue } from "../domain/care";
 import { faceColorVar } from "../domain/face";
-import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } from "../domain/doorstep";
+import { doorTargets, dropItem, emptyDoorstep, isScreenshotName, type DoorItem, type Doorstep } from "../domain/doorstep";
+import { readDoorFolder } from "../gateways/folder";
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo, folderMover } from "../gateways/native";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo, pathSource, sameFolder, screenshotDir, folderMover } from "../gateways/native";
 import { getDoorstep, getLastSweepAt, getPetSettings, getReviewDays, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
 import { downloadName, freeDoorName, saveDownload, trashFile } from "../gateways/mover";
@@ -26,7 +27,6 @@ const dragSlop = 4;
 const askShownMs = 30_000;
 // 작업 중에 새 파일을 찾는 주기.
 const watchEveryMs = 10_000;
-const doneShownMs = 20_000;
 // 그림이 차지하는 폭. styles.css --pet-vase와 같아요.
 const petPx = 104;
 // 커서를 읽는 주기. 앱이 뒤에 있으면 창에 호버가 오지 않아 위치를 직접 읽습니다.
@@ -55,6 +55,10 @@ export function Pet() {
   // 웹에서 그림·파일 링크를 끌어 프로도 위에 올려 둔 동안. 프로도가 받는 자세를 해요.
   const [dropping, setDropping] = useState(false);
   const [fileBusy, setFileBusy] = useState(false);
+  // 이 작업에서 새로 찍은 스크린샷. 현관 파일과 같은 길로 방 안 '스크린샷/찍은 날' 폴더에 옮겨요(2026-11-19 요청).
+  const [shots, setShots] = useState<DoorItem[]>([]);
+  // 옮겼다는 알림에서 '다른 방으로'를 눌러 받을 방을 고르는 중.
+  const [picking, setPicking] = useState(false);
   // 아이콘 아래 작은 창이 열려 있는지. 띄워 두기를 켜면 쓰지 않아요.
   const [panelOpen, setPanelOpen] = useState(false);
   const closedAt = useRef(0);
@@ -222,6 +226,43 @@ export function Pet() {
     };
   }, [working]);
 
+  // 작업 중에만 스크린샷 저장 폴더(맨 위층)를 봅니다. 시작할 때 있던 이름은 기준으로만 잡고, 그 뒤 새로 생긴 스크린샷만 골라요.
+  // 그 폴더가 현관이기도 하면 현관 쪽이 이미 옮기니 여기서는 보지 않아요.
+  useEffect(() => {
+    if (!working || !isNative()) return;
+    let left = false;
+    let dir: string | null = null;
+    let seen: string[] | undefined;
+    const look = async () => {
+      if (!dir) return;
+      try {
+        const read = await readDoorFolder(pathSource(dir), seen);
+        seen = read.present;
+        const found = read.found.filter((file) => isScreenshotName(file.name)).map((file): DoorItem => ({ ...file, id: `shot:${file.path}:${file.lastModified}`, folder: dir!, since: Date.now() }));
+        if (!left && found.length > 0) setShots((before) => [...before, ...found]);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    let unwatch: (() => void) | undefined;
+    void (async () => {
+      const found = await screenshotDir();
+      if (left || !found || (await getDoorstep()).folders.some((folder) => sameFolder(folder, found))) return;
+      dir = found;
+      await look();
+      const stop = await watchFolder(found, () => void look(), false);
+      if (left) stop();
+      else unwatch = stop;
+    })().catch((error: unknown) => console.error(error));
+    const timer = window.setInterval(() => void look(), watchEveryMs);
+    return () => {
+      left = true;
+      unwatch?.();
+      window.clearInterval(timer);
+      setShots([]);
+    };
+  }, [working]);
+
   // 앱에서 방을 고치거나 지울 수 있어 틈틈이 다시 읽습니다. 작업하던 방을 지우거나 홈에서 빼면 작업도 끝나요. 그때까지의 시간은 일력에 남아요.
   useEffect(() => {
     const timer = window.setInterval(reloadRooms, watchEveryMs);
@@ -232,10 +273,14 @@ export function Pet() {
   }, [rooms, session, change]);
 
   useEffect(() => {
-    if (!done) return;
-    const timer = window.setTimeout(() => setDone(null), doneShownMs);
-    return () => window.clearTimeout(timer);
+    setPicking(false);
   }, [done]);
+  useEffect(() => {
+    // 받을 방을 고르는 동안은 알림을 닫지 않아요.
+    if (!done || picking) return;
+    const timer = window.setTimeout(() => setDone(null), pet.noticeSec * 1000);
+    return () => window.clearTimeout(timer);
+  }, [done, picking, pet.noticeSec]);
 
   const tellMain = () => {
     if (isNative()) emit(doorChanged).catch((error: unknown) => console.error(error));
@@ -274,6 +319,32 @@ export function Pet() {
       void emit(workAutoMoved, `작업 중이라 ${what} ${target.name} 방으로 옮겼어요.`).catch((error: unknown) => console.error(error));
     }
     reloadRooms();
+  }
+
+  // 잘못 들어간 파일을 다른 방으로: 원래 폴더로 되돌린 뒤 고른 방에 넣어요. 되돌리기와 넣기를 그대로 이어 써서 새 이동은 없어요(2026-11-18 요청).
+  async function sendElsewhere({ moves, room: from }: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room }, to: Room) {
+    setDone(null);
+    setFileBusy(true);
+    autoUndo.current = null;
+    const back: DoorItem[] = [];
+    let problem: string | null = null;
+    for (const { item, moved } of [...moves].reverse()) {
+      try {
+        const { state, error } = await undoBring(item, moved, from);
+        setDoor(state);
+        if (error) problem ??= error;
+        else back.unshift(item);
+      } catch (error) {
+        console.error(error);
+        problem ??= "옮기지 못했어요. 폴더 권한을 확인해 주세요.";
+      }
+    }
+    setFileBusy(false);
+    if (back.length === 0) {
+      setDone({ text: problem ?? "옮기지 못했어요.", failed: true });
+      return;
+    }
+    await bring(back, to);
   }
 
   // 현관 줄에서만 뺍니다. 파일은 폴더에 그대로 있어요.
@@ -591,6 +662,8 @@ export function Pet() {
   };
 
   const choices = rooms.filter((item) => !item.care.done);
+  // '다른 방으로'에서 고를 수 있는 방: 폴더를 연결한 다른 방(지금 넣은 방은 빼요).
+  const elsewhere = done?.undo ? doorTargets(rooms, done.undo.moves[0].item).filter((item) => item.id !== done.undo!.room.id) : [];
   const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
   const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
   // 작업 중에 현관으로 새 파일이 오면 묻지 않고 지금 방으로 옮겨요(덮어쓰지 않고, '되돌리기'가 남아요).
@@ -598,11 +671,11 @@ export function Pet() {
   const autoTried = useRef(new Set<string>());
   useEffect(() => {
     if (!working || !room || !roomLinked || fileBusy) return;
-    const fresh = incoming.filter((item) => !autoTried.current.has(item.id));
+    const fresh = [...incoming, ...shots].filter((item) => !autoTried.current.has(item.id));
     if (fresh.length === 0) return;
     fresh.forEach((item) => autoTried.current.add(item.id));
     void bring(fresh, room, true);
-  }, [working, room?.id, roomLinked, fileBusy, incoming.map((item) => item.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [working, room?.id, roomLinked, fileBusy, incoming.map((item) => item.id).join(), shots]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = session ? session.status : "off";
   const pose: DuctPose = dropping ? "offer" : fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   const panel = !pet.floating && motion !== "tuck";
@@ -661,7 +734,18 @@ export function Pet() {
         <div className="pet-ask" data-no-drag>
           <p role="status">{done.text}</p>
           {done.saved && <button type="button" disabled={fileBusy} onClick={() => void undoSaved(done.saved!)}>되돌리기</button>}
-          {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
+          {done.undo && !picking && (
+            <div>
+              <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>
+              {elsewhere.length > 0 && <button type="button" disabled={fileBusy} onClick={() => setPicking(true)}>다른 방으로</button>}
+            </div>
+          )}
+          {done.undo && picking && (
+            <div className="pet-pick" role="group" aria-label="옮길 방">
+              {elsewhere.map((target) => <button key={target.id} type="button" disabled={fileBusy} onClick={() => void sendElsewhere(done.undo!, target)}>{target.name}</button>)}
+              <button type="button" className="quiet" onClick={() => setPicking(false)}>취소</button>
+            </div>
+          )}
         </div>
       )}
       {asking && session && (

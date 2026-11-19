@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dayMs } from "../domain/care";
-import { addFolder, doorTargets, doorTitle, dropItem, emptyDoorstep, isPartialFile, newestFirst, normalizeDoorstep, removeFolder, restoreItem, settleFolder, type DoorItem, type DoorRead, type Doorstep } from "../domain/doorstep";
+import { addFolder, doorTargets, doorTitle, dropItem, emptyDoorstep, isPartialFile, isScreenshotName, newestFirst, normalizeDoorstep, removeFolder, restoreItem, settleFolder, type DoorItem, type DoorRead, type Doorstep } from "../domain/doorstep";
 import type { Room, ScannedFile } from "../domain/model";
 import { readDoorFolder, type DirectorySource } from "../gateways/folder";
 import { moveDoorFile, type MoveDirectory } from "../gateways/mover";
@@ -24,6 +24,7 @@ vi.mock("../gateways/native", () => ({
     return { files: [...disk.scanned!.files.keys()].map((name) => ({ path: name, name, kind: "pdf", size: 10, lastModified: 1 })), complete: true, failed: 0 };
   },
   folderMover: (folder: string) => disk.dirs.get(folder),
+  shotFolder: async (room: string, day: string) => `${room}/스크린샷/${day}`,
   pathSource: (folder: string) =>
     disk.folders.get(folder) ?? {
       list: () => ({ [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(new Error("없음")) }) }),
@@ -404,6 +405,38 @@ describe("작업 중인 방으로 가져오기", () => {
     expect(disk.patched!.things).toMatchObject([{ id: "old", path: "보고서.pdf" }]);
     await undoBring(item, moved!, before);
     expect(disk.patched!.things).toEqual([{ ...old, missing: true }]);
+  });
+});
+
+describe("작업 중 스크린샷", () => {
+  const roomPath = "/Users/me/Projects/졸업";
+  const shot = "스크린샷 2026-11-19 오후 2.09.36.png";
+  const target = { id: "r", name: "졸업", source: "handle", origin: roomPath, things: [], workDays: [], scan: { complete: true, failed: 0, at: 0, freedBytes: 0 }, care: { done: false, staleAfterDays: 30 } } as unknown as Room;
+
+  it("macOS 스크린샷 이름만 골라요", () => {
+    expect(isScreenshotName(shot.normalize("NFD"))).toBe(true);
+    expect(isScreenshotName("Screenshot 2026-11-19 at 2.09.36 PM.png")).toBe(true);
+    expect(isScreenshotName("Screen Shot 2020-01-02 at 1.00.00 PM.png")).toBe(true);
+    expect(isScreenshotName("스크린샷 정리.png")).toBe(false);
+    expect(isScreenshotName("보고서.pdf")).toBe(false);
+  });
+
+  it("방 안 스크린샷/찍은 날 폴더로 옮기고, 되돌리면 방 목록에서도 빠져요", async () => {
+    const downloads = seed({ [shot]: "그림" });
+    const day = seed({});
+    disk.dirs.set(dl, view(downloads));
+    disk.dirs.set(`${roomPath}/스크린샷/2026-11-19`, view(day));
+    disk.scanFails = true;
+    disk.state = settleFolder(opened([]), dl, read([shot], [file(shot, Date.parse("2026-11-19T14:09:36"))]), now);
+    const item = disk.state.items[0];
+    const { moved, error } = await bringIntoRoom(item, target);
+    expect(error).toBeNull();
+    expect(moved).toEqual({ folder: `${roomPath}/스크린샷/2026-11-19`, name: shot });
+    expect(day.files.get(shot)).toBe("그림");
+    disk.patched = { ...target, things: [{ id: "s", path: `스크린샷/2026-11-19/${shot}`, name: shot } as Room["things"][number]] };
+    await undoBring(item, moved!, target);
+    expect(downloads.files.get(shot)).toBe("그림");
+    expect(disk.patched!.things).toEqual([]);
   });
 });
 

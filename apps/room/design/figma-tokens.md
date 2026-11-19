@@ -76,6 +76,7 @@
 | `color/status/caution-bg` | `#fdf4ea` |  |
 | `color/status/ok` | `#276a56` |  |
 | `color/status/ok-bg` | `#f1f8f5` |  |
+| `color/status/live` | `#1f9d55` |  |
 
 ## 색 · 파일 형식
 | 묶음 | 채움 (fill) | 테두리 (edge) | 형식 |

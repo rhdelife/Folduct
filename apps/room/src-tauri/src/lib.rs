@@ -95,7 +95,6 @@ fn tray_rect<R: Runtime>(app: &AppHandle<R>) -> Option<(f64, f64, f64, f64)> {
 
 fn tray_rect_of<R: Runtime>(app: &AppHandle<R>, id: &str) -> Option<(f64, f64, f64, f64)> {
   let rect = app.tray_by_id(id)?.rect().ok()??;
-
   let unit = tray_scale(app)?;
   let at = rect.position.to_physical::<f64>(unit);
   let size = rect.size.to_physical::<f64>(unit);
@@ -644,6 +643,53 @@ fn move_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Resul
     return Err("파일이 아니에요.".into());
   }
   rename_no_replace(&from, &to).map_err(|e| e.to_string())
+}
+
+// 스크린샷 저장 폴더(2026-11-19 요청). macOS 설정(com.apple.screencapture location)을 읽고, 없으면 데스크톱이에요. 다른 OS는 다루지 않아요.
+fn screenshot_folder<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+  if !cfg!(target_os = "macos") {
+    return None;
+  }
+  let set = Command::new("/usr/bin/defaults").args(["read", "com.apple.screencapture", "location"]).output().ok().filter(|out| out.status.success()).map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string()).filter(|text| !text.is_empty());
+  let home = app.path().home_dir().ok();
+  let path = match (set, home) {
+    (Some(text), Some(home)) if text == "~" || text.starts_with("~/") => home.join(text.trim_start_matches('~').trim_start_matches('/')),
+    (Some(text), _) => PathBuf::from(text),
+    (None, _) => app.path().desktop_dir().ok()?,
+  };
+  path.is_dir().then_some(path)
+}
+
+#[tauri::command]
+fn screenshot_dir<R: Runtime>(app: AppHandle<R>) -> Option<PathBuf> {
+  screenshot_folder(&app)
+}
+
+fn is_day(day: &str) -> bool {
+  day.len() == 10 && day.bytes().enumerate().all(|(i, b)| if i == 4 || i == 7 { b == b'-' } else { b.is_ascii_digit() })
+}
+
+// 방 폴더 안 '스크린샷/day' 폴더를 만들어요(있으면 그대로). 바로가기는 따라가지 않고, 방 폴더 밖은 거절해요. 지우거나 덮어쓰지 않아요.
+#[tauri::command]
+fn make_shot_folder<R: Runtime>(app: AppHandle<R>, room: PathBuf, day: String) -> Result<PathBuf, String> {
+  if !is_day(&day) {
+    return Err("날짜 모양이 아니에요.".into());
+  }
+  in_scope(&app, &room)?;
+  if !std::fs::symlink_metadata(&room).map(|meta| meta.is_dir()).unwrap_or(false) {
+    return Err("폴더가 아니에요.".into());
+  }
+  let mut folder = room;
+  for part in ["스크린샷", day.as_str()] {
+    folder = folder.join(part);
+    in_scope(&app, &folder)?;
+    match std::fs::symlink_metadata(&folder) {
+      Ok(meta) if meta.is_dir() => {}
+      Ok(_) => return Err("같은 이름의 파일이 있어요.".into()),
+      Err(_) => std::fs::create_dir(&folder).map_err(|e| e.to_string())?,
+    }
+  }
+  Ok(folder)
 }
 
 // 방 만들기 목록에 띄울 폴더(2026-11-18 요청). 이름·경로·고친 시각만 읽고 안의 파일은 열지 않아요.
@@ -1264,11 +1310,15 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, save_download, save_memo, set_memo_visible, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, save_download, save_memo, set_memo_visible, screenshot_dir, make_shot_folder, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
         let _ = _app.fs_scope().allow_directory(&downloads, false);
+      }
+      // 작업 중 스크린샷을 방으로 모으려고 스크린샷 저장 폴더도 맨 위층만 열어 둬요. 하위 폴더는 열지 않아요.
+      if let Some(shots) = screenshot_folder(_app.handle()) {
+        let _ = _app.fs_scope().allow_directory(&shots, false);
       }
       #[cfg(target_os = "macos")]
       keep_tray_off_notch();
@@ -1480,6 +1530,31 @@ mod tests {
     assert!(!outside.join("a.png").exists());
     assert!(invoke(&webview, "save_download", json!({ "room": room, "name": "있음.png", "url": url })).is_err());
     assert_eq!(std::fs::read_to_string(room.join("있음.png")).unwrap(), "있던 것");
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 스크린샷 날짜 폴더: 고른 방 폴더 안에만, 날짜 모양 이름으로만 만들어요. 있는 폴더는 그대로 써요.
+  #[test]
+  fn shot_folder_stays_inside_room() {
+    let base = std::env::temp_dir().join(format!("folduct-shot-{}", std::process::id()));
+    let (room, outside) = (base.join("room"), base.join("outside"));
+    for dir in [&room, &outside] {
+      std::fs::create_dir_all(dir).unwrap();
+    }
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![make_shot_folder])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "pet", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&room, true).unwrap();
+
+    assert!(invoke(&webview, "make_shot_folder", json!({ "room": outside, "day": "2026-11-19" })).is_err());
+    assert!(invoke(&webview, "make_shot_folder", json!({ "room": room, "day": "../../x" })).is_err());
+    invoke(&webview, "make_shot_folder", json!({ "room": room, "day": "2026-11-19" })).unwrap();
+    invoke(&webview, "make_shot_folder", json!({ "room": room, "day": "2026-11-19" })).unwrap();
+    assert!(room.join("스크린샷/2026-11-19").is_dir());
+    assert!(!outside.join("스크린샷").exists());
     std::fs::remove_dir_all(&base).unwrap();
   }
 

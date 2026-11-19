@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { removeFolder, type Doorstep } from "../domain/doorstep";
 import { trayPlaceName } from "../domain/platform";
-import { askChoices, defaultPet, type PetSettings } from "../domain/session";
+import { askChoices, defaultPet, noticeChoices, type PetSettings } from "../domain/session";
 import { folderName, isNative, petSettingsChanged, pickRoomFolder, setPetVisible } from "../gateways/native";
 import { reviewChoices } from "../domain/care";
 import { getIntroOn, getPetSettings, patchDoorstep, savePetSettings, setIntroOn, setReviewDays } from "../storage/db";
@@ -171,6 +171,15 @@ export function SettingsDialog({ doorstep, onDoorstep, reviewDays, onReviewDays,
               </span>
               <select value={pet.askEvery} onChange={(event) => changePet({ ...pet, askEvery: Number(event.target.value) })}>
                 {askChoices.map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "묻지 않기" : `${minutes}분마다`}</option>)}
+              </select>
+            </label>
+            <label className="setting-row">
+              <span>
+                <strong>옮김 알림 시간</strong>
+                <small>파일을 옮긴 뒤 작은 창에 어디로 옮겼는지 띄워 둬요.</small>
+              </span>
+              <select value={pet.noticeSec} onChange={(event) => changePet({ ...pet, noticeSec: Number(event.target.value) })}>
+                {noticeChoices.map((seconds) => <option key={seconds} value={seconds}>{seconds === 60 ? "1분" : `${seconds}초`}</option>)}
               </select>
             </label>
           </>

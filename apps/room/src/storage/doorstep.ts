@@ -1,9 +1,9 @@
-import { mergeScan } from "../domain/care";
-import { addFolder, dropItem, restoreItem, settleFolder, settleMoved, type DoorItem, type Doorstep } from "../domain/doorstep";
+import { localDay, mergeScan } from "../domain/care";
+import { addFolder, dropItem, isScreenshotName, restoreItem, settleFolder, settleMoved, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { readDoorFolder } from "../gateways/folder";
 import { freeDoorName, moveDoorFile } from "../gateways/mover";
 import type { Room } from "../domain/model";
-import { folderMover, pathSource, sameFolder, scanRoomFolder } from "../gateways/native";
+import { folderMover, pathSource, sameFolder, scanRoomFolder, shotFolder } from "../gateways/native";
 import { getDoorstep, listRooms, patchDoorstep, patchRoom } from "./db";
 
 export type DoorMove = { folder: string; name: string };
@@ -40,7 +40,17 @@ export async function addDoorFolder(folder: string): Promise<{ state: Doorstep; 
 }
 
 // 문서를 방 폴더로 옮깁니다. 방 기록은 고치지 않아요. 방을 열 때 폴더를 다시 읽어 ‘새로 왔어요’ 줄에 세웁니다.
-export async function assignDoorItem(item: DoorItem, folder: string): Promise<{ state: Doorstep; moved: DoorMove | null; error: string | null }> {
+export async function assignDoorItem(item: DoorItem, roomFolder: string): Promise<{ state: Doorstep; moved: DoorMove | null; error: string | null }> {
+  // 스크린샷은 방 안 '스크린샷/찍은 날' 폴더로 모아요(2026-11-19 요청). 그 폴더는 앱 명령이 방 폴더 안에만 만들어요.
+  let folder = roomFolder;
+  if (isScreenshotName(item.name)) {
+    try {
+      folder = await shotFolder(roomFolder, localDay(item.lastModified));
+    } catch (error) {
+      console.error(error);
+      return { state: await getDoorstep(), moved: null, error: "스크린샷 폴더를 만들지 못했어요." };
+    }
+  }
   const room = folderMover(folder);
   const name = await freeDoorName(room, item.path);
   if (!name) return { state: await getDoorstep(), moved: null, error: "방 폴더에 둘 이름을 정하지 못했어요." };
@@ -73,11 +83,13 @@ export async function undoBring(item: DoorItem, moved: DoorMove, room: Room): Pr
   // 넣기로 새로 생긴 물건은 방에 있던 적 없는 것처럼 뺍니다. 폴더를 다시 읽어 맞추면 '파일 없음' 줄이 남아요.
   // 넣기 전부터 있던 물건이 이 파일과 이어졌다면(밖에서 이름을 바꾼 파일) 메모·자리를 지키고 예전 이름의 '파일 없음'으로 돌려놓아요.
   const before = new Map(room.things.map((thing) => [thing.id, thing]));
+  // 스크린샷은 방 안 하위 폴더로 갔어요. 방 목록의 경로는 방 폴더 기준이에요.
+  const path = moved.folder === room.origin ? moved.name : `${moved.folder.slice(room.origin!.length + 1).replace(/\\/g, "/")}/${moved.name}`;
   if (!result.error)
     await patchRoom(room.id, (latest) => ({
       ...latest,
       things: latest.things.flatMap((thing) => {
-        if (thing.path !== moved.name) return [thing];
+        if (thing.path !== path) return [thing];
         const old = before.get(thing.id);
         return old ? [{ ...thing, path: old.path, name: old.name, kind: old.kind, missing: true }] : [];
       }),

@@ -74,6 +74,11 @@ export function doorTargets(rooms: Room[], item: DoorItem): Room[] {
     .sort((a, b) => lastUsed(b).localeCompare(lastUsed(a)) || b.createdAt - a.createdAt);
 }
 
+// macOS가 붙이는 스크린샷 이름(한국어·영어). 작업 중 스크린샷은 방 안 '스크린샷/날짜' 폴더로 모아요(2026-11-19 요청).
+export function isScreenshotName(name: string): boolean {
+  return /^(스크린샷|Screenshot|Screen Shot) \d{4}-\d{2}-\d{2}/.test(name.normalize("NFC"));
+}
+
 export function newestFirst(items: DoorItem[]): DoorItem[] {
   return [...items].sort((a, b) => b.lastModified - a.lastModified);
 }

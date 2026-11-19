@@ -57,6 +57,8 @@
   --status-caution-bg: #fdf4ea;
   --status-ok: #276a56;
   --status-ok-bg: #f1f8f5;
+  /* 작업 중인 방 카드 썸네일 왼쪽 위 초록 불(2026-11-19 요청). 글자가 아닌 점이라 흰 테로 바탕과 떼어요. */
+  --status-live: #1f9d55;
 
   --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -563,6 +565,11 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .room-node.dragging { z-index: 3; cursor: grabbing; scale: 1.06; }
 /* 고른 카드는 그림이 커져서 골랐다는 게 보여요. 가리킨 카드는 그림 외곽선이 빛나요. */
 .room-node.fed .room-cover { scale: var(--room-picked-scale); }
+/* 커질 때 아래 이름을 덮지 않게 바닥을 기준으로 위로 키워요(2026-11-19 요청). */
+.room-node .room-cover { transform-origin: 50% 100%; }
+/* 작업 중인 방: 썸네일 왼쪽 위에 초록 불. 굵은 '작업 중' 글자와 함께 보여요. */
+.room-node.working .room-cover { position: relative; }
+.room-node.working .room-cover::after { content: ""; position: absolute; top: calc(var(--space-1) * -1); left: calc(var(--space-1) * -1); width: var(--space-3); aspect-ratio: 1; border-radius: var(--radius-pill); background: var(--status-live); box-shadow: 0 0 0 calc(var(--room-hair) * 2) var(--surface); }
 /* 썸네일 테두리는 메뉴 막대 방 알약처럼 그 방 얼굴 색으로 그려요(종이 잉크만 바꿔요). */
 .room-node .room-cover { --ink: var(--room-color); }
 /* 한 방을 먹이면 나머지 방 카드는 살짝 옅어져요. 가리키면 조금 돌아와요. */
@@ -1383,7 +1390,9 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .work-bar .work-clock b { font-size: var(--text-md); line-height: var(--lh-md); }
 .work-bar .work-control.picking { position: absolute; top: var(--space-2); left: 50%; translate: -50% 0; width: min(calc(100vw - 2 * var(--space-4)), calc(var(--space-12) * 13)); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); }
 .work-pick-title { flex-basis: 100%; margin: 0; text-align: center; font-size: var(--text-sm); font-weight: 700; }
-.room-working { display: block; color: var(--ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; }
+.room-working { display: none; color: var(--ink); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 700; }
+.sky-canvas.pane-open .room-working { display: block; }
+@media (max-width: 560px) { .scene-hero .room-working { display: block; } }
 @media (max-width: 720px) {
   .work-bar { top: auto; bottom: calc(var(--space-5) + var(--control-lg) + var(--space-6)); translate: -50% 0; }
   .work-bar .work-control.picking { top: auto; bottom: var(--space-3); }
@@ -1466,6 +1475,8 @@ main.page-status { min-height: 100dvh; align-content: center; }
 .trend-cal i.lv2 { --lv: 65%; }
 .trend-cal i.lv3 { --lv: 85%; }
 .trend-cal i.lv4 { --lv: 100%; }
+/* 한 날 여러 방: 방 색을 파이 조각으로 나눠요(2026-11-19 요청). */
+.trend-cal i.on.mixed { background: var(--pie); }
 /* 작업 기록 카드 보기 기준(주·달·해). 주와 달은 요일 7칸이라 점이 커지고, 오늘은 잉크 테두리로 알려요. 빈 칸은 달력 앞뒤 자리예요. */
 .trend-cal i.today { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .trend-cal i.blank { visibility: hidden; }
@@ -1541,6 +1552,9 @@ html[data-window="pet"] body::after { display: none; }
 .pet-ask > small { color: var(--ink-soft); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .pet-ask div { display: flex; gap: var(--space-1); }
 .pet-ask button { flex: 1 1 0; min-width: 0; min-height: var(--control-sm); padding: 0 var(--space-1); font-size: var(--text-xs); white-space: nowrap; }
+/* 다른 방으로: 받을 방 이름을 한 줄에 하나씩. 긴 이름은 말줄임으로. */
+.pet-ask .pet-pick { display: grid; }
+.pet-pick button { overflow: hidden; text-overflow: ellipsis; }
 .pet-menu { box-sizing: border-box; width: 100%; display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--ink); background: var(--surface); color: var(--ink); cursor: default; font-size: var(--text-sm); }
 .pet-menu ul { max-height: var(--pet-list-h); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .pet-menu button { width: 100%; min-height: var(--control-sm); justify-content: flex-start; padding: 0 var(--space-1); border: 0; background: none; color: var(--ink); font-size: var(--text-sm); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1956,7 +1970,7 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 .kind-drawer-body { --drawer-pad-x: var(--space-4); --drawer-pad-y: var(--space-3); --drawer-name-size: var(--text-md); --drawer-name-line: var(--lh-md); position: absolute; inset: 0; }
 .kind-drawer:not([data-open="true"]):hover .kind-drawer-body { transform: translateY(var(--space-1)); }
 .kind-drawer[data-open="true"] .kind-drawer-body { transform: translateY(40%) scale(1.04); }
-.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); min-height: 0; padding: var(--drawer-pad-y) var(--drawer-pad-x); border: var(--pen) solid transparent; border-radius: var(--radius-md) var(--radius-sm) var(--radius-md) var(--radius-xs) / var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md); background: color-mix(in srgb, var(--kind) 16%, var(--surface)); color: var(--ink); text-align: left; white-space: nowrap; }
+.kind-drawer-front { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-2); min-height: 0; padding: var(--drawer-pad-y) var(--drawer-pad-x); border: var(--pen) solid transparent; border-radius: var(--radius-md) var(--radius-sm) var(--radius-md) var(--radius-xs) / var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md); background: color-mix(in srgb, var(--kind) 16%, var(--surface)); color: var(--ink); text-align: left; white-space: nowrap; }
 .kind-drawer:nth-child(even) .kind-drawer-front { border-radius: var(--radius-sm) var(--radius-md) var(--radius-xs) var(--radius-md) / var(--radius-md) var(--radius-xs) var(--radius-md) var(--radius-sm); }
 .kind-drawer:hover .kind-drawer-front:not(:disabled) { background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
 .kind-drawer-front:active:not(:disabled) { transform: none; background: color-mix(in srgb, var(--kind) 26%, var(--surface)); }
@@ -1965,10 +1979,11 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 /* 열렸을 때의 잉크 테와 그림자는 따로 그려 opacity만 바꿔요. 테두리와 그림자를 바로 옮기면 매 프레임 다시 그려요. */
 .kind-drawer-front::before { content: ""; position: absolute; inset: calc(var(--pen) * -1); border-radius: inherit; box-shadow: var(--shadow-2); opacity: 0; }
 .kind-drawer[data-open="true"] .kind-drawer-front::before { opacity: 1; }
-.kind-drawer-plate { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); }
+.kind-drawer-plate { display: inline-flex; align-items: center; gap: var(--space-3); max-width: 100%; font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); }
 .kind-drawer-plate b { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
-.kind-drawer-name-space { height: var(--drawer-name-line); }
-.kind-drawer-body .kind-drawer-name { position: absolute; z-index: 2; top: calc(var(--pen) + var(--drawer-pad-y)); left: calc(var(--pen) + var(--drawer-pad-x) + var(--space-3) + var(--space-2)); max-width: calc(100% - (var(--pen) + var(--drawer-pad-x)) * 2 - var(--space-3) - var(--space-2)); min-height: 0; padding: 0; border: 0; border-radius: var(--radius-xs); color: var(--ink); font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); font-weight: 700; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 이름은 별도 버튼이라 앞판 안에서도 한 줄 높이를 비워 둬요. */
+.kind-drawer-name-space { height: calc(var(--drawer-name-size) * var(--drawer-name-line)); }
+.kind-drawer-body .kind-drawer-name { position: absolute; z-index: 2; top: calc(var(--pen) + var(--drawer-pad-y)); left: calc(var(--pen) + var(--drawer-pad-x) + var(--space-3) * 2); max-width: calc(100% - (var(--pen) + var(--drawer-pad-x)) * 2 - var(--space-3) * 2); min-height: 0; padding: 0; border: 0; border-radius: var(--radius-xs); color: var(--ink); font-size: var(--drawer-name-size); line-height: var(--drawer-name-line); font-weight: 700; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kind-drawer-body button.kind-drawer-name:hover { text-decoration: underline; text-underline-offset: 0.2em; }
 .kind-drawer-body input.kind-drawer-name { width: 100%; background: var(--surface); }
 .kind-drawer-count { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 500; color: var(--ink-caption); font-variant-numeric: tabular-nums; }
@@ -2060,6 +2075,8 @@ dialog.sheet.viewer .sheet-body:has(.viewer-stage) { height: min(90dvh, 900px); 
 }
 @media (max-width: 560px) {
   .kind-cabinet { --cols: 2; --rows: var(--rows2); }
+  .kind-drawer-body { --drawer-pad-y: var(--space-1); }
+  .kind-drawer-front { gap: var(--space-1); }
   .kind-drawer-handle { left: auto; right: var(--space-2); width: var(--space-5); translate: none; }
 }
 /* 서랍은 빨리 나와 부드럽게 멈추고(--ease-settle), 속 종이는 뒤따라 통통 튀어 올라요. 목록 종이는 그보다 길고 무겁게(--ease-drawer) 들어와요.

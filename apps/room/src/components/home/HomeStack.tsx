@@ -176,9 +176,11 @@ export function HomeStack({ rooms, log, now, doorItems, onDoorMenu, staleFiles, 
                   if (!day) return <i key={`blank-${at}`} className="blank" />;
                   const ms = shown.days.get(day);
                   if (!ms) return <i key={day} className={day < today ? "past" : day === today ? "today" : undefined} />;
-                  // 일한 날은 그날 가장 오래 한 방의 얼굴 색, 오래 할수록 진하게. 지운 방은 잉크예요.
-                  const top = faces.get(shown.tops.get(day) ?? "");
-                  return <i key={day} className={`on lv${dayLevel(ms)}${day === today ? " today" : ""}`} style={top ? ({ "--c": top } as CSSProperties) : undefined} />;
+                  // 일한 날은 그날 일한 방들의 얼굴 색으로 칠하고, 오래 할수록 진하게. 여러 방이면 오래 한 방부터 같은 몫으로 나눠 작은 점에서도 다 보여요. 지운 방은 잉크예요.
+                  const colors = (shown.tops.get(day) ?? []).map((id) => faces.get(id) ?? "var(--ink)");
+                  const slice = (color: string, at: number) => `color-mix(in srgb, ${color} var(--lv), var(--surface)) ${(at * 100) / colors.length}% ${((at + 1) * 100) / colors.length}%`;
+                  const style = colors.length > 1 ? { "--pie": `conic-gradient(${colors.map(slice).join(", ")})` } : { "--c": colors[0] };
+                  return <i key={day} className={`on lv${dayLevel(ms)}${colors.length > 1 ? " mixed" : ""}${day === today ? " today" : ""}`} style={style as CSSProperties} />;
                 })}
               </span>
             ))}

@@ -173,6 +173,10 @@
       "ok-bg": {
         "$type": "color",
         "$value": "#f1f8f5"
+      },
+      "live": {
+        "$type": "color",
+        "$value": "#1f9d55"
       }
     },
     "kind": {

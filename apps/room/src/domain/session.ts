@@ -38,12 +38,14 @@ export function arrivals(items: DoorItem[], session: Session | null): DoorItem[]
 // floating이면 작은 창을 화면에 늘 띄워 두고, 아니면(기본) 메뉴 막대 아이콘을 누를 때만 그 아래에 열어요.
 // 늘 떠 있는 창이 화면을 가린다는 말에 기본을 껐어요. 예전 hidden 값은 읽지 않아 모두 아이콘 창으로 시작해요.
 export const askChoices = [0, 5, 10, 30] as const;
-export type PetSettings = { askEvery: number; floating: boolean };
-export const defaultPet: PetSettings = { askEvery: 10, floating: false };
+// noticeSec: 옮겼다는 알림(되돌리기·다른 방으로)을 작은 창에 띄워 두는 시간(초). 2026-11-18 요청.
+export const noticeChoices = [10, 20, 30, 60] as const;
+export type PetSettings = { askEvery: number; floating: boolean; noticeSec: number };
+export const defaultPet: PetSettings = { askEvery: 10, floating: false, noticeSec: 20 };
 
 export function normalizePet(value: unknown): PetSettings {
   const pet = value as Partial<PetSettings> | null | undefined;
-  return { askEvery: askChoices.some((choice) => choice === pet?.askEvery) ? pet!.askEvery! : defaultPet.askEvery, floating: pet?.floating === true };
+  return { askEvery: askChoices.some((choice) => choice === pet?.askEvery) ? pet!.askEvery! : defaultPet.askEvery, floating: pet?.floating === true, noticeSec: noticeChoices.some((choice) => choice === pet?.noticeSec) ? pet!.noticeSec! : defaultPet.noticeSec };
 }
 
 export function formatWorked(ms: number): string {

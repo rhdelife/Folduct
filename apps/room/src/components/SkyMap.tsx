@@ -534,7 +534,7 @@ const MapLayers = memo(function MapLayers({
                 <button
                   type="button"
                   data-room-id={room.id}
-                  className={`room-node${fed ? " fed" : ""}`}
+                  className={`room-node${fed ? " fed" : ""}${room.id === workingId ? " working" : ""}`}
                   style={{ "--room-color": faceColorVar(room.face.color) } as CSSProperties}
                   tabIndex={room.id === tabStop ? 0 : -1}
                   aria-pressed={fed}
@@ -567,10 +567,10 @@ const MapLayers = memo(function MapLayers({
                 >
                   <RoomCover room={room} folder={folders.get(room.id) ?? null} px={64} color={faceHex(room.face.color)} />
                   <span className="room-label">{room.name}</span>
-                  {/* 좁은 창은 아래 보조 줄을 숨겨서, 작업 중 표시는 따로 둬요. */}
+                  {/* 좁은 창은 아래 보조 줄을 숨겨서, 그때만 작업 중 표시를 따로 둬요. 줄이 늘면 줄 높이를 넘쳐 이름이 그림에 겹쳐요. */}
                   {room.id === workingId && <b className="room-working">작업 중</b>}
                   {/* 카드엔 용량만 둬요. 안 쓴 파일 수는 이번 주 정리와 작업 기록 판에서 보여요(2026-11-18 요청). */}
-                  <Meta className="room-sub" items={[size]} />
+                  <Meta className="room-sub" items={[room.id === workingId && <b>작업 중</b>, size]} />
                 </button>
                 {/* 오른쪽 클릭으로만 열리던 방 메뉴(방 설정·홈에서 빼기)를 보이는 단추로도 열어요. */}
                 <button

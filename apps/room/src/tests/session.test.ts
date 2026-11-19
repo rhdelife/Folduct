@@ -77,8 +77,10 @@ describe("플로팅 설정 읽기", () => {
   });
 
   it("고를 수 있는 주기와 띄워 두기는 그대로 읽고, 기본은 아이콘을 누를 때만 여는 창이에요", () => {
-    expect(normalizePet({ askEvery: 0, floating: true })).toEqual({ askEvery: 0, floating: true });
-    expect(normalizePet({ askEvery: 5 })).toEqual({ askEvery: 5, floating: false });
+    expect(normalizePet({ askEvery: 0, floating: true })).toEqual({ askEvery: 0, floating: true, noticeSec: 20 });
+    expect(normalizePet({ askEvery: 5 })).toEqual({ askEvery: 5, floating: false, noticeSec: 20 });
+    expect(normalizePet({ noticeSec: 60 }).noticeSec).toBe(60);
+    expect(normalizePet({ noticeSec: 7 }).noticeSec).toBe(20);
     expect(defaultPet.floating).toBe(false);
   });
 });

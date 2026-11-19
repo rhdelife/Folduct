@@ -143,6 +143,11 @@ export async function watchFolder(paths: string | string[], onChange: () => void
   return watch(paths, onChange, { recursive, delayMs: 500 });
 }
 
+// 스크린샷 저장 폴더(macOS 설정, 없으면 데스크톱). 앱이 맨 위층만 읽고 옮길 수 있게 열어 둬요. macOS가 아니면 null이에요.
+export const screenshotDir = (): Promise<string | null> => invoke<string | null>("screenshot_dir");
+// 방 폴더 안 '스크린샷/day' 폴더를 만들고(있으면 그대로) 그 경로를 돌려줘요. Tauri 쪽이 방 폴더 안인지, 날짜 모양인지 확인해요.
+export const shotFolder = (room: string, day: string): Promise<string> => invoke<string>("make_shot_folder", { room, day });
+
 // 방으로 고른 하위 폴더만 하위 전체를 읽고 옮길 수 있게 엽니다.
 export const allowRooms = (paths: string[]): Promise<void> => invoke("allow_rooms", { folders: paths });
 
