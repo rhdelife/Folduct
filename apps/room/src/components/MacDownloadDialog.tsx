@@ -6,7 +6,7 @@ import { useModal } from "./useModal";
 // 큰 파일(DMG·기능 GIF)은 git과 사이트 묶음에 넣지 않고 Vercel Blob 저장소(folduct-files)에 둬요(2026-11-18 요청).
 // 새 DMG는 `vercel blob put <파일> --pathname downloads/<이름> --force`로 올리고 아래 이름을 바꿔요.
 export const assetBase = "https://x1ohqilcmrwtpwlp.public.blob.vercel-storage.com";
-export const macDmg = { href: `${assetBase}/downloads/Folduct_0.1.0_aarch64.dmg`, size: "7.9MB" };
+export const macDmg = { href: `${assetBase}/downloads/Folduct_0.1.0_aarch64.dmg`, size: "8.5MB" };
 
 export function MacDownloadDialog({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
