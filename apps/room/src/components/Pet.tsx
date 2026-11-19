@@ -20,6 +20,7 @@ import { downloadName, freeDoorName, saveDownload, trashFile } from "../gateways
 import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { Meta } from "./Meta";
+import { HoldToEnd } from "./home/WorkControl";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
@@ -819,7 +820,7 @@ export function Pet() {
           {session ? (
             <div className="pet-panel-row">
               <button type="button" className="primary" onClick={() => change(working ? pauseSession(session, Date.now()) : resumeSession(session, Date.now()))}>{working ? "멈춤" : "다시 시작"}</button>
-              <button type="button" onClick={() => endWork(session)}>작업 끝내기</button>
+              <HoldToEnd onEnd={() => endWork(session)} />
             </div>
           ) : choices.length > 0 ? (
             <div className="pet-panel-rooms" role="group" aria-label="작업할 방">
@@ -884,11 +885,7 @@ export function Pet() {
               <p>진행 중인 방이 없어요. 앱에서 방을 만들어 주세요.</p>
             )
           )}
-          {session && (
-            <button type="button" onClick={() => endWork(session)}>
-              작업 끝내기
-            </button>
-          )}
+          {session && <HoldToEnd onEnd={() => endWork(session)} />}
           {isNative() && <button type="button" onClick={openApp}>앱 열기</button>}
           {isNative() && <button type="button" onClick={hide}>숨기기</button>}
           {isNative() && <button type="button" onClick={() => void quit()}>Folduct 끄기</button>}

@@ -1427,9 +1427,9 @@ main.page-status { min-height: 100dvh; align-content: center; }
 @keyframes work-blink { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { .work-control.on .work-state::before { animation: none; } }
 /* 꾹 눌러 끝내기: 누르는 동안 왼쪽부터 게이지가 차요. 다 차면 끝나고, 떼면 비어요. */
-.work-control .hold { position: relative; overflow: hidden; isolation: isolate; touch-action: none; -webkit-user-select: none; user-select: none; }
-.work-control .hold::before { content: ""; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--status-danger) 28%, transparent); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-1) var(--ease-standard); }
-.work-control .hold.holding::before { transform: scaleX(1); transition: transform var(--dur-hold) linear; }
+.hold { position: relative; overflow: hidden; isolation: isolate; touch-action: none; -webkit-user-select: none; user-select: none; }
+.hold::before { content: ""; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--status-danger) 28%, transparent); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-1) var(--ease-standard); }
+.hold.holding::before { transform: scaleX(1); transition: transform var(--dur-hold) linear; }
 .work-control .end { border-color: transparent; background: var(--status-danger-bg); color: var(--status-danger); }
 .work-control .end:hover:not(:disabled) { border-color: var(--status-danger); background: var(--status-danger-bg); }
 .work-control.on > * { animation: work-split var(--dur-3) var(--ease-spring) backwards; }

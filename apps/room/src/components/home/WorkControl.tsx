@@ -109,10 +109,10 @@ export function WorkControl({ rooms, session, pick = false, onDone }: { rooms: R
   );
 }
 
-// 끝내기는 꾹 눌러 게이지가 다 차야 해요(2026-11-18 요청). 손을 떼거나 밖으로 나가면 취소돼요. 키보드는 Space·Enter를 누르고 있으면 돼요.
+// 끝내기는 꾹 눌러 게이지가 다 차야 해요(2026-11-18 요청, 메뉴 막대 작은 창도 2026-11-19 요청). 손을 떼거나 밖으로 나가면 취소돼요. 키보드는 Space·Enter를 누르고 있으면 돼요.
 // 차는 시간은 styles.css의 --dur-hold와 같아요.
 const holdMs = 1200;
-function HoldToEnd({ onEnd }: { onEnd: () => void }) {
+export function HoldToEnd({ onEnd }: { onEnd: () => void }) {
   const [holding, setHolding] = useState(false);
   const timer = useRef<number | null>(null);
   const start = () => {
