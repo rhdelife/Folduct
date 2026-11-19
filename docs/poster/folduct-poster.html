@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>Folduct 포스터</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 @font-face { font-family: Pretendard; src: url("assets/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; }
 @page { size: 594mm 841mm; margin: 0; }
@@ -109,38 +108,38 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
 .flow div p { font-size: 11.6pt; line-height: 1.5; }
 
 /* 아래 줄 */
-.bottom { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12mm; }
-.safe li, .next li { list-style: none; font-size: 12.3pt; line-height: 1.5; color: var(--ink-2); padding: 2.6mm 0 2.6mm 7mm; border-top: .3mm solid var(--line); position: relative; }
+.bottom { display: grid; grid-template-columns: 1fr 1.08fr 1fr 1.08fr; gap: 8mm; }
+.bottom li { list-style: none; font-size: 12.3pt; line-height: 1.5; color: var(--ink-2); padding: 2.6mm 0; border-top: .3mm solid var(--line); position: relative; }
+.safe li, .next li { padding-left: 7mm; }
 .safe li::before { content: ""; position: absolute; left: 0; top: 4.4mm; width: 3mm; height: 1.6mm; border-left: .6mm solid var(--ink); border-bottom: .6mm solid var(--ink); transform: rotate(-45deg); }
 .next li::before { content: "→"; position: absolute; left: 0; color: var(--ink); font-weight: 700; }
-.safe li b, .next li b { color: var(--ink); }
-.nums { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
-.nums div { background: var(--paper); border-radius: 4mm; padding: 4.5mm 5mm; box-shadow: 0 .5mm 0 var(--line); }
-.nums strong { display: block; font-size: 25pt; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
-.nums span { font-size: 10.5pt; color: var(--ink-2); }
-.stackline { margin-top: 4mm; font-size: 11.2pt; line-height: 1.55; color: var(--ink-2); }
-.stackline b { color: var(--ink); }
+.bottom li b { color: var(--ink); }
+.support-shot { margin-bottom: 2.5mm; }
+.support-shot .win > img { height: 46mm; aspect-ratio: auto; object-fit: contain; background: #eeece6; }
+.support-shot figcaption { margin-top: 2.6mm; font-size: 11.5pt; line-height: 1.5; color: var(--ink-2); }
+.support-shot .bar .tray-icon { width: 5mm; height: 5mm; justify-self: end; }
 
 .foot { margin: auto calc(var(--m) * -1) 0; padding: 9mm var(--m); background: var(--ink); color: #fff; display: grid; grid-template-columns: auto 1fr; gap: 10mm; align-items: center; }
 .foot .qr { width: 30mm; height: 30mm; background: #fff; border-radius: 3mm; padding: 2mm; }
-.foot .qr svg { width: 100%; height: 100%; display: block; }
+.foot .qr img { width: 100%; height: 100%; display: block; }
 .foot .msg { font-size: 19pt; font-weight: 700; line-height: 1.35; letter-spacing: -.02em; }
 .foot .msg small { display: block; font-size: 12pt; font-weight: 500; color: #bdb9b0; margin-top: 2mm; letter-spacing: 0; }
 .foot .who { text-align: right; font-size: 12pt; line-height: 1.7; color: #d9d6cf; }
 .foot .who b { color: #fff; font-size: 15pt; }
 
 /* 프로도 말풍선: 섹션마다 프로도가 한마디씩 해요. */
-.bubble { position: relative; display: inline-block; background: var(--paper); border: .6mm solid var(--ink); border-radius: 8mm; padding: 4.5mm 7mm; font-size: 17pt; font-weight: 750; line-height: 1.32; letter-spacing: -.02em; color: var(--ink); }
-.bubble::after { content: ""; position: absolute; left: 12mm; bottom: -3.4mm; width: 6mm; height: 6mm; background: var(--paper); border-right: .6mm solid var(--ink); border-bottom: .6mm solid var(--ink); transform: rotate(45deg); }
-.bubble.big { font-size: 30pt; padding: 7mm 10mm; border-radius: 11mm; }
+.bubble { position: relative; display: inline-block; background: var(--paper); border-radius: 8mm; padding: 5.1mm 7.6mm; font-size: 17pt; font-weight: 400; line-height: 1.32; letter-spacing: -.01em; color: var(--ink); }
+.bubble::after { content: ""; position: absolute; left: 12mm; bottom: -2.6mm; width: 6mm; height: 6mm; background: var(--paper); border-radius: 1mm; transform: rotate(45deg); }
+.bubble.big { font-size: 30pt; padding: 7.6mm 10.6mm; border-radius: 11mm; }
 .bubble.big::after { left: 50%; margin-left: -3mm; }
 .hero-frodo { display: grid; justify-items: center; gap: 8mm; }
-.hero-frodo img { width: 120mm; height: auto; }
+.hero-frodo img { width: 120mm; height: auto; aspect-ratio: 640 / 612; object-fit: contain; }
 .say { display: flex; align-items: flex-end; gap: 4mm; margin-bottom: 6mm; }
-.say img { width: 34mm; height: auto; flex: none; }
+.say img { width: 34mm; height: auto; aspect-ratio: 640 / 612; object-fit: contain; flex: none; }
 .say .bubble { margin-bottom: 18mm; }
-.say .bubble::after { left: -3.4mm; bottom: 6mm; border-right: 0; border-bottom: .6mm solid var(--ink); border-left: .6mm solid var(--ink); }
-.say.right .bubble::after { left: auto; right: -3.4mm; border-left: 0; border-right: .6mm solid var(--ink); }
+.say .bubble::after { left: -2.6mm; bottom: 6mm; }
+.say.right .bubble::after { left: auto; right: -2.6mm; }
+.say.right img { transform: scaleX(-1); }
 .say.small img { width: 26mm; }
 .say.small .bubble { font-size: 14pt; margin-bottom: 12mm; }
 .plain { margin-top: 6mm; font-size: 14pt; line-height: 1.6; color: var(--ink-2); max-width: 230mm; }
@@ -165,7 +164,7 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
   <figure class="hero">
     <div class="hero-frodo">
       <div class="bubble big">새 파일은 내가<br>제자리로 옮겨 둘게.</div>
-      <img src="assets/frodo-pose-3.png" alt="팔을 들고 반기는 프로도">
+      <img src="assets/frodo-3d-welcome.png" alt="팔을 들고 반기는 3D 프로도">
     </div>
     <div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>Folduct</span><b></b></div><img src="assets/intro.png" alt="흩어진 파일 가운데 선 프로도, 첫 화면"></div>
   </figure>
@@ -173,7 +172,7 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
 
   <section class="sec row1">
     <div>
-      <div class="say"><img src="assets/frodo-pose-9.png" alt=""><div class="bubble">다운로드 폴더,<br>또 꽉 찼지?</div></div>
+      <div class="say"><img src="assets/frodo-3d-ask.png" alt=""><div class="bubble">다운로드 폴더,<br>또 꽉 찼지?</div></div>
       <h2>받은 파일은 쌓이고,<br>정리는 늘 다음으로 밀려요.</h2>
       <p class="plain">어느 작업 파일인지 금방 잊혀요. Finder는 언제 치울지 알려 주지 않고, 자동 정리 앱은 지울까 봐 맡기기 어려워요.</p>
       <div class="answer">
@@ -204,7 +203,7 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
   <section class="sec">
     <div class="feat-head">
       <h2>먹이고, 옮기고,<br>가끔 같이 치워요.</h2>
-      <div class="say right"><div class="bubble">방 카드를 주면<br>내가 먹고 보여 줄게.</div><img src="assets/frodo-pose-16.png" alt=""></div>
+      <div class="say right"><div class="bubble">방 카드를 주면<br>내가 먹고 보여 줄게.</div><img src="assets/frodo-3d-feed.png" alt=""></div>
     </div>
     <div class="feat">
       <div><div class="shot"><div class="win"><div class="bar"><em><i></i><i></i><i></i></em><span>홈</span><b></b></div><img src="assets/home.png" alt="홈 화면"></div></div>
@@ -227,17 +226,34 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
       </ul>
     </div>
     <div>
-      <h3 class="kicker">혼자 만들었어요</h3>
-      <div class="nums">
-        <div><strong>411</strong><span>테스트</span></div>
-        <div><strong>236</strong><span>커밋</span></div>
-        <div><strong>19.5k</strong><span>TypeScript 줄</span></div>
-        <div><strong>1.6k</strong><span>Rust 줄</span></div>
-      </div>
-      <p class="stackline"><b>React · TypeScript · Tauri</b><br>프로도도 코드로 그렸어요.</p>
+      <h3 class="kicker">작업 관리와 대시보드</h3>
+      <figure class="support-shot">
+        <div class="win">
+          <div class="bar"><em><i></i><i></i><i></i></em><span>작업 시작</span><b></b></div>
+          <img src="assets/work-picker.png" alt="작업 시작을 누르면 표시되는 샘플 작업실, 영상 수업, 사진 정리 방 선택 화면">
+        </div>
+        <figcaption>작업할 방을 고르면 시간을 재요.</figcaption>
+      </figure>
+      <ul>
+        <li><b>작업 기록</b> 일력에서 작업한 날을 보고, 주간 추세와 방별 시간을 확인해요.</li>
+        <li><b>작업 보고</b> 기간별 작업 시간과 한 일을 모아 봐요.</li>
+      </ul>
+    </div>
+    <div>
+      <h3 class="kicker">메뉴 막대</h3>
+      <figure class="support-shot">
+        <div class="win">
+          <div class="bar"><em><i></i><i></i><i></i></em><span>메뉴 막대 작은 창</span><img class="tray-icon" src="assets/menu-bar-frodo.png" alt=""></div>
+          <img src="assets/tray-work.png" alt="작업 시간과 멈춤, 작업 끝내기 버튼이 표시된 메뉴 막대 작은 창">
+        </div>
+        <figcaption>다른 앱을 쓰면서도 작업을 멈추거나 끝낼 수 있어요.</figcaption>
+      </figure>
+      <ul>
+        <li><b>아이콘으로 상태 확인</b> 작업 중인 방의 색이 표시되고, 새 파일이 대기하면 점이 떠요.</li>
+      </ul>
     </div>
     <div class="next">
-      <div class="say small"><img src="assets/frodo-pose-7.png" alt=""><div class="bubble">다음엔 팀 폴더도<br>같이 볼래.</div></div>
+      <div class="say small"><img src="assets/frodo-3d-next.png" alt=""><div class="bubble">다음엔 팀 폴더도<br>같이 볼래.</div></div>
       <ul>
         <li><b>정식 출시</b> 누구나 설치해서 쓰게.</li>
         <li><b>팀 공유</b> 팀원과 폴더를 함께 보기.</li>
@@ -248,12 +264,11 @@ p { font-size: 13.5pt; line-height: 1.62; color: var(--ink-2); }
   </section>
 
   <footer class="foot">
-    <div class="qr" id="qr"></div>
+    <div class="qr"><img src="assets/download-qr.svg" alt="Folduct 다운로드 QR 코드"></div>
     <div class="msg">맥 앱을 내려받아 써 보세요.<small>folduct.vercel.app/download</small></div>
   </footer>
 </main>
 <script>
-  try { const q = qrcode(0, "M"); q.addData("https://folduct.vercel.app/download"); q.make(); document.getElementById("qr").innerHTML = q.createSvgTag({ margin: 0, scalable: true }); } catch (e) {}
   // 화면에서는 창 폭에 맞춰 줄이고, 인쇄할 때는 실제 A1 크기로 되돌려요.
   const poster = document.querySelector(".poster");
   const fit = () => { poster.style.zoom = Math.min(1, (innerWidth - 32) / poster.offsetWidth); };
