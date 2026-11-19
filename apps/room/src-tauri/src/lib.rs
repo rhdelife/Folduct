@@ -90,7 +90,12 @@ fn tray_scale<R: Runtime>(_: &AppHandle<R>) -> Option<f64> {
 
 // 메뉴 막대 아이콘의 화면 자리(x, y, 너비, 높이)를 셈 단위로. 아이콘이 없거나 자리를 모르는 곳(Linux)에서는 None이에요.
 fn tray_rect<R: Runtime>(app: &AppHandle<R>) -> Option<(f64, f64, f64, f64)> {
-  let rect = app.tray_by_id(TRAY)?.rect().ok()??;
+  tray_rect_of(app, TRAY)
+}
+
+fn tray_rect_of<R: Runtime>(app: &AppHandle<R>, id: &str) -> Option<(f64, f64, f64, f64)> {
+  let rect = app.tray_by_id(id)?.rect().ok()??;
+
   let unit = tray_scale(app)?;
   let at = rect.position.to_physical::<f64>(unit);
   let size = rect.size.to_physical::<f64>(unit);
@@ -775,6 +780,122 @@ fn copy_file<R: Runtime>(app: AppHandle<R>, from: PathBuf, to: PathBuf) -> Resul
   std::io::copy(&mut source, &mut target).map(|_| ()).map_err(|e| format!("복제하다 멈췄어요. 만든 사본을 확인해 주세요. ({e})"))
 }
 
+// 웹에서 끌어 와 프로도에 놓은 주소를 내려받아, 방 폴더 맨 위에 새 파일로 저장해요(2026-11-19 요청).
+// http·https만, 쿠키 없이, 500MB·2분까지. 같은 이름이 있으면 OS가 거절해요(덮어쓰지 않음). 받다 멈추면 반쯤 받은 새 파일만 휴지통으로 보내요.
+fn download_ok(url: &str, name: &str) -> bool {
+  let web = url.starts_with("https://") || url.starts_with("http://");
+  web && !url.chars().any(|c| c.is_whitespace() || c.is_control()) && safe_relative(name) && !name.contains('/') && !name.starts_with('.')
+}
+
+#[tauri::command]
+async fn save_download<R: Runtime>(app: AppHandle<R>, room: PathBuf, name: String, url: String) -> Result<(), String> {
+  if !download_ok(&url, &name) {
+    return Err("받을 수 없는 주소나 이름이에요.".into());
+  }
+  in_scope(&app, &room)?;
+  if !std::fs::symlink_metadata(&room).map(|meta| meta.is_dir()).unwrap_or(false) {
+    return Err("폴더가 아니에요.".into());
+  }
+  let target = room.join(&name);
+  in_scope(&app, &target)?;
+  let file = std::fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|e| e.to_string())?;
+  let fetched = tauri::async_runtime::spawn_blocking(move || {
+    Command::new("/usr/bin/curl")
+      .args(["-fsSL", "--proto", "=http,https", "--proto-redir", "=http,https", "--max-filesize", "524288000", "--max-time", "120", &url])
+      .stdin(std::process::Stdio::null())
+      .stdout(file)
+      .stderr(std::process::Stdio::null())
+      .status()
+      .map(|status| status.success())
+      .unwrap_or(false)
+  })
+  .await
+  .unwrap_or(false);
+  if fetched {
+    return Ok(());
+  }
+  #[cfg(target_os = "macos")]
+  let _ = trash_with_place(&target);
+  #[cfg(not(target_os = "macos"))]
+  let _ = trash::delete(&target);
+  Err("내려받지 못했어요.".into())
+}
+
+// 퀵 메모(2026-11-19 요청): 메뉴 막대 메모 아이콘을 누르면 그 아래에 메모 창이 열려요. 저장하면 방 폴더 맨 위에 .txt 새 파일로 들어가요.
+const MEMO_TRAY: &str = "folduct-memo";
+
+// 메모 아이콘: 종이 테두리와 글줄 셋. 템플릿 그림이라 macOS가 메뉴 막대 색에 맞춰 칠해요.
+fn memo_icon() -> Vec<u8> {
+  let mut px = vec![0u8; 36 * 36 * 4];
+  for y in 0..36 {
+    for x in 0..36 {
+      let edge = (6..=29).contains(&x) && (4..=31).contains(&y) && (x <= 8 || x >= 27 || y <= 6 || y >= 29);
+      let line = (12..=23).contains(&x) && [12, 18, 24].iter().any(|row| (*row..*row + 2).contains(&y)) && !(y >= 24 && x > 19);
+      if edge || line {
+        px[(y * 36 + x) * 4 + 3] = 255;
+      }
+    }
+  }
+  px
+}
+
+fn build_memo_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+  TrayIconBuilder::with_id(MEMO_TRAY)
+    .icon(Image::new_owned(memo_icon(), 36, 36))
+    .icon_as_template(true)
+    .tooltip("퀵 메모")
+    .show_menu_on_left_click(false)
+    .on_tray_icon_event(|tray, event| {
+      if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+        let app = tray.app_handle();
+        let shown = app.get_webview_window("memo").and_then(|memo| memo.is_visible().ok()).unwrap_or(false);
+        let _ = set_memo_visible(app.clone(), !shown);
+      }
+    })
+    .build(app)?;
+  Ok(())
+}
+
+#[tauri::command]
+fn set_memo_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
+  let memo = app.get_webview_window("memo").ok_or("메모 창이 없어요.")?;
+  if !visible {
+    return memo.hide().map_err(|e| e.to_string());
+  }
+  if let Some(icon) = tray_rect_of(&app, MEMO_TRAY) {
+    let size = memo.outer_size().map_err(|e| e.to_string())?;
+    let unit = pet_unit(&memo);
+    let gap = PET_GAP * if POINTS { 1.0 } else { memo.scale_factor().unwrap_or(1.0) };
+    put_pet(&memo, spot_by_icon(icon, (size.width as f64 / unit, size.height as f64 / unit), screen_by_icon(&memo, icon), gap));
+  }
+  memo.show().map_err(|e| e.to_string())?;
+  key_without_activate(&memo);
+  let _ = memo.emit("memo-shown", ());
+  Ok(())
+}
+
+// 메모를 방 폴더 맨 위에 .txt 새 파일로 저장해요. 1MB까지, 같은 이름이 있으면 OS가 거절해요(덮어쓰지 않음).
+const MEMO_MAX: usize = 1_000_000;
+fn memo_name_ok(name: &str) -> bool {
+  safe_relative(name) && !name.contains('/') && !name.starts_with('.') && name.ends_with(".txt") && name.len() > 4
+}
+
+#[tauri::command]
+fn save_memo<R: Runtime>(app: AppHandle<R>, room: PathBuf, name: String, text: String) -> Result<(), String> {
+  use std::io::Write;
+  if !memo_name_ok(&name) || text.len() > MEMO_MAX {
+    return Err("저장할 수 없는 이름이나 길이예요.".into());
+  }
+  in_scope(&app, &room)?;
+  if !std::fs::symlink_metadata(&room).map(|meta| meta.is_dir()).unwrap_or(false) {
+    return Err("폴더가 아니에요.".into());
+  }
+  let target = room.join(&name);
+  in_scope(&app, &target)?;
+  let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|e| e.to_string())?;
+  file.write_all(text.as_bytes()).map_err(|e| format!("저장하다 멈췄어요. 만든 메모 파일을 확인해 주세요. ({e})"))
+}
+
 #[cfg(target_os = "macos")]
 fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
   use std::ffi::{CString, c_char, c_int, c_uint};
@@ -1143,7 +1264,7 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, save_download, save_memo, set_memo_visible, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -1159,6 +1280,13 @@ pub fn run() {
         place_pet_top_right(&pet);
         #[cfg(target_os = "macos")]
         float_everywhere(&pet);
+      }
+      if let Err(error) = build_memo_tray(_app.handle()) {
+        eprintln!("메모 아이콘을 만들지 못했어요: {error}");
+      }
+      #[cfg(target_os = "macos")]
+      if let Some(memo) = _app.get_webview_window("memo") {
+        float_everywhere(&memo);
       }
       Ok(())
     })
@@ -1287,6 +1415,71 @@ mod tests {
     // 없는 파일이 끼어도 거절하지 않습니다.
     invoke(&webview, "last_used_dates", json!({ "root": room, "paths": ["없음.txt", "_Folduct 정리상자/시안.psd"] })).unwrap();
     assert!(boxed.exists());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 퀵 메모: 고른 방 폴더 맨 위 .txt 새 파일로만, 있는 파일은 그대로예요.
+  #[test]
+  fn memo_saves_only_new_txt_inside_room() {
+    let base = std::env::temp_dir().join(format!("folduct-memo-{}", std::process::id()));
+    let (room, outside) = (base.join("room"), base.join("outside"));
+    for dir in [&room, &outside] {
+      std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(room.join("있음.txt"), "있던 것").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![save_memo])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "memo", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&room, true).unwrap();
+
+    invoke(&webview, "save_memo", json!({ "room": room, "name": "2026-11-19 졸업 memo.txt", "text": "할 일" })).unwrap();
+    assert_eq!(std::fs::read_to_string(room.join("2026-11-19 졸업 memo.txt")).unwrap(), "할 일");
+    assert!(invoke(&webview, "save_memo", json!({ "room": room, "name": "있음.txt", "text": "새것" })).is_err());
+    assert_eq!(std::fs::read_to_string(room.join("있음.txt")).unwrap(), "있던 것");
+    assert!(invoke(&webview, "save_memo", json!({ "room": outside, "name": "a.txt", "text": "x" })).is_err());
+    for name in ["../a.txt", "a.sh", ".txt", "sub/a.txt"] {
+      assert!(invoke(&webview, "save_memo", json!({ "room": room, "name": name, "text": "x" })).is_err());
+    }
+    assert!(invoke(&webview, "save_memo", json!({ "room": room, "name": "큰.txt", "text": "a".repeat(MEMO_MAX + 1) })).is_err());
+    std::fs::remove_dir_all(&base).unwrap();
+  }
+
+  // 내려받기: http·https 주소와 폴더 맨 위 보통 이름만 받아요.
+  #[test]
+  fn download_takes_only_web_urls_and_plain_names() {
+    assert!(download_ok("https://example.com/a.png", "a.png"));
+    assert!(!download_ok("file:///etc/hosts", "hosts"));
+    assert!(!download_ok("https://example.com/a b.png", "a.png"));
+    assert!(!download_ok("https://example.com/a.png", "../a.png"));
+    assert!(!download_ok("https://example.com/a.png", "sub/a.png"));
+    assert!(!download_ok("https://example.com/a.png", ".zshrc"));
+  }
+
+  // 내려받기: 고른 방 폴더 밖과 이미 있는 이름은 거절해요. 있던 파일은 그대로예요.
+  #[test]
+  fn download_never_overwrites_or_leaves_room() {
+    let base = std::env::temp_dir().join(format!("folduct-get-{}", std::process::id()));
+    let (room, outside) = (base.join("room"), base.join("outside"));
+    for dir in [&room, &outside] {
+      std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(room.join("있음.png"), "있던 것").unwrap();
+    let app = tauri::test::mock_builder()
+      .plugin(tauri_plugin_fs::init())
+      .invoke_handler(tauri::generate_handler![save_download])
+      .build(tauri::generate_context!(test = true))
+      .unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "pet", Default::default()).build().unwrap();
+    app.fs_scope().allow_directory(&room, true).unwrap();
+    let url = "https://example.invalid/a.png";
+
+    assert!(invoke(&webview, "save_download", json!({ "room": outside, "name": "a.png", "url": url })).is_err());
+    assert!(!outside.join("a.png").exists());
+    assert!(invoke(&webview, "save_download", json!({ "room": room, "name": "있음.png", "url": url })).is_err());
+    assert_eq!(std::fs::read_to_string(room.join("있음.png")).unwrap(), "있던 것");
     std::fs::remove_dir_all(&base).unwrap();
   }
 

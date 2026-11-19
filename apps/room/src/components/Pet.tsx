@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from "react";
 import { cssToken } from "./tokens";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
@@ -12,9 +12,10 @@ import { doorTargets, dropItem, emptyDoorstep, type DoorItem, type Doorstep } fr
 import type { Room } from "../domain/model";
 import { arrivals, checkpointSession, defaultPet, formatWorked, pauseSession, restoreSession, resumeSession, startSession, workedTime, type PetSettings, type Session } from "../domain/session";
 import { addWork } from "../domain/worklog";
-import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo } from "../gateways/native";
+import { doorChanged, isNative, petSettingsChanged, sessionEnded, setPetVisible, workLogged, workStartAsked, sessionChanged, workEndAsked, workPauseAsked, workStartRoom, sweepOpenAsked, watchFolder, workAutoMoved, workAutoUndo, folderMover } from "../gateways/native";
 import { getDoorstep, getLastSweepAt, getPetSettings, getReviewDays, getSession, getSweepNoticeAt, listRooms, patchDoorstep, patchWorkLog, savePetSettings, saveSession, setLastSweepAt, setSweepNoticeAt } from "../storage/db";
 import { addDoorFolder, bringIntoRoom, refreshDoorstep, undoBring, type DoorMove } from "../storage/doorstep";
+import { downloadName, freeDoorName, saveDownload, trashFile } from "../gateways/mover";
 import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { Meta } from "./Meta";
@@ -50,7 +51,9 @@ export function Pet() {
   const [pet, setPet] = useState<PetSettings>(defaultPet);
   const [asking, setAsking] = useState(false);
   const [door, setDoor] = useState<Doorstep | null>(null);
-  const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room } } | null>(null);
+  const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room }; saved?: { root: string; name: string } } | null>(null);
+  // 웹에서 그림·파일 링크를 끌어 프로도 위에 올려 둔 동안. 프로도가 받는 자세를 해요.
+  const [dropping, setDropping] = useState(false);
   const [fileBusy, setFileBusy] = useState(false);
   // 아이콘 아래 작은 창이 열려 있는지. 띄워 두기를 켜면 쓰지 않아요.
   const [panelOpen, setPanelOpen] = useState(false);
@@ -535,6 +538,58 @@ export function Pet() {
     };
   }, []);
 
+  // 웹에서 끌어 온 그림·파일 링크를 프로도에 놓으면 내려받아 작업 중인 방 폴더 맨 위에 저장해요(2026-11-19 요청). 되돌리면 그 새 파일을 휴지통으로 보내요.
+  function droppedUrl(data: DataTransfer): string | null {
+    const lines = `${data.getData("text/uri-list")}\n${data.getData("text/plain")}`.split(/\r?\n/).map((line) => line.trim());
+    return lines.find((line) => /^https?:\/\//i.test(line)) ?? null;
+  }
+  async function saveDropped(url: string) {
+    if (!working || !room || !roomLinked || !room.origin) {
+      setDone({ text: "작업을 시작하면 그 방에 저장해요.", failed: true });
+      return;
+    }
+    setDone(null);
+    setFileBusy(true);
+    try {
+      const name = await freeDoorName(folderMover(room.origin), downloadName(url));
+      const result = name ? await saveDownload(room.origin, name, url) : { ok: false as const, message: "방 폴더에 둘 이름을 정하지 못했어요." };
+      setDone(result.ok ? { text: `${room.name} 방에 ${name!.normalize("NFC")}(으)로 저장했어요.`, saved: { root: room.origin, name: name! } } : { text: result.message, failed: true });
+    } catch (error) {
+      console.error(error);
+      setDone({ text: "내려받지 못했어요.", failed: true });
+    }
+    setFileBusy(false);
+    reloadRooms();
+  }
+  async function undoSaved({ root: folder, name }: { root: string; name: string }) {
+    setFileBusy(true);
+    try {
+      await trashFile(folder, name);
+      setDone({ text: "저장한 파일을 휴지통으로 보냈어요." });
+    } catch (error) {
+      console.error(error);
+      setDone({ text: "휴지통으로 보내지 못했어요.", failed: true });
+    }
+    setFileBusy(false);
+    reloadRooms();
+  }
+  const dropProps = {
+    onDragOver: (event: DragEvent) => {
+      event.preventDefault();
+      if (!dropping) setDropping(true);
+    },
+    onDragLeave: (event: DragEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+    },
+    onDrop: (event: DragEvent) => {
+      event.preventDefault();
+      setDropping(false);
+      const url = droppedUrl(event.dataTransfer);
+      if (url && !fileBusy) void saveDropped(url);
+      else if (!url) setDone({ text: "웹의 그림이나 파일 링크를 놓아 주세요.", failed: true });
+    },
+  };
+
   const choices = rooms.filter((item) => !item.care.done);
   const incoming = room ? arrivals((door ?? emptyDoorstep).items, session).filter((item) => doorTargets([room], item).length > 0) : [];
   const roomLinked = room !== null && room.source === "handle" && Boolean(room.origin);
@@ -549,7 +604,7 @@ export function Pet() {
     void bring(fresh, room, true);
   }, [working, room?.id, roomLinked, fileBusy, incoming.map((item) => item.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = session ? session.status : "off";
-  const pose: DuctPose = fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
+  const pose: DuctPose = dropping ? "offer" : fileBusy ? "move" : done?.failed ? "shock" : incoming.length > 0 ? "offer" : done ? "done" : !session ? "idle" : working ? "watch" : "rest";
   const panel = !pet.floating && motion !== "tuck";
 
   // 아이콘 창을 닫아 둔 채로 새 파일이 오거나 상태를 물을 때가 되면 아이콘에 점을 찍어요. 열면 지워요.
@@ -605,6 +660,7 @@ export function Pet() {
       {done && (
         <div className="pet-ask" data-no-drag>
           <p role="status">{done.text}</p>
+          {done.saved && <button type="button" disabled={fileBusy} onClick={() => void undoSaved(done.saved!)}>되돌리기</button>}
           {done.undo && <button type="button" disabled={fileBusy} onClick={() => void undo(done.undo!)}>{done.undo.moves.length > 1 ? `${done.undo.moves.length}개 되돌리기` : "되돌리기"}</button>}
         </div>
       )}
@@ -657,7 +713,7 @@ export function Pet() {
   // 아이콘 아래 작은 창: 지금 상태, 시작·멈춤·끝, 묻는 것, 아래에 앱 열기·끄기. 프로도를 끌어내면 띄워 둬요. Esc나 다른 곳을 누르면 닫혀요.
   if (panel) {
     return (
-      <main ref={root} className={`pet pet-panel pet-${state}`}>
+      <main ref={root} className={`pet pet-panel pet-${state}`} {...dropProps}>
         <div className="pet-card">
           <header className="pet-panel-head">
             <span className="pet-panel-art" aria-hidden="true" title="끌어서 화면에 띄워 두기" onPointerDown={onPanelPointerDown} onPointerMove={onPanelPointerMove} onPointerUp={() => (press.current = null)}>{art(panelPx)}</span>
@@ -701,7 +757,7 @@ export function Pet() {
   }
 
   return (
-    <main ref={root} className={`pet pet-${state}${motion ? ` pet-${motion}` : ""}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
+    <main ref={root} className={`pet pet-${state}${motion ? ` pet-${motion}` : ""}`} {...dropProps} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => {
       if (press.current) cue("pet", { body: "hop" });
       press.current = null;
     }}>

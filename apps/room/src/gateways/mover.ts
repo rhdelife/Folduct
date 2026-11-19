@@ -6,6 +6,8 @@ import { isExcludedName } from "./folder";
 
 // 실제 폴더에 하는 변경은 이 파일에만 있어요. 상자 안팎 이동(moveFile), 현관 문서를 방으로 옮기는 이동(moveDoorFile), 같은 폴더 안 이름 바꾸기(renameFile),
 // 사용자가 확인한 파일 하나를 OS 휴지통으로 보내기(trashFile, 데스크톱만), 그리고 고른 파일을 다른 방 폴더로 옮기기·복제(moveBetween·copyBetween, 2026-11-18 요청).
+// 웹에서 끌어 와 프로도에 놓은 주소를 방 폴더 맨 위에 새 파일로 내려받기(saveDownload, 2026-11-19 요청).
+// 퀵 메모를 방 폴더 맨 위에 .txt 새 파일로 저장하기(saveMemo, 2026-11-19 요청).
 // 영구 삭제나 내용 고쳐 쓰기는 하지 않습니다. 옮기기·복제 모두 대상에 같은 이름이 있으면 덮어쓰지 않아요.
 export type MoveDirectory = {
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MoveDirectory>;
@@ -110,6 +112,54 @@ export async function copyBetween(fromRoot: string, fromPath: string, toRoot: st
     if (isNotFound(error)) return { ok: false, reason: "missing", message: "원래 파일을 찾지 못했어요." };
     if (osErrorKind(String(error)) === null && /exists|os error 17/i.test(String(error))) return { ok: false, reason: "occupied", message: "복제할 자리에 같은 이름의 파일이 있어요." };
     return { ok: false, reason: "failed", message: moveMessage(error).replace("옮기지 못했어요", "복제하지 못했어요") };
+  }
+}
+
+// 웹 주소에서 저장할 이름을 정해요. 주소 끝 이름을 쓰고, 못 쓰는 글자는 빼요. 못 정하면 '내려받은 파일'이에요.
+// shortcut: 확장자 없는 주소는 확장자 없이 저장돼요. 자주 그러면 받은 형식(Content-Type)으로 확장자를 붙여요.
+export function downloadName(url: string): string {
+  let last = "";
+  try {
+    last = decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "");
+  } catch {
+    last = "";
+  }
+  const name = last.replace(/[/\\:\u0000-\u001f\u007f]/g, "").trim().replace(/^\.+/, "").slice(0, 120).normalize("NFC");
+  return name && isSafeRelativePath(name) && !isExcludedName(name) ? name : "내려받은 파일";
+}
+
+// 웹 주소를 방 폴더(root) 맨 위 name으로 내려받아요(데스크톱만). 같은 이름이 있으면 덮어쓰지 않고 실패해요. 되돌리기는 trashFile로 휴지통에 보내요.
+// Tauri 쪽(save_download)이 범위·주소·이름을 한 번 더 막고, 받다 멈추면 반쯤 받은 새 파일만 휴지통으로 보내요.
+export async function saveDownload(root: string, name: string, url: string): Promise<MoveResult> {
+  if (!/^https?:\/\//i.test(url) || !isSafeRelativePath(name) || name.includes("/") || name.startsWith(".") || isExcludedName(name)) {
+    return { ok: false, reason: "invalid", message: "받을 수 없는 주소예요." };
+  }
+  try {
+    await invoke("save_download", { room: root, name, url });
+    return { ok: true };
+  } catch (error) {
+    if (/exists|os error 17/i.test(String(error))) return { ok: false, reason: "occupied", message: "같은 이름의 파일이 있어요." };
+    return { ok: false, reason: "failed", message: "내려받지 못했어요. 주소를 확인해 주세요." };
+  }
+}
+
+// 퀵 메모 파일 이름. 못 쓰는 글자는 빼고 .txt를 붙여요. 비면 'memo.txt'예요. 기본 이름은 '날짜 방이름 memo'예요.
+export function memoName(base: string): string {
+  const name = base.replace(/[/\\:\u0000-\u001f\u007f]/g, " ").replace(/\.txt$/i, "").replace(/\s+/g, " ").trim().replace(/^\.+/, "").slice(0, 120).normalize("NFC");
+  return `${name || "memo"}.txt`;
+}
+
+// 메모를 방 폴더(root) 맨 위 name으로 새로 저장해요(데스크톱만). 같은 이름이 있으면 덮어쓰지 않고 실패해요. 되돌리기는 trashFile로 휴지통에 보내요.
+export async function saveMemo(root: string, name: string, text: string): Promise<MoveResult> {
+  if (!name.endsWith(".txt") || !isSafeRelativePath(name) || name.includes("/") || name.startsWith(".") || isExcludedName(name)) {
+    return { ok: false, reason: "invalid", message: "저장할 수 없는 이름이에요." };
+  }
+  try {
+    await invoke("save_memo", { room: root, name, text });
+    return { ok: true };
+  } catch (error) {
+    if (/exists|os error 17/i.test(String(error))) return { ok: false, reason: "occupied", message: "같은 이름의 파일이 있어요." };
+    return { ok: false, reason: "failed", message: "저장하지 못했어요. 폴더 권한을 확인해 주세요." };
   }
 }
 

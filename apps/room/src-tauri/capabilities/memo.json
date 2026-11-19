@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "memo",
+  "description": "Quick memo: writes one new .txt only through the save_memo app command, inside room folders the user picked. No fs write/remove permissions.",
+  "windows": ["memo"],
+  "permissions": [
+    "core:default"
+  ]
+}
