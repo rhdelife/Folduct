@@ -269,6 +269,7 @@ export function SkyMap({
           stats={stats}
           selectedId={selectedId}
           bodyId={selectedId ?? (body ? leaving : null)}
+          restHeight={body ? frodo?.height : undefined}
           focusId={focusId}
           workingId={workingId}
           onFeed={feed}
@@ -335,6 +336,7 @@ const MapLayers = memo(function MapLayers({
   stats,
   selectedId,
   bodyId,
+  restHeight,
   focusId,
   workingId,
   onFeed,
@@ -362,6 +364,8 @@ const MapLayers = memo(function MapLayers({
   selectedId: string | null;
   // 몸을 그릴 방. 비우는 동안(가라앉는 중)에는 먹었던 방이에요.
   bodyId: string | null;
+  // 비우는 동안 뒤에 미리 세워 두는 기본 몸의 높이(px). 받침과 팔은 제자리에 있고 늘어난 몸만 그 위로 가라앉아요.
+  restHeight?: number;
   focusId: string | null;
   workingId: string | null;
   onFeed: (id: string | null) => void;
@@ -501,6 +505,11 @@ const MapLayers = memo(function MapLayers({
       <div className="sky-rooms">
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)} onClick={pickBand}>
+            {restHeight !== undefined && (
+              <span className="frodo-rest" style={{ height: restHeight }}>
+                <StackArt lengths={[]} px={Math.round(frodo.width / 8) * 8} className="vase-art" actor="home-rest" />
+              </span>
+            )}
             <span className="frodo-clip">
             <span className="frodo-lift">
               <span className="vase-float">
