@@ -75,6 +75,9 @@ export function KindIconMaker({ mode, onMode: setMode, active }: { mode: "make" 
 
   function down(event: PointerEvent<SVGSVGElement>) {
     if (draft.strokes.length >= strokeLimit) return setError(`선은 ${strokeLimit}개까지 그릴 수 있어요.`);
+    // 끌기가 글자 선택으로 시작되지 않게 막아요(앱에서 판이 선택 강조색으로 덮였어요).
+    event.preventDefault();
+    window.getSelection()?.removeAllRanges();
     event.currentTarget.setPointerCapture(event.pointerId);
     const [x, y] = point(event);
     setLive({ tool, pts: tool === "pen" ? [x, y] : [x, y, x, y], fill: fill && (tool === "ring" || tool === "box"), ...(tone ? { tone } : {}) });

@@ -1702,6 +1702,8 @@ dialog.sheet.settings { max-width: min(var(--menu-w), calc(100vw - var(--space-8
 .icon-tone:has(input:checked) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .icon-tone:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 4px; }
 .icon-tone-base { width: auto; padding: 0 var(--space-3); background: var(--surface); font-size: var(--text-xs); font-weight: 600; color: var(--ink); }
+/* 앱(WebKit)에서는 판 위를 끌면 그 영역이 글자처럼 선택돼 판 전체가 선택 강조색으로 덮이고 선이 바래 보였어요(2026-11-19). 판에서는 선택이 일어나지 않게 해요. */
+.icon-canvas, .icon-canvas * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .icon-pad { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 /* 넓은 창은 판을 왼쪽에 크게, 이름·형식·도구는 오른쪽에 둬요. 판과 도구가 한 화면에 같이 보여요. */
 @media (min-width: 1000px) {
