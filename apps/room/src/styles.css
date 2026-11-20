@@ -512,7 +512,8 @@ textarea { width: 100%; resize: vertical; padding: var(--space-2) var(--space-3)
 .frodo-home { position: absolute; display: block; pointer-events: none; will-change: translate; }
 .frodo-lift, .vase-float, .vase-art { position: absolute; inset: 0; display: block; }
 /* 비우는 동안 받침 자리에 미리 세워 둔 기본 몸. 가라앉는 늘어난 몸 아래에 깔려요. */
-.frodo-rest { position: absolute; left: 0; right: 0; bottom: 0; display: block; }
+.frodo-rest { position: absolute; left: 0; right: 0; bottom: 0; display: block; overflow: hidden; }
+.frodo-rest-in { position: absolute; left: 0; right: 0; bottom: 0; display: block; }
 /* 받침 선 아래만 가리는 칸. 솟는 몸의 아직 안 나온 부분을 숨겨요. clip-path 대신 overflow라 앱(WebKit)에서도 레이어만 움직여요. */
 .frodo-clip { position: absolute; inset: -100vh -100vw 0 -100vw; display: block; overflow: hidden; pointer-events: none; }
 .frodo-clip > .frodo-lift { inset: 100vh 100vw 0 100vw; }

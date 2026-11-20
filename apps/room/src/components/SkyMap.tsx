@@ -22,6 +22,8 @@ import { FedPapers, type Tip } from "./home/FedPapers";
 
 // 비울 때 몸이 받침 속으로 가라앉는 시간. 솟는 시간(heroMotion growMs)과 비슷하게요.
 const shrinkMs = 520;
+// 비우는 동안 뒤에 세워 두는 기본 몸에서 보일 아래쪽 몫(팔과 받침).
+const restShown = 0.55;
 
 const paperAspect = (thing: Thing) => {
   const art = pickArt(thing.kind, thing.id);
@@ -536,8 +538,11 @@ const MapLayers = memo(function MapLayers({
         {frodo && (
           <div className="frodo-home" aria-hidden="true" style={{ left: frodo.left, top: frodo.top, width: frodo.width, height: frodo.height }} onPointerMove={showBand} onPointerDown={showBand} onPointerLeave={() => setBandTip(null)} onClick={pickBand}>
             {restHeight !== undefined && (
-              <span className="frodo-rest" style={{ height: restHeight }}>
-                <StackArt lengths={[]} px={Math.round(frodo.width / 8) * 8} className="vase-art" actor="home-rest" />
+              // 아래쪽(팔과 받침)만 보여요. 머리까지 보이면 가라앉는 몸 양옆으로 비쳐 머리가 둘처럼 보였어요.
+              <span className="frodo-rest" style={{ height: restHeight * restShown }}>
+                <span className="frodo-rest-in" style={{ height: restHeight }}>
+                  <StackArt lengths={[]} px={Math.round(frodo.width / 8) * 8} className="vase-art" actor="home-rest" />
+                </span>
               </span>
             )}
             <span className="frodo-clip">
