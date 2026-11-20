@@ -862,8 +862,10 @@ dialog.sheet.viewer:not(:has(.viewer-stage)), dialog.sheet.viewer:has(audio) { m
 .room-bubble { display: grid; gap: var(--space-1); text-align: left; }
 .over-frodo .frodo-bubble { padding-right: var(--space-8); }
 /* 미리보기 창이 열린 동안: 머리 오른쪽 옆에 띄우고 꼬리를 왼쪽 위에 둬요. */
-.over-frodo.beside { translate: 0 0; width: max-content; }
-.over-frodo.beside .frodo-bubble::after { left: 0; top: var(--space-6); }
+/* 미리보기 창이 열렸을 때: 오른쪽 칸 맨 위 방 요약 카드. 꼬리 없이 칸 폭을 다 써요(2026-11-20 요청). */
+.over-frodo.summary { translate: 0 0; max-width: none; }
+.over-frodo.summary .frodo-bubble { width: 100%; box-sizing: border-box; }
+.over-frodo.summary .frodo-bubble::after { display: none; }
 .home button.frodo-face-hit, .home button.frodo-face-hit:is(:hover, :active):not(:disabled) { background: none; }
 .over-frodo button.bubble-close { position: absolute; top: var(--space-1); right: var(--space-1); min-width: var(--control-md); min-height: var(--control-md); }
 .frodo-face-hit { position: absolute; z-index: 2; translate: -50% 0; padding: 0; border: 0; border-radius: var(--radius-pill); cursor: pointer; transition: top var(--dur-drawer) var(--ease-drawer), left var(--dur-drawer) var(--ease-drawer); }

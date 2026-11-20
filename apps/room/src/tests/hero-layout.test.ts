@@ -33,7 +33,7 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
   });
 
   it("방은 위 카드 줄에 차례로 놓이고, 프로도는 그 아래 받침 위에 선다", () => {
-    for (const view of views) {
+    for (const view of views.filter((v) => !v.pane)) {
       for (const doorOpen of [false, true]) {
         const rooms = many(homeLimit, 3);
         const { shelf, rooms: shelfRooms, frodo } = heroLayout(rooms, start, view, aspect, doorOpen);
@@ -181,12 +181,23 @@ describe("첫 화면: 위 방 카드 줄과 먹이면 늘어나는 프로도", (
     expect(heroLayout([], start, baseView, aspect)).toEqual({ shelf: null, rooms: [], frodo: null, cards: [], find: null });
   });
 
-  it("미리보기 창이 열려 판이 좁아지면 넓어도 파일 칸이 프로도 아래로 내려가요", () => {
+  it("미리보기 창이 열리면 방 카드 줄을 숨기고, 왼쪽 칸에 프로도·오른쪽 칸에 요약과 파일을 둔다", () => {
     const rooms = many(2, 30);
-    const wide = heroLayout(rooms, start, { w: 1264, h: 1000, stack: true }, aspect, false, rooms[0].id);
-    const pane = heroLayout(rooms, start, { w: 1264, h: 1000, stack: true, pane: true }, aspect, false, rooms[0].id);
-    expect(wide.find!.top).toBeLessThan(wide.frodo!.floor);
-    expect(pane.find!.top).toBeGreaterThan(pane.frodo!.floor);
+    const column = { left: 24, right: 312, top: 600 };
+    const pane = heroLayout(rooms, start, { w: 1264, h: 1000, stack: true, pane: true, column, summaryH: 120 }, aspect, false, rooms[0].id);
+    const frodo = pane.frodo!;
+    expect(pane.shelf).toBeNull();
+    expect(frodo.left).toBeGreaterThanOrEqual(column.left);
+    expect(frodo.left + frodo.width).toBeLessThanOrEqual(column.right + 0.5);
+    expect(frodo.floor).toBeLessThan(column.top);
+    expect(pane.summary!.left).toBeGreaterThan(column.right);
+    expect(pane.find!.left).toBe(pane.summary!.left);
+    expect(pane.find!.top).toBeGreaterThan(pane.summary!.top + 120);
+    const view = { w: 1264, h: 1000 };
+    for (const card of pane.cards) {
+      const box = boxOf(card, view);
+      expect(box.x - box.hw).toBeGreaterThanOrEqual(column.right);
+    }
   });
   it("큰 파일일수록 큰 종이이고, 넓은 창에서는 이름이 찍히는 크기다", () => {
     const { cards } = heroLayout([room("a", Array.from({ length: 6 }, (_, f) => thing(`f${f}`, { size: 1024 * 8 ** f })))], start, baseView, aspect, false, "a");

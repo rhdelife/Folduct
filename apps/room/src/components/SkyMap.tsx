@@ -155,9 +155,40 @@ export function SkyMap({
   const chipRow = groups.length > 0 ? parseFloat(cssToken("--control-sm")) + parseFloat(cssToken("--space-2")) : 0;
   // 미리보기 창이 판을 실제로 좁히는 넓은 창(styles.css .sky-canvas.pane-open, 1200 이상)에서만 좁은 배치를 써요. 더 좁은 창은 창이 판 위에 떠요. 창 크기가 바뀌면 view가 바뀌어 다시 읽어요.
   const narrowed = paneOpen && view.w > 0 && window.matchMedia("(min-width: 1200px)").matches;
+  // 두 칸 배치(2026-11-20 요청)는 왼쪽 아래 카드 묶음 자리와 오른쪽 칸 맨 위 요약 카드 높이를 읽어 맞춰요.
+  const [column, setColumn] = useState<{ left: number; right: number; top: number } | undefined>(undefined);
+  const [summaryH, setSummaryH] = useState(0);
+  const summaryBox = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const stack = document.querySelector(".home-stack");
+    const root = canvas.current;
+    if (!narrowed || !stack || !root) return;
+    const read = () => {
+      const frame = root.getBoundingClientRect();
+      const box = stack.getBoundingClientRect();
+      const next = { left: Math.round(box.left - frame.left), right: Math.round(box.right - frame.left), top: Math.round(box.top - frame.top) };
+      setColumn((before) => (before && before.left === next.left && before.right === next.right && before.top === next.top ? before : next));
+    };
+    const observer = new ResizeObserver(read);
+    observer.observe(stack);
+    observer.observe(root);
+    read();
+    return () => observer.disconnect();
+  }, [narrowed]);
+  const besideSummary = narrowed && Boolean(selectedId) && Boolean(overFrodo) && !bubbleShut;
+  useLayoutEffect(() => {
+    const box = summaryBox.current;
+    if (!besideSummary || !box) {
+      setSummaryH(0);
+      return;
+    }
+    const observer = new ResizeObserver(() => setSummaryH(Math.ceil(box.getBoundingClientRect().height)));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [besideSummary]);
   // 종이 위에 마우스를 올려도 배치는 다시 계산하지 않습니다.
-  const layoutView = useMemo(() => (narrowed ? { ...view, pane: true } : view), [view, narrowed]);
-  const { shelf, rooms: shelfRooms, frodo, cards, find } = useMemo(() => heroLayout(shown, now, layoutView, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, layoutView, doorOpen, filter, chipRow]);
+  const layoutView = useMemo(() => (narrowed ? { ...view, pane: true, column, summaryH } : view), [view, narrowed, column, summaryH]);
+  const { shelf, rooms: shelfRooms, frodo, cards, find, summary } = useMemo(() => heroLayout(shown, now, layoutView, paperAspect, doorOpen, selectedId, filter, chipRow), [shown, selectedId, now, layoutView, doorOpen, filter, chipRow]);
   // 비울 때 늘어난 몸이 받침 속으로 가라앉은 뒤 기본 모습이 돼요(2026-11-19 요청). 가라앉는 동안은 먹었던 방의 몸과 자리를 그대로 그려요.
   // 그리는 중에 바로 정해요. 효과에서 정하면 기본 몸이 한 번 그려졌다가 먹었던 몸으로 되돌아가며 그림을 두 번 갈아 끼워 깜빡였어요.
   const [leaving, setLeaving] = useState<string | null>(null);
@@ -284,12 +315,11 @@ export function SkyMap({
           onCloseTip={closeTip}
         />
         {frodo && overFrodo && !bubbleShut && (
-          // 미리보기 창이 열리면 말풍선을 머리 위(방 카드 줄과 겹침)가 아니라 머리 오른쪽 옆에 띄워요. 파일 칸은 그때 프로도 아래예요.
+          // 미리보기 창이 열리면 말풍선을 오른쪽 칸 맨 위 방 요약 카드로 놓아요. 그 아래로 찾기 줄과 파일이 이어져요(2026-11-20 요청).
           <div
-            className={`over-frodo${narrowed && selectedId ? " beside" : ""}`}
-            style={narrowed && selectedId
-              ? { left: frodo.left + frodo.width * 0.72, top: frodo.top, maxWidth: Math.max(160, view.w - (frodo.left + frodo.width * 0.72) - 16) }
-              : { left: frodo.left + frodo.width / 2, top: frodo.top }}
+            ref={summaryBox}
+            className={`over-frodo${besideSummary && summary ? " summary" : ""}`}
+            style={besideSummary && summary ? { left: summary.left, top: summary.top, width: summary.width } : { left: frodo.left + frodo.width / 2, top: frodo.top }}
           >
             {overFrodo}
             <button type="button" className="quiet icon-close bubble-close" aria-label="말풍선 닫기" onClick={() => setBubbleShut(true)}><Icon name="close" /></button>

@@ -29,6 +29,9 @@ const shrink = 0.88;
 const narrowShare = 0.56;
 // 이 폭부터 파일 칸을 프로도 오른쪽에 둬요. 1280 창에서 미리보기 창이 열려 판이 좁아져도(약 880) 파일 칸이 프로도 아래로 뛰어내리지 않게 낮춰 뒀어요.
 const sideBySide = 860;
+// 두 칸 배치에서 카드 묶음 자리를 못 읽었을 때 쓰는 왼쪽 칸. styles.css .home-stack(left --space-6, width --stack-w)과 맞춰요.
+const stackLeft = 24;
+const stackWidth = 288;
 // 넓은 창의 파일 칸 폭. 가장 좁아도 종이 몇 장이 한 줄에 들어가요.
 const filesMax = 560;
 const filesMin = 240;
@@ -48,8 +51,8 @@ export type HeroFrodo = { left: number; top: number; width: number; height: numb
 export type FindSpot = { room: Room; left: number; top: number; width: number; filesTop: number; bottom: number; visible: number };
 // 먹은 방에서 고를 것: 찾는 말(이름·폴더)과 형식 묶음(색 띠 하나의 형식들).
 export type FedFilter = { query: string; kinds: readonly Kind[] | null };
-// shelf: 위 방 카드 줄(px). rooms: 그 줄에 놓는 방, 순서대로예요.
-export type HeroLayout = { shelf: { top: number; height: number } | null; rooms: Room[]; frodo: HeroFrodo | null; cards: Card[]; find: FindSpot | null };
+// shelf: 위 방 카드 줄(px). rooms: 그 줄에 놓는 방, 순서대로예요. summary: 두 칸 배치에서 오른쪽 칸 맨 위 방 요약 카드 자리예요.
+export type HeroLayout = { shelf: { top: number; height: number } | null; rooms: Room[]; frodo: HeroFrodo | null; cards: Card[]; find: FindSpot | null; summary?: { left: number; top: number; width: number } | null };
 
 // 파일이 클수록 큰 종이. 로그 눈금이라 1KB 56, 1MB 76, 1GB 96(1280 기준)입니다. 가장 작아도 이름이 찍혀요(ObjectShape).
 export const paperWidth = (bytes: number, unit: number) => (56 + 40 * sizeRatio(bytes)) * unit;
@@ -83,8 +86,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const paperUnit = Math.max(unit, smallUnit);
   const gap = Math.max(6, 10 * unit);
   const room = active.find((item) => item.id === selectedId);
-  // 미리보기 창이 열리면 파일 칸을 프로도 아래로 내려, 남은 폭을 다 쓰고 프로도 옆을 말풍선 자리로 비워요(2026-11-19 요청).
-  const below = view.w < sideBySide || Boolean(view.pane);
+  if (view.pane) return paneLayout(active, room, now, view, aspect, filter, paperUnit, gap);
+  const below = view.w < sideBySide;
   const bottom = view.h - edge - bottomSpace(view);
   // 현관 줄은 왼쪽 아래 탭이 없는 좁은 창에서만 머리 아래에 펼쳐져요. 넓은 창에서는 '진행 중' 탭 안에 있어요.
   // lead: 방 카드 줄 위에 비워 둘 높이(분류 칩 줄).
@@ -118,9 +121,8 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   const px = (x: number, y: number): Point => ({ x: left + (x - bx) * scale, y: frodoTop + (y - by) * scale });
   const frodo: HeroFrodo = { left, top: frodoTop, width, height, scale, mouth: px(...stackGeometry(fedLengths(room)).mouth), floor };
 
-  const cards: Card[] = [];
   const base = { shelf, rooms: active, frodo };
-  if (!room) return { ...base, cards, find: null };
+  if (!room) return { ...base, cards: [], find: null };
 
   // 먹은 방 파일 칸. 넓은 창은 프로도 오른쪽, 좁은 창은 프로도 아래예요. 좁은 창은 아래 홈 | Drawer 알약 자리까지 내려가지 않아요.
   const span = below
@@ -128,6 +130,44 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     : { left: left + width + 2 * edge, right: left + width + 2 * edge + filesWidth, top: Math.max(top, frodo.mouth.y), bottom };
   // 아주 낮은 창에서도 찾기 줄과 스크롤 칸을 열 수 있게 위로 당겨요.
   span.top = Math.min(span.top, bottom - findHeight - gap - minFilesHeight);
+  const { cards: placed, find } = placeFiles(room, frodo, span, now, view, aspect, filter, paperUnit, gap);
+  return { ...base, cards: placed, find };
+}
+
+type Span = { left: number; right: number; top: number; bottom: number };
+
+// 미리보기 창이 열려 판이 좁아졌을 때(2026-11-20 요청): 방 카드 줄을 숨기고 판을 두 칸으로 나눠요.
+// 왼쪽 칸은 아래 작업·기록 카드와 같은 폭이고 프로도가 그 카드 위 빈자리 가운데에 서요. 오른쪽 칸은 맨 위 방 요약 카드, 그 아래 찾기 줄과 파일이에요.
+function paneLayout(active: Room[], room: Room | undefined, now: number, view: View, aspect: (thing: Thing) => number, filter: FedFilter, paperUnit: number, gap: number): HeroLayout {
+  const [calendar] = calendarSpot(view);
+  const column = view.column ?? { left: stackLeft, right: stackLeft + stackWidth, top: calendar ? calendar.y - calendar.hh : view.h - edge };
+  const top = headerBottom(view) + edge;
+  const bottom = view.h - edge - bottomSpace(view);
+  const area = Math.max(1, column.top - gap - top);
+  const full = stackGeometry([1]).box;
+  const [bx, by, bw, bh] = stackGeometry(fedLengths(room)).box;
+  const scale = shrink * Math.min(maxScale, area / full[3], (column.right - column.left) / full[2]);
+  const width = bw * scale;
+  const height = bh * scale;
+  const left = column.left + (column.right - column.left - width) / 2;
+  // 위쪽 선을 오른쪽 칸 요약 카드와 맞춰요. 먹은 만큼 몸이 아래로 늘어요.
+  const frodoTop = top;
+  const floor = top + height;
+  const px = (x: number, y: number): Point => ({ x: left + (x - bx) * scale, y: frodoTop + (y - by) * scale });
+  const frodo: HeroFrodo = { left, top: frodoTop, width, height, scale, mouth: px(...stackGeometry(fedLengths(room)).mouth), floor };
+  const base = { shelf: null, rooms: active, frodo };
+  if (!room) return { ...base, cards: [], find: null, summary: null };
+  const sideLeft = column.right + 2 * edge;
+  const summary = { left: sideLeft, top, width: view.w - edge - sideLeft };
+  const summaryH = view.summaryH ?? 0;
+  const span: Span = { left: sideLeft, right: view.w - edge, top: Math.min(top + (summaryH > 0 ? summaryH + gap : 0), bottom - findHeight - gap - minFilesHeight), bottom };
+  return { ...base, ...placeFiles(room, frodo, span, now, view, aspect, filter, paperUnit, gap, true), summary };
+}
+
+// 먹은 방 파일을 칸(span) 맨 위 찾기 줄 아래에 왼쪽부터 채워요.
+// alignStart: 두 칸 배치는 줄을 칸 왼쪽 선에 맞춰요. 첫 화면은 칸 가운데예요.
+function placeFiles(room: Room, frodo: HeroFrodo, span: Span, now: number, view: View, aspect: (thing: Thing) => number, filter: FedFilter, paperUnit: number, gap: number, alignStart = false): { cards: Card[]; find: FindSpot } {
+  const cards: Card[] = [];
   const byId = new Map(roomStars(room, frodo.mouth, 0, now, room.things.length).map((star) => [star.thing.id, star]));
   const stars = fedThings(room, filter).flatMap((thing) => byId.get(thing.id) ?? []);
   const filesTop = span.top + findHeight + gap / 2;
@@ -161,7 +201,7 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
   while (shown < sized.length) {
     const row = build(shown);
     if (row.items.length === 0) break;
-    let cursor = (span.left + span.right) / 2 - row.width / 2;
+    let cursor = alignStart ? span.left : (span.left + span.right) / 2 - row.width / 2;
     for (const { star, size, height } of row.items) {
       const id = star.thing.id;
       const center = { x: cursor + size / 2, y: y + row.height - height / 2 };
@@ -172,5 +212,5 @@ export function heroLayout(rooms: Room[], now: number, view: View, aspect: (thin
     if (y + row.height <= span.bottom) find.visible = shown;
     y += row.height + gap;
   }
-  return { ...base, cards, find };
+  return { cards, find };
 }
