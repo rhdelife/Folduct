@@ -24,6 +24,8 @@ import { FedPapers, type Tip } from "./home/FedPapers";
 const shrinkMs = 520;
 // 비우는 동안 뒤에 세워 두는 기본 몸에서 보일 아래쪽 몫(팔과 받침).
 const restShown = 0.55;
+// 기본 몸 그림에서 받침이 차지하는 아래쪽 몫. 받침은 속이 흰 그림이라 앞에 두면 가라앉는 몸을 덮어요.
+const baseShown = 0.19;
 
 const paperAspect = (thing: Thing) => {
   const art = pickArt(thing.kind, thing.id);
@@ -213,6 +215,7 @@ export function SkyMap({
       root.querySelector(".frodo-lift")?.animate([{ translate: "0px 0px" }, { translate: `0px ${Math.max(0, from.height - frodo.height)}px` }], options),
       root.querySelector(".frodo-home")?.animate([{ translate: "0px 0px" }, { translate: `0px ${frodo.floor - from.floor}px` }], options),
       root.querySelector(".frodo-home .frodo-fill")?.animate([{ opacity: 1 }, { opacity: 0 }], options),
+      root.querySelector(".frodo-rest-base")?.animate([{ opacity: 0 }, { opacity: 1 }], options),
     ].filter((anim): anim is Animation => Boolean(anim));
     // 타이머 대신 움직임이 정말 끝난 뒤, 기본 몸 그림을 미리 풀어 둔 다음 바꿔요. 앱(WebKit)은 새 그림을 처음 그릴 때 한 프레임 비울 수 있어요.
     let left = false;
@@ -552,6 +555,14 @@ const MapLayers = memo(function MapLayers({
               </span>
             </span>
             </span>
+            {restHeight !== undefined && (
+              // 받침만 가라앉는 몸 앞에 한 번 더 그려요. 뒤에만 두면 가라앉는 몸이 받침을 가려 잠깐 받침이 사라졌어요.
+              <span className="frodo-rest frodo-rest-base" style={{ height: restHeight * baseShown }}>
+                <span className="frodo-rest-in" style={{ height: restHeight }}>
+                  <StackArt lengths={[]} px={Math.round(frodo.width / 8) * 8} className="vase-art" actor="home-rest" />
+                </span>
+              </span>
+            )}
           </div>
         )}
         {bandTip && bandTip.room === picked?.id && <p className="band-tip" aria-hidden="true" style={{ left: bandTip.x, top: bandTip.y }}>{bandTip.text}</p>}
