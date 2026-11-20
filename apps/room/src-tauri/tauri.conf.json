@@ -41,26 +41,6 @@
         "skipTaskbar": true,
         "focus": false,
         "acceptFirstMouse": true
-      },
-      {
-        "label": "memo",
-        "title": "Folduct 퀵 메모",
-        "dragDropEnabled": false,
-        "visible": false,
-        "url": "index.html#/memo",
-        "width": 320,
-        "height": 360,
-        "resizable": false,
-        "maximizable": false,
-        "minimizable": false,
-        "decorations": false,
-        "transparent": true,
-        "shadow": false,
-        "alwaysOnTop": true,
-        "visibleOnAllWorkspaces": true,
-        "skipTaskbar": true,
-        "focus": false,
-        "acceptFirstMouse": true
       }
     ],
     "security": {

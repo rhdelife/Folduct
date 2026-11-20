@@ -90,11 +90,7 @@ fn tray_scale<R: Runtime>(_: &AppHandle<R>) -> Option<f64> {
 
 // 메뉴 막대 아이콘의 화면 자리(x, y, 너비, 높이)를 셈 단위로. 아이콘이 없거나 자리를 모르는 곳(Linux)에서는 None이에요.
 fn tray_rect<R: Runtime>(app: &AppHandle<R>) -> Option<(f64, f64, f64, f64)> {
-  tray_rect_of(app, TRAY)
-}
-
-fn tray_rect_of<R: Runtime>(app: &AppHandle<R>, id: &str) -> Option<(f64, f64, f64, f64)> {
-  let rect = app.tray_by_id(id)?.rect().ok()??;
+  let rect = app.tray_by_id(TRAY)?.rect().ok()??;
   let unit = tray_scale(app)?;
   let at = rect.position.to_physical::<f64>(unit);
   let size = rect.size.to_physical::<f64>(unit);
@@ -867,60 +863,7 @@ async fn save_download<R: Runtime>(app: AppHandle<R>, room: PathBuf, name: Strin
   Err("내려받지 못했어요.".into())
 }
 
-// 퀵 메모(2026-11-19 요청): 메뉴 막대 메모 아이콘을 누르면 그 아래에 메모 창이 열려요. 저장하면 방 폴더 맨 위에 .txt 새 파일로 들어가요.
-const MEMO_TRAY: &str = "folduct-memo";
-
-// 메모 아이콘: 종이 테두리와 글줄 셋. 템플릿 그림이라 macOS가 메뉴 막대 색에 맞춰 칠해요.
-fn memo_icon() -> Vec<u8> {
-  let mut px = vec![0u8; 36 * 36 * 4];
-  for y in 0..36 {
-    for x in 0..36 {
-      let edge = (6..=29).contains(&x) && (4..=31).contains(&y) && (x <= 8 || x >= 27 || y <= 6 || y >= 29);
-      let line = (12..=23).contains(&x) && [12, 18, 24].iter().any(|row| (*row..*row + 2).contains(&y)) && !(y >= 24 && x > 19);
-      if edge || line {
-        px[(y * 36 + x) * 4 + 3] = 255;
-      }
-    }
-  }
-  px
-}
-
-fn build_memo_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-  TrayIconBuilder::with_id(MEMO_TRAY)
-    .icon(Image::new_owned(memo_icon(), 36, 36))
-    .icon_as_template(true)
-    .tooltip("퀵 메모")
-    .show_menu_on_left_click(false)
-    .on_tray_icon_event(|tray, event| {
-      if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-        let app = tray.app_handle();
-        let shown = app.get_webview_window("memo").and_then(|memo| memo.is_visible().ok()).unwrap_or(false);
-        let _ = set_memo_visible(app.clone(), !shown);
-      }
-    })
-    .build(app)?;
-  Ok(())
-}
-
-#[tauri::command]
-fn set_memo_visible<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
-  let memo = app.get_webview_window("memo").ok_or("메모 창이 없어요.")?;
-  if !visible {
-    return memo.hide().map_err(|e| e.to_string());
-  }
-  if let Some(icon) = tray_rect_of(&app, MEMO_TRAY) {
-    let size = memo.outer_size().map_err(|e| e.to_string())?;
-    let unit = pet_unit(&memo);
-    let gap = PET_GAP * if POINTS { 1.0 } else { memo.scale_factor().unwrap_or(1.0) };
-    put_pet(&memo, spot_by_icon(icon, (size.width as f64 / unit, size.height as f64 / unit), screen_by_icon(&memo, icon), gap));
-  }
-  memo.show().map_err(|e| e.to_string())?;
-  key_without_activate(&memo);
-  let _ = memo.emit("memo-shown", ());
-  Ok(())
-}
-
-// 메모를 방 폴더 맨 위에 .txt 새 파일로 저장해요. 1MB까지, 같은 이름이 있으면 OS가 거절해요(덮어쓰지 않음).
+// 퀵 메모(2026-11-19 요청): 메뉴 막대 작은 창의 메모를 방 폴더 맨 위에 .txt 새 파일로 저장해요. 1MB까지, 같은 이름이 있으면 OS가 거절해요(덮어쓰지 않음).
 const MEMO_MAX: usize = 1_000_000;
 fn memo_name_ok(name: &str) -> bool {
   safe_relative(name) && !name.contains('/') && !name.starts_with('.') && name.ends_with(".txt") && name.len() > 4
@@ -1310,7 +1253,7 @@ pub fn run() {
         ask_quit(app);
       }
     })
-    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, save_download, save_memo, set_memo_visible, screenshot_dir, make_shot_folder, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
+    .invoke_handler(tauri::generate_handler![allow_rooms, show_main, quit_app, quit_answer, set_pet_visible, open_in_app, trash_file, restore_trashed, last_used_dates, video_seconds, move_file, copy_file, save_download, save_memo, screenshot_dir, make_shot_folder, find_folders, allow_found_rooms, thumbnail, slide_preview, set_panel_visible, set_tray_dot, set_tray_working])
     .setup(|_app| {
       // 새 파일이 들어오는 기본 현관: 다운로드 폴더 맨 위층만 읽고 옮길 수 있게 열어 둬요. 하위 폴더는 열지 않고, 쓰기·지우기 권한은 더하지 않아요.
       if let Ok(downloads) = _app.path().download_dir() {
@@ -1330,13 +1273,6 @@ pub fn run() {
         place_pet_top_right(&pet);
         #[cfg(target_os = "macos")]
         float_everywhere(&pet);
-      }
-      if let Err(error) = build_memo_tray(_app.handle()) {
-        eprintln!("메모 아이콘을 만들지 못했어요: {error}");
-      }
-      #[cfg(target_os = "macos")]
-      if let Some(memo) = _app.get_webview_window("memo") {
-        float_everywhere(&memo);
       }
       Ok(())
     })
@@ -1482,7 +1418,7 @@ mod tests {
       .invoke_handler(tauri::generate_handler![save_memo])
       .build(tauri::generate_context!(test = true))
       .unwrap();
-    let webview = tauri::WebviewWindowBuilder::new(&app, "memo", Default::default()).build().unwrap();
+    let webview = tauri::WebviewWindowBuilder::new(&app, "pet", Default::default()).build().unwrap();
     app.fs_scope().allow_directory(&room, true).unwrap();
 
     invoke(&webview, "save_memo", json!({ "room": room, "name": "2026-11-19 졸업 memo.txt", "text": "할 일" })).unwrap();

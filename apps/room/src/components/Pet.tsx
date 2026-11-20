@@ -21,6 +21,7 @@ import { PoseArt, RoomFaceArt } from "./RoomFace";
 import { cue } from "./useFrodo";
 import { Meta } from "./Meta";
 import { HoldToEnd } from "./home/WorkControl";
+import { QuickMemo } from "./QuickMemo";
 
 const saveEveryMs = 60_000;
 const dragSlop = 4;
@@ -55,6 +56,8 @@ export function Pet() {
   const [done, setDone] = useState<{ text: string; failed?: boolean; undo?: { moves: { item: DoorItem; moved: DoorMove }[]; room: Room }; saved?: { root: string; name: string } } | null>(null);
   // 웹에서 그림·파일 링크를 끌어 프로도 위에 올려 둔 동안. 프로도가 받는 자세를 해요.
   const [dropping, setDropping] = useState(false);
+  // 메뉴 막대 작은 창 안에 펼친 퀵 메모(2026-11-19 요청).
+  const [memoOpen, setMemoOpen] = useState(false);
   const [fileBusy, setFileBusy] = useState(false);
   // 이 작업에서 새로 찍은 스크린샷. 현관 파일과 같은 길로 방 안 '스크린샷/찍은 날' 폴더에 옮겨요(2026-11-19 요청).
   const [shots, setShots] = useState<DoorItem[]>([]);
@@ -830,12 +833,12 @@ export function Pet() {
             <p className="pet-panel-note">진행 중인 방이 없어요. 앱에서 방을 만들어 주세요.</p>
           )}
           {asks}
-          {isNative() && (
-            <footer className="pet-panel-foot">
-              <button type="button" onClick={openApp}>앱 열기</button>
-              <button type="button" onClick={() => void quit()}>Folduct 끄기</button>
-            </footer>
-          )}
+          {memoOpen && <QuickMemo onClose={() => setMemoOpen(false)} />}
+          <footer className="pet-panel-foot">
+            <button type="button" aria-expanded={memoOpen} onClick={() => setMemoOpen((open) => !open)}>{memoOpen ? "메모 접기" : "메모"}</button>
+            {isNative() && <button type="button" onClick={openApp}>앱 열기</button>}
+            {isNative() && <button type="button" onClick={() => void quit()}>Folduct 끄기</button>}
+          </footer>
         </div>
       </main>
     );

@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { localDay } from "../domain/care";
 import type { Room } from "../domain/model";
 import { freeDoorName, memoName, saveMemo, trashFile } from "../gateways/mover";
@@ -30,8 +28,8 @@ const recall = (key: string): string => {
 const linked = (room: Room) => room.source === "handle" && Boolean(room.origin) && !room.care.done;
 const defaultBase = (room: Room | undefined) => `${localDay(Date.now())} ${room?.name ?? ""} memo`.replace(/\s+/g, " ");
 
-// 퀵 메모(2026-11-19 요청): 메뉴 막대 메모 아이콘으로 여는 작은 창. 저장하면 고른 방 폴더 맨 위에 '날짜 방이름 memo.txt'로 들어가요.
-export function QuickMemo() {
+// 퀵 메모(2026-11-19 요청): 메뉴 막대 작은 창 안에서 '메모'를 누르면 펼쳐져요. 저장하면 고른 방 폴더 맨 위에 '날짜 방이름 memo.txt'로 들어가요.
+export function QuickMemo({ onClose }: { onClose: () => void }) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomId, setRoomId] = useState(() => recall(roomKey));
   const [text, setText] = useState(() => recall(draftKey));
@@ -44,7 +42,7 @@ export function QuickMemo() {
 
   const room = rooms.find((item) => item.id === roomId);
 
-  // 창이 열릴 때마다 방 목록을 다시 읽고, 작업 중인 방이 있으면 그 방을 골라요.
+  // 펼칠 때마다 방 목록을 다시 읽고, 작업 중인 방이 있으면 그 방을 골라요.
   useEffect(() => {
     const load = async () => {
       try {
@@ -59,9 +57,6 @@ export function QuickMemo() {
       area.current?.focus();
     };
     void load();
-    if (!isNative()) return;
-    const stop = listen("memo-shown", () => void load());
-    return () => void stop.then((off) => off());
   }, []);
 
   useEffect(() => {
@@ -70,10 +65,6 @@ export function QuickMemo() {
 
   useEffect(() => remember(draftKey, text), [text]);
   useEffect(() => remember(roomKey, roomId || null), [roomId]);
-
-  const close = () => {
-    if (isNative()) invoke("set_memo_visible", { visible: false }).catch((error: unknown) => console.error(error));
-  };
 
   async function save() {
     if (!room?.origin || !text.trim() || busy) return;
@@ -108,7 +99,10 @@ export function QuickMemo() {
   }
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape") close();
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      onClose();
+    }
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       void save();
@@ -116,8 +110,7 @@ export function QuickMemo() {
   };
 
   return (
-    <main className="memo" onKeyDown={onKey}>
-      <div className="pet-card memo-card">
+    <section className="pet-memo" aria-label="퀵 메모" onKeyDown={onKey}>
         <textarea ref={area} className="memo-text" aria-label="메모" placeholder="바로 적어 두세요" value={text} onChange={(event) => setText(event.target.value)} />
         {rooms.length === 0 ? (
           <p className="memo-note">폴더를 연결한 방이 있어야 저장할 수 있어요.</p>
@@ -150,10 +143,9 @@ export function QuickMemo() {
           </div>
         )}
         <div className="memo-actions">
-          <button type="button" className="quiet" onClick={close}>닫기</button>
+          <button type="button" className="quiet" onClick={onClose}>닫기</button>
           <button type="button" className="primary" disabled={busy || !room || !text.trim() || !isNative()} title={isNative() ? "⌘Enter" : "앱에서만 저장할 수 있어요"} onClick={() => void save()}>저장</button>
         </div>
-      </div>
-    </main>
+    </section>
   );
 }
