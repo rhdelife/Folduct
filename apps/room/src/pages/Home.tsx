@@ -20,7 +20,7 @@ import { useToast } from "../components/Toast";
 import { PreviewPane } from "../components/home/PreviewPane";
 import { createReport, WorkReportDialog } from "../components/WorkReportDialog";
 import { aiReady } from "../domain/aiNote";
-import { doneOfferDue, mergeScan, sweepDue, sweepIntervalDays } from "../domain/care";
+import { doneOfferDue, mergeScan, sweepDue, sweepIntervalDays, sweepRooms } from "../domain/care";
 import { doorTargets, dropItem, emptyDoorstep, restoreItem, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { buildRoom, doneAfterDays, looksDone, parseRoomsFile } from "../domain/importFile";
 import type { Room } from "../domain/model";
@@ -119,7 +119,7 @@ export function Home({ returnTo, entered, onOpen }: { returnTo: string | null; e
   const findSweep = useCallback(async (list?: Room[]) => {
     const due = await planSweep(list);
     const fresh = (await load()) ?? [];
-    const asks = fresh.filter((room) => (!list || list.some((item) => item.id === room.id)) && doneOfferDue(room, Date.now()));
+    const asks = sweepRooms(fresh).filter((room) => (!list || list.some((item) => item.id === room.id)) && doneOfferDue(room, Date.now()));
     if (due.length === 0 && asks.length === 0) return false;
     setOffers(asks);
     setPlans(due);

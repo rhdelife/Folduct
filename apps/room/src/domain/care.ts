@@ -75,8 +75,17 @@ export function thingAge(thing: Thing, room: Pick<Room, "care" | "workDays" | "c
 // 큰 파일부터 보여 줍니다. 치웠을 때 공간이 가장 많이 비는 순서예요.
 // 도구가 만든 폴더(target·build·cache…)와 사람이 치워 둔 보관 폴더(_archive·old·backup…) 안 파일은 이미 정리된 것이라 묻지 않아요(2026-11-19 요청).
 const inBackFolder = (path: string) => path.split("/").slice(0, -1).some(isBackFolder);
+// 내가 연결한 방은 방을 만든 뒤 새로 들어온 파일만 물어요(2026-11-20 요청). 방을 만들 때 이미 있던 파일은 그 방의 원래 모습이라 묻지 않아요.
+// 샘플 방은 정리를 구경할 수 있게 그대로예요.
+const addedLater = (thing: Thing, room: Room) => room.source === "sample" || thing.seenAt > room.createdAt;
 export function sweepCandidates(room: Room, now: number): Thing[] {
-  return room.things.filter((thing) => !inBackFolder(thing.path) && thingAge(thing, room, now).stale).sort((a, b) => b.size - a.size);
+  return room.things.filter((thing) => addedLater(thing, room) && !inBackFolder(thing.path) && thingAge(thing, room, now).stale).sort((a, b) => b.size - a.size);
+}
+
+// 주간 정리에서 살펴볼 방: 내가 추가한 방이 하나라도 있으면 그 방들만, 샘플 방만 있으면(웹 구경) 샘플 방이에요(2026-11-20 요청).
+export function sweepRooms<T extends Pick<Room, "source">>(rooms: T[]): T[] {
+  const mine = rooms.filter((room) => room.source !== "sample");
+  return mine.length > 0 ? mine : rooms;
 }
 
 // 방 안 네 줄. 파일은 새로 왔어요 → 요즘 써요 → 잠잠해요 → 정리 상자로 흘러갑니다.

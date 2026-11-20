@@ -6,7 +6,7 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { cursorPosition, getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { kindParts, poseFace, type DuctPose } from "../art/duct";
 import { kindTones } from "../art/palette";
-import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue } from "../domain/care";
+import { dayMs, doneOfferDue, localDay, sweepCandidates, sweepDue, sweepRooms } from "../domain/care";
 import { faceColorVar } from "../domain/face";
 import { doorTargets, dropItem, emptyDoorstep, isScreenshotName, type DoorItem, type Doorstep } from "../domain/doorstep";
 import { readDoorFolder } from "../gateways/folder";
@@ -122,7 +122,7 @@ export function Pet() {
       const now = Date.now();
       if (last === null || !sweepDue(last, now, every)) return setSweepNotice(null);
       if (noticed !== null && noticed > last && now - noticed < every * dayMs) return;
-      const active = rooms.filter((item) => !item.care.done);
+      const active = sweepRooms(rooms.filter((item) => !item.care.done));
       const count = active.reduce((sum, item) => sum + sweepCandidates(item, now).length, 0) + active.filter((item) => doneOfferDue(item, now)).length;
       setSweepNotice(count > 0 ? count : null);
     })().catch((error: unknown) => console.error(error));

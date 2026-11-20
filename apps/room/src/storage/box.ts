@@ -1,4 +1,4 @@
-import { mergeScan, sweepCandidates } from "../domain/care";
+import { mergeScan, sweepCandidates, sweepRooms } from "../domain/care";
 import type { BoxEntry, Room, Thing } from "../domain/model";
 import { fileManagerName } from "../domain/platform";
 import { fileExists, freeBoxPath, moveFile, type MoveDirectory } from "../gateways/mover";
@@ -77,7 +77,7 @@ export async function refreshRooms(rooms: Room[], now = Date.now()): Promise<num
 // rooms를 주면 다시 읽지 않습니다. 방마다 권한 확인과 폴더 읽기는 동시에 합니다.
 export async function planSweep(rooms?: Room[], now = Date.now()): Promise<SweepPlan[]> {
   const plans = await Promise.all(
-    (rooms ?? (await listRooms())).map(async (room): Promise<SweepPlan | null> => {
+    sweepRooms(rooms ?? (await listRooms())).map(async (room): Promise<SweepPlan | null> => {
       const handle = await roomFolder(room);
       // 저장된 활동은 방에 들어갈 때만 새로워집니다. 방 밖에서 쓴 파일이 오래된 것으로 잡히지 않게 폴더를 먼저 다시 읽습니다.
       const { current, seen } = handle ? await rereadRoom(room, handle, now) : { current: room, seen: null };

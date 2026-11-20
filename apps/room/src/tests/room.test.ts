@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { dayMs, defaultCare, doneOfferDue, GB, handTouchedAt, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, shownActivity, sizeRatio, laneOf, laneOrder, sweepCandidates, thingAge } from "../domain/care";
+import { dayMs, defaultCare, doneOfferDue, GB, handTouchedAt, lastActivity, localDay, markWorkDay, mergeActivityDays, mergeScan, newFileCount, normalizeCare, objectScale, relativeDay, roomUsage, scanOverlap, shownActivity, sizeRatio, laneOf, laneOrder, sweepCandidates, sweepRooms, thingAge } from "../domain/care";
 import { clampSpot, plane, screenDeltaToFloor, toScreen } from "../domain/plane";
 import { formatBytes, kindOf, type Room, type ScannedFile, type Thing } from "../domain/model";
 import { folderProblem, readFileAt, scanFolder, scanLimits, type DirectorySource } from "../gateways/folder";
@@ -71,14 +71,14 @@ describe("방치 판정", () => {
     const small = thing({ size: 10 });
     const large = thing({ size: 1000 });
     const middle = thing({ size: 100 });
-    const ordered = sweepCandidates(room([small, large, middle], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs);
+    const ordered = sweepCandidates(room([small, large, middle], { createdAt: start - dayMs, workDays: [localDay(start + dayMs)] }), start + 31 * dayMs);
     expect(ordered.map((item) => item.id)).toEqual([large.id, middle.id, small.id]);
     const fallen = thing();
     const onShelf = thing({ spot: null });
     const boxed = thing({ box: { state: "virtual", fromPath: "참고/a.png", boxPath: "참고/a.png", at: start } });
     // 이번 주에 새로 들어와 아직 열지 않은 파일은 '새로 왔어요' 줄이라 후보가 아니에요.
     const justSeen = thing({ touchedAt: null, seenAt: start + 28 * dayMs });
-    const candidates = sweepCandidates(room([fallen, onShelf, boxed, justSeen], { workDays: [localDay(start + dayMs), localDay(start + 25 * dayMs)] }), start + 31 * dayMs);
+    const candidates = sweepCandidates(room([fallen, onShelf, boxed, justSeen], { createdAt: start - dayMs, workDays: [localDay(start + dayMs), localDay(start + 25 * dayMs)] }), start + 31 * dayMs);
     expect(candidates.map((item) => item.id)).toEqual([fallen.id, onShelf.id]);
     expect(markWorkDay(["2026-10-01"], start)).toEqual(["2026-10-01", "2026-10-05"]);
   });
@@ -88,8 +88,25 @@ describe("방치 판정", () => {
     const built = thing({ path: "src-tauri/target/debug/deps/libfoo.rlib" });
     const kept = thing({ path: "_archive/옛시안.psd" });
     const named = thing({ path: "target.psd" });
-    const ids = sweepCandidates(room([loose, built, kept, named], { workDays: [localDay(start + dayMs)] }), start + 31 * dayMs).map((item) => item.id);
+    const ids = sweepCandidates(room([loose, built, kept, named], { createdAt: start - dayMs, workDays: [localDay(start + dayMs)] }), start + 31 * dayMs).map((item) => item.id);
     expect(ids.sort()).toEqual([loose.id, named.id].sort());
+  });
+});
+
+describe("주간 정리는 내가 추가한 방의 새 파일만", () => {
+  it("방을 만들 때 있던 파일은 묻지 않고, 그 뒤 들어온 파일만 후보예요", () => {
+    const original = thing({ seenAt: start });
+    const later = thing({ seenAt: start + dayMs });
+    const ids = sweepCandidates(room([original, later], { workDays: [localDay(start + 2 * dayMs)] }), start + 40 * dayMs).map((item) => item.id);
+    expect(ids).toEqual([later.id]);
+  });
+
+  it("샘플 방은 그대로 묻고, 내 방이 있으면 샘플 방은 살펴보지 않아요", () => {
+    const sample = room([thing({ seenAt: start })], { source: "sample", workDays: [localDay(start + 2 * dayMs)] });
+    expect(sweepCandidates(sample, start + 40 * dayMs)).toHaveLength(1);
+    const mine = room([], { id: "mine" });
+    expect(sweepRooms([sample, mine]).map((item) => item.id)).toEqual(["mine"]);
+    expect(sweepRooms([sample])).toEqual([sample]);
   });
 });
 

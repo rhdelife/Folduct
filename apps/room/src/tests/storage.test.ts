@@ -256,8 +256,9 @@ describe("주간 정리 기록", () => {
 
   describe("정리 후보를 고르기 전에 폴더를 다시 읽는다", () => {
     const scanned = (path: string, patch: Partial<ScannedFile> = {}): ScannedFile => ({ path, name: path, kind: "design", size: 100, lastModified: 0, ...patch });
+    // 방을 만든 뒤 들어온 파일만 후보예요. 방은 파일보다 하루 먼저 만들었어요.
     const handleRoom = (...things: Thing[]) => {
-      const item = room(things);
+      const item = room(things, { createdAt: start - dayMs });
       store(item);
       vi.mocked(getHandle).mockResolvedValue(folder(seed()) as FileSystemDirectoryHandle);
       return item;
